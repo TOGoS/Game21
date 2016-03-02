@@ -31,12 +31,16 @@ CanvasWorldView.prototype.drawFrame = function(time) {
 	var x = 16*10 + Math.cos( time * 0.01 ) * 64;
 	var y = 16*10 + Math.sin( time * 0.01 ) * 64;
 	
-	ctx.clearRect(0,0,this.canvas.width, this.canvas.height);
+	var fogColor = [64,96,128,0.5]; // Last component is alpha per distance unit
+	ctx.fillStyle = 'rgb('+fogColor[0]+','+fogColor[1]+','+fogColor[2]+')';
+	ctx.fillRect(0,0,this.canvas.width, this.canvas.height);
+	
 	var i, d;
-	var dists = [3.0, 2.5, 2.0, 1.6, 1.3, 1.1, 1.0];
+	var dists = [10.0, 8.0, 6.0, 4.0, 3.0, 2.5, 2.0, 1.6, 1.3, 1.1, 1.0];
 	var dist, prevDist = null;
 	for( d=0; d<dists.length; ++d ) {
-		dist = dists[d];
+		dist = dists[d] + Math.sin(time * 0.015 );
+		
 		for( i=0; i<this.sprites.length; ++i ) {
 			var sprite = this.sprites[i];
 			var slice = sprite.imageSlice;
@@ -44,14 +48,18 @@ CanvasWorldView.prototype.drawFrame = function(time) {
 			var screenY = focusScreenY + (sprite.y - y)/dist;
 			var sliceW = slice.sw/dist;
 			var sliceH = slice.sh/dist;
-			drawSlice(slice, ctx, screenX|0, screenY|0, sliceW|0, sliceH|0);
+			
+			drawSlice(slice, ctx, screenX|0, screenY|0, Math.ceil(sliceW)|0, Math.ceil(sliceH)|0);
+			//drawSlice(slice, ctx, screenX|0, screenY|0, sliceW, sliceH);
+			//drawSlice(slice, ctx, screenX, screenY, sliceW, sliceH);
 		}
+		
 		if( prevDist !== null && dist > 1 ) {
 			// TODO: Better fog calculation
-			var alpha = (prevDist-dist) * 0.6;
-			ctx.fillStyle = 'rgba(0,0,0,'+alpha+')';
+			var fogLayerAlpha = Math.pow(fogColor[3], 1.0/(prevDist-dist));
+			ctx.fillStyle = 'rgba('+fogColor[0]+','+fogColor[1]+','+fogColor[2]+','+fogLayerAlpha+')';
 			ctx.fillRect(0,0,this.canvas.width,this.canvas.height);
-			ctx.fillStyle = 'rgba(0,0,0,1)';
+			//ctx.fillStyle = 'rgba(0,0,0,1)';
 		}
 		prevDist = dist;
 	}
