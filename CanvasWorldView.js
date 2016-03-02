@@ -17,6 +17,9 @@ var ImageSlice = function(image, sx, sy, sw, sh) {
 var drawSlice = function(slice, ctx, x, y, w, h) {
 	if( w == null ) w = slice.sw;
 	if( h == null ) h = slice.sh;
+	// Only do smoothing to downscale, not to upscale:
+	ctx.imageSmoothingEnabled = w < slice.sw;
+
 	ctx.drawImage(slice.image, slice.sx, slice.sy, slice.sw, slice.sh, x, y, w, h);
 };
 
