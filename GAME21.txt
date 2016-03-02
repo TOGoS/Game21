@@ -1,0 +1,23 @@
+# Game engine 21
+
+- 3d block-based world
+  - play mostly in one plane
+  - depth broken into parallax layers in predetermined places
+  - multi-tile entities
+  - variable-sized rooms w/ neighbors a la D4
+- compressed JSON for storage
+  - world stored as a hash tre
+    - indirect references (using UUIDs and sequential IDs)
+      between most objects
+    - tree maps as dictionaries f
+- BUILD A NICE 2.5D TILE EDITOR
+  - block references 'visual representation'
+  - visual representation indicates shape ID and material map ID
+  - shape indicates heightfield and material map indexes for each pixel
+    - 4 'stain' variations on each material for minor color variation
+  - edit one sprite sheet at a time, export to blocks
+  - no need to pre-bake transformations
+  - allow editing milti-tile images to define related tiles such as pipes
+- auto-generated data classes (if any), [de]serialization routines
+  - NO BEHAVIOR defined by data classes!
+ 
