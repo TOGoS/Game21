@@ -1,4 +1,8 @@
+(function() {
+
 var module = window;
+
+var LARGE_NUMBER = 1000;
 
 var normalizeVect3d = function(vect) {
 	var len = Math.sqrt(vect[0]*vect[0] + vect[1]*vect[1] + vect[2]*vect[2]);
@@ -26,6 +30,7 @@ ShapeEditor.prototype.initBuffer = function(width,height) {
 	// Primary shape data
 	this.cellMaterialIndexes = new Uint16Array( cellCount);
 	this.cellCornerDepths    = new Float32Array(cellCount*4); // Depth (in pixels) of each corner
+	this.cellCornerDepths.fill(Infinity);
 	// calculated by calculateCellDepthDerivedData based on cellCornerDepths:
 	this.cellCoverages       = new Uint8Array(cellCount); // coverage based on depth; 0,1,2,3,4 (divide by 4.0 to get opacity factor)
 	this.cellAverageDepths   = new Float32Array(cellCount);
@@ -82,7 +87,7 @@ var calcSlope4 = function(z0,z1,z2,z3) {
 		return s0;
 	} else if( s0 === Infinity ) {
 		if( s1 === Infinity ) {
-			return 9999;
+			return LARGE_NUMBER;
 		} else if( s1 === -Infinity ) {
 			return 0;
 		} else {
@@ -92,7 +97,7 @@ var calcSlope4 = function(z0,z1,z2,z3) {
 		if( s1 === Infinity ) {
 			return 0;
 		} else if( s1 === -Infinity ) {
-			return -9999;
+			return -LARGE_NUMBER;
 		} else {
 			return s1;
 		}
@@ -197,11 +202,52 @@ ShapeEditor.prototype.renderPreviews = function() {
 	this.calculateCellColors();
 	this.copyToCanvas();
 };
-ShapeEditor.prototype.runDemo = function() {
+var infiniMinus = function(a, b) {
+	if( a === b ) return 0;
+	if( a === +Infinity ) {
+		if( b === -Infinity ) return 0;
+		return +LARGE_NUMBER;
+	}
+	if( a === -Infinity ) {
+		if( b === +Infinity ) return 0;
+		return -LARGE_NUMBER;
+	}
+	return a - b;
+};
+ShapeEditor.prototype.plotPixel = function(x, y, z0, z1, z2, z3, materialIndex) {
+	x = x|0;
+	y = y|0;
+	if( x < 0 ) return;
+	if( y < 0 ) return;
+	var width = this.width;
+	var cellMaterialIndexes = this.cellMaterialIndexes;
+	var cellCornerDepths = this.cellCornerDepths;
+	if( x >= width ) return;
+	if( y >= this.height ) return;
+	var idx = x+y*width;
+	var oldZ0 = cellCornerDepths[idx*4+0],
+	    oldZ1 = cellCornerDepths[idx*4+1],
+	    oldZ2 = cellCornerDepths[idx*4+2],
+	    oldZ3 = cellCornerDepths[idx*4+3];
+	var ox =
+		  infiniMinus(z0, oldZ0) +
+		  infiniMinus(z1, oldZ1) +
+		  infiniMinus(z2, oldZ2) +
+		  infiniMinus(z3, oldZ3);
+	if( z0 < oldZ0 ) cellCornerDepths[idx*4+0] = z0;
+	if( z1 < oldZ1 ) cellCornerDepths[idx*4+1] = z1;
+	if( z2 < oldZ2 ) cellCornerDepths[idx*4+2] = z2;
+	if( z3 < oldZ3 ) cellCornerDepths[idx*4+3] = z3;
+	if( ox < 0 ) {
+		// Then our new thing is on average in front of the old thing
+		cellMaterialIndexes[idx] = materialIndex;
+	}
+};
+ShapeEditor.prototype.plotSphere = function(centerX, centerY, centerZ, rad) {
 	var i;
 	var sphereDepth = (function(x,y) {
-		var sphereX = (x - this.width/2.0) / ((this.width+0.5)/2.0);
-		var sphereY = (y - this.height/2.0) / ((this.height+0.5)/2.0);
+		var sphereX = (x - centerX) / rad;
+		var sphereY = (y - centerY) / rad;
 		// 1 = Math.sqrt(sphereX**2 + sphereY**2 + sphereZ**2)
 		// 1 = sphereX**2 + sphereY**2 + sphereZ ** 2
 		// 1 - sphereZ**2 = sphereX**2 + sphereY**2
@@ -216,13 +262,38 @@ ShapeEditor.prototype.runDemo = function() {
 	var x, y;
 	for( i=0, y=0; y<this.height; ++y ) {
 		for( x=0; x<this.width; ++x, ++i ) {
-			this.cellMaterialIndexes[i] = (Math.random()*3)|0;
+			var materialIndex = (Math.random()*3)|0;
+			this.plotPixel(
+				x, y,
+				sphereDepth(x+0,y+0),
+				sphereDepth(x+1,y+0),
+				sphereDepth(x+0,y+1),
+				sphereDepth(x+1,y+1),
+				materialIndex
+			);
+			/*
+			this.cellMaterialIndexes[i] = materialIndex;
 			this.cellCornerDepths[i*4+0] = sphereDepth(x+0,y+0);
 			this.cellCornerDepths[i*4+1] = sphereDepth(x+1,y+0);
 			this.cellCornerDepths[i*4+2] = sphereDepth(x+0,y+1);
 			this.cellCornerDepths[i*4+3] = sphereDepth(x+1,y+1);
+			*/
 		}
 	}
+};
+
+ShapeEditor.prototype.runDemo = function() {
+	this.plotSphere(this.width/2, this.height/2, this.width/2, this.width*(1.0/8));
+	var i;
+	for( i=0; i<200; ++i ) {
+		var r = 2 * Math.PI * i / 200;
+		this.plotSphere(
+			this.width/2  + Math.cos(r)*this.width*(3.0/8),
+			this.height/2 + Math.sin(r)*this.height*(3.0/8),
+			this.width/2,
+			this.height/8);
+	}
+	
 	this.calculateCellDepthDerivedData();
 	
 	var f = 0, fps = 0;
@@ -244,3 +315,5 @@ ShapeEditor.prototype.runDemo = function() {
 };
 
 module.ShapeEditor = ShapeEditor;
+
+})();
