@@ -178,8 +178,21 @@ ShapeEditor.prototype.runDemo = function() {
 			this.cellCornerDepths[i*4+3] = sphereDepth(x+1,y+1);
 		}
 	}
-	
-	this.renderPreviews();
+	var f = 0, fps = 0;
+	var animationCallback = (function() {
+		this.lights[0].direction = [+Math.sin(f*0.01),  0.8, +Math.cos(f*0.01)];
+		this.lights[1].direction = [-Math.sin(f*0.005), -0.8, -Math.cos(f*0.005)];
+		this.normalizeLights();
+		this.renderPreviews();
+		setTimeout(requestAnimationCallback, 1000 / 100);
+		++f;
+		++fps;
+	}).bind(this);
+	var requestAnimationCallback = function() {
+		window.requestAnimationFrame(animationCallback);
+	};
+	setInterval(function() { console.log("FPS: "+fps); fps = 0; }, 1000);
+	requestAnimationCallback();
 };
 
 module.ShapeEditor = ShapeEditor;
