@@ -155,15 +155,15 @@ ShapeEditor.prototype.renderPreviews = function() {
 ShapeEditor.prototype.runDemo = function() {
 	var i;
 	var sphereDepth = (function(x,y) {
-		var sphereX = (x - this.width/2.0) / (this.width/2.0);
-		var sphereY = (y - this.height/2.0) / (this.height/2.0);
+		var sphereX = (x - this.width/2.0) / ((this.width+0.5)/2.0);
+		var sphereY = (y - this.height/2.0) / ((this.height+0.5)/2.0);
 		// 1 = Math.sqrt(sphereX**2 + sphereY**2 + sphereZ**2)
 		// 1 = sphereX**2 + sphereY**2 + sphereZ ** 2
 		// 1 - sphereZ**2 = sphereX**2 + sphereY**2
 		// -sphereZ**2 = sphereX**2 + sphereY**2 - 1
 		// sphereZ**2 = 1 - (sphereX**2 + sphereY**2)
 		var h = 1 - (sphereX*sphereX + sphereY*sphereY);
-		if( h < 0 ) return -Infinity;
+		if( h < 0 ) return Infinity;
 		
 		var sphereZ = Math.sqrt( h );
 		return (1 - sphereZ) * this.width / 2;
