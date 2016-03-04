@@ -1,0 +1,38 @@
+<html>
+<meta charset="utf-8"/>
+<head>
+<style>
+.preview-region {
+	width: 100%;
+	height: 100%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+canvas {
+	background: black;
+	image-rendering: pixelated;
+}
+</style>
+</head>
+<body style="background: rgb(24,0,24)">
+
+<div class="preview-region">
+<canvas id="shaded-preview-canvas" class="world-view" width="64" height="64">
+</canvas>
+</div>
+
+<script src="ShapeEditor.js"></script>
+<script>//<![CDATA[
+(function() {
+	var se = new ShapeEditor();
+	se.initUi(document.getElementById('shaded-preview-canvas'));
+	se.runDemo();
+	
+	window.shapeEditor = se;
+})();
+//]]></script>
+
+
+</body>
+</html>
