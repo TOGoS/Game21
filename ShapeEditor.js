@@ -32,17 +32,64 @@ var ShapeEditor = function() {
 			color: [0.1, 0.01, 0.01]
 		}
 	];
+};
+ShapeEditor.prototype.normalizeLights = function() {
 	// Normalize light directions!
 	var l, light;
 	for( l in this.lights ) {
 		// normalize direction!
 		light = this.lights[l];
 		light.direction = normalizeVect3d(light.direction);
-	}	
+	}
 };
 ShapeEditor.prototype.initUi = function(previewCanvas) {
 	this.previewCanvas = previewCanvas;
 };
+
+var calcOpacity4 = function(z0, z1, z2, z3) {
+	var opac = 1;
+	if( z0 === Infinity ) opac -= 0.25;
+	if( z1 === Infinity ) opac -= 0.25;
+	if( z2 === Infinity ) opac -= 0.25;
+	if( z3 === Infinity ) opac -= 0.25;
+	return opac;
+};
+var calcSlope2 = function(z0,z1) {
+	if( z0 === z1 ) return 0;
+	if( z0 === Infinity ) return -Infinity;
+	if( z1 === Infinity ) return +Infinity;
+	return z1 - z0;
+};
+var calcSlope4 = function(z0,z1,z2,z3) {
+	var s0 = calcSlope2(z0,z1);
+	var s1 = calcSlope2(z2,z3);
+	if( s0 === Infinity ) {
+		if( s1 === Infinity ) {
+			return 9999;
+		} else if( s1 === -Infinity ) {
+			return 0;
+		} else {
+			return s1;
+		}
+	} else if( s0 === -Infinity ) {
+		if( s1 === Infinity ) {
+			return 0;
+		} else if( s1 === -Infinity ) {
+			return -9999;
+		} else {
+			return s1;
+		}
+	} else {
+		if( s1 === Infinity ) {
+			return s0;
+		} else if( s1 === -Infinity ) {
+			return s0;
+		} else {
+			return (s1 + s0)/2.0;
+		}
+	}
+};
+
 ShapeEditor.prototype.calculateCellColors = function() {
 	var i, l;
 	var cornerDepths = this.cellCornerDepths;
@@ -52,13 +99,16 @@ ShapeEditor.prototype.calculateCellColors = function() {
 	for( i=0; i<this.width*this.height; ++i ) {
 		var mat = this.materials[this.cellMaterialIndexes[i]];
 		// Z being 'into' the picture (right-handed coordinate system!)
-		// Maybe this will work!
-		var dzdx = (
-			(cornerDepths[i*4+1] - cornerDepths[i*4+0]) + 
-			(cornerDepths[i*4+3] - cornerDepths[i*4+2])) / 2;
-		var dzdy = (
-			(cornerDepths[i*4+2] - cornerDepths[i*4+0]) + 
-			(cornerDepths[i*4+3] - cornerDepths[i*4+1])) / 2;
+		
+		var z0 = cornerDepths[i*4+0],
+		    z1 = cornerDepths[i*4+1],
+		    z2 = cornerDepths[i*4+2],
+		    z3 = cornerDepths[i*4+3];
+		
+		var opac = calcOpacity4(z0,z1,z2,z3);
+		var dzdx = calcSlope4(z0,z1,z2,z3);
+		var dzdy = calcSlope4(z0,z2,z1,z3);
+		
 		var normalX = dzdx;
 		var normalY = dzdy;
 		var normalZ = -1;
@@ -69,7 +119,7 @@ ShapeEditor.prototype.calculateCellColors = function() {
 		cellColors[i*4+0] = 0;
 		cellColors[i*4+1] = 0;
 		cellColors[i*4+2] = 0;
-		cellColors[i*4+3] = mat.diffuse[3];
+		cellColors[i*4+3] = mat.diffuse[3] * opac;
 		for( l in lights ) {
 			light = this.lights[l];
 			var dotProd = -(normalX*light.direction[0] + normalY*light.direction[1] + normalZ*light.direction[2]);
