@@ -32,6 +32,7 @@ var ShapeEditor = function() {
 			color: [0.1, 0.01, 0.01]
 		}
 	];
+	this.normalizeLights();
 };
 ShapeEditor.prototype.normalizeLights = function() {
 	// Normalize light directions!
