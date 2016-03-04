@@ -56,7 +56,7 @@ var calcOpacity4 = function(z0, z1, z2, z3) {
 	return opac;
 };
 var calcSlope2 = function(z0,z1) {
-	if( z0 === z1 ) return 0;
+	if( z0 === z1 && (z0 === Infinity || z0 === -Infinity) ) return null; // Indicate to caller not to use this value
 	if( z0 === Infinity ) return -Infinity;
 	if( z1 === Infinity ) return +Infinity;
 	return z1 - z0;
@@ -64,7 +64,13 @@ var calcSlope2 = function(z0,z1) {
 var calcSlope4 = function(z0,z1,z2,z3) {
 	var s0 = calcSlope2(z0,z1);
 	var s1 = calcSlope2(z2,z3);
-	if( s0 === Infinity ) {
+	if( s0 === null && s1 === null ) {
+		return 0; // Should be completely transparent so this won't really matter
+	} else if( s0 === null ) {
+		return s1;
+	} else if( s1 === null ) {
+		return s0;
+	} else if( s0 === Infinity ) {
 		if( s1 === Infinity ) {
 			return 9999;
 		} else if( s1 === -Infinity ) {
