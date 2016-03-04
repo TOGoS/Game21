@@ -32,7 +32,7 @@ canvas.shape-view {
 <script src="ShapeEditor.js"></script>
 <script>//<![CDATA[
 (function() {
-	var se = new ShapeEditor();
+	var se = new ShapeEditor(64, 64);
 	se.initUi(document.getElementById('shaded-preview-canvas'));
 	se.runDemo();
 	

@@ -5,9 +5,12 @@ var normalizeVect3d = function(vect) {
 	return [vect[0]/len, vect[1]/len, vect[2]/len];
 };
 
-var ShapeEditor = function() {
-	this.width = 64;
-	this.height = 64;
+var ShapeEditor = function(width,height) {
+	this.initBuffer(width,height);
+};
+ShapeEditor.prototype.initBuffer = function(width,height) {
+	this.width = width|0;
+	this.height = height|0;
 	this.materials = [
 		{
 			diffuse: [1,1.0,0.9,1.0]
