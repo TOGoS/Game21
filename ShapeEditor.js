@@ -25,11 +25,11 @@ var ShapeEditor = function() {
 	this.lights = [
 		{
 			direction: [1,2,1],
-			color: [0.7, 0.9, 1]
+			color: [0.3, 0.5, 0.5]
 		},
 		{
 			direction: [-1,-2,-1],
-			color: [0.5, 0.2, 0.2]
+			color: [0.1, 0.01, 0.01]
 		}
 	];
 	// Normalize light directions!
@@ -74,10 +74,10 @@ ShapeEditor.prototype.calculateCellColors = function() {
 			light = this.lights[l];
 			var dotProd = -(normalX*light.direction[0] + normalY*light.direction[1] + normalZ*light.direction[2]);
 			if( dotProd > 0 ) {
-				var amt = dotProd; // Probably need to use angle somehow instead
-				cellColors[i*4+0] += amt * light.color[0] * mat.diffuse[0];
-				cellColors[i*4+1] += amt * light.color[1] * mat.diffuse[1];
-				cellColors[i*4+2] += amt * light.color[2] * mat.diffuse[2];
+				var diffuseAmt = dotProd; // Yep, that's how you calculate it.
+				cellColors[i*4+0] += diffuseAmt * light.color[0] * mat.diffuse[0];
+				cellColors[i*4+1] += diffuseAmt * light.color[1] * mat.diffuse[1];
+				cellColors[i*4+2] += diffuseAmt * light.color[2] * mat.diffuse[2];
 			}
 		}
 	}
