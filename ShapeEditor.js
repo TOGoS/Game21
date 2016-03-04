@@ -283,7 +283,7 @@ ShapeEditor.prototype.plotSphere = function(centerX, centerY, centerZ, rad) {
 	}
 };
 
-ShapeEditor.prototype.runDemo = function() {
+ShapeEditor.prototype.buildDemo = function() {
 	this.plotSphere(this.width/2, this.height/2, this.width/2, this.width*(1.0/8));
 	var i;
 	for( i=0; i<200; ++i ) {
@@ -296,7 +296,8 @@ ShapeEditor.prototype.runDemo = function() {
 	}
 	
 	this.calculateCellDepthDerivedData();
-	
+};
+ShapeEditor.prototype.animateLights = function() {
 	var f = 0, fps = 0;
 	var animationCallback = (function() {
 		this.lights[0].direction = [+Math.sin(f*0.01),  0.8, +Math.cos(f*0.01)];
