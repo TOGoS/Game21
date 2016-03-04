@@ -19,9 +19,16 @@ var ShapeEditor = function() {
 			diffuse: [1,0.8,0.7,1.0]
 		}
 	];
-	this.cellMaterialIndexes = new Uint16Array(this.width*this.height);
-	this.cellCornerDepths = new Float32Array(this.width*this.height*4); // Depth (in pixels)
-	this.cellColors = new Float32Array(this.width*this.height*4); // r,g,b,a of each cell after shading
+	var cellCount = this.width*this.height;
+	// Primary shape data
+	this.cellMaterialIndexes = new Uint16Array( cellCount);
+	this.cellCornerDepths    = new Float32Array(cellCount*4); // Depth (in pixels) of each corner
+	// calculated by calculateCellDepthDerivedData based on cellCornerDepths:
+	this.cellCoverages       = new Uint8Array(cellCount); // coverage based on depth; 0,1,2,3,4 (divide by 4.0 to get opacity factor)
+	this.cellAverageDepths   = new Float32Array(cellCount);
+	this.cellNormals         = new Float32Array(cellCount*3); // normal vector X,Y,Z
+	// calculated by calculateCellColors based on the above:
+	this.cellColors          = new Float32Array(cellCount*4); // r,g,b,a of each cell after shading
 	this.lights = [
 		{
 			direction: [1,2,1],
@@ -97,16 +104,14 @@ var calcSlope4 = function(z0,z1,z2,z3) {
 	}
 };
 
-ShapeEditor.prototype.calculateCellColors = function() {
-	var i, l;
+ShapeEditor.prototype.calculateCellDepthDerivedData = function() {
+	var i;
 	var cornerDepths = this.cellCornerDepths;
-	var cellColors = this.cellColors;
-	var lights = this.lights;
-	var light;
-	for( i=0; i<this.width*this.height; ++i ) {
-		var mat = this.materials[this.cellMaterialIndexes[i]];
-		// Z being 'into' the picture (right-handed coordinate system!)
-		
+	
+	var cellCoverages = this.cellCoverages;
+	var cellNormals = this.cellNormals;
+	
+	for( i=this.width*this.height-1; i>=0; --i ) {
 		var z0 = cornerDepths[i*4+0],
 		    z1 = cornerDepths[i*4+1],
 		    z2 = cornerDepths[i*4+2],
@@ -123,12 +128,37 @@ ShapeEditor.prototype.calculateCellColors = function() {
 		normalX /= normalLength;
 		normalY /= normalLength;
 		normalZ /= normalLength;
+		
+		cellCoverages[i] = opac * 4;
+		cellNormals[i*3+0] = normalX;
+		cellNormals[i*3+1] = normalY;
+		cellNormals[i*3+2] = normalZ;
+	}
+};
+
+ShapeEditor.prototype.calculateCellColors = function() {
+	var i, l;
+	var cellColors = this.cellColors;
+	var cellCoverages = this.cellCoverages;
+	var cellNormals = this.cellNormals;
+	var materials = this.materials;
+	var cellMaterialIndexes = this.cellMaterialIndexes;
+	var lights = this.lights;
+	var light;
+	for( i=this.width*this.height-1; i>=0; --i ) {
+		var mat = materials[cellMaterialIndexes[i]];
+		// Z being 'into' the picture (right-handed coordinate system!)
+		
+		var normalX = cellNormals[i*3+0],
+		    normalY = cellNormals[i*3+1],
+		    normalZ = cellNormals[i*3+2];
+		
 		cellColors[i*4+0] = 0;
 		cellColors[i*4+1] = 0;
 		cellColors[i*4+2] = 0;
-		cellColors[i*4+3] = mat.diffuse[3] * opac;
+		cellColors[i*4+3] = mat.diffuse[3] * cellCoverages[i] * 0.25;
 		for( l in lights ) {
-			light = this.lights[l];
+			light = lights[l];
 			var dotProd = -(normalX*light.direction[0] + normalY*light.direction[1] + normalZ*light.direction[2]);
 			if( dotProd > 0 ) {
 				var diffuseAmt = dotProd; // Yep, that's how you calculate it.
@@ -139,12 +169,11 @@ ShapeEditor.prototype.calculateCellColors = function() {
 		}
 	}
 };
-ShapeEditor.prototype.renderPreviews = function() {
+ShapeEditor.prototype.copyToCanvas = function() {
 	var ctx = this.previewCanvas.getContext('2d');
 	var imgData = ctx.getImageData(0, 0, this.previewCanvas.width, this.previewCanvas.height);
 	var imgDataData = imgData.data;
 	var i;
-	this.calculateCellColors();
 	var encodeColorValue = function(i) {
 		var c = Math.pow(i, 0.45);
 		if( c > 1 ) return 255;
@@ -158,6 +187,12 @@ ShapeEditor.prototype.renderPreviews = function() {
 		imgDataData[i*4+3] = this.cellColors[i*4+3] * 255;
 	}
 	ctx.putImageData(imgData, 0, 0);
+};
+ShapeEditor.prototype.renderPreviews = function() {
+	this.normalizeLights();
+	this.calculateCellDepthDerivedData();
+	this.calculateCellColors();
+	this.copyToCanvas();
 };
 ShapeEditor.prototype.runDemo = function() {
 	var i;
@@ -185,13 +220,16 @@ ShapeEditor.prototype.runDemo = function() {
 			this.cellCornerDepths[i*4+3] = sphereDepth(x+1,y+1);
 		}
 	}
+	this.calculateCellDepthDerivedData();
+	
 	var f = 0, fps = 0;
 	var animationCallback = (function() {
 		this.lights[0].direction = [+Math.sin(f*0.01),  0.8, +Math.cos(f*0.01)];
 		this.lights[1].direction = [-Math.sin(f*0.005), -0.8, -Math.cos(f*0.005)];
 		this.normalizeLights();
-		this.renderPreviews();
-		setTimeout(requestAnimationCallback, 1000 / 100);
+		this.calculateCellColors();
+		this.copyToCanvas();
+		setTimeout(requestAnimationCallback, 1); // As often as possible, basically
 		++f;
 		++fps;
 	}).bind(this);
