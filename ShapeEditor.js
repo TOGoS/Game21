@@ -33,10 +33,13 @@ ShapeEditor.prototype.initBuffer = function(width,height) {
 	this.cellCornerDepths    = new Float32Array(cellCount*4); // Depth (in pixels) of each corner
 	this.cellCornerDepths.fill(Infinity);
 	// calculated by calculateCellDepthDerivedData based on cellCornerDepths:
+	this.updatingDepthRectangles = []; // Tracks rectangles that need to have calculateCellDepthDerivedData called
 	this.cellCoverages       = new Uint8Array(cellCount); // coverage based on depth; 0,1,2,3,4 (divide by 4.0 to get opacity factor)
 	this.cellAverageDepths   = new Float32Array(cellCount);
 	this.cellNormals         = new Float32Array(cellCount*3); // normal vector X,Y,Z
 	// calculated by calculateCellColors based on the above:
+	this.updatingColorRectangles = []; // Tracks rectangles that need to have calculateCellColors called
+	this.updatingCanvasRectangles = []; // Tracks rectangles that need to be copied to the canvas
 	this.cellColors          = new Float32Array(cellCount*4); // r,g,b,a of each cell after shading
 	this.lights = [
 		{
@@ -113,14 +116,23 @@ var calcSlope4 = function(z0,z1,z2,z3) {
 	}
 };
 
-ShapeEditor.prototype.calculateCellDepthDerivedData = function() {
-	var i;
+ShapeEditor.prototype.calculateDepthDerivedData = function(minX, minY, w, h) {
+	var width = this.width, height = this.height;
+	var maxX = minX+w, maxY = minY+h;
+	if( minX < 0 ) minX = 0;
+	if( maxX > width ) maxX = width;
+	if( minY < 0 ) minY = 0;
+	if( maxY > height ) maxY = height;
+	w = maxX-minX, h = maxY-minY;
+	if( w <= 0 || h <= 0 ) return;
+	
+	var i, x, y;
 	var cornerDepths = this.cellCornerDepths;
 	
 	var cellCoverages = this.cellCoverages;
 	var cellNormals = this.cellNormals;
-	
-	for( i=this.width*this.height-1; i>=0; --i ) {
+
+	for( i=0, y=minY; y<maxY; ++y ) for( x=minX, i=width*y+x; x<maxX; ++x, ++i ) {
 		var z0 = cornerDepths[i*4+0],
 		    z1 = cornerDepths[i*4+1],
 		    z2 = cornerDepths[i*4+2],
@@ -145,8 +157,21 @@ ShapeEditor.prototype.calculateCellDepthDerivedData = function() {
 	}
 };
 
-ShapeEditor.prototype.calculateCellColors = function() {
-	var i, l;
+ShapeEditor.prototype.updateDepthDerivedData = function() {
+	processRectangleUpdates(this.updatingDepthRectangles, this.calculateDepthDerivedData.bind(this));
+};
+
+ShapeEditor.prototype.calculateCellColors = function(minX, minY, w, h) {
+	var width = this.width, height = this.height;
+	var maxX = minX+w, maxY = minY+h;
+	if( minX < 0 ) minX = 0;
+	if( maxX > width ) maxX = width;
+	if( minY < 0 ) minY = 0;
+	if( maxY > height ) maxY = height;
+	w = maxX-minX, h = maxY-minY;
+	if( w <= 0 || h <= 0 ) return;
+	
+	var i, l, x, y;
 	var cellColors = this.cellColors;
 	var cellCoverages = this.cellCoverages;
 	var cellNormals = this.cellNormals;
@@ -154,7 +179,8 @@ ShapeEditor.prototype.calculateCellColors = function() {
 	var cellMaterialIndexes = this.cellMaterialIndexes;
 	var lights = this.lights;
 	var light;
-	for( i=this.width*this.height-1; i>=0; --i ) {
+	
+	for( i=0, y=minY; y<maxY; ++y ) for( x=minX, i=width*y+x; x<maxX; ++x, ++i ) {
 		var mat = materials[cellMaterialIndexes[i]];
 		// Z being 'into' the picture (right-handed coordinate system!)
 		
@@ -178,31 +204,131 @@ ShapeEditor.prototype.calculateCellColors = function() {
 		}
 	}
 };
-ShapeEditor.prototype.copyToCanvas = function() {
+
+ShapeEditor.prototype.updateCellColors = function() {
+	this.updateDepthDerivedData();
+	processRectangleUpdates(this.updatingColorRectangles, this.calculateCellColors.bind(this));
+};
+
+ShapeEditor.prototype.copyToCanvas = function(minX,minY,w,h) {
+	var width = this.width, height = this.height;
+	var maxX = minX+w, maxY = minY+h;
+	if( minX < 0 ) minX = 0;
+	if( maxX > width ) maxX = width;
+	if( minY < 0 ) minY = 0;
+	if( maxY > height ) maxY = height;
+	w = maxX-minX, h = maxY-minY;
+	if( w <= 0 || h <= 0 ) return;
+
 	var ctx = this.previewCanvas.getContext('2d');
-	var imgData = ctx.getImageData(0, 0, this.previewCanvas.width, this.previewCanvas.height);
-	var imgDataData = imgData.data;
-	var i;
 	var encodeColorValue = function(i) {
 		var c = Math.pow(i, 0.45);
 		if( c > 1 ) return 255;
 		return (c*255)|0;
 	};
 	var cellColors = this.cellColors;
-	for( i=0; i<this.width*this.height; ++i ) {
-		imgDataData[i*4+0] = encodeColorValue(cellColors[i*4+0]);
-		imgDataData[i*4+1] = encodeColorValue(cellColors[i*4+1]);
-		imgDataData[i*4+2] = encodeColorValue(cellColors[i*4+2]);
-		imgDataData[i*4+3] = this.cellColors[i*4+3] * 255;
+	
+	var imgData = ctx.getImageData(minX, minY, w, h);
+	var imgDataData = imgData.data;
+
+	var bi, idi, x, y;
+	for( idi=0, y=minY; y<maxY; ++y ) {
+		for( x=minX, bi=width*y+x; x<maxX; ++x, ++bi, ++idi ) {
+			imgDataData[idi*4+0] = encodeColorValue(cellColors[bi*4+0]);
+			imgDataData[idi*4+1] = encodeColorValue(cellColors[bi*4+1]);
+			imgDataData[idi*4+2] = encodeColorValue(cellColors[bi*4+2]);
+			imgDataData[idi*4+3] = this.cellColors[bi*4+3] * 255;
+		}
 	}
-	ctx.putImageData(imgData, 0, 0);
+	ctx.putImageData(imgData, minX, minY);
 };
-ShapeEditor.prototype.renderPreviews = function() {
+
+var processRectangleUpdates = function(rectangleList, updater) {
+	var i, r;
+	for( i in rectangleList ) {
+		r = rectangleList[i];
+		updater(r[0], r[1], r[2], r[3]);
+	}
+	rectangleList.splice(0);
+};
+
+ShapeEditor.prototype.updateCanvas = function() {
+	var i, r;
+	this.updateCellColors();
+	processRectangleUpdates(this.updatingCanvasRectangles, this.copyToCanvas.bind(this));
+};
+
+////
+
+var rectangleOverlapFactor = function(r0, x1, y1, w1, h1) {
+	var x0 = r0[0], y0 = r0[1], w0 = r0[2], h0 = r0[3];
+	var e0 = x0+w0, s0 = y0+h0; // east, south
+	if( x1 >= e0 || y1 >= s0 ) return 0;
+	var e1 = x1+w1, s1 = y1+h1;
+	if( x0 >= e1 || y0 >= s1 ) return 0;
+	
+	var xS = Math.max(x0,x1);
+	var yS = Math.max(y0,y1);
+	var eS = Math.min(e0,e1);
+	var sS = Math.min(s0,s1);
+	var wS = eS-xS, hS = sS-yS;
+	
+	var area0 = w0*h0, area1 = w1*h1, areaS = wS*hS;
+	
+	return areaS / Math.min(area0, area1);
+};
+var combineRectangle = function(r0, x1, y1, w1, h1) {
+	var x0 = r0[0], y0 = r0[1], w0 = r0[2], h0 = r0[3];
+	var e0 = x0+w0, s0 = y0+h0; // east, south
+	var e1 = x1+w1, s1 = y1+h1;
+	r0[0] = Math.min(x0,x1);
+	r0[1] = Math.min(y0,y1);
+	r0[2] = Math.max(e0,e1) - r0[0];
+	r0[3] = Math.max(s0,s1) - r0[1];
+};
+var maybeCombineRectangle = function(r, x1, y1, w1, h1) {
+	var of = rectangleOverlapFactor(r, x1, y1, w1, h1);
+	if( of > 0 ) {
+		// could use a higher number, or have it depend on total area or something, but whatevs
+		combineRectangle(r, x1, y1, w1, h1);
+		return true;
+	} else {
+		return false;
+	}
+};
+var addToUpdateRectangleList = function(rectangleList, x, y, w, h) {
+	var i;
+	for( i in rectangleList ) {
+		var reg = rectangleList[i];
+		if( maybeCombineRectangle(reg, x, y, w, h) ) return;
+	};
+	rectangleList.push([x,y,w,h]);
+};
+
+ShapeEditor.prototype.dataUpdated = function(x, y, w, h, updatedDepth, updatedMaterial) {
+	var east = x+w, south=y+h;
+	x = x|0; y = y|0;
+	w = (Math.ceil(east )-x)|0;
+	h = (Math.ceil(south)-y)|0;
+	if( updatedDepth ) {
+		addToUpdateRectangleList(this.updatingDepthRectangles, x, y, w, h);
+		updatedMaterial = true; // Not really, but...
+	}
+	if( updatedMaterial ) {
+		addToUpdateRectangleList(this.updatingColorRectangles, x, y, w, h);
+		addToUpdateRectangleList(this.updatingCanvasRectangles, x, y, w, h);
+	}
+};
+
+ShapeEditor.prototype.lightsUpdated = function() {
 	this.normalizeLights();
-	this.calculateCellDepthDerivedData();
-	this.calculateCellColors();
-	this.copyToCanvas();
+	// Gotta recalculate everything!
+	addToUpdateRectangleList(this.updatingColorRectangles, 0, 0, this.width, this.height);
+	addToUpdateRectangleList(this.updatingCanvasRectangles, 0, 0, this.width, this.height);
 };
+
+//// Plotting
+
 var infiniMinus = function(a, b) {
 	if( a === b ) return 0;
 	if( a === +Infinity ) {
@@ -215,6 +341,7 @@ var infiniMinus = function(a, b) {
 	}
 	return a - b;
 };
+
 ShapeEditor.prototype.plotPixel = function(x, y, z0, z1, z2, z3, materialIndex) {
 	x = x|0;
 	y = y|0;
@@ -281,7 +408,10 @@ ShapeEditor.prototype.plotSphere = function(centerX, centerY, centerZ, rad) {
 			*/
 		}
 	}
+	this.dataUpdated(centerX-rad, centerY-rad, rad*2, rad*2, true, true);
 };
+
+//// Demo
 
 ShapeEditor.prototype.buildDemo = function() {
 	this.plotSphere(this.width/2, this.height/2, this.width/2, this.width*(1.0/8));
@@ -294,25 +424,31 @@ ShapeEditor.prototype.buildDemo = function() {
 			this.width/2,
 			this.height/8);
 	}
-	
-	this.calculateCellDepthDerivedData();
 };
 ShapeEditor.prototype.animateLights = function() {
+	var lightsMoving = false;
 	var f = 0, fps = 0;
 	var animationCallback = (function() {
-		this.lights[0].direction = [+Math.sin(f*0.01),  0.8, +Math.cos(f*0.01)];
-		this.lights[1].direction = [-Math.sin(f*0.005), -0.8, -Math.cos(f*0.005)];
-		this.normalizeLights();
-		this.calculateCellColors();
-		this.copyToCanvas();
+		if( lightsMoving ) {
+			this.lights[0].direction = [+Math.sin(f*0.01),  0.8, +Math.cos(f*0.01)];
+			this.lights[1].direction = [-Math.sin(f*0.005), -0.8, -Math.cos(f*0.005)];
+			this.lightsUpdated();
+			++f;
+		}
+		this.updateCanvas();
+		//this.calculateCellColors();
+		//this.copyToCanvas(0, 0, this.width, this.height);
 		setTimeout(requestAnimationCallback, 1); // As often as possible, basically
-		++f;
 		++fps;
 	}).bind(this);
 	var requestAnimationCallback = function() {
 		window.requestAnimationFrame(animationCallback);
 	};
 	setInterval(function() { console.log("FPS: "+fps); fps = 0; }, 1000);
+	setInterval((function() {
+		this.plotSphere(Math.random()*this.width, Math.random()*this.height, Math.random()*this.width, this.width/8);
+	}).bind(this), 2000);
+	setInterval(function() { lightsMoving = !lightsMoving; }, 4000);
 	requestAnimationCallback();
 };
 
