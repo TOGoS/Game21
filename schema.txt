@@ -1,0 +1,124 @@
+#### Image data
+
+class 'directional light' {
+	color : RGB
+	direction : 3D vector
+}
+
+class 'lighting environment' {
+	directional lights : list(directional light)
+	environment map : URN reference(RGB image)
+}
+
+class 'material' {
+	# From outer to inner-most:
+	
+	mirror roughness : float
+	mirror color : RGBA # A determines how much light is reflected vs passes to the next layer
+	
+	# behind the mirrored surface:
+	gloss index of refraction : float # when 1.0, no gloss effect!
+	
+	# inside the glossy surface
+	diffuse color : RGBA # when A < 1, some light passes through the back of the object
+}
+
+class 'material map' : extends(map(uint8, UUID reference(material)))
+
+class 'shape sheet' {
+	width : uint
+	height : uint
+	default material map : UUID reference(material map)
+	cell material indexes : uint8[width*height]
+	cell corner depth : float[width*height*4]
+	
+	# derived
+	preview image : uint8[width*height*4]
+}
+
+class 'pixel rectangle' { # represented in JS by a 4-element array
+	x : uint
+	y : uint
+	width : uint
+	height : uint
+}
+
+class 'shape sheet shape' {
+	shape sheet : UUID reference(shape sheet)
+	bounds : pixel rectangle
+}
+
+abstract class 'tile icon' # Abstract identifier for an object's appearance
+
+class 'shape transform' { # can be represented by an integer 0..7; i.e. 3 = 0b011 = don't flip, then rotate 270 degrees CW
+	flip X : boolean              # bit 2
+	rotation : enum(0,90,180,270) # bits 1 and 0
+}
+
+class 'shape tile icon' : extends(tile icon) {
+	shape sheet shape : UUID reference(shape sheet shape)
+	transform : tile icon transform
+	material map : UUID reference(material map)
+}
+
+#### World data
+
+# I think the idea of using integers for room IDs was that related
+# rooms would have similar integers, and in worlds being processed by
+# multiple servers, interactions between rooms on different servers
+# could be minimized that way.  but maybe that's dumb.
+class 'room ID' : extends(integer)
+
+class 'entity ID' : extends(UUID)
+
+class 'bounding cuboid' {
+	minimum X : number
+	minimum Y : number
+	minimum Z : number
+	maximum X : number
+	maximum Y : number
+	maximum Z : number
+}
+
+class 'room neighbor' {
+	room
+}
+
+class 'tile' {
+	icon : UUID reference(tile icon)
+}
+
+class 'entity tile' : extends(tile) {
+	entity ID : entity ID
+}
+
+class 'tile tree' {
+	width  : integer
+	height : integer
+	depth  : integer
+}
+
+class 'tile tree leaf' : extends(tile tree) {
+	tile stacks : list(tile stack)
+}
+
+class 'tile tree branch' : extends(tile tree) {
+	subtrees : list(tile tree)
+}
+
+class 'room' {
+	neighbors : list(room neighbor)
+	tile bounds : bounding cuboid
+	tile data : tile tree
+}
+
+#### 
+
+class 'game' {
+	world : URN reference(world)
+	shape sheets : URN reference map(UUID, shape sheet)
+	shape sheet shapes : URN reference map(UUID, shape sheet shape)
+	tile icons : URN reference map(UUID, tile icon)
+	rooms : URN reference map(room ID, room)
+	lighting environment : URN reference(lighting environment)
+}
