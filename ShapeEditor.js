@@ -428,16 +428,16 @@ ShapeEditor.prototype.plotSphere = function(centerX, centerY, centerZ, rad) {
 	var sphereDepth = (function(x,y) {
 		var sphereX = (x - centerX) / rad;
 		var sphereY = (y - centerY) / rad;
-		// 1 = Math.sqrt(sphereX**2 + sphereY**2 + sphereZ**2)
-		// 1 = sphereX**2 + sphereY**2 + sphereZ ** 2
-		// 1 - sphereZ**2 = sphereX**2 + sphereY**2
-		// -sphereZ**2 = sphereX**2 + sphereY**2 - 1
-		// sphereZ**2 = 1 - (sphereX**2 + sphereY**2)
-		var h = 1 - (sphereX*sphereX + sphereY*sphereY);
-		if( h < 0 ) return Infinity;
+		var d = sphereX*sphereX + sphereY*sphereY;
+		if( d >  1 ) return Infinity;
+		if( d == 1 ) return centerZ;
 		
-		var sphereZ = Math.sqrt( h );
-		return (1 - sphereZ) * this.width / 2;
+		// z*z + x*x + y*y = 1
+		// z*z = 1 - (x*x + y*y)
+		// z = Math.sqrt(1 - (x*x+y*y))
+		
+		return centerZ - rad * Math.sqrt(1 - d);
+		
 	}).bind(this);
 	var x, y;
 	for( i=0, y=0; y<this.height; ++y ) {
@@ -451,13 +451,6 @@ ShapeEditor.prototype.plotSphere = function(centerX, centerY, centerZ, rad) {
 				sphereDepth(x+1,y+1),
 				materialIndex
 			);
-			/*
-			this.cellMaterialIndexes[i] = materialIndex;
-			this.cellCornerDepths[i*4+0] = sphereDepth(x+0,y+0);
-			this.cellCornerDepths[i*4+1] = sphereDepth(x+1,y+0);
-			this.cellCornerDepths[i*4+2] = sphereDepth(x+0,y+1);
-			this.cellCornerDepths[i*4+3] = sphereDepth(x+1,y+1);
-			*/
 		}
 	}
 	this.dataUpdated(centerX-rad, centerY-rad, rad*2, rad*2, true, true);
