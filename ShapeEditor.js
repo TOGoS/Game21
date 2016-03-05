@@ -11,11 +11,6 @@ var normalizeVect3d = function(vect) {
 };
 
 var ShapeEditor = function(width,height) {
-	this.initBuffer(width,height);
-};
-ShapeEditor.prototype.initBuffer = function(width,height) {
-	this.width = width|0;
-	this.height = height|0;
 	this.materials = [
 		{
 			diffuse: [1,1.0,0.9,1.0]
@@ -27,20 +22,7 @@ ShapeEditor.prototype.initBuffer = function(width,height) {
 			diffuse: [1,0.8,0.7,1.0]
 		}
 	];
-	var cellCount = this.width*this.height;
-	// Primary shape data
-	this.cellMaterialIndexes = new Uint16Array( cellCount);
-	this.cellCornerDepths    = new Float32Array(cellCount*4); // Depth (in pixels) of each corner
-	this.cellCornerDepths.fill(Infinity);
-	// calculated by calculateCellDepthDerivedData based on cellCornerDepths:
-	this.updatingDepthRectangles = []; // Tracks rectangles that need to have calculateCellDepthDerivedData called
-	this.cellCoverages       = new Uint8Array(cellCount); // coverage based on depth; 0,1,2,3,4 (divide by 4.0 to get opacity factor)
-	this.cellAverageDepths   = new Float32Array(cellCount);
-	this.cellNormals         = new Float32Array(cellCount*3); // normal vector X,Y,Z
-	// calculated by calculateCellColors based on the above:
-	this.updatingColorRectangles = []; // Tracks rectangles that need to have calculateCellColors called
-	this.updatingCanvasRectangles = []; // Tracks rectangles that need to be copied to the canvas
-	this.cellColors          = new Float32Array(cellCount*4); // r,g,b,a of each cell after shading
+	
 	this.lights = [
 		{
 			direction: [1,2,1],
@@ -52,6 +34,31 @@ ShapeEditor.prototype.initBuffer = function(width,height) {
 		}
 	];
 	this.normalizeLights();
+	
+	this.shaders = [];
+	
+	this.initBuffer(width,height);
+};
+ShapeEditor.prototype.initBuffer = function(width,height) {
+	this.width = width|0;
+	this.height = height|0;
+	var cellCount = this.width*this.height;
+	// Primary shape data
+	this.cellMaterialIndexes = new Uint16Array( cellCount);
+	this.cellCornerDepths    = new Float32Array(cellCount*4); // Depth (in pixels) of each corner
+	this.cellCornerDepths.fill(Infinity);
+	// calculated by calculateCellDepthDerivedData based on cellCornerDepths:
+	this.updatingDepthRectangles = []; // Tracks rectangles that need to have calculateCellDepthDerivedData called
+	this.cellCoverages       = new Uint8Array(cellCount); // coverage based on depth; 0,1,2,3,4 (divide by 4.0 to get opacity factor)
+	this.cellAverageDepths   = new Float32Array(cellCount);
+	this.cellNormals         = new Float32Array(cellCount*3); // normal vector X,Y,Z
+	// calculated by calculateCellColors based on the above:
+	this.updatingColorRectangles  = []; // Tracks rectangles that need to have calculateCellColors called
+	this.updatingCanvasRectangles = []; // Tracks rectangles that need to be copied to the canvas
+	this.cellColors        = new Float32Array(cellCount*4); // r,g,b,a of each cell after shading
+	this.cellColors               = new Float32Array(cellCount*4); // r,g,b,a of each cell after shading and fogging
+	
+	this.canvasUpdateRequested = false;
 };
 ShapeEditor.prototype.normalizeLights = function() {
 	// Normalize light directions!
@@ -128,6 +135,7 @@ ShapeEditor.prototype.calculateDepthDerivedData = function(minX, minY, w, h) {
 	
 	var i, x, y;
 	var cornerDepths = this.cellCornerDepths;
+	var averageDepths = this.cellAverageDepths;
 	
 	var cellCoverages = this.cellCoverages;
 	var cellNormals = this.cellNormals;
@@ -137,6 +145,13 @@ ShapeEditor.prototype.calculateDepthDerivedData = function(minX, minY, w, h) {
 		    z1 = cornerDepths[i*4+1],
 		    z2 = cornerDepths[i*4+2],
 		    z3 = cornerDepths[i*4+3];
+		
+		var tot = 0, cnt = 0;
+		if( z0 !== Infinity ) { tot += z0; ++cnt; }
+		if( z1 !== Infinity ) { tot += z1; ++cnt; }
+		if( z2 !== Infinity ) { tot += z2; ++cnt; }
+		if( z3 !== Infinity ) { tot += z3; ++cnt; }
+		averageDepths[i] = (cnt == 0) ? Infinity : tot/cnt;
 		
 		var opac = calcOpacity4(z0,z1,z2,z3);
 		var dzdx = calcSlope4(z0,z1,z2,z3);
@@ -188,20 +203,25 @@ ShapeEditor.prototype.calculateCellColors = function(minX, minY, w, h) {
 		    normalY = cellNormals[i*3+1],
 		    normalZ = cellNormals[i*3+2];
 		
-		cellColors[i*4+0] = 0;
-		cellColors[i*4+1] = 0;
-		cellColors[i*4+2] = 0;
-		cellColors[i*4+3] = mat.diffuse[3] * cellCoverages[i] * 0.25;
+		var r = 0, g = 0, b = 0, a = mat.diffuse[3] * cellCoverages[i] * 0.25;
 		for( l in lights ) {
 			light = lights[l];
 			var dotProd = -(normalX*light.direction[0] + normalY*light.direction[1] + normalZ*light.direction[2]);
 			if( dotProd > 0 ) {
 				var diffuseAmt = dotProd; // Yep, that's how you calculate it.
-				cellColors[i*4+0] += diffuseAmt * light.color[0] * mat.diffuse[0];
-				cellColors[i*4+1] += diffuseAmt * light.color[1] * mat.diffuse[1];
-				cellColors[i*4+2] += diffuseAmt * light.color[2] * mat.diffuse[2];
+				r += diffuseAmt * light.color[0] * mat.diffuse[0];
+				g += diffuseAmt * light.color[1] * mat.diffuse[1];
+				b += diffuseAmt * light.color[2] * mat.diffuse[2];
 			}
 		}
+		cellColors[i*4+0] = r;
+		cellColors[i*4+1] = g;
+		cellColors[i*4+2] = b;
+		cellColors[i*4+3] = a;
+	}
+	var s;
+	for( s in this.shaders ) {
+		this.shaders[s](this, minX, minY, w, h);
 	}
 };
 
@@ -258,6 +278,15 @@ ShapeEditor.prototype.updateCanvas = function() {
 	processRectangleUpdates(this.updatingCanvasRectangles, this.copyToCanvas.bind(this));
 };
 
+ShapeEditor.prototype.requestCanvasUpdate = function() {
+	if( this.canvasUpdateRequested ) return;
+	this.canvasUpdateRequested = true;
+	window.requestAnimationFrame( (function() {
+		this.canvasUpdateRequested = false;
+		this.updateCanvas();
+	}).bind(this) );
+};
+
 ////
 
 var rectangleOverlapFactor = function(r0, x1, y1, w1, h1) {
@@ -306,6 +335,11 @@ var addToUpdateRectangleList = function(rectangleList, x, y, w, h) {
 };
 
 ShapeEditor.prototype.dataUpdated = function(x, y, w, h, updatedDepth, updatedMaterial) {
+	if( x === null || x < 0 ) x = 0;
+	if( y === null || y < 0 ) y = 0;
+	if( w === null || w+x >= this.width  ) w = this.width-x;
+	if( h === null || h+y >= this.height ) h = this.height-y;
+	
 	var east = x+w, south=y+h;
 	x = x|0; y = y|0;
 	w = (Math.ceil(east )-x)|0;
@@ -371,6 +405,24 @@ ShapeEditor.prototype.plotPixel = function(x, y, z0, z1, z2, z3, materialIndex) 
 		cellMaterialIndexes[idx] = materialIndex;
 	}
 };
+/** Shift the Z of every cell by this amount. */
+ShapeEditor.prototype.shiftZ = function(diff) {
+	var i;
+	var cellCornerDepths = this.cellCornerDepths;
+	var cellAverageDepths = this.cellAverageDepths;
+	
+	for( i=this.width*this.height*4-1; i>=0; --i ) {
+		cellCornerDepths[i] += diff;
+	}
+	for( i=this.width*this.height-1; i>=0; --i ) {
+		cellAverageDepths[i] += diff;
+	}
+	if( this.recolorFunction !== null ) {
+		// Normals and averages don't need recalculating,
+		// but color might.
+		this.dataUpdated(0,0,null,null, false, true);
+	}
+};
 ShapeEditor.prototype.plotSphere = function(centerX, centerY, centerZ, rad) {
 	var i;
 	var sphereDepth = (function(x,y) {
@@ -425,31 +477,94 @@ ShapeEditor.prototype.buildDemo = function() {
 			this.height/8);
 	}
 };
+
 ShapeEditor.prototype.animateLights = function() {
-	var lightsMoving = false;
-	var f = 0, fps = 0;
-	var animationCallback = (function() {
+	var lightsMoving = true;
+	var f = 0;
+	return setInterval( (function() {
 		if( lightsMoving ) {
 			this.lights[0].direction = [+Math.sin(f*0.01),  0.8, +Math.cos(f*0.01)];
 			this.lights[1].direction = [-Math.sin(f*0.005), -0.8, -Math.cos(f*0.005)];
 			this.lightsUpdated();
 			++f;
 		}
-		this.updateCanvas();
-		//this.calculateCellColors();
-		//this.copyToCanvas(0, 0, this.width, this.height);
-		setTimeout(requestAnimationCallback, 1); // As often as possible, basically
-		++fps;
-	}).bind(this);
-	var requestAnimationCallback = function() {
-		window.requestAnimationFrame(animationCallback);
+		this.requestCanvasUpdate();
+	}).bind(this), 1000 / 60);
+};
+
+ShapeEditor.prototype.animateLavaLamp = function() {
+	var x = this.width/2, y = this.width/2, rad = Math.random()*this.width/8;
+	var vx = 0, vy = 0, vrad = 0;
+	return setInterval((function() {
+		rad = Math.abs(rad + vrad);
+		if( rad <  4 ) { rad = 4; vrad = +1; }
+		if( rad > this.width/4 ) { rad = this.width/4; vrad = -1; }
+		
+		x += vx;
+		y += vy;
+		if(      x-rad <= 0           ) { x = rad            ; vx = +Math.abs(vx); }
+		else if( x+rad >= this.width  ) { x = this.width-rad ; vx = -Math.abs(vx); }
+		if(      y-rad <= 0           ) { y = rad            ; vy = +Math.abs(vy); }
+		else if( y+rad >= this.height ) { y = this.height-rad; vy = -Math.abs(vy); }
+		if( Math.abs(vx) > rad/2 ) vx *= 0.5;
+		if( Math.abs(vy) > rad/2 ) vy *= 0.5;
+		
+		vx   += Math.random()-0.5;
+		vy   += Math.random()-0.5;
+		
+		vrad += Math.random()-0.5;
+		if( Math.abs(vrad) > 1 ) vrad *= 0.5;
+
+		this.shiftZ(1);
+		this.plotSphere(x, y, Math.random()*this.width, rad);
+		
+		this.requestCanvasUpdate();
+	}).bind(this), 10);
+};
+
+//// Color functions
+
+ShapeEditor.makeFogShader = function(originDepth, fogR, fogG, fogB, fogA) {
+	return function(se, minX, minY, w, h) {
+		minX = minX|0; minY = minY|0; w = w|0; h = h|0;
+		var maxX=(minX+w)|0, maxY=(minY+h)|0;
+		var width = se.width;
+		var cellAverageDepths = se.cellAverageDepths;
+		var cellColors = se.cellColors;
+		var x, y, i, d, r, g, b, a, oMix, fMix;
+		var fogT = (1-fogA); // Fog transparency; how much of original color to keep at depth = 1 pixel
+		for( y=minY; y<maxY; ++y ) for( i=y*width, x=minX; x<maxX; ++x, ++i ) {
+			d = cellAverageDepths[i];
+			if( d < originDepth ) continue;
+			if( d === Infinity ) {
+				cellColors[i*4+0] = fogR;
+				cellColors[i*4+1] = fogG;
+				cellColors[i*4+2] = fogB;
+				cellColors[i*4+3] = fogA == 0 ? 0 : 1;
+				continue;
+			}
+			
+			r = cellColors[i*4+0];
+			g = cellColors[i*4+1];
+			b = cellColors[i*4+2];
+			a = cellColors[i*4+3];
+			
+			// Mix in fog *behind* this point (from the surface to infinity, which is always just fog color)
+			r = r*a + fogR*(1-a);
+			g = g*a + fogG*(1-a);
+			b = b*a + fogB*(1-a);
+			// Now add the fog ahead;
+			// mix = how much of the original color to keep
+			oMix = Math.pow(fogT, (cellAverageDepths[i] - originDepth));
+			fMix = 1-oMix;
+			cellColors[i*4+0] = r*oMix + fogR*fMix;
+			cellColors[i*4+1] = g*oMix + fogG*fMix;
+			cellColors[i*4+2] = b*oMix + fogB*fMix;
+			// At infinity, everything fades to fog color unless fog color = 0,
+			// so that's the only case where there can be any transparency
+			if( fogA > 0 ) cellColors[i*4+3] = 1;
+		}
 	};
-	setInterval(function() { console.log("FPS: "+fps); fps = 0; }, 1000);
-	setInterval((function() {
-		this.plotSphere(Math.random()*this.width, Math.random()*this.height, Math.random()*this.width, this.width/8);
-	}).bind(this), 2000);
-	setInterval(function() { lightsMoving = !lightsMoving; }, 4000);
-	requestAnimationCallback();
 };
 
 module.ShapeEditor = ShapeEditor;
