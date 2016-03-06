@@ -487,7 +487,8 @@ ShapeEditor.prototype.animateLights = function() {
 
 ShapeEditor.prototype.animateLavaLamp = function() {
 	var x = this.width/2, y = this.width/2, rad = Math.random()*this.width/8;
-	var vx = 0, vy = 0, vrad = 0;
+	var vx = 1, vy = 1, vrad = 0;
+	var ang = 0;
 	return setInterval((function() {
 		rad = Math.abs(rad + vrad);
 		if( rad <  4 ) { rad = 4; vrad = +1; }
@@ -499,8 +500,8 @@ ShapeEditor.prototype.animateLavaLamp = function() {
 		else if( x+rad >= this.width  ) { x = this.width-rad ; vx = -Math.abs(vx); }
 		if(      y-rad <= 0           ) { y = rad            ; vy = +Math.abs(vy); }
 		else if( y+rad >= this.height ) { y = this.height-rad; vy = -Math.abs(vy); }
-		if( Math.abs(vx) > rad/2 ) vx *= 0.5;
-		if( Math.abs(vy) > rad/2 ) vy *= 0.5;
+		if( Math.abs(vx) > 1 ) vx *= 0.5;
+		if( Math.abs(vy) > 1 ) vy *= 0.5;
 		
 		vx   += Math.random()-0.5;
 		vy   += Math.random()-0.5;
@@ -509,9 +510,21 @@ ShapeEditor.prototype.animateLavaLamp = function() {
 		if( Math.abs(vrad) > 1 ) vrad *= 0.5;
 
 		this.shiftZ(1);
-		this.plotSphere(x, y, Math.random()*this.width, rad);
+		var vMag = Math.sqrt(vx*vx + vy*vy);
+		var aheadX = vx / vMag, aheadY = vy / vMag;
+		var sideX  = aheadY   , sideY = -aheadX;
+		var loopRad = this.width/8;
+		var sin = Math.sin(ang);
+		var cos = Math.cos(ang);
+		var plotX = x + sin * sideX * loopRad;
+		var plotY = plotY = y + sin * sideY * loopRad;
+		var plotZ = 0 + cos * loopRad;
+		
+		this.plotSphere(plotX, plotY, plotZ, rad);
 		
 		this.requestCanvasUpdate();
+		
+		ang += Math.PI / 16;
 	}).bind(this), 10);
 };
 
