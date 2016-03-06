@@ -9,8 +9,10 @@
 <head>
 <meta charset="utf-8"/>
 <style>
-body {
+html, body {
 	background: black;
+	width: 100%;
+	height: 100%;
 }
 .preview-region {
 	width: 100%;
@@ -44,12 +46,17 @@ canvas.shape-view {
 </canvas>
 </div>
 
-<?php require_js('ShapeSheet.js', $inlineResources); ?>
-<?php require_js('ShapeSheetRenderer.js', $inlineResources); ?>
-<?php require_js('ShapeSheetUtil.js', $inlineResources); ?>
-<?php if($mode === 'demo'): ?>
-<?php require_js('ShapeSheetDemo.js', $inlineResources); ?>
-<?php endif; ?>
+<?php
+	$requireJsFiles = [
+		'ShapeSheet.js',
+		'ShapeSheetRenderer.js',
+		'ShapeSheetUtil.js'
+	];
+	
+	if( $mode === 'demo' ) $requireJsFiles[] = 'ShapeSheetDemo.js';
+
+	require_js($requireJsFiles, $inlineResources);
+?>
 <script type="text/javascript">//<![CDATA[
 (function() {
 	"use strict";

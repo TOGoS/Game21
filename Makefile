@@ -1,5 +1,9 @@
+default: ShapeDemo.html
+
+.PHONY: ShapeDemo.html
+
 ShapeDemo.html: *.php *.js
-	php ShapeDemo.php >"$@"
+	php ShapeDemo.php --inline-resources >"$@"
 
 ShapeDemo.html.urn: ShapeDemo.html
 	ccouch id "$<" >"$@"

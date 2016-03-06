@@ -14,12 +14,18 @@ function require_css($file, $inline=true) {
 	}
 };
 
-function require_js($file, $inline=true) {
+function require_js($files, $inline=true) {
+	if( is_scalar($files) ) $files = array($file);
 	if( $inline ) {
 		echo "<script type=\"text/javascript\">/* <![CDATA[ */\n";
-		require $file;
+		foreach( $files as $file ) {
+			echo "////// $file //////\n\n";
+			require $file;
+		}
 		echo "/* ]]> */</script>\n";
 	} else {
-		echo "<script type=\"text/javascript\" src=\"".htmlspecialchars($file)."\"></script>\n";
+		foreach( $files as $file ) {
+			echo "<script type=\"text/javascript\" src=\"".htmlspecialchars($file)."\"></script>\n";
+		}
 	}
 };
