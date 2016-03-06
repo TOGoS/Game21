@@ -17,8 +17,10 @@ ShapeSheet.prototype.initBuffer = function(width,height) {
 	// calculated by calculateCellDepthDerivedData based on cellCornerDepths
 	// (this stuff is only used by renderer; maybe it should live there):
 	this.cellCoverages       = new Uint8Array(cellCount); // coverage based on depth; 0,1,2,3,4 (divide by 4.0 to get opacity factor)
+	this.cellCoverages.fill(0);
 	this.minimumAverageDepth = Infinity;
 	this.cellAverageDepths   = new Float32Array(cellCount);
+	this.cellAverageDepths.fill(Infinity);
 	this.cellNormals         = new Float32Array(cellCount*3); // normal vector X,Y,Z
 	// calculated by calculateCellColors based on the above:
 	this.cellColors               = new Float32Array(cellCount*4); // r,g,b,a of each cell after shading
