@@ -20,6 +20,6 @@ function require_js($file, $inline=true) {
 		require $file;
 		echo "/* ]]> */</script>\n";
 	} else {
-		echo "<script type=\"text/javascript\" src=\"".htmlspecialchars($file)."\"/>\n";
+		echo "<script type=\"text/javascript\" src=\"".htmlspecialchars($file)."\"></script>\n";
 	}
 };

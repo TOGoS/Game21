@@ -1,8 +1,8 @@
 <?php
 	require_once 'lib.php';
-	$mode = 'demo';
-	$title = 'Shape Editor';
-	$inlineResources = true;
+	if( !isset($mode ) ) $mode = 'editor';
+	if( !isset($title) ) $title = ($mode === 'demo' ? 'Shapes!' : 'Shape Editor');
+	if( !isset($inlineResources) ) $inlineResources = ($mode === 'demo');
 ?>
 <html>
 <meta charset="utf-8"/>
@@ -44,7 +44,7 @@ canvas.shape-view {
 </div>
 
 <?php require_js('ShapeEditor.js', $inlineResources); ?>
-<script>//<![CDATA[
+<script type="text/javascript">//<![CDATA[
 (function() {
 	"use strict";
 	
@@ -52,9 +52,11 @@ canvas.shape-view {
 	
 	var se = new ShapeEditor(64, 64);
 	se.initUi(canv);
+<?php if($mode === 'demo'): ?>
 	se.buildDemo();
 	se.animateLights();
-	//se.animateLavaLamp();
+	se.animateLavaLamp();
+<?php endif; ?>
 	
 	se.shaders.push(ShapeEditor.makeFogShader(0, 0, 0, 0, 0.01));
 
