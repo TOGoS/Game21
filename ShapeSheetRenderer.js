@@ -35,8 +35,8 @@ var ShapeSheetRenderer = function(shapeSheet, canvas) {
 		{
 			direction: [1,2,1],
 			color: [0.3, 0.5, 0.5],
-			shadowFuzz: 0.5,
-			minimumShadowLight: 0.0
+			shadowFuzz: 0.8,
+			minimumShadowLight: 0.05
 		},
 		{
 			direction: [-1,-2,-1],

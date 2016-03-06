@@ -16,15 +16,18 @@ ShapeSheetDemo.prototype.buildDemo = function() {
 	var width = this.shapeSheetUtil.shapeSheet.width;
 	var height = this.shapeSheetUtil.shapeSheet.height;
 	var util = this.shapeSheetUtil;
-	util.plotSphere(width/2, height/2, width/2, width*(1.0/8));
+	var minwh = Math.min(width,height);
+	util.plotSphere(width/2, height/2, minwh*2, minwh/4);
+	util.plotSphere(width/2, height/2, minwh*1, minwh/8);
+	util.plotSphere(width/2, height/2, minwh*0.5, minwh/16);
 	var i;
 	for( i=0; i<200; ++i ) {
 		var r = 2 * Math.PI * i / 200;
 		util.plotSphere(
-			width/2  + Math.cos(r)*width*(3.0/8),
-			height/2 + Math.sin(r)*height*(3.0/8),
+			width/2  + Math.cos(r)*minwh*(3.0/8),
+			height/2 + Math.sin(r)*minwh*(3.0/8),
 			width/2,
-			height/8);
+			minwh/8);
 	}
 };
 
@@ -61,7 +64,8 @@ ShapeSheetDemo.prototype.animateLavaLamp = function() {
 		
 		rad = Math.abs(rad + vrad);
 		if( rad <  4 ) { rad = 4; vrad = +1; }
-		if( rad > width/4 ) { rad = width/4; vrad = -1; }
+		var maxRad = Math.min(width/4, 16);
+		if( rad > maxRad ) { rad = maxRad; vrad = -1; }
 		
 		x += vx;
 		y += vy;
