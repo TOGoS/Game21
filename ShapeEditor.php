@@ -19,6 +19,8 @@ html, body {
 	background: black;
 	width: 100%;
 	height: 100%;
+	margin: 0;
+	box-model: border-box;
 }
 .preview-region {
 	width: 100%;
