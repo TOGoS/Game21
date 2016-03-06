@@ -11,6 +11,10 @@ Object.defineProperty(ShapeSheetDemo.prototype, "shapeSheet", {
 	"get": function() { return this.shapeSheetUtil.shapeSheet; },
 	"set": function(ss) { this.shapeSheetUtil.shapeSheet = ss; }
 });
+Object.defineProperty(ShapeSheetDemo.prototype, "renderer", {
+	"get": function() { return this.shapeSheetUtil.renderer; },
+	"set": function(ss) { this.shapeSheetUtil.renderer = ss; }
+});
 
 ShapeSheetDemo.prototype.buildDemo = function() {
 	var width = this.shapeSheetUtil.shapeSheet.width;
@@ -33,7 +37,7 @@ ShapeSheetDemo.prototype.buildDemo = function() {
 
 ShapeSheetDemo.prototype.animateLights = function() {
 	var lightsMoving = true;
-	var renderer = this.shapeSheetUtil.renderer;
+	var renderer = this.renderer;
 	var lights   = renderer.lights;
 	if( lights.length < 2 ) {
 		console.log("Not enough lights to animate!");
@@ -98,6 +102,48 @@ ShapeSheetDemo.prototype.animateLavaLamp = function() {
 		renderer.requestCanvasUpdate();
 		
 		ang += Math.PI / 16;
+	}).bind(this), 10);
+};
+
+ShapeSheetDemo.prototype.animateLightning = function() {
+	var bolts = {lightning0:-Infinity, lightning1:-Infinity, lightning2:-Infinity};
+	setInterval( (function() {
+		var lightsNeedNormalizing = false;
+		var lightLevelsChanged = false;
+		var i, level;
+		for( i in bolts ) {
+			level = bolts[i];
+			if( level === -Infinity ) {
+				if( Math.random() < 0.01 ) {
+					level = 1;
+					bolts[i] = Math.random();
+					this.renderer.lights[i] = {
+						direction: [Math.random()-0.5, Math.random()-0.5, Math.random()-0.5],
+						color: [level,level,level],
+						shadowFuzz: 0.5,
+						minimumShadowLight: 0.1
+					};
+					lightsNeedNormalizing = true;
+					lightLevelsChanged = true;
+				}
+			} else {
+				if( Math.random() < 0.1 ) {
+					level *= 2;
+				} else {
+					level *= Math.random();
+				}
+				this.renderer.lights[i].color = [level,level,level];
+				lightLevelsChanged = true;
+				if( level < 0.001 ) {
+					bolts[i] = -Infinity;
+					delete this.renderer.lights[i];
+				} else {
+					bolts[i] = level;
+				}
+			}
+		}
+		if( lightLevelsChanged ) this.renderer.lightsUpdated();
+		else if( lightsNeedNormalizing ) this.renderer.normalizeLights();
 	}).bind(this), 10);
 };
 

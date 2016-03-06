@@ -77,6 +77,7 @@ canvas.shape-view {
 	shapeSheetDemo.buildDemo();
 	shapeSheetDemo.animateLights();
 	shapeSheetDemo.animateLavaLamp();
+	shapeSheetDemo.animateLightning();
 <?php endif; ?>
 	
 	window.resizeShapeSheet = function(w,h) {
