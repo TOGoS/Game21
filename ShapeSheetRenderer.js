@@ -218,9 +218,6 @@ ShapeSheetRenderer.prototype.calculateCellColors = function(minX, minY, w, h) {
 					stdx = -light.traceVector[0];
 					stdy = -light.traceVector[1];
 					stdz = -light.traceVector[2];
-					if( x == 48 && y == 32 && l == 0 ) {
-						console.log("break here mang");
-					}
 					if( stdx == 0 && stdy == 0 ) {
 						shadowLight = stdz < 0 ? 1 : 0;
 					} else while( stz > minAvgDepth && stx > 0 && stx < width && sty > 0 && sty < height ) {
