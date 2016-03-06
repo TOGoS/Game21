@@ -10,7 +10,9 @@ var normalizeVect3d = function(vect) {
 	return [vect[0]/len, vect[1]/len, vect[2]/len];
 };
 
-var ShapeEditor = function(width,height) {
+var ShapeSheetRenderer = function(shapeSheet, canvas) {
+	this.shapeSheet = shapeSheet;
+	this.canvas = canvas;
 	this.materials = [
 		{
 			diffuse: [1,1.0,0.9,1.0]
@@ -22,7 +24,6 @@ var ShapeEditor = function(width,height) {
 			diffuse: [1,0.8,0.7,1.0]
 		}
 	];
-	
 	this.lights = [
 		{
 			direction: [1,2,1],
@@ -33,34 +34,13 @@ var ShapeEditor = function(width,height) {
 			color: [0.1, 0.01, 0.01]
 		}
 	];
-	this.normalizeLights();
-	
 	this.shaders = [];
-	
-	this.initBuffer(width,height);
-};
-ShapeEditor.prototype.initBuffer = function(width,height) {
-	this.width = width|0;
-	this.height = height|0;
-	var cellCount = this.width*this.height;
-	// Primary shape data
-	this.cellMaterialIndexes = new Uint16Array( cellCount);
-	this.cellCornerDepths    = new Float32Array(cellCount*4); // Depth (in pixels) of each corner
-	this.cellCornerDepths.fill(Infinity);
-	// calculated by calculateCellDepthDerivedData based on cellCornerDepths:
-	this.updatingDepthRectangles = []; // Tracks rectangles that need to have calculateCellDepthDerivedData called
-	this.cellCoverages       = new Uint8Array(cellCount); // coverage based on depth; 0,1,2,3,4 (divide by 4.0 to get opacity factor)
-	this.cellAverageDepths   = new Float32Array(cellCount);
-	this.cellNormals         = new Float32Array(cellCount*3); // normal vector X,Y,Z
-	// calculated by calculateCellColors based on the above:
+	this.updatingDepthRectangles  = []; // Tracks rectangles that need to have calculateCellDepthDerivedData called
 	this.updatingColorRectangles  = []; // Tracks rectangles that need to have calculateCellColors called
 	this.updatingCanvasRectangles = []; // Tracks rectangles that need to be copied to the canvas
-	this.cellColors        = new Float32Array(cellCount*4); // r,g,b,a of each cell after shading
-	this.cellColors               = new Float32Array(cellCount*4); // r,g,b,a of each cell after shading and fogging
-	
-	this.canvasUpdateRequested = false;
 };
-ShapeEditor.prototype.normalizeLights = function() {
+
+ShapeSheetRenderer.prototype.normalizeLights = function() {
 	// Normalize light directions!
 	var l, light;
 	for( l in this.lights ) {
@@ -68,9 +48,6 @@ ShapeEditor.prototype.normalizeLights = function() {
 		light = this.lights[l];
 		light.direction = normalizeVect3d(light.direction);
 	}
-};
-ShapeEditor.prototype.initUi = function(previewCanvas) {
-	this.previewCanvas = previewCanvas;
 };
 
 var calcOpacity4 = function(z0, z1, z2, z3) {
@@ -123,8 +100,9 @@ var calcSlope4 = function(z0,z1,z2,z3) {
 	}
 };
 
-ShapeEditor.prototype.calculateDepthDerivedData = function(minX, minY, w, h) {
-	var width = this.width, height = this.height;
+ShapeSheetRenderer.prototype.calculateDepthDerivedData = function(minX, minY, w, h) {
+	var ss = this.shapeSheet;
+	var width = ss.width, height = ss.height;
 	var maxX = minX+w, maxY = minY+h;
 	if( minX < 0 ) minX = 0;
 	if( maxX > width ) maxX = width;
@@ -134,11 +112,11 @@ ShapeEditor.prototype.calculateDepthDerivedData = function(minX, minY, w, h) {
 	if( w <= 0 || h <= 0 ) return;
 	
 	var i, x, y;
-	var cornerDepths = this.cellCornerDepths;
-	var averageDepths = this.cellAverageDepths;
+	var cornerDepths = ss.cellCornerDepths;
+	var averageDepths = ss.cellAverageDepths;
 	
-	var cellCoverages = this.cellCoverages;
-	var cellNormals = this.cellNormals;
+	var cellCoverages = ss.cellCoverages;
+	var cellNormals = ss.cellNormals;
 
 	for( i=0, y=minY; y<maxY; ++y ) for( x=minX, i=width*y+x; x<maxX; ++x, ++i ) {
 		var z0 = cornerDepths[i*4+0],
@@ -172,12 +150,13 @@ ShapeEditor.prototype.calculateDepthDerivedData = function(minX, minY, w, h) {
 	}
 };
 
-ShapeEditor.prototype.updateDepthDerivedData = function() {
+ShapeSheetRenderer.prototype.updateDepthDerivedData = function() {
 	processRectangleUpdates(this.updatingDepthRectangles, this.calculateDepthDerivedData.bind(this));
 };
 
-ShapeEditor.prototype.calculateCellColors = function(minX, minY, w, h) {
-	var width = this.width, height = this.height;
+ShapeSheetRenderer.prototype.calculateCellColors = function(minX, minY, w, h) {
+	var ss = this.shapeSheet;
+	var width = ss.width, height = ss.height;
 	var maxX = minX+w, maxY = minY+h;
 	if( minX < 0 ) minX = 0;
 	if( maxX > width ) maxX = width;
@@ -187,11 +166,11 @@ ShapeEditor.prototype.calculateCellColors = function(minX, minY, w, h) {
 	if( w <= 0 || h <= 0 ) return;
 	
 	var i, l, x, y;
-	var cellColors = this.cellColors;
-	var cellCoverages = this.cellCoverages;
-	var cellNormals = this.cellNormals;
+	var cellColors = ss.cellColors;
+	var cellCoverages = ss.cellCoverages;
+	var cellNormals = ss.cellNormals;
 	var materials = this.materials;
-	var cellMaterialIndexes = this.cellMaterialIndexes;
+	var cellMaterialIndexes = ss.cellMaterialIndexes;
 	var lights = this.lights;
 	var light;
 	
@@ -221,17 +200,18 @@ ShapeEditor.prototype.calculateCellColors = function(minX, minY, w, h) {
 	}
 	var s;
 	for( s in this.shaders ) {
-		this.shaders[s](this, minX, minY, w, h);
+		this.shaders[s](ss, minX, minY, w, h);
 	}
 };
 
-ShapeEditor.prototype.updateCellColors = function() {
+ShapeSheetRenderer.prototype.updateCellColors = function() {
 	this.updateDepthDerivedData();
 	processRectangleUpdates(this.updatingColorRectangles, this.calculateCellColors.bind(this));
 };
 
-ShapeEditor.prototype.copyToCanvas = function(minX,minY,w,h) {
-	var width = this.width, height = this.height;
+ShapeSheetRenderer.prototype.copyToCanvas = function(minX,minY,w,h) {
+	var ss = this.shapeSheet;
+	var width = ss.width, height = ss.height;
 	var maxX = minX+w, maxY = minY+h;
 	if( minX < 0 ) minX = 0;
 	if( maxX > width ) maxX = width;
@@ -239,14 +219,16 @@ ShapeEditor.prototype.copyToCanvas = function(minX,minY,w,h) {
 	if( maxY > height ) maxY = height;
 	w = maxX-minX, h = maxY-minY;
 	if( w <= 0 || h <= 0 ) return;
-
-	var ctx = this.previewCanvas.getContext('2d');
+	
+	if( this.canvas === null ) return;
+	
+	var ctx = this.canvas.getContext('2d');
 	var encodeColorValue = function(i) {
 		var c = Math.pow(i, 0.45);
 		if( c > 1 ) return 255;
 		return (c*255)|0;
 	};
-	var cellColors = this.cellColors;
+	var cellColors = ss.cellColors;
 	
 	var imgData = ctx.getImageData(minX, minY, w, h);
 	var imgDataData = imgData.data;
@@ -257,7 +239,7 @@ ShapeEditor.prototype.copyToCanvas = function(minX,minY,w,h) {
 			imgDataData[idi*4+0] = encodeColorValue(cellColors[bi*4+0]);
 			imgDataData[idi*4+1] = encodeColorValue(cellColors[bi*4+1]);
 			imgDataData[idi*4+2] = encodeColorValue(cellColors[bi*4+2]);
-			imgDataData[idi*4+3] = this.cellColors[bi*4+3] * 255;
+			imgDataData[idi*4+3] = cellColors[bi*4+3] * 255;
 		}
 	}
 	ctx.putImageData(imgData, minX, minY);
@@ -272,13 +254,13 @@ var processRectangleUpdates = function(rectangleList, updater) {
 	rectangleList.splice(0);
 };
 
-ShapeEditor.prototype.updateCanvas = function() {
+ShapeSheetRenderer.prototype.updateCanvas = function() {
 	var i, r;
 	this.updateCellColors();
 	processRectangleUpdates(this.updatingCanvasRectangles, this.copyToCanvas.bind(this));
 };
 
-ShapeEditor.prototype.requestCanvasUpdate = function() {
+ShapeSheetRenderer.prototype.requestCanvasUpdate = function() {
 	if( this.canvasUpdateRequested ) return;
 	this.canvasUpdateRequested = true;
 	window.requestAnimationFrame( (function() {
@@ -334,7 +316,7 @@ var addToUpdateRectangleList = function(rectangleList, x, y, w, h) {
 	rectangleList.push([x,y,w,h]);
 };
 
-ShapeEditor.prototype.dataUpdated = function(x, y, w, h, updatedDepth, updatedMaterial) {
+ShapeSheetRenderer.prototype.dataUpdated = function(x, y, w, h, updatedDepth, updatedMaterial) {
 	if( x === null || x < 0 ) x = 0;
 	if( y === null || y < 0 ) y = 0;
 	if( w === null || w+x >= this.width  ) w = this.width-x;
@@ -354,189 +336,23 @@ ShapeEditor.prototype.dataUpdated = function(x, y, w, h, updatedDepth, updatedMa
 	}
 };
 
-ShapeEditor.prototype.lightsUpdated = function() {
+ShapeSheetRenderer.prototype.lightsUpdated = function() {
 	this.normalizeLights();
 	// Gotta recalculate everything!
-	addToUpdateRectangleList(this.updatingColorRectangles, 0, 0, this.width, this.height);
-	addToUpdateRectangleList(this.updatingCanvasRectangles, 0, 0, this.width, this.height);
+	var ss = this.shapeSheet;
+	addToUpdateRectangleList(this.updatingColorRectangles, 0, 0, ss.width, ss.height);
+	addToUpdateRectangleList(this.updatingCanvasRectangles, 0, 0, ss.width, ss.height);
 };
 
-//// Plotting
+//// Shader constructors
 
-var infiniMinus = function(a, b) {
-	if( a === b ) return 0;
-	if( a === +Infinity ) {
-		if( b === -Infinity ) return 0;
-		return +LARGE_NUMBER;
-	}
-	if( a === -Infinity ) {
-		if( b === +Infinity ) return 0;
-		return -LARGE_NUMBER;
-	}
-	return a - b;
-};
-
-ShapeEditor.prototype.plotPixel = function(x, y, z0, z1, z2, z3, materialIndex) {
-	x = x|0;
-	y = y|0;
-	if( x < 0 ) return;
-	if( y < 0 ) return;
-	var width = this.width;
-	var cellMaterialIndexes = this.cellMaterialIndexes;
-	var cellCornerDepths = this.cellCornerDepths;
-	if( x >= width ) return;
-	if( y >= this.height ) return;
-	var idx = x+y*width;
-	var oldZ0 = cellCornerDepths[idx*4+0],
-	    oldZ1 = cellCornerDepths[idx*4+1],
-	    oldZ2 = cellCornerDepths[idx*4+2],
-	    oldZ3 = cellCornerDepths[idx*4+3];
-	var ox =
-		  infiniMinus(z0, oldZ0) +
-		  infiniMinus(z1, oldZ1) +
-		  infiniMinus(z2, oldZ2) +
-		  infiniMinus(z3, oldZ3);
-	if( z0 < oldZ0 ) cellCornerDepths[idx*4+0] = z0;
-	if( z1 < oldZ1 ) cellCornerDepths[idx*4+1] = z1;
-	if( z2 < oldZ2 ) cellCornerDepths[idx*4+2] = z2;
-	if( z3 < oldZ3 ) cellCornerDepths[idx*4+3] = z3;
-	if( ox < 0 ) {
-		// Then our new thing is on average in front of the old thing
-		cellMaterialIndexes[idx] = materialIndex;
-	}
-};
-/** Shift the Z of every cell by this amount. */
-ShapeEditor.prototype.shiftZ = function(diff) {
-	var i;
-	var cellCornerDepths = this.cellCornerDepths;
-	var cellAverageDepths = this.cellAverageDepths;
-	
-	for( i=this.width*this.height*4-1; i>=0; --i ) {
-		cellCornerDepths[i] += diff;
-	}
-	for( i=this.width*this.height-1; i>=0; --i ) {
-		cellAverageDepths[i] += diff;
-	}
-	if( this.recolorFunction !== null ) {
-		// Normals and averages don't need recalculating,
-		// but color might.
-		this.dataUpdated(0,0,null,null, false, true);
-	}
-};
-ShapeEditor.prototype.plotSphere = function(centerX, centerY, centerZ, rad) {
-	var i;
-	var sphereDepth = (function(x,y) {
-		var sphereX = (x - centerX) / rad;
-		var sphereY = (y - centerY) / rad;
-		var d = sphereX*sphereX + sphereY*sphereY;
-		if( d >  1 ) return Infinity;
-		if( d == 1 ) return centerZ;
-		
-		// z*z + x*x + y*y = 1
-		// z*z = 1 - (x*x + y*y)
-		// z = Math.sqrt(1 - (x*x+y*y))
-		
-		return centerZ - rad * Math.sqrt(1 - d);
-		
-	}).bind(this);
-	var x, y;
-	for( i=0, y=0; y<this.height; ++y ) {
-		for( x=0; x<this.width; ++x, ++i ) {
-			var materialIndex = (Math.random()*3)|0;
-			this.plotPixel(
-				x, y,
-				sphereDepth(x+0,y+0),
-				sphereDepth(x+1,y+0),
-				sphereDepth(x+0,y+1),
-				sphereDepth(x+1,y+1),
-				materialIndex
-			);
-		}
-	}
-	this.dataUpdated(centerX-rad, centerY-rad, rad*2, rad*2, true, true);
-};
-
-//// Demo
-
-ShapeEditor.prototype.buildDemo = function() {
-	this.plotSphere(this.width/2, this.height/2, this.width/2, this.width*(1.0/8));
-	var i;
-	for( i=0; i<200; ++i ) {
-		var r = 2 * Math.PI * i / 200;
-		this.plotSphere(
-			this.width/2  + Math.cos(r)*this.width*(3.0/8),
-			this.height/2 + Math.sin(r)*this.height*(3.0/8),
-			this.width/2,
-			this.height/8);
-	}
-};
-
-ShapeEditor.prototype.animateLights = function() {
-	var lightsMoving = true;
-	var f = 0;
-	return setInterval( (function() {
-		if( lightsMoving ) {
-			this.lights[0].direction = [+Math.sin(f*0.01),  0.8, +Math.cos(f*0.01)];
-			this.lights[1].direction = [-Math.sin(f*0.005), -0.8, -Math.cos(f*0.005)];
-			this.lightsUpdated();
-			++f;
-		}
-		this.requestCanvasUpdate();
-	}).bind(this), 1000 / 60);
-};
-
-ShapeEditor.prototype.animateLavaLamp = function() {
-	var x = this.width/2, y = this.width/2, rad = Math.random()*this.width/8;
-	var vx = 1, vy = 1, vrad = 0;
-	var ang = 0;
-	return setInterval((function() {
-		rad = Math.abs(rad + vrad);
-		if( rad <  4 ) { rad = 4; vrad = +1; }
-		if( rad > this.width/4 ) { rad = this.width/4; vrad = -1; }
-		
-		x += vx;
-		y += vy;
-		if(      x-rad <= 0           ) { x = rad            ; vx = +Math.abs(vx); }
-		else if( x+rad >= this.width  ) { x = this.width-rad ; vx = -Math.abs(vx); }
-		if(      y-rad <= 0           ) { y = rad            ; vy = +Math.abs(vy); }
-		else if( y+rad >= this.height ) { y = this.height-rad; vy = -Math.abs(vy); }
-		if( Math.abs(vx) > 1 ) vx *= 0.5;
-		if( Math.abs(vy) > 1 ) vy *= 0.5;
-		
-		vx   += Math.random()-0.5;
-		vy   += Math.random()-0.5;
-		
-		vrad += Math.random()-0.5;
-		if( Math.abs(vrad) > 1 ) vrad *= 0.5;
-
-		this.shiftZ(1);
-		var vMag = Math.sqrt(vx*vx + vy*vy);
-		var aheadX = vx / vMag, aheadY = vy / vMag;
-		var sideX  = aheadY   , sideY = -aheadX;
-		var loopRad = this.width/8;
-		var sin = Math.sin(ang);
-		var cos = Math.cos(ang);
-		var plotX = x + sin * sideX * loopRad;
-		var plotY = plotY = y + sin * sideY * loopRad;
-		var plotZ = 0 + cos * loopRad;
-		
-		this.plotSphere(plotX, plotY, plotZ, rad);
-		
-		this.requestCanvasUpdate();
-		
-		ang += Math.PI / 16;
-	}).bind(this), 10);
-};
-
-//// Color functions
-
-ShapeEditor.makeFogShader = function(originDepth, fogR, fogG, fogB, fogA) {
-	return function(se, minX, minY, w, h) {
+ShapeSheetRenderer.makeFogShader = function(originDepth, fogR, fogG, fogB, fogA) {
+	return function(ss, minX, minY, w, h) {
 		minX = minX|0; minY = minY|0; w = w|0; h = h|0;
 		var maxX=(minX+w)|0, maxY=(minY+h)|0;
-		var width = se.width;
-		var cellAverageDepths = se.cellAverageDepths;
-		var cellColors = se.cellColors;
+		var width = ss.width;
+		var cellAverageDepths = ss.cellAverageDepths;
+		var cellColors = ss.cellColors;
 		var x, y, i, d, r, g, b, a, oMix, fMix;
 		var fogT = (1-fogA); // Fog transparency; how much of original color to keep at depth = 1 pixel
 		for( y=minY; y<maxY; ++y ) for( i=y*width, x=minX; x<maxX; ++x, ++i ) {
@@ -573,6 +389,6 @@ ShapeEditor.makeFogShader = function(originDepth, fogR, fogG, fogB, fogA) {
 	};
 };
 
-module.ShapeEditor = ShapeEditor;
+module.ShapeSheetRenderer = ShapeSheetRenderer;
 
 })();

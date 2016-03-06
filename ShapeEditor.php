@@ -44,31 +44,38 @@ canvas.shape-view {
 </canvas>
 </div>
 
-<?php require_js('ShapeEditor.js', $inlineResources); ?>
+<?php require_js('ShapeSheet.js', $inlineResources); ?>
+<?php require_js('ShapeSheetRenderer.js', $inlineResources); ?>
+<?php require_js('ShapeSheetUtil.js', $inlineResources); ?>
+<?php if($mode === 'demo'): ?>
+<?php require_js('ShapeSheetDemo.js', $inlineResources); ?>
+<?php endif; ?>
 <script type="text/javascript">//<![CDATA[
 (function() {
 	"use strict";
 	
 	var canv = document.getElementById('shaded-preview-canvas');
-	
-	var se = new ShapeEditor(64, 64);
-	se.initUi(canv);
+
+	var shapeSheet = new ShapeSheet(64,64);
+	var shapeSheetRenderer = new ShapeSheetRenderer(shapeSheet, canv);
+	shapeSheetRenderer.shaders.push(ShapeSheetRenderer.makeFogShader(0, 0, 0, 0, 0.01));
+	var shapeSheetUtil = new ShapeSheetUtil(shapeSheet, shapeSheetRenderer);
 <?php if($mode === 'demo'): ?>
-	se.buildDemo();
-	se.animateLights();
-	se.animateLavaLamp();
+	var shapeSheetDemo = new ShapeSheetDemo(shapeSheetUtil);
+	shapeSheetDemo.buildDemo();
+	shapeSheetDemo.animateLights();
+	shapeSheetDemo.animateLavaLamp();
+	window.shapeSheetUtil = shapeSheetUtil;
 <?php endif; ?>
 	
-	se.shaders.push(ShapeEditor.makeFogShader(0, 0, 0, 0, 0.01));
-
-	window.resizeCanvas = function(w,h) {
+	window.resizeShapeSheet = function(w,h) {
 		canv.width = w;
 		canv.height = h;
 		se.initBuffer(w,h);
 		se.buildDemo();
 	};
 
-	window.shapeEditor = se;
+	window.shapeSheetDemo = shapeSheetDemo;
 })();
 //]]></script>
 
