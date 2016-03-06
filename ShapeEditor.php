@@ -4,6 +4,7 @@
 	if( !isset($title) ) $title = ($mode === 'demo' ? 'Shapes!' : 'Shape Editor');
 	if( !isset($inlineResources) ) $inlineResources = ($mode === 'demo');
 ?>
+<!DOCTYPE html>
 <html>
 <meta charset="utf-8"/>
 <head>
