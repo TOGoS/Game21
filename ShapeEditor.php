@@ -1,3 +1,9 @@
+<?php
+	require_once 'lib.php';
+	$mode = 'demo';
+	$title = 'Shape Editor';
+	$inlineResources = true;
+?>
 <html>
 <meta charset="utf-8"/>
 <head>
@@ -11,16 +17,24 @@ body {
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	/* background: rgb(24,0,24); */
+<?php if( $mode === 'editor' ): ?>
+	background: rgb(24,0,24);
+<?php endif; ?>
 }
 canvas.shape-view {
+<?php if( $mode === 'demo' ): ?>
 	width: 512px;
 	height: 512px;
+<?php else: ?>
+	width: 384px;
+	height: 384px;
 	background: black;
+<?php endif; ?>
 	image-rendering: -moz-crisp-edges;
 	image-rendering: pixelated;
 }
 </style>
+<title><?php eht($title); ?></title>
 </head>
 <body>
 
@@ -29,7 +43,7 @@ canvas.shape-view {
 </canvas>
 </div>
 
-<script src="ShapeEditor.js"></script>
+<?php require_js('ShapeEditor.js', $inlineResources); ?>
 <script>//<![CDATA[
 (function() {
 	"use strict";
@@ -40,7 +54,7 @@ canvas.shape-view {
 	se.initUi(canv);
 	se.buildDemo();
 	se.animateLights();
-	se.animateLavaLamp();
+	//se.animateLavaLamp();
 	
 	se.shaders.push(ShapeEditor.makeFogShader(0, 0, 0, 0, 0.01));
 
