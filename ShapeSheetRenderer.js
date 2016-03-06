@@ -10,9 +10,10 @@ var normalizeVect3d = function(vect) {
 	return [vect[0]/len, vect[1]/len, vect[2]/len];
 };
 
-// Vector to unit cube
-var manhattanNormalizeVect3d = function(vect) {
-	var len = Math.max(Math.abs(vect[0]), Math.abs(vect[1]), Math.abs(vect[2]));
+// fit vector to [-1..1, -1..1, -inf..inf]
+var normalizeVect3dToXYUnitSquare = function(vect) {
+	var len = Math.max(Math.abs(vect[0]), Math.abs(vect[1]));
+	if( len == 0 ) return vect;
 	return [vect[0]/len, vect[1]/len, vect[2]/len];
 };
 
@@ -34,12 +35,14 @@ var ShapeSheetRenderer = function(shapeSheet, canvas) {
 		{
 			direction: [1,2,1],
 			color: [0.3, 0.5, 0.5],
-			shadowFuzz: 0.9
+			shadowFuzz: 0.5,
+			minimumShadowLight: 0.0
 		},
 		{
 			direction: [-1,-2,-1],
 			color: [0.1, 0.01, 0.01],
-			shadowFuzz: 0.9
+			shadowFuzz: 0.5,
+			minimumShadowLight: 0.1
 		}
 	];
 	this.shadowsEnabled = true;
@@ -56,7 +59,7 @@ ShapeSheetRenderer.prototype.normalizeLights = function() {
 		// normalize direction!
 		light = this.lights[l];
 		light.direction = normalizeVect3d(light.direction);
-		light.manhattanDirection = manhattanNormalizeVect3d(light.direction);
+		light.traceVector = normalizeVect3dToXYUnitSquare(light.direction);
 	}
 };
 
@@ -207,18 +210,28 @@ ShapeSheetRenderer.prototype.calculateCellColors = function(minX, minY, w, h) {
 			var dotProd = -(normalX*light.direction[0] + normalY*light.direction[1] + normalZ*light.direction[2]);
 			if( dotProd > 0 ) {
 				var diffuseAmt = dotProd; // Yep, that's how you calculate it.
-				if( shadowsEnabled ) {
-					stx = x + 0.5; sty = y + 0.5;
-					stz = cellAvgDepths[(sty|0)*width + (stx|0)];
-					stdx = -light.manhattanDirection[0], stdy = -light.manhattanDirection[1], stdz = -light.manhattanDirection[2];
-					while( stz > minAvgDepth && stx > 0 && stx < width && sty > 0 && sty < height ) {
+				if( shadowsEnabled && diffuseAmt > 0 ) {
+					var shadowLight = 1;
+					stx = x + 0.5;
+					sty = y + 0.5;
+					stz = cellAvgDepths[y*width + x];
+					stdx = -light.traceVector[0];
+					stdy = -light.traceVector[1];
+					stdz = -light.traceVector[2];
+					if( x == 48 && y == 32 && l == 0 ) {
+						console.log("break here mang");
+					}
+					if( stdx == 0 && stdy == 0 ) {
+						shadowLight = stdz < 0 ? 1 : 0;
+					} else while( stz > minAvgDepth && stx > 0 && stx < width && sty > 0 && sty < height ) {
 						d = cellAvgDepths[(sty|0)*width + (stx|0)];
 						if( stz > d ) {
-							diffuseAmt *= Math.pow(light.shadowFuzz, stz - d);
+							shadowLight *= Math.pow(light.shadowFuzz, stz - d);
 							stz = d;
 						}
 						stx += stdx; sty += stdy; stz += stdz;
 					}
+					diffuseAmt *= Math.max(shadowLight, light.minimumShadowLight);
 				}
 				r += diffuseAmt * light.color[0] * mat.diffuse[0];
 				g += diffuseAmt * light.color[1] * mat.diffuse[1];
