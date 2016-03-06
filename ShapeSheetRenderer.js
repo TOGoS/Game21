@@ -10,6 +10,12 @@ var normalizeVect3d = function(vect) {
 	return [vect[0]/len, vect[1]/len, vect[2]/len];
 };
 
+// Vector to unit cube
+var manhattanNormalizeVect3d = function(vect) {
+	var len = Math.max(Math.abs(vect[0]), Math.abs(vect[1]), Math.abs(vect[2]));
+	return [vect[0]/len, vect[1]/len, vect[2]/len];
+};
+
 var ShapeSheetRenderer = function(shapeSheet, canvas) {
 	this.shapeSheet = shapeSheet;
 	this.canvas = canvas;
@@ -27,13 +33,16 @@ var ShapeSheetRenderer = function(shapeSheet, canvas) {
 	this.lights = [
 		{
 			direction: [1,2,1],
-			color: [0.3, 0.5, 0.5]
+			color: [0.3, 0.5, 0.5],
+			shadowFuzz: 0.9
 		},
 		{
 			direction: [-1,-2,-1],
-			color: [0.1, 0.01, 0.01]
+			color: [0.1, 0.01, 0.01],
+			shadowFuzz: 0.9
 		}
 	];
+	this.shadowsEnabled = true;
 	this.shaders = [];
 	this.updatingDepthRectangles  = []; // Tracks rectangles that need to have calculateCellDepthDerivedData called
 	this.updatingColorRectangles  = []; // Tracks rectangles that need to have calculateCellColors called
@@ -47,6 +56,7 @@ ShapeSheetRenderer.prototype.normalizeLights = function() {
 		// normalize direction!
 		light = this.lights[l];
 		light.direction = normalizeVect3d(light.direction);
+		light.manhattanDirection = manhattanNormalizeVect3d(light.direction);
 	}
 };
 
@@ -114,6 +124,7 @@ ShapeSheetRenderer.prototype.calculateDepthDerivedData = function(minX, minY, w,
 	var i, x, y;
 	var cornerDepths = ss.cellCornerDepths;
 	var averageDepths = ss.cellAverageDepths;
+	var minimumAverageDepth = Infinity;
 	
 	var cellCoverages = ss.cellCoverages;
 	var cellNormals = ss.cellNormals;
@@ -129,7 +140,9 @@ ShapeSheetRenderer.prototype.calculateDepthDerivedData = function(minX, minY, w,
 		if( z1 !== Infinity ) { tot += z1; ++cnt; }
 		if( z2 !== Infinity ) { tot += z2; ++cnt; }
 		if( z3 !== Infinity ) { tot += z3; ++cnt; }
-		averageDepths[i] = (cnt == 0) ? Infinity : tot/cnt;
+		var avg = (cnt == 0) ? Infinity : tot/cnt;
+		averageDepths[i] = avg;
+		if( avg < minimumAverageDepth ) minimumAverageDepth = avg;
 		
 		var opac = calcOpacity4(z0,z1,z2,z3);
 		var dzdx = calcSlope4(z0,z1,z2,z3);
@@ -148,6 +161,8 @@ ShapeSheetRenderer.prototype.calculateDepthDerivedData = function(minX, minY, w,
 		cellNormals[i*3+1] = normalY;
 		cellNormals[i*3+2] = normalZ;
 	}
+	
+	ss.minimumAverageDepth = minimumAverageDepth;
 };
 
 ShapeSheetRenderer.prototype.updateDepthDerivedData = function() {
@@ -165,13 +180,17 @@ ShapeSheetRenderer.prototype.calculateCellColors = function(minX, minY, w, h) {
 	w = maxX-minX, h = maxY-minY;
 	if( w <= 0 || h <= 0 ) return;
 	
-	var i, l, x, y;
+	var i, l, x, y, d;
+	var stx, sty, stz, stdx, stdy, stdz; // shadow tracing
 	var cellColors = ss.cellColors;
 	var cellCoverages = ss.cellCoverages;
 	var cellNormals = ss.cellNormals;
 	var materials = this.materials;
 	var cellMaterialIndexes = ss.cellMaterialIndexes;
+	var cellAvgDepths = ss.cellAverageDepths;
+	var minAvgDepth = ss.minimumAverageDepth;
 	var lights = this.lights;
+	var shadowsEnabled = !!this.shadowsEnabled;
 	var light;
 	
 	for( i=0, y=minY; y<maxY; ++y ) for( x=minX, i=width*y+x; x<maxX; ++x, ++i ) {
@@ -188,6 +207,19 @@ ShapeSheetRenderer.prototype.calculateCellColors = function(minX, minY, w, h) {
 			var dotProd = -(normalX*light.direction[0] + normalY*light.direction[1] + normalZ*light.direction[2]);
 			if( dotProd > 0 ) {
 				var diffuseAmt = dotProd; // Yep, that's how you calculate it.
+				if( shadowsEnabled ) {
+					stx = x + 0.5; sty = y + 0.5;
+					stz = cellAvgDepths[(sty|0)*width + (stx|0)];
+					stdx = -light.manhattanDirection[0], stdy = -light.manhattanDirection[1], stdz = -light.manhattanDirection[2];
+					while( stz > minAvgDepth && stx > 0 && stx < width && sty > 0 && sty < height ) {
+						d = cellAvgDepths[(sty|0)*width + (stx|0)];
+						if( stz > d ) {
+							diffuseAmt *= Math.pow(light.shadowFuzz, stz - d);
+							stz = d;
+						}
+						stx += stdx; sty += stdy; stz += stdz;
+					}
+				}
 				r += diffuseAmt * light.color[0] * mat.diffuse[0];
 				g += diffuseAmt * light.color[1] * mat.diffuse[1];
 				b += diffuseAmt * light.color[2] * mat.diffuse[2];
@@ -206,6 +238,11 @@ ShapeSheetRenderer.prototype.calculateCellColors = function(minX, minY, w, h) {
 
 ShapeSheetRenderer.prototype.updateCellColors = function() {
 	this.updateDepthDerivedData();
+	if( this.shadowsEnabled ) {
+		// Then you have to recalculate everything, brah
+		var ss = this.shapeSheet;
+		this.updatingColorRectangles.splice(0, this.updatingColorRectangles.length, [0,0,ss.width,ss.height]);
+	}
 	processRectangleUpdates(this.updatingColorRectangles, this.calculateCellColors.bind(this));
 };
 
