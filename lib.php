@@ -29,3 +29,25 @@ function require_js($files, $inline=true) {
 		}
 	}
 };
+
+/**
+ * Fit iw,ih into cw,ch, preserving aspect ratio
+ */
+function fitpar($cw, $ch, $iw, $ih) {
+	if( $iw < $cw ) {
+		$ih *= ($cw / $iw);
+		$iw = $cw;
+	} else if( $ih < $ch ) {
+		$iw *= ($ch / $ih);
+		$iw = $cw;
+	}
+	if( $iw > $cw ) {
+		$ih *= ($cw / $iw);
+		$iw = $cw;
+	}
+	if( $ih > $ch ) {
+		$iw *= ($ch / $ih);
+		$ih = $ch;
+	}
+	return array($iw, $ih);
+}

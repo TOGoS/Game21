@@ -3,6 +3,12 @@
 	if( !isset($mode ) ) $mode = 'editor';
 	if( !isset($title) ) $title = ($mode === 'demo' ? 'Shapes!' : 'Shape Editor');
 	if( !isset($inlineResources) ) $inlineResources = ($mode === 'demo');
+	if( !isset($width ) ) $width  = isset($_REQUEST['width' ]) ? $_REQUEST['width' ] : 128;
+	if( !isset($height) ) $height = isset($_REQUEST['height']) ? $_REQUEST['height'] :  64;
+	
+	$shapeViewMaxWidth = 768;
+	$shapeViewMaxHeight = 384;
+	list($shapeViewWidth, $shapeViewHeight) = fitpar($shapeViewMaxWidth, $shapeViewMaxHeight, $width, $height);
 ?>
 <!DOCTYPE html>
 <html>
@@ -25,12 +31,7 @@ html, body {
 <?php endif; ?>
 }
 canvas.shape-view {
-<?php if( $mode === 'demo' ): ?>
-	width: 512px;
-	height: 512px;
-<?php else: ?>
-	width: 384px;
-	height: 384px;
+<?php if( $mode === 'editor' ): ?>
 	background: black;
 <?php endif; ?>
 	image-rendering: -moz-crisp-edges;
@@ -42,8 +43,10 @@ canvas.shape-view {
 <body>
 
 <div class="preview-region">
-<canvas id="shaded-preview-canvas" class="shape-view" width="64" height="64">
-</canvas>
+<canvas id="shaded-preview-canvas" class="shape-view"
+  width="<?php eht($width); ?>" height="<?php eht($height); ?>"
+  style="width: <?php eht($shapeViewWidth); ?>px; height: <?php eht($shapeViewHeight); ?>px;"
+></canvas>
 </div>
 
 <?php
@@ -63,7 +66,7 @@ canvas.shape-view {
 	
 	var canv = document.getElementById('shaded-preview-canvas');
 
-	var shapeSheet = new ShapeSheet(64,64);
+	var shapeSheet = new ShapeSheet(<?php echo "$width,$height"; ?>);
 	var shapeSheetRenderer = new ShapeSheetRenderer(shapeSheet, canv);
 	shapeSheetRenderer.shaders.push(ShapeSheetRenderer.makeFogShader(0, 0, 0, 0, 0.01));
 	var shapeSheetUtil = new ShapeSheetUtil(shapeSheet, shapeSheetRenderer);
@@ -72,16 +75,17 @@ canvas.shape-view {
 	shapeSheetDemo.buildDemo();
 	shapeSheetDemo.animateLights();
 	shapeSheetDemo.animateLavaLamp();
-	window.shapeSheetUtil = shapeSheetUtil;
 <?php endif; ?>
 	
 	window.resizeShapeSheet = function(w,h) {
 		canv.width = w;
 		canv.height = h;
-		se.initBuffer(w,h);
-		se.buildDemo();
+		shapeSheet.initBuffer(w,h);
+		shapeSheetDemo.buildDemo();
 	};
-
+	
+	window.shapeSheet = shapeSheet;
+	window.shapeSheetUtil = shapeSheetUtil;
 	window.shapeSheetDemo = shapeSheetDemo;
 })();
 //]]></script>
