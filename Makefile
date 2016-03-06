@@ -1,8 +1,8 @@
 default: ShapeDemo.html
 
-.PHONY: ShapeDemo.html
+.PHONY: default publish-demo
 
-ShapeDemo.html: *.php *.js
+ShapeDemo.html: $(shell find -name '*.php' -o -name '*.js')
 	php ShapeDemo.php --inline-resources >"$@"
 
 ShapeDemo.html.urn: ShapeDemo.html
