@@ -25,6 +25,32 @@ ShapeSheet.prototype.initBuffer = function(width,height) {
 	
 	this.canvasUpdateRequested = false;
 };
+ShapeSheet.prototype.getCellInfo = function(x, y) {
+	var idx;
+	if( y === null ) {
+		idx = (x|0);
+	} else {
+		idx = (y|0)*this.width + (x|0);
+	}
+	if( idx < 0 || idx >= this.width*this.height ) return null;
+	return {
+		materialIndex: this.cellMaterialIndexes[idx],
+		cornerDepths: [
+			this.cellCornerDepths[idx*4+0],
+			this.cellCornerDepths[idx*4+1],
+			this.cellCornerDepths[idx*4+2],
+			this.cellCornerDepths[idx*4+3]
+		],
+		averageDepth: this.cellAverageDepths[idx],
+		color: [
+			this.cellColors[idx*4+0],
+			this.cellColors[idx*4+1],
+			this.cellColors[idx*4+2],
+			this.cellColors[idx*4+3]
+		]
+	};
+};
+
 
 module.ShapeSheet = ShapeSheet;
 
