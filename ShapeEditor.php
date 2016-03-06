@@ -6,8 +6,8 @@
 ?>
 <!DOCTYPE html>
 <html>
-<meta charset="utf-8"/>
 <head>
+<meta charset="utf-8"/>
 <style>
 body {
 	background: black;
