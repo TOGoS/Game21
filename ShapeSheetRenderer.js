@@ -21,6 +21,20 @@ var ShapeSheetRenderer = function(shapeSheet, canvas) {
 	this.shapeSheet = shapeSheet;
 	this.canvas = canvas;
 	this.materials = [
+		// 0-3 (reserved)
+		{
+			diffuse: [0,0,0,0]
+		},
+		{
+			diffuse: [0,0,0,0]
+		},
+		{
+			diffuse: [0,0,0,0]
+		},
+		{
+			diffuse: [0,0,0,0]
+		},
+		// 4-7
 		{
 			diffuse: [1,1.0,0.9,1.0]
 		},
@@ -29,6 +43,9 @@ var ShapeSheetRenderer = function(shapeSheet, canvas) {
 		},
 		{
 			diffuse: [1,0.8,0.7,1.0]
+		},
+		{
+			diffuse: [1,0.7,0.8,1.0]
 		}
 	];
 	this.lights = [
@@ -198,6 +215,10 @@ ShapeSheetRenderer.prototype.calculateCellColors = function(minX, minY, w, h) {
 	
 	for( i=0, y=minY; y<maxY; ++y ) for( x=minX, i=width*y+x; x<maxX; ++x, ++i ) {
 		var mat = materials[cellMaterialIndexes[i]];
+		if( mat == null ) {
+			console.log("No such material #"+cellMaterialIndexes[i]);
+			continue;
+		}
 		// Z being 'into' the picture (right-handed coordinate system!)
 		
 		var normalX = cellNormals[i*3+0],

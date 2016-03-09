@@ -8,6 +8,9 @@ var LARGE_NUMBER = 1000;
 var ShapeSheetUtil = function(shapeSheet, renderer) {
 	this._shapeSheet = shapeSheet;
 	this.renderer = renderer;
+	this.plottedMaterialIndexFunction = function(x, y, z, z0, z1, z2, z3) {
+		return 4 + (Math.random()*4)|0;
+	};
 };
 
 Object.defineProperty(ShapeSheetUtil.prototype, "shapeSheet", {
@@ -44,6 +47,12 @@ ShapeSheetUtil.prototype.plotPixel = function(x, y, z0, z1, z2, z3, materialInde
 	var cellCornerDepths = ss.cellCornerDepths;
 	if( x >= width ) return;
 	if( y >= ss.height ) return;
+	
+	if( materialIndex == null ) {
+		var avgZ = (z0+z1+z2+z3)/4;
+		materialIndex = (this.plottedMaterialIndexFunction)(x,y,avgZ,z0,z1,z2,z3);
+	}
+	
 	var idx = x+y*width;
 	var oldZ0 = cellCornerDepths[idx*4+0],
 	    oldZ1 = cellCornerDepths[idx*4+1],
@@ -101,14 +110,12 @@ ShapeSheetUtil.prototype.plotSphere = function(centerX, centerY, centerZ, rad) {
 	var height = this.shapeSheet.height;
 	for( i=0, y=0; y<height; ++y ) {
 		for( x=0; x<width; ++x, ++i ) {
-			var materialIndex = (Math.random()*3)|0;
 			this.plotPixel(
 				x, y,
 				sphereDepth(x+0,y+0),
 				sphereDepth(x+1,y+0),
 				sphereDepth(x+0,y+1),
-				sphereDepth(x+1,y+1),
-				materialIndex
+				sphereDepth(x+1,y+1)
 			);
 		}
 	}
@@ -185,51 +192,6 @@ ShapeSheetUtil.prototype.animateLavaLamp = function() {
 		
 		ang += Math.PI / 16;
 	}).bind(this), 10);
-};
-
-//// Color functions
-
-ShapeSheetUtil.makeFogShader = function(originDepth, fogR, fogG, fogB, fogA) {
-	return function(se, minX, minY, w, h) {
-		minX = minX|0; minY = minY|0; w = w|0; h = h|0;
-		var maxX=(minX+w)|0, maxY=(minY+h)|0;
-		var width = se.width;
-		var cellAverageDepths = se.cellAverageDepths;
-		var cellColors = se.cellColors;
-		var x, y, i, d, r, g, b, a, oMix, fMix;
-		var fogT = (1-fogA); // Fog transparency; how much of original color to keep at depth = 1 pixel
-		for( y=minY; y<maxY; ++y ) for( i=y*width, x=minX; x<maxX; ++x, ++i ) {
-			d = cellAverageDepths[i];
-			if( d < originDepth ) continue;
-			if( d === Infinity ) {
-				cellColors[i*4+0] = fogR;
-				cellColors[i*4+1] = fogG;
-				cellColors[i*4+2] = fogB;
-				cellColors[i*4+3] = fogA == 0 ? 0 : 1;
-				continue;
-			}
-			
-			r = cellColors[i*4+0];
-			g = cellColors[i*4+1];
-			b = cellColors[i*4+2];
-			a = cellColors[i*4+3];
-			
-			// Mix in fog *behind* this point (from the surface to infinity, which is always just fog color)
-			r = r*a + fogR*(1-a);
-			g = g*a + fogG*(1-a);
-			b = b*a + fogB*(1-a);
-			// Now add the fog ahead;
-			// mix = how much of the original color to keep
-			oMix = Math.pow(fogT, (cellAverageDepths[i] - originDepth));
-			fMix = 1-oMix;
-			cellColors[i*4+0] = r*oMix + fogR*fMix;
-			cellColors[i*4+1] = g*oMix + fogG*fMix;
-			cellColors[i*4+2] = b*oMix + fogB*fMix;
-			// At infinity, everything fades to fog color unless fog color = 0,
-			// so that's the only case where there can be any transparency
-			if( fogA > 0 ) cellColors[i*4+3] = 1;
-		}
-	};
 };
 
 module.ShapeSheetUtil = ShapeSheetUtil;
