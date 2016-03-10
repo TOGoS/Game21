@@ -162,8 +162,7 @@ ShapeSheetRenderer.prototype.calculateDepthDerivedData = function(minX, minY, w,
 		if( z1 !== Infinity ) { tot += z1; ++cnt; }
 		if( z2 !== Infinity ) { tot += z2; ++cnt; }
 		if( z3 !== Infinity ) { tot += z3; ++cnt; }
-		var avg = (cnt == 0) ? Infinity : tot/cnt;
-		averageDepths[i] = avg;
+		var avg = averageDepths[i] = (cnt == 0) ? Infinity : tot/cnt;
 		if( avg < minimumAverageDepth ) minimumAverageDepth = avg;
 		
 		var opac = calcOpacity4(z0,z1,z2,z3);
@@ -237,7 +236,7 @@ ShapeSheetRenderer.prototype.calculateCellColors = function(minX, minY, w, h) {
 					var shadowLight = 1;
 					stx = x + 0.5;
 					sty = y + 0.5;
-					stz = cellAvgDepths[y*width + x];
+					stz = cellAvgDepths[i];
 					stdx = -light.traceVector[0];
 					stdy = -light.traceVector[1];
 					stdz = -light.traceVector[2];
