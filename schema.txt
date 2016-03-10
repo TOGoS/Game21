@@ -50,14 +50,8 @@ class 'shape sheet shape' {
 
 abstract class 'tile icon' # Abstract identifier for an object's appearance
 
-class 'shape transform' { # can be represented by an integer 0..7; i.e. 3 = 0b011 = don't flip, then rotate 270 degrees CW
-	flip X : boolean              # bit 2
-	rotation : enum(0,90,180,270) # bits 1 and 0
-}
-
 class 'shape tile icon' : extends(tile icon) {
 	shape sheet shape : UUID reference(shape sheet shape)
-	transform : tile icon transform
 	material map : UUID reference(material map)
 }
 
@@ -84,15 +78,29 @@ class 'room neighbor' {
 	room
 }
 
-class 'tile' {
+class 'non-tile transform' {
+	flip X : boolean
+	rotation : float # In degrees so that 90° increments are whole numbers, not this radians crap
+}
+
+class 'non-tile' {
+	entity ID : entity ID : nullable
 	icon : UUID reference(tile icon)
+	transform : non-tile transform
 }
 
-class 'entity tile' : extends(tile) {
-	entity ID : entity ID
+class 'tile transform' { # can be represented by an integer 0..7; i.e. 3 = 0b011 = don't flip, then rotate 270 degrees CW
+	flip X : boolean              # bit 2
+	rotation : enum(0,90,180,270) # bits 1 and 0
 }
 
-class 'tile tree' {
+class 'tile' {
+	entity ID : entity ID : nullable
+	icon : UUID reference(tile icon)
+	transform : tile transform
+}
+
+abstract class 'tile tree' {
 	width  : integer
 	height : integer
 	depth  : integer
@@ -110,6 +118,7 @@ class 'room' {
 	neighbors : list(room neighbor)
 	tile bounds : bounding cuboid
 	tile data : tile tree
+	non-tiles : list(non-tile)
 }
 
 #### 
