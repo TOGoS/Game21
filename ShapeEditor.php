@@ -76,7 +76,7 @@ canvas.shape-view {
 	var shapeSheetDemo = new ShapeSheetDemo(shapeSheetUtil);
 	shapeSheetDemo.buildDemo();
 	shapeSheetDemo.animateLights();
-	shapeSheetDemo.animateLavaLamp();
+	//shapeSheetDemo.animateLavaLamp();
 	shapeSheetDemo.animateLightning();
 <?php endif; ?>
 	

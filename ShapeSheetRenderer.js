@@ -34,7 +34,7 @@ var ShapeSheetRenderer = function(shapeSheet, canvas) {
 		{
 			diffuse: [0,0,0,0]
 		},
-		// 4-7
+		// 4-7 (primary material)
 		{
 			diffuse: [1,1.0,0.9,1.0]
 		},

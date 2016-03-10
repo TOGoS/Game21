@@ -58,6 +58,7 @@ ShapeSheetUtil.prototype.plotPixel = function(x, y, z0, z1, z2, z3, materialInde
 	    oldZ1 = cellCornerDepths[idx*4+1],
 	    oldZ2 = cellCornerDepths[idx*4+2],
 	    oldZ3 = cellCornerDepths[idx*4+3];
+	// TODO: wouldn't it be simpler and still work to just do avgZ < oldAvgZ?
 	var ox =
 		  infiniMinus(z0, oldZ0) +
 		  infiniMinus(z1, oldZ1) +
@@ -89,6 +90,85 @@ ShapeSheetUtil.prototype.shiftZ = function(diff) {
 		this.renderer.dataUpdated(0,0,null,null, false, true);
 	}
 };
+
+ShapeSheetUtil.prototype.plotFlatTBQuad = function(topY, bottomY, topX0, topZ0, topX1, topZ1, bottomX0, bottomZ0, bottomX1, bottomZ1) {
+	// e.g. topY = 0.5, bottomY = 2, topX0 = topX1 = 2.5, bottomX0 = 1, bottomX1 = 5
+	//
+	//   0        1        2   2.5  3        4        5        6        7
+	//0  +--------+--------+--------+--------+--------+--------+--------+
+	//   |        |        |        |        |        |        |        |
+	//0.5|        |        |    ._  |        |        |        |        |
+	//   |        |        |  _/  \_|_       |        |        |        |
+	//   |        |        |_/      | \__    |        |        |        |
+	//1  +--------+--------x--------x--------+--------+--------+--------+
+	//   |        |      _/|        |    \__ |        |        |        |
+	//   |        |    _/  |        |       \|__      |        |        |
+	//   |        |  _/    |        |        |  \__   |        |        |
+	//   |        |_/      |        |        |     \__|        |        |
+	//2  +--------x--------x--------x--------x--------x--------+--------+
+   //
+	// First thoughts:
+	// Any pixel containing any part of the polygon gets colored with material if average conrer Z < what was there
+	// Only corners lying within or on the edge of the polygon and with Z < current corner Z get depth marked
+	// 
+	// It might be easier just to plot spheres all over the place...
+	
+	var ss = this.shapeSheet;
+	var cellCornerDepths = ss.cellCornerDepths;
+	var cellMaterialIndexes = ss.cellMaterialIndexes;
+	var ssWidth = ss.width;
+	
+	var height = bottomY-topY;
+	var diffX0 = bottomX0-topX0, diffX1 = bottomX1-topX1;
+	var diffZ0 = bottomZ0-topZ0, diffZ1 = bottomZ1-topZ1;
+	
+	// TODO: Use clip bounds instead of 0,0,ss.width,ss.height
+	
+	var py;
+	// Do it in rows!
+	var startY = Math.max(        0, topY              )|0;
+	var endY   = Math.min(ss.height, Math.ceil(bottomY))|0;
+	for( py=startY; py < bottomY; ++py ) {
+		var rowTopY = py, rowBottomY = py+1;
+		var topRatio    = (rowTopY   -topY)/height;
+		var bottomRatio = (rowBottomY-topY)/height;
+		var rowTopX0    = topX0+diffX0*topRatio   , rowTopX1    = topX1+diffX1*topRatio   ;
+		var rowBottomX0 = topX0+diffX0*bottomRatio, rowBottomX1 = topX1+diffX1*bottomRatio;
+		var rowTopZ0    = topZ0+diffZ0*topRatio   , rowTopZ1    = topZ1+diffZ1*topRatio   ;
+		var rowBottomZ0 = topZ0+diffZ0*bottomRatio, rowBottomZ1 = topZ1+diffZ1*bottomRatio;
+		var leftX;
+		var startX = Math.max(      0, Math.min(rowTopX0,rowBottomX0))|0;
+		var endX   = Math.min(ssWidth, Math.ceil(Math.max(rowTopX1,rowBottomX1)))|0; // right side of the last pixel of the row
+		var idx; // Index into sheet data
+		for( leftX=startX, idx=leftX*ssWidth; leftX<endX; ++leftX, ++idx ) {
+			var rightX = leftX+1;
+			var rowTopDiffZ    = rowTopZ1   -rowTopZ0;
+			var rowBottomDiffZ = rowBottomZ1-rowBottomZ0;
+			var rowTopWidth = (rowTopX1-rowTopX0), rowBottomWidth = rowBottomX1-rowBottomX0; // May be negative!
+			if( rowTopWidth    == 0 ) rowTopWidth    = 1; // Avoid /0 in cases where we can't do anything about it anyway
+			if( rowBottomWidth == 0 ) rowBottomWidth = 1; // Avoid /0 in cases where we can't do anything about it anyway
+			var topRightRatio    = (rightX-   rowTopX0)/rowTopWidth   , topLeftRatio    = (leftX-   rowTopX0)/rowTopWidth   ;
+			var bottomRightRatio = (rightX-rowBottomX0)/rowBottomWidth, bottomLeftRatio = (leftX-rowBottomX0)/rowBottomWidth;
+			
+			var incTopLeft     = leftX  >= rowTopX0    && leftX  <= rowTopX1;
+			var incTopRight    = rightX >= rowTopX0    && rightX <= rowTopX1;
+			var incBottomLeft  = leftX  >= rowBottomX0 && leftX  <= rowBottomX1;
+			var incBottomRight = rightX >= rowBottomX0 && rightX <= rowBottomX1;
+			
+			var topLeftZ     = incTopLeft     ?    rowTopZ0 +     topLeftRatio*rowTopDiffZ    : Infinity;
+			var topRightZ    = incTopRight    ?    rowTopZ0 +    topRightRatio*rowTopDiffZ    : Infinity;
+			var bottomLeftZ  = incBottomLeft  ? rowBottomZ0 +  bottomLeftRatio*rowBottomDiffZ : Infinity;
+			var bottomRightZ = incBottomRight ? rowBottomZ0 + bottomRightRatio*rowBottomDiffZ : Infinity;
+			
+			this.plotPixel( leftX, rowTopY, topLeftZ, topRightZ, bottomLeftZ, bottomRightZ );
+		}
+	}
+	
+	var boundingBoxX0 = Math.min(topX0, bottomX0)|0, boundingBoxX1 = Math.ceil(Math.max(topX1,bottomX1))|0;
+	
+	this.renderer.dataUpdated(boundingBoxX0, startY, boundingBoxX1-boundingBoxX0, endY-startY, true, true);
+};
+
 ShapeSheetUtil.prototype.plotSphere = function(centerX, centerY, centerZ, rad) {
 	var i;
 	var sphereDepth = (function(x,y) {

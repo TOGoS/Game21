@@ -21,6 +21,7 @@ ShapeSheetDemo.prototype.buildDemo = function() {
 	var height = this.shapeSheetUtil.shapeSheet.height;
 	var util = this.shapeSheetUtil;
 	var minwh = Math.min(width,height);
+	/*
 	util.plotSphere(width/2, height/2, minwh*2, minwh/4);
 	util.plotSphere(width/2, height/2, minwh*1, minwh/8);
 	util.plotSphere(width/2, height/2, minwh*0.5, minwh/16);
@@ -33,6 +34,18 @@ ShapeSheetDemo.prototype.buildDemo = function() {
 			width/2,
 			minwh/8);
 	}
+	*/
+	
+	util.plotFlatTBQuad(  0,  2,  2, 2,  2, 2,  0, 2,  2, 0 ); // top left
+	util.plotFlatTBQuad(  0,  2,  2, 2, 14, 2,  2, 0, 14, 0 ); // top
+	util.plotFlatTBQuad(  0,  2, 14, 2, 14, 2, 14, 0, 16, 2 ); // top right
+	util.plotFlatTBQuad(  2, 14,  0, 2,  2, 0,  0, 2,  2, 0 ); // left
+	util.plotFlatTBQuad(  2, 14,  2, 0, 14, 0,  2, 0, 14, 0 ); // middle
+	util.plotFlatTBQuad(  2, 14, 14, 0, 16, 2, 14, 0, 16, 2 ); // right
+	util.plotFlatTBQuad( 14, 16,  0, 2,  2, 0,  2, 2,  2, 2 ); // bottom left
+	util.plotFlatTBQuad( 14, 16,  2, 0, 14, 0,  2, 2, 14, 2 ); // bottom
+	util.plotFlatTBQuad( 14, 16, 14, 0, 16, 2, 14, 2, 14, 2 ); // bottom right
+	util.plotSphere(width/2, height/2, minwh*0.5, minwh/16);
 };
 
 ShapeSheetDemo.prototype.animateLights = function() {
