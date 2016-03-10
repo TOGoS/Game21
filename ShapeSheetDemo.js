@@ -21,7 +21,7 @@ ShapeSheetDemo.prototype.buildDemo = function() {
 	var height = this.shapeSheetUtil.shapeSheet.height;
 	var util = this.shapeSheetUtil;
 	var minwh = Math.min(width,height);
-
+	
 	util.plotSphere(width/2, height/2, minwh*2, minwh/4);
 	util.plotSphere(width/2, height/2, minwh*1, minwh/8);
 	util.plotSphere(width/2, height/2, minwh*0.5, minwh/16);
@@ -33,6 +33,10 @@ ShapeSheetDemo.prototype.buildDemo = function() {
 			height/2 + Math.sin(r)*minwh*(3.0/8),
 			width/2,
 			minwh/8);
+	}
+	
+	for( i=0; i<200; ++i ) {
+		util.plotSphere(Math.random()*width, Math.random()*height, Math.random()*8 + 128, 8);
 	}
 	
 	util.plotAABeveledCuboid(15, 15, 15, 48, 48, 4);
