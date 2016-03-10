@@ -141,10 +141,12 @@ ShapeSheetRenderer.prototype.calculateDepthDerivedData = function(minX, minY, w,
 	w = maxX-minX, h = maxY-minY;
 	if( w <= 0 || h <= 0 ) return;
 	
+	var isFullRerender = (minX == 0 && minY == 0 && w == width && h == height);
+	
 	var i, x, y;
 	var cornerDepths = ss.cellCornerDepths;
 	var averageDepths = ss.cellAverageDepths;
-	var minimumAverageDepth = ss.minimumAverageDepth;
+	var minimumAverageDepth = isFullRerender ? Infinity : ss.minimumAverageDepth;
 	
 	var cellCoverages = ss.cellCoverages;
 	var cellNormals = ss.cellNormals;
