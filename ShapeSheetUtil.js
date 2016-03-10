@@ -169,6 +169,22 @@ ShapeSheetUtil.prototype.plotFlatTBQuad = function(topY, bottomY, topX0, topZ0, 
 	this.renderer.dataUpdated(boundingBoxX0, startY, boundingBoxX1-boundingBoxX0, endY-startY, true, true);
 };
 
+ShapeSheetUtil.prototype.plotAABeveledCuboid = function( x, y, z, w, h, bevelDepth ) {
+	var x0 = x, x1=x+bevelDepth, x2=x+w-bevelDepth, x3=x+w;
+	var y0 = y, y1=y+bevelDepth, y2=y+h-bevelDepth, y3=y+h;
+	var z0 = z, z1 = z+bevelDepth;
+
+	this.plotFlatTBQuad( y0, y1, x1,z1, x1,z1, x0,z1, x1,z0 ); // top left
+	this.plotFlatTBQuad( y0, y1, x1,z1, x2,z1, x1,z0, x2,z0 ); // top
+	this.plotFlatTBQuad( y0, y1, x2,z1, x2,z1, x2,z0, x3,z1 ); // top right
+	this.plotFlatTBQuad( y1, y2, x0,z1, x1,z0, x0,z1, x1,z0 ); // left
+	this.plotFlatTBQuad( y1, y2, x1,z0, x2,z0, x1,z0, x2,z0 ); // middle
+	this.plotFlatTBQuad( y1, y2, x2,z0, x3,z1, x2,z0, x3,z1 ); // right
+	this.plotFlatTBQuad( y2, y3, x0,z1, x1,z0, x1,z1, x1,z1 ); // bottom left
+	this.plotFlatTBQuad( y2, y3, x1,z0, x2,z0, x1,z1, x2,z1 ); // bottom
+	this.plotFlatTBQuad( y2, y3, x2,z0, x3,z1, x2,z1, x2,z1 ); // bottom right
+};
+
 ShapeSheetUtil.prototype.plotSphere = function(centerX, centerY, centerZ, rad) {
 	var i;
 	var sphereDepth = (function(x,y) {

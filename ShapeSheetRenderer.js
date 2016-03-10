@@ -52,13 +52,13 @@ var ShapeSheetRenderer = function(shapeSheet, canvas) {
 		{
 			direction: [1,2,1],
 			color: [0.3, 0.5, 0.5],
-			shadowFuzz: 0.8,
+			shadowFuzz: 0.3,
 			minimumShadowLight: 0.05
 		},
 		{
 			direction: [-1,-2,-1],
 			color: [0.1, 0.01, 0.01],
-			shadowFuzz: 0.5,
+			shadowFuzz: 0.3,
 			minimumShadowLight: 0.1
 		}
 	];
