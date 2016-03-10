@@ -144,12 +144,12 @@ ShapeSheetRenderer.prototype.calculateDepthDerivedData = function(minX, minY, w,
 	var i, x, y;
 	var cornerDepths = ss.cellCornerDepths;
 	var averageDepths = ss.cellAverageDepths;
-	var minimumAverageDepth = Infinity;
+	var minimumAverageDepth = ss.minimumAverageDepth;
 	
 	var cellCoverages = ss.cellCoverages;
 	var cellNormals = ss.cellNormals;
 
-	for( i=0, y=minY; y<maxY; ++y ) for( x=minX, i=width*y+x; x<maxX; ++x, ++i ) {
+	for( y=minY; y<maxY; ++y ) for( x=minX, i=width*y+x; x<maxX; ++x, ++i ) {
 		var z0 = cornerDepths[i*4+0],
 		    z1 = cornerDepths[i*4+1],
 		    z2 = cornerDepths[i*4+2],
