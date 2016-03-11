@@ -74,7 +74,8 @@ canvas.shape-view {
 	var shapeSheetUtil = new ShapeSheetUtil(shapeSheet, shapeSheetRenderer);
 <?php if($mode === 'demo'): ?>
 	var shapeSheetDemo = new ShapeSheetDemo(shapeSheetUtil);
-	shapeSheetDemo.buildDemo();
+	//shapeSheetDemo.buildDemo();
+	shapeSheetDemo.buildPolygonDemo();
 	shapeSheetDemo.animateLights();
 	//shapeSheetDemo.animateLavaLamp();
 	shapeSheetDemo.animateLightning();

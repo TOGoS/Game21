@@ -191,6 +191,22 @@ ShapeSheetUtil.prototype.leftThumbZ = function( points ) {
 	return normalZ;
 };
 
+ShapeSheetUtil.prototype.snapPoints = function( points, xFrac, yFrac, zFrac ) {
+	if( xFrac == null ) xFrac = 8;
+	if( yFrac == null ) yFrac = 8;
+	if( zFrac == null ) zFrac = 16;
+	var vertexCount = points.length/3;
+	var i;
+	var snap = function(v, frac) {
+		return Math.round(v * frac) / frac;
+	};
+	for( i=0; i<vertexCount; ++i ) {
+		points[i*3+0] = snap(points[i*3+0], xFrac);
+		points[i*3+1] = snap(points[i*3+1], yFrac);
+		points[i*3+2] = snap(points[i*3+2], zFrac);
+	}
+};
+
 ShapeSheetUtil.prototype.plotConvexPolygon = function( points ) {
 	var normalZ = this.leftThumbZ(points);
 	if( normalZ > 0 ) return; // back face culling!

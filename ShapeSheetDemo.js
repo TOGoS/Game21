@@ -18,11 +18,11 @@ Object.defineProperty(ShapeSheetDemo.prototype, "renderer", {
 
 ShapeSheetDemo.prototype.buildDemo = function() {
 	var util = this.shapeSheetUtil;
-/*
+
 	var width = util.shapeSheet.width;
 	var height = util.shapeSheet.height;
 	var minwh = Math.min(width,height);
-	
+
 	util.plotSphere(width/2, height/2, minwh*2, minwh/4);
 	util.plotSphere(width/2, height/2, minwh*1, minwh/8);
 	util.plotSphere(width/2, height/2, minwh*0.5, minwh/16);
@@ -46,23 +46,44 @@ ShapeSheetDemo.prototype.buildDemo = function() {
 	util.plotSphere(26, 26, 0, 8);
 	util.plotSphere(42, 36, 10, 10);
 	util.plotSphere(42, 14, 24, 10);
-*/
-	
-	var sides = 10;
+};
+
+ShapeSheetDemo.prototype.buildPolygonDemo = function() {
+	var util = this.shapeSheetUtil;
+	var width = util.shapeSheet.width;
+	var height = util.shapeSheet.height;
+	var sides = 80;
 	var s = 0;
 	var l = 0;
-	for( l=0; l<10; ++l ) {
+	var cx = width/2, cy = height/2;
+	for( l=0; l<30; ++l ) {
+		if( l % 3 == 0 ) continue;
 		for( s=0; s<sides; ++s ) {
 			var a0 = s   * Math.PI*2/sides, a1 = (s+1) * Math.PI*2/sides;
 			var s0 = Math.sin(a0), s1 = Math.sin(a1);
 			var c0 = Math.cos(a0), c1 = Math.cos(a1);
-			var d0 = l*5, d1=(l+1)*5;
-			var z0 = 30 * Math.sin(  l    * 0.1 );
-			var z1 = 30 * Math.sin( (l+1) * 0.1 );
-			util.plotConvexPolygon( [c0*d0,s0*d0,z0, c0*d1,s0*d1,z1, c1*d1,s1*d1,z1, c1*d0,s1*d0,z0] );
+			var d0 = l*3, d1=(l+1)*3;
+			var z0 = 30 * Math.sin(  l    * 0.2 );
+			var z1 = 30 * Math.sin( (l+1) * 0.2 );
+			var points = [cx+c0*d0,cy+s0*d0,z0, cx+c0*d1,cy+s0*d1,z1, cx+c1*d1,cy+s1*d1,z1, cx+c1*d0,cy+s1*d0,z0];
+			util.snapPoints(points, 8, 8, 16);
+			util.plotConvexPolygon( points );
+			console.log( c0*d0,s0*d0,z0, c0*d1,s0*d1,z1, c1*d1,s1*d1,z1, c1*d0,s1*d0,z0 );
 			//util.plotSphere( c1*d1,s1*d1,z1, 3 );
 		}
 	}
+	
+/*	//this one causes trouble
+	var points = [
+		 7.725424859373686,23.776412907378838,14.38276615812609,
+		 9.270509831248424,28.531695488854606,16.939274201851063,
+		-9.27050983124842 ,28.53169548885461 ,16.939274201851063,
+		-7.725424859373684,23.77641290737884 ,14.38276615812609
+	];
+	util.plotConvexPolygon(points);
+*/
+	
+	//util.plotConvexPolygon( [30,29,0, 40,30,0, 45,40,0, 29,45,10] );
 	
 	//util.plotConvexPolygon( [32,16,0, 48,32,0, 32,48,0, 16,40,0, 16,24,0] );
 };
