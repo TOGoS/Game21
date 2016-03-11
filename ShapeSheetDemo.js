@@ -17,9 +17,10 @@ Object.defineProperty(ShapeSheetDemo.prototype, "renderer", {
 });
 
 ShapeSheetDemo.prototype.buildDemo = function() {
-	var width = this.shapeSheetUtil.shapeSheet.width;
-	var height = this.shapeSheetUtil.shapeSheet.height;
 	var util = this.shapeSheetUtil;
+/*
+	var width = util.shapeSheet.width;
+	var height = util.shapeSheet.height;
 	var minwh = Math.min(width,height);
 	
 	util.plotSphere(width/2, height/2, minwh*2, minwh/4);
@@ -45,6 +46,25 @@ ShapeSheetDemo.prototype.buildDemo = function() {
 	util.plotSphere(26, 26, 0, 8);
 	util.plotSphere(42, 36, 10, 10);
 	util.plotSphere(42, 14, 24, 10);
+*/
+	
+	var sides = 10;
+	var s = 0;
+	var l = 0;
+	for( l=0; l<10; ++l ) {
+		for( s=0; s<sides; ++s ) {
+			var a0 = s   * Math.PI*2/sides, a1 = (s+1) * Math.PI*2/sides;
+			var s0 = Math.sin(a0), s1 = Math.sin(a1);
+			var c0 = Math.cos(a0), c1 = Math.cos(a1);
+			var d0 = l*5, d1=(l+1)*5;
+			var z0 = 30 * Math.sin(  l    * 0.1 );
+			var z1 = 30 * Math.sin( (l+1) * 0.1 );
+			util.plotConvexPolygon( [c0*d0,s0*d0,z0, c0*d1,s0*d1,z1, c1*d1,s1*d1,z1, c1*d0,s1*d0,z0] );
+			//util.plotSphere( c1*d1,s1*d1,z1, 3 );
+		}
+	}
+	
+	//util.plotConvexPolygon( [32,16,0, 48,32,0, 32,48,0, 16,40,0, 16,24,0] );
 };
 
 ShapeSheetDemo.prototype.animateLights = function() {

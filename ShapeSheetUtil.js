@@ -169,6 +169,88 @@ ShapeSheetUtil.prototype.plotFlatTBQuad = function(topY, bottomY, topX0, topZ0, 
 	this.renderer.dataUpdated(boundingBoxX0, startY, boundingBoxX1-boundingBoxX0, endY-startY, true, true);
 };
 
+/**
+ * If the fingers of your left hand wrap around a polygon (i.e. clockwise)
+ * the un-normalized vector of your left thumb has this Z component
+ * 
+ * (negative Z being out of the screen, positive being into it)
+ */
+ShapeSheetUtil.prototype.leftThumbZ = function( points ) {
+	var normalX=0, normalY=0, normalZ=0;
+	var i, j;
+	var vertexCount = points.length/3;
+	for( i=0, j=1; i<vertexCount; ++i, ++j ) {
+		if( j == vertexCount ) j = 0;
+		normalX += (points[i*3+2] + points[j*3+2]) * (points[j*3+1] - points[i*3+1]);
+		normalY += (points[i*3+0] + points[j*3+0]) * (points[j*3+2] - points[i*3+2]);
+		normalZ += (points[i*3+1] + points[j*3+1]) * (points[j*3+0] - points[i*3+0]);
+	}
+	return normalZ;
+};
+
+ShapeSheetUtil.prototype.plotConvexPolygon = function( points ) {
+	var normalZ = this.leftThumbZ(points);
+	if( normalZ > 0 ) return; // back face culling!
+	
+	var vertexCount = points.length/3;
+	var topY = Infinity, bottomY = -Infinity;
+	var topIndex = 0, bottomIndex = 0;
+	var i;
+	for( i=0; i<vertexCount; ++i ) {
+		var y = points[i*3+1];
+		if( y < topY    ) { topY    = y; topIndex    = i; }
+		if( y > bottomY ) { bottomY = y; bottomIndex = i; }
+	}
+	// From the top to the bottom, draw thing.
+	var sectTopIndex = topIndex, leftIndex = topIndex, rightIndex = topIndex;
+	y = points[topIndex*3+1];
+	var rightX = points[topIndex*3+0], rightZ = points[topIndex*3+2];
+	var leftX = rightX, leftZ = rightZ;
+	var nextY, nextRightX, nextRightZ, nextLeftX, nextLeftZ;
+	while( leftIndex != bottomIndex ) {
+		var nextLeftIndex = leftIndex-1;
+		if( nextLeftIndex < 0 ) nextLeftIndex += vertexCount;
+		var nextRightIndex = rightIndex+1;
+		if( nextRightIndex >= vertexCount ) nextRightIndex -= vertexCount;
+		
+		var moveLeft, moveRight, moveRat;
+		
+		if( (nextY = points[nextRightIndex*3+1]) == points[nextLeftIndex*3+1] ) {
+			moveLeft = moveRight = true;
+		} else if( (nextY = points[nextRightIndex*3+1]) < points[nextLeftIndex*3+1] ) {
+			nextY = points[nextRightIndex*3+1];
+			moveRight = true; moveLeft = false;
+		} else {
+			nextY = points[nextLeftIndex*3+1];
+			moveLeft = true; moveRight = false;
+		}
+		if( moveRight ) {
+			nextRightX = points[nextRightIndex*3+0];
+			nextRightZ = points[nextRightIndex*3+2];
+		} else {
+			moveRat = (nextY-y)/(points[nextRightIndex*3+1]-y);
+			nextRightX = rightX + moveRat*(points[nextRightIndex*3+0]-rightX);
+			nextRightZ = rightZ + moveRat*(points[nextRightIndex*3+2]-rightZ);
+		}
+		if( moveLeft ) {
+			nextLeftX  = points[nextLeftIndex*3+0];
+			nextLeftZ  = points[nextLeftIndex*3+2];
+		} else {
+			moveRat = (nextY-y)/(points[nextLeftIndex*3+1]-y);
+			nextLeftX = leftX + moveRat*(points[nextLeftIndex*3+0]-leftX);
+			nextLeftZ = leftZ + moveRat*(points[nextLeftIndex*3+2]-leftZ);
+		}
+		
+		this.plotFlatTBQuad(y, nextY, leftX, leftZ, rightX, rightZ, nextLeftX, nextLeftZ, nextRightX, nextRightZ);
+		console.log("plotFlatTBQuad", y, nextY, leftX, leftZ, rightX, rightZ, nextLeftX, nextLeftZ, nextRightX, nextRightZ);
+		if( moveLeft  ) leftIndex  = nextLeftIndex;
+		if( moveRight ) rightIndex = nextRightIndex;
+		y = nextY;
+		rightX = nextRightX;	rightZ = nextRightZ;
+		 leftX =  nextLeftX;  leftZ =  nextLeftZ;
+	}
+};
+
 ShapeSheetUtil.prototype.plotAABeveledCuboid = function( x, y, z, w, h, bevelDepth ) {
 	var x0 = x, x1=x+bevelDepth, x2=x+w-bevelDepth, x3=x+w;
 	var y0 = y, y1=y+bevelDepth, y2=y+h-bevelDepth, y3=y+h;
