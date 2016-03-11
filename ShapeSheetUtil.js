@@ -286,6 +286,18 @@ ShapeSheetUtil.prototype.plotAABeveledCuboid = function( x, y, z, w, h, bevelDep
 	this.plotFlatTBQuad( y2, y3, x2,z0, x3,z1, x2,z1, x2,z1 ); // bottom right
 };
 
+ShapeSheetUtil.prototype.plotAASharpBeveledCuboid = function( x, y, z, w, h, bevelDepth ) {
+	var x0 = x, x1=x+bevelDepth, x2=x+w-bevelDepth, x3=x+w;
+	var y0 = y, y1=y+bevelDepth, y2=y+h-bevelDepth, y3=y+h;
+	var z0 = z, z1 = z+bevelDepth;
+	
+	this.plotConvexPolygon( [x0,y0,z1, x3,y0,z1, x2,y1,z0, x1,y1,z0] ); // top
+	this.plotConvexPolygon( [x0,y0,z1, x1,y1,z0, x1,y2,z0, x0,y3,z1] ); // left
+	this.plotConvexPolygon( [x1,y1,z0, x2,y1,z0, x2,y2,z0, x1,y2,z0] ); // middle
+	this.plotConvexPolygon( [x2,y1,z0, x3,y0,z1, x3,y3,z1, x2,y2,z0] ); // right
+	this.plotConvexPolygon( [x1,y2,z0, x2,y2,z0, x3,y3,z1, x0,y3,z1] ); // bottom
+};
+
 ShapeSheetUtil.prototype.plotSphere = function(centerX, centerY, centerZ, rad) {
 	var i;
 	var sphereDepth = (function(x,y) {

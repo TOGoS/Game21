@@ -41,7 +41,7 @@ ShapeSheetDemo.prototype.buildDemo = function() {
 	}
 	
 	util.plotAABeveledCuboid(15, 15, 15, 48, 48, 4);
-	util.plotAABeveledCuboid(10, 10, 0, 32, 32, 4);
+	util.plotAASharpBeveledCuboid(10, 10, 0, 32, 32, 4);
 	util.plotAABeveledCuboid(16, 16, -6, 8, 8, 2);
 	util.plotSphere(26, 26, 0, 8);
 	util.plotSphere(42, 36, 10, 10);
