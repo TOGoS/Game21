@@ -150,10 +150,13 @@ ShapeSheetUtil.prototype.plotFlatTBQuad = function(topY, bottomY, topX0, topZ0, 
 			var topRightRatio    = (rightX-   rowTopX0)/rowTopWidth   , topLeftRatio    = (leftX-   rowTopX0)/rowTopWidth   ;
 			var bottomRightRatio = (rightX-rowBottomX0)/rowBottomWidth, bottomLeftRatio = (leftX-rowBottomX0)/rowBottomWidth;
 			
-			var incTopLeft     = leftX  >= rowTopX0    && leftX  <= rowTopX1;
-			var incTopRight    = rightX >= rowTopX0    && rightX <= rowTopX1;
-			var incBottomLeft  = leftX  >= rowBottomX0 && leftX  <= rowBottomX1;
-			var incBottomRight = rightX >= rowBottomX0 && rightX <= rowBottomX1;
+			var incTop    = rowTopY    >= topY && rowTopY    <= bottomY;
+			var incBottom = rowBottomY >= topY && rowBottomY <= bottomY;
+			
+			var incTopLeft     = leftX  >= rowTopX0    && leftX  <= rowTopX1    && incTop;
+			var incTopRight    = rightX >= rowTopX0    && rightX <= rowTopX1    && incTop;
+			var incBottomLeft  = leftX  >= rowBottomX0 && leftX  <= rowBottomX1 && incBottom;
+			var incBottomRight = rightX >= rowBottomX0 && rightX <= rowBottomX1 && incBottom;
 			
 			var topLeftZ     = incTopLeft     ?    rowTopZ0 +     topLeftRatio*rowTopDiffZ    : Infinity;
 			var topRightZ    = incTopRight    ?    rowTopZ0 +    topRightRatio*rowTopDiffZ    : Infinity;
