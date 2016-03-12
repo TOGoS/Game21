@@ -65,6 +65,53 @@ class 'room ID' : extends(integer)
 
 class 'entity ID' : extends(UUID)
 
+class 'physical object' {
+	prototype : UUID reference(physical object) : nullable
+	entity ID : entity ID : nullable
+	icon : UUID reference(tile icon)
+	# ...and various physical properties...
+}
+
+class 'non-tile transform' {
+	flip X : boolean
+	rotation : float # In degrees so that 90° increments are whole numbers, not this radians crap
+}
+
+class 'non-tile' : extends(physical object) {
+	prototype : UUID reference(physical object)
+	transform : non-tile transform
+	# ...potentially overrides of physical properties...
+}
+
+class 'tile transform' { # can be represented by an integer 0..7; i.e. 3 = 0b011 = don't flip, then rotate 270 degrees CW
+	flip X : boolean              # bit 2
+	rotation : enum(0,90,180,270) # bits 1 and 0
+}
+
+class 'tile' : extends(physical object) {
+	transform : tile transform
+	# ...potentially overrides of physical properties...
+}
+
+abstract class 'tile tree' {
+	width  : integer
+	height : integer
+	depth  : integer
+}
+
+class 'tile stack' : comment @ "A bunch of tiles taking up the same space" {
+	tiles : list(UUID reference(tile))
+}
+
+class 'tile tree leaf' : extends(tile tree) {
+	# Probably compressed using a shared tile number => UUID list
+	tile stacks : list(tile stack)
+}
+
+class 'tile tree branch' : extends(tile tree) {
+	subtrees : list(tile tree)
+}
+
 class 'bounding cuboid' {
 	minimum X : number
 	minimum Y : number
@@ -74,50 +121,17 @@ class 'bounding cuboid' {
 	maximum Z : number
 }
 
-class 'room neighbor' {
-	room
-}
-
-class 'non-tile transform' {
-	flip X : boolean
-	rotation : float # In degrees so that 90° increments are whole numbers, not this radians crap
-}
-
-class 'non-tile' {
-	entity ID : entity ID : nullable
-	icon : UUID reference(tile icon)
-	transform : non-tile transform
-}
-
-class 'tile transform' { # can be represented by an integer 0..7; i.e. 3 = 0b011 = don't flip, then rotate 270 degrees CW
-	flip X : boolean              # bit 2
-	rotation : enum(0,90,180,270) # bits 1 and 0
-}
-
-class 'tile' {
-	entity ID : entity ID : nullable
-	icon : UUID reference(tile icon)
-	transform : tile transform
-}
-
-abstract class 'tile tree' {
-	width  : integer
-	height : integer
-	depth  : integer
-}
-
-class 'tile tree leaf' : extends(tile tree) {
-	tile stacks : list(tile stack)
-}
-
-class 'tile tree branch' : extends(tile tree) {
-	subtrees : list(tile tree)
+class 'room neighbor' : comment @ "Where's another room relative to this one?" {
+	room : UUID reference(room)
+	X : number
+	Y : number
+	Z : number
 }
 
 class 'room' {
 	neighbors : list(room neighbor)
-	tile bounds : bounding cuboid
-	tile data : tile tree
+	bounds : bounding cuboid
+	tile data : URN reference(tile tree)
 	non-tiles : list(non-tile)
 }
 
