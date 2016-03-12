@@ -1,5 +1,30 @@
 var module = window;
 
+var ShapeImager = function(renderer) {
+	if( renderer == null ) {
+		renderer = new ShapeSheetRenderer();;
+		renderer.shadowsEnabled = false;
+	}
+	this.renderer = renderer;
+};
+/**
+ * @param boolean flipX whether to flip along the X-axis before rotating
+ * @param int rot number of degrees to rotate clockwise
+ */
+ShapeImager.prototype.slice = function( shapeSheet, x, y, w, h, flipX, rot ) {
+	var slicedSs = ShapeSheetTransforms.clone(shapeSheet, x, y, w, h, flipX, rot);
+	this.renderer.shapeSheet = slicedSs;
+	var canvas = document.createElement('canvas');
+	canvas.width = w; canvas.height = h;
+	this.renderer.canvas = canvas;
+	this.renderer.calculateDepthDerivedData(0, 0, slicedSs.width, slicedSs.height);
+	this.renderer.calculateCellColors(0, 0, slicedSs.width, slicedSs.height);
+	this.renderer.copyToCanvas(0, 0, slicedSs.width, slicedSs.height);
+	var image = new Image();
+	image.src = canvas.toDataURL();
+	return new ImageSlice(image, 0, 0, slicedSs.width, slicedSs.height);
+};
+
 var CanvasWorldView = function() {
 };
 CanvasWorldView.prototype.initUi = function(canvas) {
@@ -39,7 +64,7 @@ CanvasWorldView.prototype.drawFrame = function(time) {
 	var dists = [10.0, 8.0, 6.0, 4.0, 3.0, 2.5, 2.0, 1.6, 1.3, 1.1, 1.0];
 	var dist, prevDist = null;
 	for( d=0; d<dists.length; ++d ) {
-		dist = dists[d] + Math.sin(time * 0.015 );
+		dist = dists[d];// + Math.sin(time * 0.015 );
 		
 		for( i=0; i<this.sprites.length; ++i ) {
 			var sprite = this.sprites[i];
@@ -85,18 +110,32 @@ CanvasWorldView.prototype.runDemo2 = function() {
 	this.animate();
 };
 CanvasWorldView.prototype.runDemo = function() {
+	var ss = new ShapeSheet(16,16);
+	var util = new ShapeSheetUtil(ss);
+	util.plotAABeveledCuboid( 0, 0, 0, 16, 16, 2 );
+	util.plotSphere(  4, 4, 0.5, 1.5 );
+	util.plotSphere(  8, 4, 0.5, 1.5 );
+	var slicer = new ShapeImager();
+	var blockImages = [];
+	var flipX, rot;
+	for( flipX=0; flipX<2; ++flipX ) {
+		for( rot=0; rot<360; rot+=90 ) {
+			blockImages.push(slicer.slice( ss, 0, 0, 16, 16, flipX == 1, rot ));
+		}
+	}
+	
 	this.spriteSheet = new Image();
 	this.spriteSheet.src = 'SomeTiles.png';
 
 	var brickImage = new ImageSlice(this.spriteSheet, 0, 0, 16, 16);
-	var blockImage = new ImageSlice(this.spriteSheet, 0, 16, 16, 16);
+	//var blockImage = new ImageSlice(this.spriteSheet, 0, 16, 16, 16);
 	var x, y;
 	this.sprites = [];
 	for( y=0; y<20; ++y ) {
 		for( x=0; x<20; ++x ) {
 			if( Math.random() < 0.5 ) {
 				this.sprites.push({
-					imageSlice: Math.random() < 0.5 ? brickImage : blockImage,
+					imageSlice: blockImages[(Math.random()*blockImages.length)|0],
 					x: x * 16,
 					y: y * 16
 				});

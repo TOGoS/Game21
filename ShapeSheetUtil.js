@@ -17,7 +17,7 @@ Object.defineProperty(ShapeSheetUtil.prototype, "shapeSheet", {
 	"get": function() { return this._shapeSheet; },
 	"set": function(ss) {
 		this._shapeSheet = ss;
-		this.renderer.shapeSheet = ss;
+		if( this.renderer ) this.renderer.shapeSheet = ss;
 	}
 });
 
@@ -86,7 +86,7 @@ ShapeSheetUtil.prototype.shiftZ = function(diff) {
 	for( i=ss.width*ss.height-1; i>=0; --i ) {
 		cellAverageDepths[i] += diff;
 	}
-	if( this.renderer.shaders.length > 0 ) {
+	if( this.renderer && this.renderer.shaders.length > 0 ) {
 		this.renderer.dataUpdated(0,0,null,null, false, true);
 	}
 };
@@ -169,7 +169,7 @@ ShapeSheetUtil.prototype.plotFlatTBQuad = function(topY, bottomY, topX0, topZ0, 
 	
 	var boundingBoxX0 = Math.min(topX0, bottomX0)|0, boundingBoxX1 = Math.ceil(Math.max(topX1,bottomX1))|0;
 	
-	this.renderer.dataUpdated(boundingBoxX0, startY, boundingBoxX1-boundingBoxX0, endY-startY, true, true);
+	if( this.renderer ) this.renderer.dataUpdated(boundingBoxX0, startY, boundingBoxX1-boundingBoxX0, endY-startY, true, true);
 };
 
 /**
@@ -328,7 +328,7 @@ ShapeSheetUtil.prototype.plotSphere = function(centerX, centerY, centerZ, rad) {
 			);
 		}
 	}
-	this.renderer.dataUpdated(centerX-rad, centerY-rad, rad*2, rad*2, true, true);
+	if( this.renderer ) this.renderer.dataUpdated(centerX-rad, centerY-rad, rad*2, rad*2, true, true);
 };
 
 module.ShapeSheetUtil = ShapeSheetUtil;
