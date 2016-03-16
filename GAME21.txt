@@ -65,3 +65,8 @@ At beginning of game, there should an uplink point connected to a
 long-range wireless router so that players don't need to build a bunch
 of infrastructure right away.  To move into distant areas requires
 autonomous robots or networking
+
+### Initial proof-of-concept
+
+Use WebRTC to message between roomgroup servers running in multiple tabs.
+Player can be in their own tab.
