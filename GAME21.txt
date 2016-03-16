@@ -26,3 +26,31 @@
 
 Inspirational tunes:
 Sinespree-Groove2-04mix.mp3
+
+
+## Networking as part of the game
+
+World may be distributed across multiple servers.
+
+Each room is part of a room group; each room group is simulated on its own [virtual] roomgroup server.
+
+Links between rooms of different groups may introduce additional latency and look special in the game.
+Players, resources, signals, etc, can pass through these portals just as they would pass anywhere else, but with potential for lots of latency.
+
+When moving physical objects between room groups, a transaction occurs:
+- Group A sends request to group B asking if the move may happen
+- Group B sends accept/reject response.
+- If successful, group A removes the object.
+
+All steps are recorded in the a transaction log unique to the two room groups.
+
+Updates on objects within rooms at the border of a group may be broadcast to adjacent roomgroup servers.
+
+
+To reduce latency, roomgroups may have uplink points within them that
+players can use.
+
+At beginning of game, there should an uplink point connected to a
+long-range wireless router so that players don't need to build a bunch
+of infrastructure right away.  To move into distant areas requires
+autonomous robots or networking
