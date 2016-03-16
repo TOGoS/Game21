@@ -38,17 +38,28 @@ Links between rooms of different groups may introduce additional latency and loo
 Players, resources, signals, etc, can pass through these portals just as they would pass anywhere else, but with potential for lots of latency.
 
 When moving physical objects between room groups, a transaction occurs:
-- Group A sends request to group B asking if the move may happen
-- Group B sends accept/reject response.
+- Group A sends request to group B asking if object may move into a spot.
+- Group B sends accept/reject response and adds the object on their end if move was successful.
 - If successful, group A removes the object.
 
 All steps are recorded in the a transaction log unique to the two room groups.
+Or just use TCP (or some reliable stream abstraction) between them for the same effect.
+If a connection is lost while negotiating, who knows.  Impossible to know if it went through or not.
 
-Updates on objects within rooms at the border of a group may be broadcast to adjacent roomgroup servers.
+Things that don't require transatons (can be sent via UDP):
+- Updates on objects within rooms at the border of a group may be broadcast to adjacent roomgroup servers.
+- Signal transmission (since signals are unreliable anyway).
+- Unimportant physical objects, e.g. debris; group A will remove it regardless
 
 
 To reduce latency, roomgroups may have uplink points within them that
 players can use.
+
+An 'uplink' port, by definition, allows you to connect to a network
+closer to the player, e.g. the same network the roomgroup servers use
+to communicate with each other, which may itself be the Internet.
+How that wiring is done may also be ad-hoc and customizable
+(maybe even defined by data pipes in another roomgroup! XD).
 
 At beginning of game, there should an uplink point connected to a
 long-range wireless router so that players don't need to build a bunch
