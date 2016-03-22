@@ -1,5 +1,5 @@
-var IP6 = {
-	parseIp6Address: function(addrText) {
+var IP6Address = {
+	parse: function(addrText) {
 		var wordTexts = addrText.split(':');
 		if( wordTexts.length > 8 ) {
 			throw new Error("Too many digit groups in IPv6 address: "+addrText);
@@ -28,7 +28,7 @@ var IP6 = {
 		}
 		return addr;
 	},
-	stringifyIp6Address: function(addr, shorten) {
+	stringify: function(addr, shorten) {
 		if( shorten == undefined ) shorten = true;
 		var words = new DataView(addr.buffer);
 		// TODO: shorten
@@ -41,4 +41,4 @@ var IP6 = {
 	}
 };
 
-if( typeof module !== 'undefined' ) module.exports = IP6;
+if( typeof module !== 'undefined' ) module.exports = IP6Address;
