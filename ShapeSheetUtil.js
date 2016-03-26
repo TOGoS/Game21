@@ -261,7 +261,6 @@ ShapeSheetUtil.prototype.plotConvexPolygon = function( points ) {
 		}
 		
 		this.plotFlatTBQuad(y, nextY, leftX, leftZ, rightX, rightZ, nextLeftX, nextLeftZ, nextRightX, nextRightZ);
-		console.log("plotFlatTBQuad", y, nextY, leftX, leftZ, rightX, rightZ, nextLeftX, nextLeftZ, nextRightX, nextRightZ);
 		if( moveLeft  ) leftIndex  = nextLeftIndex;
 		if( moveRight ) rightIndex = nextRightIndex;
 		y = nextY;
