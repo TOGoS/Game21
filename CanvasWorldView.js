@@ -101,7 +101,7 @@ CanvasWorldView.prototype.animate = function() {
 		setTimeout(requestAnimationCallback, 1000 / 100);
 		++fps;
 	}).bind(this);
-	setInterval(function() { console.log("FPS: "+fps); fps = 0; }, 1000);
+	//setInterval(function() { console.log("FPS: "+fps); fps = 0; }, 1000);
 	
 	window.requestAnimationFrame(animationCallback);
 };
@@ -116,6 +116,27 @@ CanvasWorldView.prototype.runDemo = function() {
 	util.plotSphere(  4, 4, 0.5, 1.5 );
 	util.plotSphere(  8, 4, 0.5, 1.5 );
 	var slicer = new ShapeImager();
+	slicer.renderer.lights = [
+		{
+			direction: [1,2,1],
+			color: [0.3, 0.5, 0.5],
+			shadowFuzz: 0.3,
+			minimumShadowLight: 0.05
+		},
+		{
+			direction: [0,0,1],
+			color: [0.01, 0.01, 0.01],
+			shadowFuzz: 0.3,
+			minimumShadowLight: 0.1
+		},
+		{
+			direction: [-2,-1,-1],
+			color: [0.06, 0.1, 0.08],
+			shadowFuzz: 0.3,
+			minimumShadowLight: 0.1
+		}
+	];
+	
 	var blockImages = [];
 	var flipX, rot;
 	for( flipX=0; flipX<2; ++flipX ) {

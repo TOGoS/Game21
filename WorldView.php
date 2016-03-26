@@ -32,6 +32,7 @@
 
 <?php
 	$requireJsFiles = [
+		'DeepFreezer.js',
 		'ShapeSheet.js',
 		'ShapeSheetTransforms.js',
 		'ShapeSheetRenderer.js',

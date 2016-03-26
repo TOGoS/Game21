@@ -91,16 +91,19 @@ ShapeSheetDemo.prototype.buildPolygonDemo = function() {
 ShapeSheetDemo.prototype.animateLights = function() {
 	var lightsMoving = true;
 	var renderer = this.renderer;
-	var lights   = renderer.lights;
-	if( lights.length < 2 ) {
-		console.log("Not enough lights to animate!");
-	}
 	var f = 0;
 	return setInterval( (function() {
 		if( lightsMoving ) {
-			if( lights[0] ) renderer.lights[0].direction = [+Math.sin(f*0.01),  0.8, +Math.cos(f*0.01)];
-			if( lights[1] ) lights[1].direction = [-Math.sin(f*0.005), -0.8, -Math.cos(f*0.005)];
-			renderer.lightsUpdated();
+			var lights = DeepFreezer.thaw(this.renderer.lights);
+			if( lights[0] ) {
+				lights[0] = DeepFreezer.thaw(lights[0]);
+				lights[0].direction = [+Math.sin(f*0.01),  0.8, +Math.cos(f*0.01)];
+			}
+			if( lights[1] ) {
+				lights[1] = DeepFreezer.thaw(lights[1]);
+				lights[1].direction = [-Math.sin(f*0.005), -0.8, -Math.cos(f*0.005)];
+			}
+			renderer.lights = lights;
 			++f;
 		}
 		renderer.requestCanvasUpdate();
@@ -160,9 +163,8 @@ ShapeSheetDemo.prototype.animateLavaLamp = function() {
 
 ShapeSheetDemo.prototype.animateLightning = function() {
 	var bolts = {lightning0:-Infinity, lightning1:-Infinity, lightning2:-Infinity};
+	var lights = {};
 	setInterval( (function() {
-		var lightsNeedNormalizing = false;
-		var lightLevelsChanged = false;
 		var i, level;
 		for( i in bolts ) {
 			level = bolts[i];
@@ -170,14 +172,12 @@ ShapeSheetDemo.prototype.animateLightning = function() {
 				if( Math.random() < 0.01 ) {
 					level = 1;
 					bolts[i] = Math.random();
-					this.renderer.lights[i] = {
+					lights[i] = {
 						direction: [Math.random()-0.5, Math.random()-0.5, Math.random()-0.5],
 						color: [level,level,level],
 						shadowFuzz: 0.5,
 						minimumShadowLight: 0.1
 					};
-					lightsNeedNormalizing = true;
-					lightLevelsChanged = true;
 				}
 			} else {
 				if( Math.random() < 0.1 ) {
@@ -185,18 +185,20 @@ ShapeSheetDemo.prototype.animateLightning = function() {
 				} else {
 					level *= Math.random();
 				}
-				this.renderer.lights[i].color = [level,level,level];
-				lightLevelsChanged = true;
 				if( level < 0.001 ) {
 					bolts[i] = -Infinity;
-					delete this.renderer.lights[i];
+					delete lights[i];
 				} else {
+					if( lights[i] == null ) {
+						console.log("Somehow lights["+i+"] doesn't exist; can't update lightning.", lights);
+						continue;
+					}
+					lights[i].color = [level,level,level];
 					bolts[i] = level;
 				}
 			}
 		}
-		if( lightLevelsChanged ) this.renderer.lightsUpdated();
-		else if( lightsNeedNormalizing ) this.renderer.normalizeLights();
+		this.renderer.putLights(lights);
 	}).bind(this), 10);
 };
 

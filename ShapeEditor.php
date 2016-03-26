@@ -53,6 +53,7 @@ canvas.shape-view {
 
 <?php
 	$requireJsFiles = [
+		'DeepFreezer.js',
 		'ShapeSheet.js',
 		'ShapeSheetRenderer.js',
 		'ShapeSheetUtil.js'

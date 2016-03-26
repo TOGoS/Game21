@@ -20,6 +20,15 @@ var normalizeVect3dToXYUnitSquare = function(vect) {
 var ShapeSheetRenderer = function(shapeSheet, canvas) {
 	this.shapeSheet = shapeSheet;
 	this.canvas = canvas;
+	this.shadowsEnabled = true;
+	this.shaders = [];
+	this.updatingDepthRectangles  = []; // Tracks rectangles that need to have calculateCellDepthDerivedData called
+	this.updatingColorRectangles  = []; // Tracks rectangles that need to have calculateCellColors called
+	this.updatingCanvasRectangles = []; // Tracks rectangles that need to be copied to the canvas
+	
+	// Need to set these last because setting them
+	// may rely on other things being initialized
+	
 	this.materials = [
 		// 0-3 (reserved)
 		{
@@ -48,6 +57,7 @@ var ShapeSheetRenderer = function(shapeSheet, canvas) {
 			diffuse: [1,0.7,0.8,1.0]
 		}
 	];
+	
 	this.lights = [
 		{
 			direction: [1,2,1],
@@ -62,23 +72,51 @@ var ShapeSheetRenderer = function(shapeSheet, canvas) {
 			minimumShadowLight: 0.1
 		}
 	];
-	this.shadowsEnabled = true;
-	this.shaders = [];
-	this.updatingDepthRectangles  = []; // Tracks rectangles that need to have calculateCellDepthDerivedData called
-	this.updatingColorRectangles  = []; // Tracks rectangles that need to have calculateCellColors called
-	this.updatingCanvasRectangles = []; // Tracks rectangles that need to be copied to the canvas
 };
 
-ShapeSheetRenderer.prototype.normalizeLights = function() {
-	// Normalize light directions!
-	var l, light;
-	for( l in this.lights ) {
-		// normalize direction!
-		light = this.lights[l];
-		light.direction = normalizeVect3d(light.direction);
-		light.traceVector = normalizeVect3dToXYUnitSquare(light.direction);
-	}
+var normalizeLight = function(light) {
+	light = DeepFreezer.thaw(light);
+	light.direction = normalizeVect3d(light.direction);
+	light.traceVector = normalizeVect3dToXYUnitSquare(light.direction);
+	return light;
 };
+
+var mapEnumerable = function(obj, callback) {
+	var i;
+	var res = {};
+	for( i in obj ) {
+		if( i == 'length' ) {
+			console.log("Warning: 'length' was enumerable!");
+			continue;
+		}
+		res[i] = callback(obj[i]);
+	}
+	return res;
+};
+
+Object.defineProperty(ShapeSheetRenderer.prototype, "lights", {
+	"get": function() { return this._lights; },
+	"set": function(lights) {
+		if( Object.is(lights, this._lights) ) return;
+		
+		this._lights = DeepFreezer.deepFreeze(mapEnumerable(lights, normalizeLight));
+		this.lightsUpdated();
+	}
+});
+
+/**
+ * Slightly more efficient method for updating some lights
+ * (since unchanged ones don't need to be re-normalized) 
+ */
+ShapeSheetRenderer.prototype.putLights = function(updatedLights) {
+	var lights = DeepFreezer.thaw(this._lights);
+	for( var i in updatedLights ) {
+		lights[i] = DeepFreezer.deepFreeze(normalizeLight(updatedLights[i]));
+	}
+	this.lights = DeepFreezer.deepFreeze(lights, true);
+};
+
+ShapeSheetRenderer.prototype.normalizeLight = normalizeLight;
 
 var calcOpacity4 = function(z0, z1, z2, z3) {
 	var opac = 1;
@@ -406,9 +444,9 @@ ShapeSheetRenderer.prototype.dataUpdated = function(x, y, w, h, updatedDepth, up
 };
 
 ShapeSheetRenderer.prototype.lightsUpdated = function() {
-	this.normalizeLights();
-	// Gotta recalculate everything!
 	var ss = this.shapeSheet;
+	if( ss == null ) return;
+	// Gotta recalculate everything!
 	addToUpdateRectangleList(this.updatingColorRectangles, 0, 0, ss.width, ss.height);
 	addToUpdateRectangleList(this.updatingCanvasRectangles, 0, 0, ss.width, ss.height);
 };
