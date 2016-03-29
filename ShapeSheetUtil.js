@@ -341,7 +341,7 @@ var vect3dLength = function(vect) {
 	return Math.sqrt(vect[0]*vect[0] + vect[1]*vect[1] + vect[2]*vect[2]);
 };
 
-ShapeSheetUtil.prototype.plotSphereLine = function( x0, y0, z0, r0, x1, y1, z1, r1, plotFunc ) {
+ShapeSheetUtil.prototype.plotLine = function( x0, y0, z0, r0, x1, y1, z1, r1, plotFunc ) {
 	if( plotFunc == null ) plotFunc = this.plotSphere;
 	
 	if( x0 == x1 && y0 == y1 ) {
@@ -357,6 +357,21 @@ ShapeSheetUtil.prototype.plotSphereLine = function( x0, y0, z0, r0, x1, y1, z1, 
 	var i;
 	for( i=0; i<=stepCount; ++i ) {
 		plotFunc.call( this, x0+stepVect[0]*i, y0+stepVect[1]*i, z0+stepVect[2]*i, r0+stepR*i );
+	}
+};
+
+ShapeSheetUtil.prototype._plotCurveSegment = function( curve, r0, r1, t0, t1, plotFunc ) {
+};
+
+ShapeSheetUtil.prototype.plotCurve = function( curve, r0, r1, plotFunc ) {
+	if( plotFunc == null ) plotFunc = this.plotSphere;
+	
+	var v = [0,0,0];
+	var t;
+	for( t=0; t<=1; t+=1/16 ) { // TODO: better
+		var r = r0 + (r1-r0)*t;
+		curve( t, v );
+		plotFunc.call( this, v[0], v[1], v[2], r );
 	}
 };
 
