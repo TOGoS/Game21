@@ -70,3 +70,33 @@ autonomous robots or networking
 
 Use WebRTC to message between roomgroup servers running in multiple tabs.
 Player can be in their own tab.
+
+
+## Railroad tracks
+
+Required because trains are awesome.
+
+Tracks would be implemented as a bunch of track pieces.
+
+Each track piece has a start and end point with a forward vector and
+an 'up' vector (a single game object may have multiple track pieces).
+
+Track curveature is assumed to be constant within a single track piece.
+
+Two track pieces are joined when their endpoints match exactly.
+
+Train wheels pivot to follow tracks and cars' orientation are calculated accordingly.
+
+Train cars may indicate maximum inward/outward curveature of track
+(outside of which car will collide with track),
+or maybe the regular physics calculations will handle that.
+
+Tracks can act as conduit for a number of cables and pieces can
+provide connection points for them:
+- Rail control wires
+  - Track power (controls train speed and direction)
+  - Train sensing (indicates whether or not any trains are on a segment)
+- Not related to the rails, but purely as a conduit for:
+  - Power
+  - Data (i.e. Ethernet)
+  - Any other wires you want to stick in there
