@@ -360,19 +360,33 @@ ShapeSheetUtil.prototype.plotLine = function( x0, y0, z0, r0, x1, y1, z1, r1, pl
 	}
 };
 
-ShapeSheetUtil.prototype._plotCurveSegment = function( curve, r0, r1, t0, t1, plotFunc ) {
+var disto = function( x0, y0, z0, x1, y1, z1 ) {
+	var dx = x1-x0, dy = y1-y0, dz = z1-z0;
+	return Math.sqrt( dx*dx + dy*dy + dz*dz );
+};
+
+ShapeSheetUtil.prototype._plotCurveSegment = function( curve, r0, r1, t0, t1, plotFunc, v ) {
+	var x0, y0, z0, x1, y1, z1, x2, y2, z2;
+	curve( t0          , v ); x0 = v[0]; y0 = v[1]; z0 = v[2];
+	curve( t0+(t1-t0)/2, v ); x1 = v[0]; y1 = v[1]; z1 = v[2];
+	curve( t1          , v ); x2 = v[0]; y2 = v[1]; z2 = v[2];
+	
+	plotFunc.call( this, x0, y0, z0, r0+t0*(r1-r0) );
+	var maxDist = Math.max(disto(x0,y0,z0, x1,y1,z1), Math.max(disto(x0,y0,z0, x2,y2,z2)));
+	if( maxDist >= 0.5 ) { // TODO: should probably depend on r
+		// Subdivide!
+		this._plotCurveSegment( curve, r0, r1, t0, t0+(t1-t0)/2, plotFunc, v );
+		this._plotCurveSegment( curve, r0, r1, t0+(t1-t0)/2, t1, plotFunc, v );
+	}
 };
 
 ShapeSheetUtil.prototype.plotCurve = function( curve, r0, r1, plotFunc ) {
 	if( plotFunc == null ) plotFunc = this.plotSphere;
 	
 	var v = [0,0,0];
-	var t;
-	for( t=0; t<=1; t+=1/16 ) { // TODO: better
-		var r = r0 + (r1-r0)*t;
-		curve( t, v );
-		plotFunc.call( this, v[0], v[1], v[2], r );
-	}
+	curve( 1, v );
+	plotFunc.call( this, v[0], v[1], v[2], r1 );
+	this._plotCurveSegment( curve, r0, r1, 0, 1, plotFunc, v );
 };
 
 module.ShapeSheetUtil = ShapeSheetUtil;

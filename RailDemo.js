@@ -15,7 +15,7 @@ Object.defineProperty(RailDemo.prototype, "renderer", {
 });
 
 RailDemo.prototype.drawCurve = function() {
-	this.shapeSheetUtil.plotLine( 8, 8, 8, 1, 32, 32, 32, 3 );
+	// this.shapeSheetUtil.plotLine( 8, 8, 8, 1, 32, 32, 32, 3 );
 	var curve = makeCubicBezierCurve( [16, 32, 16], [16, 16, 16], [32, 16, 16], [32, 32, 16] );
 	this.shapeSheetUtil.plotCurve( curve, 1, 2 );
 };
