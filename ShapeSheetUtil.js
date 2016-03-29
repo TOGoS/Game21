@@ -330,6 +330,36 @@ ShapeSheetUtil.prototype.plotSphere = function(centerX, centerY, centerZ, rad) {
 	if( this.renderer ) this.renderer.dataUpdated(centerX-rad, centerY-rad, rad*2, rad*2, true, true);
 };
 
+// fit vector to [-1..1, -1..1, -inf..inf]
+var normalizeVect3dToXYUnitSquare = function(vect) {
+	var len = Math.max(Math.abs(vect[0]), Math.abs(vect[1]));
+	if( len == 0 ) return vect;
+	return [vect[0]/len, vect[1]/len, vect[2]/len];
+};
+
+var vect3dLength = function(vect) {
+	return Math.sqrt(vect[0]*vect[0] + vect[1]*vect[1] + vect[2]*vect[2]);
+};
+
+ShapeSheetUtil.prototype.plotSphereLine = function( x0, y0, z0, r0, x1, y1, z1, r1, plotFunc ) {
+	if( plotFunc == null ) plotFunc = this.plotSphere;
+	
+	if( x0 == x1 && y0 == y1 ) {
+		var z = Math.min(z0, z1);
+		plotFunc.call( this, x0, y0, z, Math.max(x0, x1) );
+		return;
+	}
+	
+	var vect = [x1-x0, y1-y0, z1-z0];
+	var stepVect = normalizeVect3dToXYUnitSquare(vect);
+	var stepCount = vect3dLength(vect) / vect3dLength(stepVect);
+	var stepR = (r1-r0)/stepCount;
+	var i;
+	for( i=0; i<=stepCount; ++i ) {
+		plotFunc.call( this, x0+stepVect[0]*i, y0+stepVect[1]*i, z0+stepVect[2]*i, r0+stepR*i );
+	}
+};
+
 module.ShapeSheetUtil = ShapeSheetUtil;
 
 })();
