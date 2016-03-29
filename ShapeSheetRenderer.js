@@ -55,13 +55,26 @@ var ShapeSheetRenderer = function(shapeSheet, canvas) {
 		},
 		{
 			diffuse: [1,0.7,0.8,1.0]
+		},
+		// 8-11 (different material)
+		{
+			diffuse: [1,0.80,0.70,0.4]
+		},
+		{
+			diffuse: [1,0.75,0.70,0.40]
+		},
+		{
+			diffuse: [1,0.70,0.65,0.35]
+		},
+		{
+			diffuse: [1,0.65,0.60,0.35]
 		}
 	];
 	
 	this.lights = [
 		{
 			direction: [1,2,1],
-			color: [0.3, 0.5, 0.5],
+			color: [0.6, 0.6, 0.6],
 			shadowFuzz: 0.3,
 			minimumShadowLight: 0.05
 		},
