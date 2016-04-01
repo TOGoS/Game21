@@ -5,6 +5,10 @@ var module = window;
 
 var LARGE_NUMBER = 1000;
 
+var vectorXYLength = function(vect) {
+	return Math.sqrt(vect[0]*vect[0] + vect[1]*vect[1]);
+};
+
 var normalizeVect3d = function(vect) {
 	var len = Math.sqrt(vect[0]*vect[0] + vect[1]*vect[1] + vect[2]*vect[2]);
 	return [vect[0]/len, vect[1]/len, vect[2]/len];
@@ -75,13 +79,15 @@ var ShapeSheetRenderer = function(shapeSheet, canvas) {
 		{
 			direction: [1,2,1],
 			color: [0.6, 0.6, 0.6],
-			shadowFuzz: 0.3,
+			shadowFuzz: 0.1,
+			shadowDistance: 32,
 			minimumShadowLight: 0.05
 		},
 		{
 			direction: [-1,-2,-1],
 			color: [0.1, 0.01, 0.01],
-			shadowFuzz: 0.3,
+			shadowFuzz: 0.1,
+			shadowDistance: 32,
 			minimumShadowLight: 0.1
 		}
 	];
@@ -89,8 +95,13 @@ var ShapeSheetRenderer = function(shapeSheet, canvas) {
 
 var normalizeLight = function(light) {
 	light = DeepFreezer.thaw(light);
+	// Default to 'most physically accurate'
+	if( light.shadowFuzz         == null ) light.shadowFuzz = 0;
+	if( light.shadowDistance     == null ) light.shadowDistance = Infinity;
+	if( light.minimumShadowLight == null ) light.minimumShadowLight = 0;
 	light.direction = normalizeVect3d(light.direction);
 	light.traceVector = normalizeVect3dToXYUnitSquare(light.direction);
+	light.traceVectorLength = vectorXYLength(light.traceVector);
 	return light;
 };
 
@@ -262,7 +273,7 @@ ShapeSheetRenderer.prototype.calculateCellColors = function(minX, minY, w, h) {
 	var cellAvgDepths = ss.cellAverageDepths;
 	var minAvgDepth = ss.minimumAverageDepth;
 	var lights = this.lights;
-	var shadowsEnabled = !!this.shadowsEnabled;
+	var shadowsEnabled = this.shadowsEnabled;
 	var light;
 	
 	for( i=0, y=minY; y<maxY; ++y ) for( x=minX, i=width*y+x; x<maxX; ++x, ++i ) {
@@ -281,9 +292,10 @@ ShapeSheetRenderer.prototype.calculateCellColors = function(minX, minY, w, h) {
 		for( l in lights ) {
 			light = lights[l];
 			var dotProd = -(normalX*light.direction[0] + normalY*light.direction[1] + normalZ*light.direction[2]);
+			var shadist = light.shadowDistance; // Distance to end of where we care
 			if( dotProd > 0 ) {
 				var diffuseAmt = dotProd; // Yep, that's how you calculate it.
-				if( shadowsEnabled && diffuseAmt > 0 ) {
+				if( shadowsEnabled && shadist > 0 && diffuseAmt > 0 ) {
 					var shadowLight = 1;
 					stx = x + 0.5;
 					sty = y + 0.5;
@@ -293,13 +305,22 @@ ShapeSheetRenderer.prototype.calculateCellColors = function(minX, minY, w, h) {
 					stdz = -light.traceVector[2];
 					if( stdx == 0 && stdy == 0 ) {
 						shadowLight = stdz < 0 ? 1 : 0;
-					} else while( stz > minAvgDepth && stx > 0 && stx < width && sty > 0 && sty < height ) {
+					} else while( stz > minAvgDepth && stx > 0 && stx < width && sty > 0 && sty < height && shadist >= 0 ) {
 						d = cellAvgDepths[(sty|0)*width + (stx|0)];
 						if( stz > d ) {
-							shadowLight *= Math.pow(light.shadowFuzz, stz - d);
+							// Light let past for 'fuzz'
+							var fuzzLight = Math.pow(light.shadowFuzz, stz - d);
+							if( shadist === Infinity ) {
+								shadowLight *= fuzzLight;
+							} else {
+								// Shadow influence; drops off with distance from shadow caster
+								var shadinf = shadist / light.shadowDistance;
+								shadowLight *= (1 - shadinf*(1-fuzzLight));
+							}
 							stz = d;
 						}
 						stx += stdx; sty += stdy; stz += stdz;
+						shadist -= light.traceVectorLength;
 					}
 					diffuseAmt *= Math.max(shadowLight, light.minimumShadowLight);
 				}
@@ -323,6 +344,7 @@ ShapeSheetRenderer.prototype.updateCellColors = function() {
 	this.updateDepthDerivedData();
 	if( this.shadowsEnabled ) {
 		// Then you have to recalculate everything, brah
+		// TODO: Only within a radius of maximum shadow distance!
 		var ss = this.shapeSheet;
 		this.updatingColorRectangles.splice(0, this.updatingColorRectangles.length, [0,0,ss.width,ss.height]);
 	}
