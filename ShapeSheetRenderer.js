@@ -300,7 +300,7 @@ ShapeSheetRenderer.prototype.calculateCellColors = function(minX, minY, w, h) {
 	var shadowsEnabled = this.shadowsEnabled;
 	var light;
 	
-	for( i=0, y=minY; y<maxY; ++y ) for( x=minX, i=width*y+x; x<maxX; ++x, ++i ) {
+	for( y=minY; y<maxY; ++y ) for( x=minX, i=width*y+x; x<maxX; ++x, ++i ) {
 		var mat = materials[cellMaterialIndexes[i]];
 		if( mat == null ) {
 			console.log("No such material #"+cellMaterialIndexes[i]);
