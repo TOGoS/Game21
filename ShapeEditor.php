@@ -6,6 +6,8 @@
 	if( !isset($width ) ) $width  = isset($_REQUEST['width' ]) ? $_REQUEST['width' ] : 128;
 	if( !isset($height) ) $height = isset($_REQUEST['height']) ? $_REQUEST['height'] :  64;
 	
+	$showUpdateRectangles = isset($_REQUEST['showUpdateRectangles']) ? parse_bool($_REQUEST['showUpdateRectangles']) : false;
+	
 	$shapeViewMaxWidth = 768;
 	$shapeViewMaxHeight = 384;
 	list($shapeViewWidth, $shapeViewHeight) = fitpar($shapeViewMaxWidth, $shapeViewMaxHeight, $width, $height);
@@ -79,6 +81,7 @@ canvas.shape-view {
 	var shapeSheet = new ShapeSheet(<?php echo "$width,$height"; ?>);
 	var shapeSheetRenderer = new ShapeSheetRenderer(shapeSheet, canv);
 	shapeSheetRenderer.shaders.push(ShapeSheetRenderer.makeFogShader(0, 0, 0, 0, 0.01));
+	shapeSheetRenderer.showUpdateRectangles = <?php ejsv($showUpdateRectangles); ?>;
 	var shapeSheetUtil = new ShapeSheetUtil(shapeSheet, shapeSheetRenderer);
 <?php if($mode === 'demo'): ?>
 	var shapeSheetDemo = new ShapeSheetDemo(shapeSheetUtil);
