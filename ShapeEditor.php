@@ -22,6 +22,10 @@ html, body {
 	margin: 0;
 	box-model: border-box;
 }
+p#fps-counter {
+	float: left;
+	color: white;
+}
 .preview-region {
 	width: 100%;
 	height: 100%;
@@ -44,6 +48,8 @@ canvas.shape-view {
 </head>
 <body>
 
+<p id="fps-counter">&nbsp;</p>
+
 <div class="preview-region">
 <canvas id="shaded-preview-canvas" class="shape-view"
   width="<?php eht($width); ?>" height="<?php eht($height); ?>"
@@ -56,7 +62,8 @@ canvas.shape-view {
 		'DeepFreezer.js',
 		'ShapeSheet.js',
 		'ShapeSheetRenderer.js',
-		'ShapeSheetUtil.js'
+		'ShapeSheetUtil.js',
+		'FPSUpdater.js'
 	];
 	
 	if( $mode === 'demo' ) $requireJsFiles[] = 'ShapeSheetDemo.js';
@@ -80,6 +87,9 @@ canvas.shape-view {
 	//shapeSheetDemo.animateLights();
 	shapeSheetDemo.animateLavaLamp();
 	//shapeSheetDemo.animateLightning();
+	
+	var fpsUpdater = new FPSUpdater(function() { return shapeSheetRenderer.canvasUpdateCount; }, document.getElementById('fps-counter').firstChild );
+	fpsUpdater.start();
 <?php endif; ?>
 	
 	window.resizeShapeSheet = function(w,h) {

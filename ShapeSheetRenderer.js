@@ -30,6 +30,8 @@ var ShapeSheetRenderer = function(shapeSheet, canvas) {
 	this.updatingColorRectangles  = []; // Tracks rectangles that need to have calculateCellColors called
 	this.updatingCanvasRectangles = []; // Tracks rectangles that need to be copied to the canvas
 	this.maxShadowDistance = Infinity;
+	this.showUpdateRectangles = false;
+	this.canvasUpdateCount = 0;
 	
 	// Need to set these last because setting them
 	// may rely on other things being initialized
@@ -258,22 +260,23 @@ ShapeSheetRenderer.prototype.calculateDepthDerivedData = function(minX, minY, w,
  * because this system is developing some dangerous temporal coupling.
  */
 var updateDepthRectangle2 = function(minX, minY, w, h) {
-    this.calculateDepthDerivedData(minX, minY, w, h);
-    var msd = this.maxShadowDistance;
-    if( this.shadowsEnabled && msd !== Infinity ) {
-	this.dataUpdated( minX-msd, minY-msd, w+msd+msd, h+msd+msd, false, true );
-    }
+	this.calculateDepthDerivedData(minX, minY, w, h);
+	var msd = this.maxShadowDistance;
+	if( this.shadowsEnabled && msd !== Infinity ) {
+		this.dataUpdated( minX-msd, minY-msd, w+msd+msd, h+msd+msd, false, true );
+	}
 };
 
 ShapeSheetRenderer.prototype.updateDepthDerivedData = function() {
-    var anythingUpdated = processRectangleUpdates(this.updatingDepthRectangles, updateDepthRectangle2.bind(this));
-    
-    if( anythingUpdated && this.shadowsEnabled && this.maxShadowDistance === Infinity ) {
-	// If it's /not/ infinity, then that should have enqueued color regions to be updated.
-	// But if it is, we need to recolor the entire thing.
-	var ss = this.shapeSheet;
-	this.updatingColorRectangles.splice(0, this.updatingColorRectangles.length, [0,0,ss.width,ss.height]);
-    }
+	var anythingUpdated = processRectangleUpdates(this.updatingDepthRectangles, updateDepthRectangle2.bind(this));
+	
+	if( anythingUpdated && this.shadowsEnabled && this.maxShadowDistance === Infinity ) {
+		// If it's /not/ infinity, then that should have enqueued color regions to be updated.
+		// But if it is, we need to recolor the entire thing.
+		this.dataUpdated( 0, 0, null, null, false, true );
+		//var ss = this.shapeSheet;
+		//this.updatingColorRectangles.splice(0, this.updatingColorRectangles.length, [0,0,ss.width,ss.height]);
+	}
 };
 
 ShapeSheetRenderer.prototype.calculateCellColors = function(minX, minY, w, h) {
@@ -362,6 +365,34 @@ ShapeSheetRenderer.prototype.calculateCellColors = function(minX, minY, w, h) {
 	for( s in this.shaders ) {
 		this.shaders[s](ss, minX, minY, w, h);
 	}
+	if( this.showUpdateRectangles ) {
+		var fullb = 0.25;
+		var halfb = 0.125;
+		for( x=minX, i=width*minY+x; x<maxX; ++x, ++i ) {
+			cellColors[i*4+0] += fullb;
+			cellColors[i*4+1] += fullb;
+			cellColors[i*4+2] += 0;
+			cellColors[i*4+3] += fullb;
+		}
+		for( x=minX, i=width*(maxY-1)+x; x<maxX; ++x, ++i ) {
+			cellColors[i*4+0] += fullb;
+			cellColors[i*4+1] += halfb;
+			cellColors[i*4+2] += 0;
+			cellColors[i*4+3] += fullb;
+		}
+		for( y=minY, i=width*y+minX; y<maxY; ++y, i+=width ) {
+			cellColors[i*4+0] += 0;
+			cellColors[i*4+1] += fullb;
+			cellColors[i*4+2] += fullb;
+			cellColors[i*4+3] += fullb;
+		}
+		for( y=minY, i=width*y+(maxX-1); y<maxY; ++y, i+=width ) {
+			cellColors[i*4+0] += 0;
+			cellColors[i*4+1] += halfb;
+			cellColors[i*4+2] += fullb;
+			cellColors[i*4+3] += fullb;
+		}
+	}
 };
 
 ShapeSheetRenderer.prototype.updateCellColors = function() {
@@ -381,7 +412,7 @@ ShapeSheetRenderer.prototype.copyToCanvas = function(minX,minY,w,h) {
 	if( w <= 0 || h <= 0 ) return;
 	
 	if( this.canvas === null ) return;
-	
+		
 	var ctx = this.canvas.getContext('2d');
 	var encodeColorValue = function(i) {
 		var c = Math.pow(i, 0.45);
@@ -392,7 +423,7 @@ ShapeSheetRenderer.prototype.copyToCanvas = function(minX,minY,w,h) {
 	
 	var imgData = ctx.getImageData(minX, minY, w, h);
 	var imgDataData = imgData.data;
-
+	
 	var bi, idi, x, y;
 	for( idi=0, y=minY; y<maxY; ++y ) {
 		for( x=minX, bi=width*y+x; x<maxX; ++x, ++bi, ++idi ) {
@@ -401,6 +432,12 @@ ShapeSheetRenderer.prototype.copyToCanvas = function(minX,minY,w,h) {
 			imgDataData[idi*4+2] = encodeColorValue(cellColors[bi*4+2]);
 			imgDataData[idi*4+3] = cellColors[bi*4+3] * 255;
 		}
+	}
+	if( this.showUpdateRectangles ) {
+		imgDataData[0+0] = 255;
+		imgDataData[0+2] = 255;
+		imgDataData[(w*h*4)-4] = 255;
+		imgDataData[(w*h*4)-3] = 255;
 	}
 	ctx.putImageData(imgData, minX, minY);
 };
@@ -421,6 +458,7 @@ ShapeSheetRenderer.prototype.updateCanvas = function() {
 	var i, r;
 	this.updateCellColors();
 	processRectangleUpdates(this.updatingCanvasRectangles, this.copyToCanvas.bind(this));
+	++this.canvasUpdateCount;
 };
 
 ShapeSheetRenderer.prototype.requestCanvasUpdate = function() {
