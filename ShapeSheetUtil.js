@@ -87,7 +87,7 @@ ShapeSheetUtil.prototype.shiftZ = function(diff) {
 		cellAverageDepths[i] += diff;
 	}
 	if( this.renderer && this.renderer.shaders.length > 0 ) {
-		this.renderer.dataUpdated(0,0,null,null, false, true);
+		this.renderer.dataUpdated(0,0,null,null, true, false);
 	}
 };
 

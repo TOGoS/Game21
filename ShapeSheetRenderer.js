@@ -479,24 +479,27 @@ var addToUpdateRectangleList = function(rectangleList, x, y, w, h) {
 	rectangleList.push([x,y,w,h]);
 };
 
-ShapeSheetRenderer.prototype.dataUpdated = function(x, y, w, h, updatedDepth, youNeedToUpdateColors) {
+ShapeSheetRenderer.prototype.dataUpdated = function(x, y, w, h, shouldRecalculateNormals, shouldRecalculateColors) {
+	var ss = this.shapeSheet;
 	if( x === null || x < 0 ) x = 0;
 	if( y === null || y < 0 ) y = 0;
-	if( w === null || w+x >= this.width  ) w = this.width-x;
-	if( h === null || h+y >= this.height ) h = this.height-y;
+	if( w === null || w+x >= ss.width  ) w = ss.width-x;
+	if( h === null || h+y >= ss.height ) h = ss.height-y;
 	
 	var east = x+w, south=y+h;
 	x = x|0; y = y|0;
 	w = (Math.ceil(east )-x)|0;
 	h = (Math.ceil(south)-y)|0;
-	if( updatedDepth ) {
+	if( shouldRecalculateNormals ) {
 		addToUpdateRectangleList(this.updatingDepthRectangles, x, y, w, h);
 		// When the depth data gets updated, that will call
-		// this function again with youNeedToUpdateColors on the
+		// this function again with shouldRecalculateColors on the
 		// appropriate (taking max shadow distance into account)
 		// rectangles.
+		// Therefore we can skip adding color update rectangles for now.
+		return;
 	}
-	if( youNeedToUpdateColors ) {
+	if( shouldRecalculateColors ) {
 		addToUpdateRectangleList(this.updatingColorRectangles, x, y, w, h);
 		addToUpdateRectangleList(this.updatingCanvasRectangles, x, y, w, h);
 	}
