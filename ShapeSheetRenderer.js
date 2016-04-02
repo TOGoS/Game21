@@ -29,6 +29,7 @@ var ShapeSheetRenderer = function(shapeSheet, canvas) {
 	this.updatingDepthRectangles  = []; // Tracks rectangles that need to have calculateCellDepthDerivedData called
 	this.updatingColorRectangles  = []; // Tracks rectangles that need to have calculateCellColors called
 	this.updatingCanvasRectangles = []; // Tracks rectangles that need to be copied to the canvas
+	this.maxShadowDistance = Infinity;
 	
 	// Need to set these last because setting them
 	// may rely on other things being initialized
@@ -138,6 +139,7 @@ ShapeSheetRenderer.prototype.putLights = function(updatedLights) {
 		lights[i] = DeepFreezer.deepFreeze(normalizeLight(updatedLights[i]));
 	}
 	this.lights = DeepFreezer.deepFreeze(lights, true);
+	this.lightsUpdated();
 };
 
 ShapeSheetRenderer.prototype.normalizeLight = normalizeLight;
@@ -248,8 +250,30 @@ ShapeSheetRenderer.prototype.calculateDepthDerivedData = function(minX, minY, w,
 	ss.minimumAverageDepth = minimumAverageDepth;
 };
 
+/**
+ * Updates depth data and also marks the surrounding region
+ * as requiring color updates if max shadow distance is not infinity.
+ * 
+ * The '2' is just to make you read the documentation,
+ * because this system is developing some dangerous temporal coupling.
+ */
+var updateDepthRectangle2 = function(minX, minY, w, h) {
+    this.calculateDepthDerivedData(minX, minY, w, h);
+    var msd = this.maxShadowDistance;
+    if( this.shadowsEnabled && msd !== Infinity ) {
+	this.dataUpdated( minX-msd, minY-msd, w+msd+msd, h+msd+msd, false, true );
+    }
+};
+
 ShapeSheetRenderer.prototype.updateDepthDerivedData = function() {
-	processRectangleUpdates(this.updatingDepthRectangles, this.calculateDepthDerivedData.bind(this));
+    var anythingUpdated = processRectangleUpdates(this.updatingDepthRectangles, updateDepthRectangle2.bind(this));
+    
+    if( anythingUpdated && this.shadowsEnabled && this.maxShadowDistance === Infinity ) {
+	// If it's /not/ infinity, then that should have enqueued color regions to be updated.
+	// But if it is, we need to recolor the entire thing.
+	var ss = this.shapeSheet;
+	this.updatingColorRectangles.splice(0, this.updatingColorRectangles.length, [0,0,ss.width,ss.height]);
+    }
 };
 
 ShapeSheetRenderer.prototype.calculateCellColors = function(minX, minY, w, h) {
@@ -342,12 +366,6 @@ ShapeSheetRenderer.prototype.calculateCellColors = function(minX, minY, w, h) {
 
 ShapeSheetRenderer.prototype.updateCellColors = function() {
 	this.updateDepthDerivedData();
-	if( this.shadowsEnabled ) {
-		// Then you have to recalculate everything, brah
-		// TODO: Only within a radius of maximum shadow distance!
-		var ss = this.shapeSheet;
-		this.updatingColorRectangles.splice(0, this.updatingColorRectangles.length, [0,0,ss.width,ss.height]);
-	}
 	processRectangleUpdates(this.updatingColorRectangles, this.calculateCellColors.bind(this));
 };
 
@@ -389,11 +407,14 @@ ShapeSheetRenderer.prototype.copyToCanvas = function(minX,minY,w,h) {
 
 var processRectangleUpdates = function(rectangleList, updater) {
 	var i, r;
+	var anythingUpdated = false;
 	for( i in rectangleList ) {
 		r = rectangleList[i];
 		updater(r[0], r[1], r[2], r[3]);
+		anythingUpdated = true;
 	}
 	rectangleList.splice(0);
+	return anythingUpdated;
 };
 
 ShapeSheetRenderer.prototype.updateCanvas = function() {
@@ -458,7 +479,7 @@ var addToUpdateRectangleList = function(rectangleList, x, y, w, h) {
 	rectangleList.push([x,y,w,h]);
 };
 
-ShapeSheetRenderer.prototype.dataUpdated = function(x, y, w, h, updatedDepth, updatedMaterial) {
+ShapeSheetRenderer.prototype.dataUpdated = function(x, y, w, h, updatedDepth, youNeedToUpdateColors) {
 	if( x === null || x < 0 ) x = 0;
 	if( y === null || y < 0 ) y = 0;
 	if( w === null || w+x >= this.width  ) w = this.width-x;
@@ -470,9 +491,12 @@ ShapeSheetRenderer.prototype.dataUpdated = function(x, y, w, h, updatedDepth, up
 	h = (Math.ceil(south)-y)|0;
 	if( updatedDepth ) {
 		addToUpdateRectangleList(this.updatingDepthRectangles, x, y, w, h);
-		updatedMaterial = true; // Not really, but...
+		// When the depth data gets updated, that will call
+		// this function again with youNeedToUpdateColors on the
+		// appropriate (taking max shadow distance into account)
+		// rectangles.
 	}
-	if( updatedMaterial ) {
+	if( youNeedToUpdateColors ) {
 		addToUpdateRectangleList(this.updatingColorRectangles, x, y, w, h);
 		addToUpdateRectangleList(this.updatingCanvasRectangles, x, y, w, h);
 	}
@@ -484,6 +508,12 @@ ShapeSheetRenderer.prototype.lightsUpdated = function() {
 	// Gotta recalculate everything!
 	addToUpdateRectangleList(this.updatingColorRectangles, 0, 0, ss.width, ss.height);
 	addToUpdateRectangleList(this.updatingCanvasRectangles, 0, 0, ss.width, ss.height);
+	this.maxShadowDistance = 0;
+	var l;
+	for( l in this._lights ) {
+	    var light = this._lights[l];
+	    this.maxShadowDistance = Math.max(light.shadowDistance, this.maxShadowDistance);
+	}
 };
 
 //// Shader constructors

@@ -77,9 +77,9 @@ canvas.shape-view {
 	var shapeSheetDemo = new ShapeSheetDemo(shapeSheetUtil);
 	shapeSheetDemo.buildDemo();
 	//shapeSheetDemo.buildPolygonDemo();
-	shapeSheetDemo.animateLights();
-	//shapeSheetDemo.animateLavaLamp();
-	shapeSheetDemo.animateLightning();
+	//shapeSheetDemo.animateLights();
+	shapeSheetDemo.animateLavaLamp();
+	//shapeSheetDemo.animateLightning();
 <?php endif; ?>
 	
 	window.resizeShapeSheet = function(w,h) {
