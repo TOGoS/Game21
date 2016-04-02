@@ -115,6 +115,7 @@ ShapeSheetDemo.prototype.animateLavaLamp = function() {
 	var x = ss.width/2, y = ss.width/2, rad = Math.random()*ss.width/8;
 	var vx = 1, vy = 1, vrad = 0;
 	var ang = 0;
+	var i = 0;
 	return setInterval((function() {
 		var util = this.shapeSheetUtil;
 		var renderer = util.renderer;
@@ -142,7 +143,7 @@ ShapeSheetDemo.prototype.animateLavaLamp = function() {
 		vrad += Math.random()-0.5;
 		if( Math.abs(vrad) > 1 ) vrad *= 0.5;
 
-		util.shiftZ(1);
+		//util.shiftZ(1);
 		var vMag = Math.sqrt(vx*vx + vy*vy);
 		var aheadX = vx / vMag, aheadY = vy / vMag;
 		var sideX  = aheadY   , sideY = -aheadX;
@@ -151,13 +152,14 @@ ShapeSheetDemo.prototype.animateLavaLamp = function() {
 		var cos = Math.cos(ang);
 		var plotX = x + sin * sideX * loopRad;
 		var plotY = plotY = y + sin * sideY * loopRad;
-		var plotZ = 0 + cos * loopRad;
+		var plotZ = 0 + cos * loopRad - i;
 		
 		util.plotSphere(plotX, plotY, plotZ, rad);
 		
 		renderer.requestCanvasUpdate();
 		
 		ang += Math.PI / 16;
+		++i;
 	}).bind(this), 10);
 };
 
