@@ -527,7 +527,7 @@ ShapeSheetRenderer.makeFogShader = function(originDepth, fogR, fogG, fogB, fogA)
 		var cellColors = ss.cellColors;
 		var x, y, i, d, r, g, b, a, oMix, fMix;
 		var fogT = (1-fogA); // Fog transparency; how much of original color to keep at depth = 1 pixel
-		for( y=minY; y<maxY; ++y ) for( i=y*width, x=minX; x<maxX; ++x, ++i ) {
+		for( y=minY; y<maxY; ++y ) for( x=minX, i=y*width+x; x<maxX; ++x, ++i ) {
 			d = cellAverageDepths[i];
 			if( d < originDepth ) continue;
 			if( d === Infinity ) {
