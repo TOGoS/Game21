@@ -1,3 +1,7 @@
+class 'short string' : extends(string) : comment @ "Less than 128 chars, maybe?"
+class 'scalar' : comment @ "A number, boolean, or short string."
+class 'symbol' : extends(short string) : comment @ "A string that's meant to be used as an identifier."
+
 #### Image data
 
 class 'directional light' {
@@ -48,10 +52,24 @@ class 'shape sheet shape' {
 	bounds : pixel rectangle
 }
 
-abstract class 'tile icon' # Abstract identifier for an object's appearance
+abstract class 'object visual' : comment @ unindent @ «
+	An 'object visual' is a somewhat abstract notion of 'the way this thing looks'.
+	A single visual can be used to visualize the same object in multiple states.
+	e.g. a character walking might reference a single visual, but look
+	slightly different in different positions and in different walking frames.
+	Visual is also ind
+»
 
-class 'shape tile icon' : extends(tile icon) {
+class 'frame applicability flag' : extends(symbol)
+
+class 'shape sheet visual frame' {
 	shape sheet shape : UUID reference(shape sheet shape)
+	# Map of flags to their preferred values;
+	# the frame with the most matching flags is the one used
+	applicability flags : map(frame applicability flag, scalar)
+}
+
+class 'shape object visual' : extends(object visual) {
 	material map : UUID reference(material map)
 }
 
@@ -68,7 +86,7 @@ class 'entity ID' : extends(UUID)
 class 'physical object' {
 	prototype : UUID reference(physical object) : nullable
 	entity ID : entity ID : nullable
-	icon : UUID reference(tile icon)
+	visual : UUID reference(object visual)
 	# ...and various physical properties...
 }
 
@@ -141,7 +159,7 @@ class 'game' {
 	world : URN reference(world)
 	shape sheets : URN reference map(UUID, shape sheet)
 	shape sheet shapes : URN reference map(UUID, shape sheet shape)
-	tile icons : URN reference map(UUID, tile icon)
+	object visuals : URN reference map(UUID, object visual)
 	rooms : URN reference map(room ID, room)
 	lighting environment : URN reference(lighting environment)
 }
