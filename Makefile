@@ -1,12 +1,11 @@
 tsc_inputs = $(shell find -name '*.ts' | grep -v node_modules)
-tsc_output = ${generated_js_files}
 
 generated_js_files = $(shell find -name '*.ts' | grep -v node_modules | sed 's/\.ts$$/\.js/')
 all_js_files = $(shell find -name '*.js') ${generated_js_files}
 
 tsc := node_modules/typescript/bin/tsc
 
-default: ShapeDemo.html ${generated_js_files}
+default: ShapeDemo.html
 
 clean:
 	rm -rf node_modules ${generated_js_files} ShapeDemo.html ShapeDemo.html.urn
@@ -35,9 +34,6 @@ publish-demo: ShapeDemo.html ShapeDemo.html.urn ShapeDemo.html.url
 node_modules: package.json
 	npm install
 	touch "$@"
-
-${tsc_output}: ${tsc_inputs} tsconfig.json node_modules
-	${tsc} -p .
 
 all.js: ${tsc_inputs} tsconfig.json node_modules
 	${tsc} -p . --outFile "$@"
