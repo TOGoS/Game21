@@ -132,6 +132,10 @@ export class DirectionalLight {
 		
 		DeepFreezer.deepFreeze(this,true);
 	}
+	
+	public static fromProperties( props ) {
+		return new DirectionalLight( props.direction, props.color, props );
+	};
 }
 
 type Map<T> = {[k: string]: T};

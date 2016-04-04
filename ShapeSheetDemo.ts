@@ -1,10 +1,12 @@
 import DeepFreezer from './DeepFreezer';
+import Vector3D from './Vector3D';
 import ShapeSheet from './ShapeSheet';
-import ShapeSheetRenderer from './ShapeSheetRenderer';
+import ShapeSheetRenderer, {DirectionalLight} from './ShapeSheetRenderer';
 import ShapeSheetUtil from './ShapeSheetUtil';
 
 var ShapeSheetDemo = function(shapeSheetUtil:ShapeSheetUtil) {
 	this.shapeSheetUtil = shapeSheetUtil;
+	this.shifting = false;
 };
 
 Object.defineProperty(ShapeSheetDemo.prototype, "shapeSheet", {
@@ -95,14 +97,17 @@ ShapeSheetDemo.prototype.animateLights = function() {
 	return setInterval( (function() {
 		if( lightsMoving ) {
 			var lights = DeepFreezer.thaw(this.renderer.lights);
-			if( lights[0] ) {
-				lights[0] = DeepFreezer.thaw(lights[0]);
-				lights[0].direction = [+Math.sin(f*0.01),  0.8, +Math.cos(f*0.01)];
+			if( lights["primary"] != null ) {
+				lights["primary"] = new DirectionalLight(
+					new Vector3D(+Math.sin(f*0.01), 0.8, +Math.cos(f*0.01)),
+					lights["primary"].color, lights["primary"] );
 			}
-			if( lights[1] ) {
-				lights[1] = DeepFreezer.thaw(lights[1]);
-				lights[1].direction = [-Math.sin(f*0.005), -0.8, -Math.cos(f*0.005)];
+			/*
+			if( lights["glow"] != null ) {
+				lights["glow"] = DeepFreezer.thaw(lights["glow"]);
+				lights["glow"].direction = new Vector3D(-Math.sin(f*0.005), -0.8, -Math.cos(f*0.005));
 			}
+			*/
 			renderer.lights = lights;
 			++f;
 		}
@@ -143,7 +148,7 @@ ShapeSheetDemo.prototype.animateLavaLamp = function() {
 		vrad += Math.random()-0.5;
 		if( Math.abs(vrad) > 1 ) vrad *= 0.5;
 
-		//util.shiftZ(1);
+		if( this.shifting ) util.shiftZ(1);
 		var vMag = Math.sqrt(vx*vx + vy*vy);
 		var aheadX = vx / vMag, aheadY = vy / vMag;
 		var sideX  = aheadY   , sideY = -aheadX;
@@ -152,7 +157,7 @@ ShapeSheetDemo.prototype.animateLavaLamp = function() {
 		var cos = Math.cos(ang);
 		var plotX = x + sin * sideX * loopRad;
 		var plotY = plotY = y + sin * sideY * loopRad;
-		var plotZ = 0 + cos * loopRad - i;
+		var plotZ = 0 + cos * loopRad - (this.shifting ? i : 0);
 		
 		util.plotSphere(plotX, plotY, plotZ, rad);
 		
@@ -226,6 +231,7 @@ function parseNumber(s:string, defaultVal:number=null) {
 function run() {
 	const canv = <HTMLCanvasElement>document.getElementById('shaded-preview-canvas');
 	
+	const demoMode = canv.dataset['demoMode'];
 	
 	const shapeSheet = new ShapeSheet(canv.width, canv.height);
 	const shapeSheetRenderer = new ShapeSheetRenderer(shapeSheet, canv);
@@ -235,10 +241,11 @@ function run() {
 	const shapeSheetUtil = new ShapeSheetUtil(shapeSheet, shapeSheetRenderer);
 	const shapeSheetDemo = new ShapeSheetDemo(shapeSheetUtil);
 	shapeSheetDemo.buildDemo();
+	shapeSheetDemo.shifting = demoMode == 'shiftingLavaLamp';
 	//shapeSheetDemo.buildPolygonDemo();
-	//shapeSheetDemo.animateLights();
+	if( parseBool(canv.dataset['lightRotationEnabled']) ) shapeSheetDemo.animateLights();
 	shapeSheetDemo.animateLavaLamp();
-	//shapeSheetDemo.animateLightning();
+	if( parseBool(canv.dataset['lightningEnabled']) ) shapeSheetDemo.animateLightning();
 	
 	const fpsUpdater = new FPSUpdater(function() { return shapeSheetRenderer.canvasUpdateCount; }, document.getElementById('fps-counter').firstChild );
 	fpsUpdater.start();

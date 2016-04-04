@@ -13,6 +13,9 @@
 		'shapeViewMaxHeight' => 384,
 		'showUpdateRectangles' => false,
 		'shadowDistanceOverride' => '',
+		'demoMode' => 'shiftingLavaLamp',
+		'lightningEnabled' => true,
+		'lightRotationEnabled' => true,
 	];
 	
 	foreach( $demoConfigDefaults as $k=>$default ) {
@@ -27,6 +30,8 @@
 	}
 	
 	$showUpdateRectangles = parse_bool($showUpdateRectangles);
+	$inlineResources = parse_bool($inlineResources);
+	
 	list($shapeViewWidth, $shapeViewHeight) = fitpar($shapeViewMaxWidth, $shapeViewMaxHeight, $width, $height);
 ?>
 <!DOCTYPE html>
@@ -74,6 +79,9 @@ canvas.shape-view {
   width="<?php eht($width); ?>" height="<?php eht($height); ?>"
   data-show-update-rectangles="<?php eht($showUpdateRectangles); ?>"
   data-shadow-distance-override="<?php eht($shadowDistanceOverride); ?>"
+  data-demo-mode="<?php eht($demoMode); ?>"
+  data-lightning-enabled="<?php eht($lightningEnabled); ?>"
+  data-light-rotation-enabled="<?php eht($lightRotationEnabled); ?>"
   style="width: <?php eht($shapeViewWidth); ?>px; height: <?php eht($shapeViewHeight); ?>px"
 ></canvas>
 </div>
