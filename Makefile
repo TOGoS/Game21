@@ -9,7 +9,8 @@ tsc := node_modules/typescript/bin/tsc
 default: ShapeDemo.html ${generated_js_files}
 
 clean:
-	rm -rf node_modules ${generated_js_files}
+	rm -rf node_modules ${generated_js_files} ShapeDemo.html ShapeDemo.html.urn
+
 .DELETE_ON_ERROR: # yes plz
 
 .PHONY: \
@@ -18,7 +19,7 @@ clean:
 	publish-demo
 
 ShapeDemo.html: $(shell find -name '*.php') all.js
-	php ShapeDemo.php --inline-resources >"$@"
+	php ShapeDemo.php --inline-resources shadowDistanceOverride=Infinity >"$@"
 
 ShapeDemo.html.urn: ShapeDemo.html
 	ccouch id "$<" >"$@"
