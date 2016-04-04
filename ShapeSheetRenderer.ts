@@ -352,7 +352,8 @@ export default class {
 			for( l in lights ) {
 				light = lights[l];
 				var dotProd = -(normalX*light.direction.x + normalY*light.direction.y + normalZ*light.direction.z);
-				var shadist = this.shadowDistanceOverride != null ? this.shadowDistanceOverride : light.shadowDistance; // Distance to end of where we care
+				const shadowDistance = this.shadowDistanceOverride != null ? this.shadowDistanceOverride : light.shadowDistance;
+				let shadist = shadowDistance; // Distance to end of where we care
 				if( dotProd > 0 ) {
 					var diffuseAmt = dotProd; // Yep, that's how you calculate it.
 					if( shadowsEnabled && shadist > 0 && diffuseAmt > 0 ) {
@@ -374,7 +375,7 @@ export default class {
 									shadowLight *= fuzzLight;
 								} else {
 									// Shadow influence; drops off with distance from shadow caster
-									var shadinf = shadist / light.shadowDistance;
+									var shadinf = shadist / shadowDistance;
 									shadowLight *= (1 - shadinf*(1-fuzzLight));
 								}
 								stz = d;
