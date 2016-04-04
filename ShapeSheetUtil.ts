@@ -1,6 +1,7 @@
 const LARGE_NUMBER = 1000;
 
-import Vector3D from './Vector3D';
+import Vector3D, {Vector3DBuffer} from './Vector3D';
+import Curve from './Curve';
 import Rectangle from './Rectangle';
 import ShapeSheet from './ShapeSheet';
 import ShapeSheetRenderer from './ShapeSheetRenderer';
@@ -354,7 +355,7 @@ class ShapeSheetUtil {
 		}
 		if( this.renderer ) this.renderer.dataUpdated(boundingRect, true, true);
 	};
-
+	
 	plotLine( x0:number, y0:number, z0:number, r0:number, x1:number, y1:number, z1:number, r1:number, plotFunc:PlotFunction ) {
 		if( plotFunc == null ) plotFunc = this.plotSphere;
 		
@@ -372,8 +373,8 @@ class ShapeSheetUtil {
 			plotFunc.call( this, x0+stepVect.x*i, y0+stepVect.y*i, z0+stepVect.z*i, r0+stepR*i );
 		}
 	};
-
-	protected _plotCurveSegment( curve, r0, r1, t0, t1, plotFunc, v:Vector3D ):void {
+	
+	protected _plotCurveSegment( curve:Curve, r0, r1, t0, t1, plotFunc, v:Vector3DBuffer ):void {
 		var x0, y0, z0, x1, y1, z1, x2, y2, z2;
 		curve( t0          , v ); x0 = v.x; y0 = v.y; z0 = v.z;
 		curve( t0+(t1-t0)/2, v ); x1 = v.x; y1 = v.y; z1 = v.z;
@@ -387,13 +388,13 @@ class ShapeSheetUtil {
 			this._plotCurveSegment( curve, r0, r1, t0+(t1-t0)/2, t1, plotFunc, v );
 		}
 	};
-
-	plotCurve( curve, r0:number, r1:number, plotFunc:PlotFunction ):void {
+	
+	plotCurve( curve:Curve, r0:number, r1:number, plotFunc:PlotFunction ):void {
 		if( plotFunc == null ) plotFunc = this.plotSphere;
 		
-		var v = new Vector3D(0,0,0);
+		var v = new Vector3DBuffer(0,0,0);
 		curve( 1, v );
-		plotFunc.call( this, v[0], v[1], v[2], r1 );
+		plotFunc.call( this, v.x, v.y, v.z, r1 );
 		this._plotCurveSegment( curve, r0, r1, 0, 1, plotFunc, v );
 	};
 };

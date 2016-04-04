@@ -1,9 +1,10 @@
 <?php
 	require_once 'lib.php';
-	if( !isset($title) ) $title = ($mode === 'demo' ? 'Shapes!' : 'Shape Editor');
-	if( !isset($inlineResources) ) $inlineResources = ($mode === 'demo');
-	if( !isset($width ) ) $width  = isset($_REQUEST['width' ]) ? $_REQUEST['width' ] : 128;
-	if( !isset($height) ) $height = isset($_REQUEST['height']) ? $_REQUEST['height'] :  64;
+	
+	if( !isset($title) ) $title = "Rail Demo";
+	if( !isset($inlineResources) ) $inlineResources = false;
+	if( !isset($width ) ) $width  = isset($_REQUEST['width' ]) ? $_REQUEST['width' ] : 256;
+	if( !isset($height) ) $height = isset($_REQUEST['height']) ? $_REQUEST['height'] : 256;
 	
 	$shapeViewMaxWidth = 768;
 	$shapeViewMaxHeight = 384;
@@ -45,33 +46,12 @@ canvas.shape-view {
 ></canvas>
 </div>
 
-<?php
-	$requireJsFiles = [
-		'DeepFreezer.js',
-		'ShapeSheet.js',
-		'ShapeSheetRenderer.js',
-		'ShapeSheetUtil.js',
-		'Bezier.js',
-		'RailDemo.js',
-	];
-	
-	require_js($requireJsFiles, $inlineResources);
-?>
+<?php require_js(['fakerequire.js', 'all.js'], $inlineResources); ?>
 <script type="text/javascript">//<![CDATA[
-(function() {
-	"use strict";
-	
-	var canv = document.getElementById('shaded-preview-canvas');
-
-	var shapeSheet = new ShapeSheet(<?php echo "$width,$height"; ?>);
-	var shapeSheetRenderer = new ShapeSheetRenderer(shapeSheet, canv);
-	shapeSheetRenderer.shaders.push(ShapeSheetRenderer.makeFogShader(0, 0, 0, 0, 0.01));
-	var shapeSheetUtil = new ShapeSheetUtil(shapeSheet, shapeSheetRenderer);
-	var railDemo = new RailDemo(shapeSheetUtil);
-	railDemo.run();
-})();
+	require(['RailDemo'], function(RailDemo) {
+		RailDemo.runDemo();
+	});
 //]]></script>
-
 
 </body>
 </html>
