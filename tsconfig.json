@@ -3,7 +3,8 @@
 	"compilerOptions": {
 		"target": "es5",
 		"module": "amd",
-		"sourceMap": true
+		"sourceMap": true,
+		"outFile": "all.js"
 	},
 	"exclude": [
 		"node_modules"
