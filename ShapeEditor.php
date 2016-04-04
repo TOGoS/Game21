@@ -79,6 +79,8 @@ canvas.shape-view {
 </div>
 
 <?php
+	require_js(['require.js'], $inlineResources, ['data-main'=>'ShapeSheetDemo']);
+	/*
 	$requireJsFiles = [
 		'DeepFreezer.js',
 		'ShapeSheet.js',
@@ -88,9 +90,9 @@ canvas.shape-view {
 	];
 	
 	if( $mode === 'demo' ) $requireJsFiles[] = 'ShapeSheetDemo.js';
-
+	
 	require_js($requireJsFiles, $inlineResources);
-	require_js(['require.js'], $inlineResources, ['data-main' => "ShapeSheetDemo"]);
+*/
 ?>
 
 </body>
