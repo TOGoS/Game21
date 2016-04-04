@@ -1,12 +1,6 @@
 import Vector3D, {Vector3DBuffer} from './Vector3D';
 import Curve from './Curve';
 
-var addVect3d = function( v0:Vector3D, v1:Vector3D ):Vector3D {
-	return new Vector3D(v0.x+v1.x, v0.y+v1.y, v0.z+v1.z);
-};
-var subtractVect3d = function( v0:Vector3D, v1:Vector3D ) {
-	return new Vector3D(v0.x-v1.x, v0.y-v1.y, v0.z-v1.z);
-};
 var scaleAndAccumulateVect3d = function( v:Vector3D, s:number, res:Vector3DBuffer ):void {
 	res.x += v.x*s;
 	res.y += v.y*s;
