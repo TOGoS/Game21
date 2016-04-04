@@ -1,6 +1,8 @@
 tsc_inputs = $(shell find -name '*.ts' | grep -v node_modules)
 
-generated_js_files = $(shell find -name '*.ts' | grep -v node_modules | sed 's/\.ts$$/\.js/') $(shell find -name '*.es5.js' -o -name '*.es6.js')
+generated_js_files = \
+	$(shell find -name '*.ts' | grep -v node_modules | sed 's/\.ts$$/\.js/') \
+	$(shell find -name '*.es5.js' -o -name '*.es6.js')
 all_js_files = $(shell find -name '*.js') ${generated_js_files}
 
 tsc := node_modules/typescript/bin/tsc
@@ -21,7 +23,7 @@ clean: sortaclean
 	default \
 	publish-demo
 
-ShapeDemo.html: $(shell find -name '*.php') all.js
+ShapeDemo.html: $(shell find -name '*.php') game21libs.amd.es5.js
 	php ShapeDemo.php --inline-resources shadowDistanceOverride=Infinity >"$@"
 
 ShapeDemo.html.urn: ShapeDemo.html
@@ -39,8 +41,5 @@ node_modules: package.json
 	npm install
 	touch "$@"
 
-all.js: ${tsc_inputs} tsconfig.json node_modules
+game21libs.amd.es5.js: ${tsc_inputs} tsconfig.json node_modules
 	${tsc} -p . --outFile "$@"
-
-#${generated_js_files}: %.js: %.ts tsconfig.json node_modules Makefile
-#	${tsc} --out "$@" "$<" --target ES5 --sourcemap --module amd

@@ -4,7 +4,7 @@
 		"target": "es5",
 		"module": "amd",
 		"sourceMap": true,
-		"outFile": "all.js"
+		"outFile": "game21libs.amd.es5.js"
 	},
 	"exclude": [
 		"node_modules"
