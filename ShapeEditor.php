@@ -16,8 +16,8 @@
 	];
 	
 	foreach( $demoConfigDefaults as $k=>$default ) {
-		if( isset($demoConfig[$k]) ) continue;
-		else if( isset($_REQUEST[$k]) ) $demoConfig[$k] = $_REQUEST[$k];
+		if( isset($_REQUEST[$k]) ) $demoConfig[$k] = $_REQUEST[$k];
+		else if( isset($demoConfig[$k]) ) continue;
 		else if( is_callable($default) ) $demoConfig[$k] = call_user_func($default, $demoConfig);
 		else $demoConfig[$k] = $default;
 	}
@@ -79,8 +79,17 @@ canvas.shape-view {
 </div>
 
 <?php
+// Awesome way
+	require_js(['fakerequire.js', 'all.js'], $inlineResources);
+?>
+<script type="text/javascript">
+	require(['ShapeSheetDemo'], function(ShapeSheetDemo) { });
+</script>
+
+<?php
+// The stupid RequireJS way
+/*
 	require_js(['require.js'], $inlineResources, ['data-main'=>'ShapeSheetDemo']);
-	/*
 	$requireJsFiles = [
 		'DeepFreezer.js',
 		'ShapeSheet.js',

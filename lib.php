@@ -19,7 +19,7 @@ function require_css($file, $inline=true) {
 	}
 };
 
-function require_js($files, $inline=true, $extraProps=array()) {
+function require_js($files, $inline=false, $extraProps=array()) {
 	$epStr = '';
 	foreach( $extraProps as $k=>$v ) {
 		$epStr .= " {$k}=\"".htmlspecialchars($v).'"';
