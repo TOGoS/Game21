@@ -59,10 +59,6 @@ html, body {
 	margin: 0;
 	box-sizing: border-box;
 }
-p#fps-counter {
-	float: left;
-	color: white;
-}
 .preview-region {
 	width: 100%;
 	height: 100%;
@@ -79,7 +75,7 @@ canvas.shape-view {
 </head>
 <body>
 
-<p id="fps-counter">&nbsp;</p>
+<p style="position:fixed; color:white">FPS: <span id="fps-counter">&nbsp;</span></p>
 
 <div class="preview-region">
 <canvas id="shaded-preview-canvas" class="shape-view"
