@@ -157,7 +157,7 @@ ShapeSheetDemo.prototype.animateLavaLamp = function() {
 		var cos = Math.cos(ang);
 		var plotX = x + sin * sideX * loopRad;
 		var plotY = plotY = y + sin * sideY * loopRad;
-		var plotZ = 0 + cos * loopRad - (this.shifting ? i : 0);
+		var plotZ = 0 + cos * loopRad - (this.shifting ? 0 : i);
 		
 		util.plotSphere(plotX, plotY, plotZ, rad);
 		
