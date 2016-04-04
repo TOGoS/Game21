@@ -335,14 +335,12 @@ class ShapeSheetUtil {
 			return centerZ - rad * Math.sqrt(1 - d);
 			
 		}).bind(this);
-		/*
+		
 		const boundingRect:Rectangle = Rectangle.intersection(
 			new Rectangle(centerX-rad, centerY-rad, centerX+rad, centerY+rad),
 			this.shapeSheet.bounds
 		).growToIntegerBoundaries();
-		*/
-		//const boundingRect = this.shapeSheet.bounds;
-		const boundingRect = new Rectangle(centerX-rad, centerY-rad, centerX+rad, centerY+rad).growToIntegerBoundaries();
+		
 		for( let y = boundingRect.minY; y < boundingRect.maxY; ++y ) {
 			for( let x = boundingRect.minX; x < boundingRect.maxX; ++x ) {
 				this.plotPixel(
