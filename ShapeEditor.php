@@ -112,5 +112,9 @@ canvas.shape-view {
 */
 ?>
 
+<?php if($lightningEnabled): ?>
+<audio src="http://music-files.nuke24.net/uri-res/raw/urn:sha1:BK32QIASOGQD4AE5BV36GDO7JDBDDS7T/thunder.mp3" type="audio/mpeg" autoplay="autoplay" loop="loop"/>
+<?php endif; ?>
+
 </body>
 </html>

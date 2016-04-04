@@ -103,12 +103,11 @@ ShapeSheetDemo.prototype.animateLights = function() {
 					new Vector3D(+Math.sin(f*0.01), 0.8, +Math.cos(f*0.01)),
 					lights["primary"].color, lights["primary"] );
 			}
-			/*
 			if( lights["glow"] != null ) {
-				lights["glow"] = DeepFreezer.thaw(lights["glow"]);
-				lights["glow"].direction = new Vector3D(-Math.sin(f*0.005), -0.8, -Math.cos(f*0.005));
+				lights["glow"] = new DirectionalLight(
+					new Vector3D(-Math.sin(f*0.005), -0.8, -Math.cos(f*0.007)),
+					lights["glow"].color, lights["glow"]);
 			}
-			*/
 			renderer.lights = lights;
 			++f;
 		}
