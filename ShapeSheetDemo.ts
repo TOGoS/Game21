@@ -1,9 +1,9 @@
-(function() {
-"use strict";
+import DeepFreezer from './DeepFreezer';
+import ShapeSheet from './ShapeSheet';
+import ShapeSheetRenderer from './ShapeSheetRenderer';
+import ShapeSheetUtil from './ShapeSheetUtil';
 
-var module = window;
-
-var ShapeSheetDemo = function(shapeSheetUtil) {
+var ShapeSheetDemo = function(shapeSheetUtil:ShapeSheetUtil) {
 	this.shapeSheetUtil = shapeSheetUtil;
 };
 
@@ -27,7 +27,7 @@ ShapeSheetDemo.prototype.buildDemo = function() {
 	util.plotSphere(width/2, height/2, minwh*1, minwh/8);
 	util.plotSphere(width/2, height/2, minwh*0.5, minwh/16);
 	var i;
-	for( i=0; i<200; ++i ) {
+	for( i=0; i < 200; ++i ) {
 		var r = 2 * Math.PI * i / 200;
 		util.plotSphere(
 			width/2  + Math.cos(r)*minwh*(3.0/8),
@@ -204,6 +204,50 @@ ShapeSheetDemo.prototype.animateLightning = function() {
 	}).bind(this), 10);
 };
 
-module.ShapeSheetDemo = ShapeSheetDemo;
+import SurfaceColor from './SurfaceColor';
+import FPSUpdater from './FPSUpdater';
+declare var window:any;
 
-})();
+function parseBool(s:string, defaultVal:boolean=null) {
+	if( s == '' || s == null ) return defaultVal;
+	s = s.toLowerCase();
+	switch( s ) {
+	case '1': case 'yes': case 'y': case 't': case 'true': case 'on' : return true;
+	case '0': case 'no': case 'n': case 'f': case 'false': case 'off': return false;
+	}
+	throw new Error("Failed to parse '"+s+"' as boolean");
+}
+
+function parseNumber(s:string, defaultVal:number=null) {
+	if( s == '' || s == null ) return defaultVal;
+	return parseFloat(s);
+}
+
+function run() {
+	const canv = <HTMLCanvasElement>document.getElementById('shaded-preview-canvas');
+	
+	
+	const shapeSheet = new ShapeSheet(canv.width, canv.height);
+	const shapeSheetRenderer = new ShapeSheetRenderer(shapeSheet, canv);
+	shapeSheetRenderer.shaders.push(ShapeSheetRenderer.makeFogShader(0, new SurfaceColor(0, 0, 0, 0.01)));
+	shapeSheetRenderer.showUpdateRectangles = parseBool(canv.dataset['showUpdateRectangles'], false);
+	shapeSheetRenderer.shadowDistanceOverride = parseNumber(canv.dataset['shadowDistanceOverride'], null);
+	const shapeSheetUtil = new ShapeSheetUtil(shapeSheet, shapeSheetRenderer);
+	const shapeSheetDemo = new ShapeSheetDemo(shapeSheetUtil);
+	shapeSheetDemo.buildDemo();
+	//shapeSheetDemo.buildPolygonDemo();
+	//shapeSheetDemo.animateLights();
+	shapeSheetDemo.animateLavaLamp();
+	//shapeSheetDemo.animateLightning();
+	
+	const fpsUpdater = new FPSUpdater(function() { return shapeSheetRenderer.canvasUpdateCount; }, document.getElementById('fps-counter').firstChild );
+	fpsUpdater.start();
+	
+	window.shapeSheet = shapeSheet;
+	window.shapeSheetUtil = shapeSheetUtil;
+	window.shapeSheetDemo = shapeSheetDemo;
+}
+
+run();
+
+export default ShapeSheetDemo;
