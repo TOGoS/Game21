@@ -440,6 +440,9 @@ export default class {
 		region = Rectangle.intersection( region, ss.bounds );
 		const {minX, minY, maxX, maxY} = region.assertIntegerBoundaries();
 		
+		const w = maxX-minX, h = maxY-minY;
+		if( w <= 0 || h <= 0 ) return;
+		
 		if( this.canvas === null ) return;
 		
 		var ctx = this.canvas.getContext('2d');
@@ -449,8 +452,6 @@ export default class {
 			return (c*255)|0;
 		};
 		var cellColors = ss.cellColors;
-		
-		const w = maxX-minX, h = maxY-minY;
 		
 		var imgData = ctx.getImageData(minX, minY, w, h);
 		var imgDataData = imgData.data;
