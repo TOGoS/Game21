@@ -69,7 +69,7 @@ function fitpar($cw, $ch, $iw, $ih) {
 		$iw = $cw;
 	} else if( $ih < $ch ) {
 		$iw *= ($ch / $ih);
-		$iw = $cw;
+		$ih = $ch;
 	}
 	if( $iw > $cw ) {
 		$ih *= ($cw / $iw);
