@@ -74,7 +74,7 @@ canvas.shape-view {
   width="<?php eht($width); ?>" height="<?php eht($height); ?>"
   data-show-update-rectangles="<?php eht($showUpdateRectangles); ?>"
   data-shadow-distance-override="<?php eht($shadowDistanceOverride); ?>"
-  style="width: <?php eht($shapeViewWidth); ?>; height: <?php eht($shapeViewHeight); ?>"
+  style="width: <?php eht($shapeViewWidth); ?>px; height: <?php eht($shapeViewHeight); ?>px"
 ></canvas>
 </div>
 
