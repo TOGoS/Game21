@@ -1,5 +1,6 @@
 import DeepFreezer from './DeepFreezer';
 import Vector3D from './Vector3D';
+import LightColor from './LightColor';
 import ShapeSheet from './ShapeSheet';
 import ShapeSheetRenderer, {DirectionalLight} from './ShapeSheetRenderer';
 import ShapeSheetUtil from './ShapeSheetUtil';
@@ -179,12 +180,12 @@ ShapeSheetDemo.prototype.animateLightning = function() {
 				if( Math.random() < 0.01 ) {
 					level = 1;
 					bolts[i] = Math.random();
-					lights[i] = {
-						direction: [Math.random()-0.5, Math.random()-0.5, Math.random()-0.5],
-						color: [level,level,level],
+					lights[i] = DirectionalLight.fromProperties({
+						direction: new Vector3D(Math.random()-0.5, Math.random()-0.5, Math.random()-0.5),
+						color: new LightColor(level,level,level),
 						shadowFuzz: 0.5,
 						minimumShadowLight: 0.1
-					};
+					});
 				}
 			} else {
 				if( Math.random() < 0.1 ) {
@@ -200,7 +201,7 @@ ShapeSheetDemo.prototype.animateLightning = function() {
 						console.log("Somehow lights["+i+"] doesn't exist; can't update lightning.", lights);
 						continue;
 					}
-					lights[i].color = [level,level,level];
+					lights[i] = new DirectionalLight( lights[i].direction, new LightColor(level,level,level), lights[i] );
 					bolts[i] = level;
 				}
 			}
