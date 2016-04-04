@@ -1,0 +1,9 @@
+{
+	"name": "togos-game21",
+	"description": "The game that comes after Game20 and before Game22.",
+	"version": "0.0.1",
+	"license": "UNLICENSED",
+	"dependencies": {
+		"typescript": "^1.8.9"
+	}
+}

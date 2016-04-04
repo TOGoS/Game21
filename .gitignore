@@ -1,6 +1,7 @@
 /ShapeDemo.html
 /ShapeDemo.html.urn
 /ShapeDemo.html.url
+/node_modules
 *.js
 *.js.map
 !/require.js

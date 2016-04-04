@@ -1,8 +1,24 @@
 default: ShapeDemo.html
 
-.PHONY: default publish-demo
+generated_js_files = $(shell find -name '*.ts' | grep -v node_modules | sed 's/\.ts$$/\.js/')
+all_js_files = $(shell find -name '*.js') ${generated_js_files}
 
-ShapeDemo.html: $(shell find -name '*.php' -o -name '*.js')
+tsc := node_modules/typescript/bin/tsc
+
+clean:
+	rm -rf node_modules ${generated_js_files}
+
+tsc_inputs = $(shell find -name '*.ts' | grep -v node_modules)
+tsc_output = ${generated_js_files}
+
+.DELETE_ON_ERROR: # yes plz
+
+.PHONY: \
+	clean \
+	default \
+	publish-demo
+
+ShapeDemo.html: $(shell find -name '*.php') ${all_js_files}
 	php ShapeDemo.php --inline-resources >"$@"
 
 ShapeDemo.html.urn: ShapeDemo.html
@@ -15,3 +31,13 @@ ShapeDemo.html.url: ShapeDemo.html.urn
 publish-demo: ShapeDemo.html ShapeDemo.html.urn ShapeDemo.html.url
 	cat ShapeDemo.html.url
 	publish -sector build "$<"
+
+node_modules: package.json
+	npm install
+	touch "$@"
+
+${tsc_output}: ${tsc_inputs} tsconfig.json node_modules
+	${tsc} -p .
+
+#${generated_js_files}: %.js: %.ts tsconfig.json node_modules Makefile
+#	${tsc} --out "$@" "$<" --target ES5 --sourcemap --module amd

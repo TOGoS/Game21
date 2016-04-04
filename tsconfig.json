@@ -5,5 +5,7 @@
 		"module": "amd",
 		"sourceMap": true
 	},
-	"exclude": []
+	"exclude": [
+		"node_modules"
+	]
 }
