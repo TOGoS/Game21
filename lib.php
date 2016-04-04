@@ -1,6 +1,8 @@
 <?php
 
 function eht($text) {
+	if( $text === null ) return '';
+	if( is_bool($text) ) $text = $text ? 'true' : 'false';
 	echo htmlspecialchars($text);
 }
 function ejsv($v) {
@@ -17,10 +19,15 @@ function require_css($file, $inline=true) {
 	}
 };
 
-function require_js($files, $inline=true) {
+function require_js($files, $inline=true, $extraProps=array()) {
+	$epStr = '';
+	foreach( $extraProps as $k=>$v ) {
+		$epStr .= " {$k}=\"".htmlspecialchars($v).'"';
+	}
+	
 	if( is_scalar($files) ) $files = array($file);
 	if( $inline ) {
-		echo "<script type=\"text/javascript\">/* <![CDATA[ */\n";
+		echo "<script type=\"text/javascript\"{$epStr}>/* <![CDATA[ */\n";
 		foreach( $files as $file ) {
 			echo "////// $file //////\n\n";
 			require $file;
@@ -28,7 +35,7 @@ function require_js($files, $inline=true) {
 		echo "/* ]]> */</script>\n";
 	} else {
 		foreach( $files as $file ) {
-			echo "<script type=\"text/javascript\" src=\"".htmlspecialchars($file)."\"></script>\n";
+			echo "<script type=\"text/javascript\" src=\"".htmlspecialchars($file)."\"{$epStr}></script>\n";
 		}
 	}
 };

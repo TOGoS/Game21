@@ -1,15 +1,32 @@
 <?php
 	require_once 'lib.php';
-	if( !isset($mode ) ) $mode = 'editor';
-	if( !isset($title) ) $title = ($mode === 'demo' ? 'Shapes!' : 'Shape Editor');
-	if( !isset($inlineResources) ) $inlineResources = ($mode === 'demo');
-	if( !isset($width ) ) $width  = isset($_REQUEST['width' ]) ? $_REQUEST['width' ] : 128;
-	if( !isset($height) ) $height = isset($_REQUEST['height']) ? $_REQUEST['height'] :  64;
 	
-	$showUpdateRectangles = isset($_REQUEST['showUpdateRectangles']) ? parse_bool($_REQUEST['showUpdateRectangles']) : false;
+	if( !isset($demoConfig) ) $demoConfig = [];
 	
-	$shapeViewMaxWidth = 768;
-	$shapeViewMaxHeight = 384;
+	$demoConfigDefaults = [
+		'mode' => 'editor',
+		'title' => function($vars) { return $vars['mode'] === 'demo' ? 'Shapes!' : 'Shape Editor'; },
+		'inlineResources' => function($vars) { return $vars['mode'] === 'demo'; },
+		'width' => 128,
+		'height' => 64,
+		'shapeViewMaxWidth' => 768,
+		'shapeViewMaxHeight' => 384,
+		'showUpdateRectangles' => false,
+		'shadowDistanceOverride' => '',
+	];
+	
+	foreach( $demoConfigDefaults as $k=>$default ) {
+		if( isset($demoConfig[$k]) ) continue;
+		else if( isset($_REQUEST[$k]) ) $demoConfig[$k] = $_REQUEST[$k];
+		else if( is_callable($default) ) $demoConfig[$k] = call_user_func($default, $demoConfig);
+		else $demoConfig[$k] = $default;
+	}
+	
+	foreach( $demoConfigDefaults as $k=>$_ ) {
+		$$k = $demoConfig[$k];
+	}
+	
+	$showUpdateRectangles = parse_bool($showUpdateRectangles);
 	list($shapeViewWidth, $shapeViewHeight) = fitpar($shapeViewMaxWidth, $shapeViewMaxHeight, $width, $height);
 ?>
 <!DOCTYPE html>
@@ -22,7 +39,7 @@ html, body {
 	width: 100%;
 	height: 100%;
 	margin: 0;
-	box-model: border-box;
+	box-sizing: border-box;
 }
 p#fps-counter {
 	float: left;
@@ -55,7 +72,9 @@ canvas.shape-view {
 <div class="preview-region">
 <canvas id="shaded-preview-canvas" class="shape-view"
   width="<?php eht($width); ?>" height="<?php eht($height); ?>"
-  style="width: <?php eht($shapeViewWidth); ?>px; height: <?php eht($shapeViewHeight); ?>px;"
+  data-show-update-rectangles="<?php eht($showUpdateRectangles); ?>"
+  data-shadow-distance-override="<?php eht($shadowDistanceOverride); ?>"
+  style="width: <?php eht($shapeViewWidth); ?>; height: <?php eht($shapeViewHeight); ?>"
 ></canvas>
 </div>
 
@@ -71,43 +90,8 @@ canvas.shape-view {
 	if( $mode === 'demo' ) $requireJsFiles[] = 'ShapeSheetDemo.js';
 
 	require_js($requireJsFiles, $inlineResources);
+	require_js(['require.js'], $inlineResources, ['data-main' => "ShapeSheetDemo"]);
 ?>
-<script type="text/javascript">//<![CDATA[
-(function() {
-	"use strict";
-	
-	var canv = document.getElementById('shaded-preview-canvas');
-
-	var shapeSheet = new ShapeSheet(<?php echo "$width,$height"; ?>);
-	var shapeSheetRenderer = new ShapeSheetRenderer(shapeSheet, canv);
-	shapeSheetRenderer.shaders.push(ShapeSheetRenderer.makeFogShader(0, 0, 0, 0, 0.01));
-	shapeSheetRenderer.showUpdateRectangles = <?php ejsv($showUpdateRectangles); ?>;
-	var shapeSheetUtil = new ShapeSheetUtil(shapeSheet, shapeSheetRenderer);
-<?php if($mode === 'demo'): ?>
-	var shapeSheetDemo = new ShapeSheetDemo(shapeSheetUtil);
-	shapeSheetDemo.buildDemo();
-	//shapeSheetDemo.buildPolygonDemo();
-	//shapeSheetDemo.animateLights();
-	shapeSheetDemo.animateLavaLamp();
-	//shapeSheetDemo.animateLightning();
-	
-	var fpsUpdater = new FPSUpdater(function() { return shapeSheetRenderer.canvasUpdateCount; }, document.getElementById('fps-counter').firstChild );
-	fpsUpdater.start();
-<?php endif; ?>
-	
-	window.resizeShapeSheet = function(w,h) {
-		canv.width = w;
-		canv.height = h;
-		shapeSheet.initBuffer(w,h);
-		shapeSheetDemo.buildDemo();
-	};
-	
-	window.shapeSheet = shapeSheet;
-	window.shapeSheetUtil = shapeSheetUtil;
-	window.shapeSheetDemo = shapeSheetDemo;
-})();
-//]]></script>
-
 
 </body>
 </html>
