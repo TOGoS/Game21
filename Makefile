@@ -1,19 +1,23 @@
 tsc_inputs = $(shell find -name '*.ts' | grep -v node_modules)
 
-generated_js_files = $(shell find -name '*.ts' | grep -v node_modules | sed 's/\.ts$$/\.js/')
+generated_js_files = $(shell find -name '*.ts' | grep -v node_modules | sed 's/\.ts$$/\.js/') $(shell find -name '*.es5.js' -o -name '*.es6.js')
 all_js_files = $(shell find -name '*.js') ${generated_js_files}
 
 tsc := node_modules/typescript/bin/tsc
 
 default: ShapeDemo.html
 
-clean:
-	rm -rf node_modules ${generated_js_files} ShapeDemo.html ShapeDemo.html.urn
+sortaclean:
+	rm -rf ${generated_js_files} ShapeDemo.html ShapeDemo.html.urn
+
+clean: sortaclean
+	rm -rf node_modules
 
 .DELETE_ON_ERROR: # yes plz
 
 .PHONY: \
 	clean \
+	sortaclean \
 	default \
 	publish-demo
 
