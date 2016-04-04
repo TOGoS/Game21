@@ -13,9 +13,17 @@ var _map = function<T>(from:T, to:T, mapFunc:(any)=>any) {
 var map = function<T>(obj:T, mapFunc:(any)=>any) {
 	//var clone = {}; // Loses too much information!
 	//var clone = Object.create(Object.getPrototypeOf(obj)); // Fails to construct arrays right, so length becomes enumerable
-	var clone = new (Object.getPrototypeOf(obj).constructor)();
-	_map(obj, clone, mapFunc);
-	return clone;
+	var prototype = Object.getPrototypeOf(obj);
+	var constructor = prototype.constructor;
+	if( constructor.fromProperties ) {
+		var props = {};
+		_map(obj, props, mapFunc);
+		return constructor.fromProperties(props);
+	} else {
+		var clone = new (prototype.constructor)();
+		_map(obj, clone, mapFunc);
+		return clone;
+	}
 };
 
 var clone = function<T>(obj:T):T {
