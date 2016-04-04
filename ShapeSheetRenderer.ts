@@ -90,6 +90,7 @@ function maybeCombineRectangle(r0:Rectangle, r1:Rectangle):Rectangle {
 	}
 };
 function addToUpdateRectangleList(rectangleList:Array<Rectangle>, rect:Rectangle):Array<Rectangle> {
+	if( !rect.isPositiveSize ) return rectangleList;
 	const newList:Array<Rectangle> = [];
 	for( const i in rectangleList ) {
 		const combined = maybeCombineRectangle(rectangleList[i], rect);

@@ -8,6 +8,7 @@ export default class Rectangle {
 	get width():number { return this.maxX-this.minX; }
 	get height():number { return this.maxY-this.minY; }
 	get area():number { return this.width < 0 || this.height < 0 ? 0 : this.width*this.height; }
+	get isPositiveSize():boolean { return this.width > 0 && this.height > 0; }
 	
 	public grow(minX:number, minY:number=minX, maxX:number=minX, maxY:number=minY) {
 		if( minX < 0 ) throw new Error("Grow shouldn't be < 0!");
