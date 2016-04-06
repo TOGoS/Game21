@@ -36,9 +36,14 @@ var fakerequire = (function() {
 		}
 		return module.exports;
 	};
-	var require = function(depNames, callback) {
+	var require = function(depNames, callback, errback) {
 		var exports = {};
-		var args = resolveDeps(depNames, { exports: exports, require: null });
+		try {
+			var args = resolveDeps(depNames, { exports: exports, require: null });
+		} catch( e ) {
+			errback(e);
+			return;
+		}
 		callback.apply(callback, args);
 	};
 

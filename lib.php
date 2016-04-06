@@ -81,3 +81,14 @@ function fitpar($cw, $ch, $iw, $ih) {
 	}
 	return array($iw, $ih);
 }
+
+function find_ts_test_modules() {
+	$filenames = scandir('.');
+	$modules = [];
+	foreach( $filenames as $fn ) {
+		if( preg_match('/^(.*Test)\.ts$/',$fn,$bif) ) {
+			$modules[$bif[1]] = $bif[1];
+		}
+	}
+	return $modules;
+}
