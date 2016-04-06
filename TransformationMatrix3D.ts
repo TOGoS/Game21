@@ -53,7 +53,8 @@ export default class TransformationMatrix3D {
 		return dest.set(
 			1, 0, 0, xlt.x,
 			0, 1, 0, xlt.y,
-			0, 0, 2, xlt.z
+			0, 0, 1, xlt.z
+		//	0, 0, 0, 1      // Implied bottom row
 		);
 	};
 	
@@ -61,22 +62,26 @@ export default class TransformationMatrix3D {
 		dest.xx = m1.xx * m2.xx + m1.xy * m2.yx + m1.xz * m2.zx + 0;
 		dest.xy = m1.xx * m2.xy + m1.xy * m2.yy + m1.xz * m2.zy + 0;
 		dest.xz = m1.xx * m2.xz + m1.xy * m2.yz + m1.xz * m2.zz + 0;
-		dest.x1 = m1.xx * m2.x1 + m1.xy * m2.y1 + m1.xz * m2.z1 + 0;
+		dest.x1 = m1.xx * m2.x1 + m1.xy * m2.y1 + m1.xz * m2.z1 + m1.x1;
 		dest.yx = m1.yx * m2.xx + m1.yy * m2.yx + m1.yz * m2.zx + 0;
 		dest.yy = m1.yx * m2.xy + m1.yy * m2.yy + m1.yz * m2.zy + 0;
 		dest.yz = m1.yx * m2.xz + m1.yy * m2.yz + m1.yz * m2.zz + 0;
-		dest.y1 = m1.yx * m2.x1 + m1.yy * m2.y1 + m1.yz * m2.z1 + 0;
+		dest.y1 = m1.yx * m2.x1 + m1.yy * m2.y1 + m1.yz * m2.z1 + m1.y1;
 		dest.zx = m1.zx * m2.xx + m1.zy * m2.yx + m1.zz * m2.zx + 0;
 		dest.zy = m1.zx * m2.xy + m1.zy * m2.yy + m1.zz * m2.zy + 0;
 		dest.zz = m1.zx * m2.xz + m1.zy * m2.yz + m1.zz * m2.zz + 0;
-		dest.z1 = m1.zx * m2.x1 + m1.zy * m2.y1 + m1.zz * m2.z1 + 0;
+		dest.z1 = m1.zx * m2.x1 + m1.zy * m2.y1 + m1.zz * m2.z1 + m1.z1;
 		return dest;
+	}
+	
+	public multiply( r:TransformationMatrix3D, dest:TransformationMatrix3D=new TransformationMatrix3D ):TransformationMatrix3D {
+		return TransformationMatrix3D.multiply(this, r, dest);
 	}
 	
 	/**
 	 * Assumes axis vector (x,y,z) is already normalized
 	 */
-	public static fromAxisAngle( x:number, y:number, z:number, angle:number, dest:TransformationMatrix3D=new TransformationMatrix3D() ):TransformationMatrix3D {
+	public static fromXYZAxisAngle( x:number, y:number, z:number, angle:number, dest:TransformationMatrix3D=new TransformationMatrix3D() ):TransformationMatrix3D {
 		const c = Math.cos(angle);
 		const s = Math.sin(angle);
 		const t = 1-c;
@@ -88,8 +93,8 @@ export default class TransformationMatrix3D {
 		);
 	}
 	
-	public static fromAxisAngle2( axis:Vector3D, angle:number, dest:TransformationMatrix3D=new TransformationMatrix3D() ):TransformationMatrix3D {
-		return this.fromAxisAngle(axis.x, axis.y, axis.z, angle, dest);
+	public static fromAxisAngle( axis:Vector3D, angle:number, dest:TransformationMatrix3D=new TransformationMatrix3D() ):TransformationMatrix3D {
+		return this.fromXYZAxisAngle(axis.x, axis.y, axis.z, angle, dest);
 	}
 	
 	public get rows():Array<Array<number>> {

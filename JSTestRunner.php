@@ -48,6 +48,7 @@
 			++failedTestCount;
 			errors.push(error);
 			updateDebugText(testName+" failed: "+error.message);
+			console.log(error);
 		}
 		if( ++runTestCount == totalTestCount ) {
 			if( failedTestCount == 0 ) {
