@@ -49,6 +49,14 @@ export default class TransformationMatrix3D {
 		);
 	}
 	
+	public static scale( sx:number, sy:number=sx, sz:number=sx, dest:TransformationMatrix3D=new TransformationMatrix3D ):TransformationMatrix3D {
+		return dest.set(
+			sx, 0, 0, 0,
+			0, sy, 0, 0,
+			0, 0, sz, 0
+		);
+	}
+	
 	public static translation( xlt:Vector3D, dest:TransformationMatrix3D=new TransformationMatrix3D ):TransformationMatrix3D {
 		return dest.set(
 			1, 0, 0, xlt.x,

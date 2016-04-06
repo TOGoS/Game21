@@ -45,15 +45,44 @@ const rightBy3AndUpBy2 = rightBy3.multiply(upByTwo);
 assertVectorsApproximatelyEqual(new Vector3D(4,0,3), rightBy3AndUpBy2.multiplyVector(new Vector3D(1,2,3)), "translating 1,2,3 by +3,-2,0;\n"+rightBy3.toString());
 
 // Now something involving rotation, since that involves non-communtative matrix multiplication
-// Let's say:
-//   Move +x by 3
-//   Rotate around +Y
-//   Move +x by 2
-// So, e.g. (0,0,0) -> (3,0,0) -> (0,0,-3) -> (+2,0,0)
+// Construct the matrix in outermost->innermost outer
 
-const complexTransform = ident
-	.multiply(TransformationMatrix3D.translation(new Vector3D(3,0,0)))
-	.multiply(TransformationMatrix3D.fromAxisAngle(new Vector3D(0,1,0), Math.PI/2))
-	.multiply(TransformationMatrix3D.translation(new Vector3D(2,0,0)));
+{
+	const complexTransform = ident
+		.multiply(TransformationMatrix3D.fromAxisAngle(new Vector3D(0,1,0), Math.PI/2))
+		.multiply(TransformationMatrix3D.translation(new Vector3D(3,0,0)))
 
-assertVectorsApproximatelyEqual(new Vector3D(2,0,0), complexTransform.multiplyVector(new Vector3D(0,0,0)), "complex transform:\n"+complexTransform);
+	assertVectorsApproximatelyEqual(new Vector3D(0,0,-3), complexTransform.multiplyVector(new Vector3D(0,0,0)), "complex transform:\n"+complexTransform);
+}
+
+{
+	// Let's say (innermost to outermost)
+	//   Move +x by 3
+	//   Rotate around +Y
+	//   Move +x by 2
+	// So, e.g. (0,0,0) -> (3,0,0) -> (0,0,-3) -> (+2,0,-3)
+	
+	const complexTransform = ident
+		.multiply(TransformationMatrix3D.translation(new Vector3D(2,0,0)))
+		.multiply(TransformationMatrix3D.fromAxisAngle(new Vector3D(0,1,0), Math.PI/2))
+		.multiply(TransformationMatrix3D.translation(new Vector3D(3,0,0)));
+
+	assertVectorsApproximatelyEqual(new Vector3D(2,0,-3), complexTransform.multiplyVector(new Vector3D(0,0,0)), "complex transform:\n"+complexTransform);
+}
+
+{
+	// One with scaling!
+	//   Move +x by 3
+	//   Scale by 2
+	//   Rotate around +Y
+	//   Move +x by 2
+	// So, e.g. (0,0,0) -> (3,0,0) -> (6,0,0) -> (0,0,-6) -> (+2,0,-3)
+	
+	const complexTransform = ident
+		.multiply(TransformationMatrix3D.translation(new Vector3D(2,0,0)))
+		.multiply(TransformationMatrix3D.fromAxisAngle(new Vector3D(0,1,0), Math.PI/2))
+		.multiply(TransformationMatrix3D.scale(2))
+		.multiply(TransformationMatrix3D.translation(new Vector3D(3,0,0)));
+
+	assertVectorsApproximatelyEqual(new Vector3D(2,0,-6), complexTransform.multiplyVector(new Vector3D(0,0,0)), "complex transform:\n"+complexTransform);
+}
