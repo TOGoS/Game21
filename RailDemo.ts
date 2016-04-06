@@ -5,6 +5,7 @@ import ShapeSheet from './ShapeSheet';
 import ShapeSheetRenderer from './ShapeSheetRenderer';
 import ShapeSheetUtil from './ShapeSheetUtil';
 import SurfaceColor from './SurfaceColor';
+import TransformationMatrix3D from './TransformationMatrix3D';
 
 class TrackEndpoint {
 	public position:Vector3D;
@@ -21,30 +22,6 @@ class TrackType {
 	public rails:Array<TrackTypeRail>;
 }
 
-class TransformationMatrix {
-	public xx:number; public xy:number; public xz:number; public x1:number; 
-	public yx:number; public yy:number; public yz:number; public y1:number;
-	public zx:number; public zy:number; public zz:number; public z1:number;
-	
-	public set(
-		xx:number, xy:number, xz:number, x1:number,
-		yx:number, yy:number, yz:number, y1:number,
-		zx:number, zy:number, zz:number, z1:number
-	) {
-		this.xx = xx; this.xy = xy; this.xz = xz; this.x1 = x1;
-		this.yx = yx; this.yy = yy; this.yz = yz; this.y1 = y1;
-		this.zx = zx; this.zy = zy; this.zz = zz; this.z1 = z1;
-	}
-	
-	multiply( v:Vector3D ) : Vector3D {
-		return new Vector3D(
-			this.xx*v.x + this.xy*v.y + this.xz * v.z + this.x1,
-			this.yx*v.x + this.yy*v.y + this.yz * v.z + this.y1,
-			this.zx*v.x + this.zy*v.y + this.zz * v.z + this.z1
-		);
-	}
-};
-
 const addVect3d = function( v0:Vector3D, v1:Vector3D ):Vector3D {
 	return new Vector3D(v0.x+v1.x, v0.y+v1.y, v0.z+v1.z);
 };
@@ -55,14 +32,13 @@ const subtractVect3d = function( v0:Vector3D, v1:Vector3D ) {
 function railEndpoint( trackEndpoint:TrackEndpoint, rail:TrackTypeRail ):TrackEndpoint {
 	const pos:Vector3D = trackEndpoint.position;
 	const fwd:Vector3D = trackEndpoint.forward.normalize();
-	const xform = new TransformationMatrix();
-	xform.set(
+	const xform = new TransformationMatrix3D(
 		+fwd.x, -fwd.y, 0, pos.x,
 		+fwd.y, +fwd.x, 0, pos.y,
 		     0,      0, 1, pos.z // Assuming no Z component in forward for now
 	)
 	return {
-		position: xform.multiply(rail.offset),
+		position: xform.multiplyVector(rail.offset),
 		forward: trackEndpoint.forward,
 		up: trackEndpoint.up
 	};  

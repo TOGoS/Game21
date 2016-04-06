@@ -32,13 +32,7 @@ export default class TransformationMatrix3D {
 	public get "1y"() { return 0; }
 	public get "1z"() { return 0; }
 	public get "11"() { return 1; }
-	
-	public static createBuffer():TransformationMatrix3D {
-		const matrix = new TransformationMatrix3D();
-		matrix.set(0,0,0,0,0,0,0,0,0,0,0,0);
-		return matrix;
-	}
-	
+		
 	public static IDENTITY = new TransformationMatrix3D(1,0,0,0,0,1,0,0,0,0,1,0);
 	
 	public multiplyVector( v:Vector3D, dest:Vector3D=new Vector3D ) : Vector3D {
