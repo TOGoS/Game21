@@ -1,5 +1,7 @@
-import Vector3D, {Vector3DBuffer} from './Vector3D';
+import Vector3D from './Vector3D';
 import Curve from './Curve';
+
+type Vector3DBuffer = Vector3D;
 
 var scaleAndAccumulateVect3d = function( v:Vector3D, s:number, res:Vector3DBuffer ):void {
 	res.x += v.x*s;

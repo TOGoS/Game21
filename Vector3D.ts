@@ -37,5 +37,3 @@ export default class Vector3D {
 		);
 	}
 }
-
-export type Vector3DBuffer = Vector3D;

@@ -1,6 +1,6 @@
 const LARGE_NUMBER = 1000;
 
-import Vector3D, {Vector3DBuffer} from './Vector3D';
+import Vector3D from './Vector3D';
 import Curve from './Curve';
 import Rectangle from './Rectangle';
 import ShapeSheet from './ShapeSheet';
@@ -8,6 +8,7 @@ import ShapeSheetRenderer from './ShapeSheetRenderer';
 
 type PlottedMaterialIndexFunction = (x:number, y:number, z:number, z0:number, z1:number, z2:number, z3:number)=>number;
 type PlotFunction = (x:number, y:number, z:number, rad:number)=>void;
+type Vector3DBuffer = Vector3D;
 
 var infiniMinus = function(a, b) {
 	if( a === b ) return 0;
@@ -392,7 +393,7 @@ class ShapeSheetUtil {
 	plotCurve( curve:Curve, r0:number, r1:number, plotFunc:PlotFunction ):void {
 		if( plotFunc == null ) plotFunc = this.plotSphere;
 		
-		var v = new Vector3DBuffer(0,0,0);
+		var v = new Vector3D;
 		curve( 1, v );
 		plotFunc.call( this, v.x, v.y, v.z, r1 );
 		this._plotCurveSegment( curve, r0, r1, 0, 1, plotFunc, v );
