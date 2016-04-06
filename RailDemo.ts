@@ -21,13 +21,6 @@ class TrackType {
 	public rails:Array<TrackTypeRail>;
 }
 
-const addVect3d = function( v0:Vector3D, v1:Vector3D ):Vector3D {
-	return new Vector3D(v0.x+v1.x, v0.y+v1.y, v0.z+v1.z);
-};
-const subtractVect3d = function( v0:Vector3D, v1:Vector3D ) {
-	return new Vector3D(v0.x-v1.x, v0.y-v1.y, v0.z-v1.z);
-};
-
 function railEndpoint( trackEndpoint:TrackEndpoint, rail:TrackTypeRail ):TrackEndpoint {
 	const pos:Vector3D = trackEndpoint.position;
 	const xform = TransformationMatrix3D.IDENTITY.
