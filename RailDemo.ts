@@ -1,5 +1,5 @@
 import Vector3D from './Vector3D';
-import Curve from './Curve';
+import Curve, {estimateCurveLength} from './Curve';
 import {makeCubicBezierCurve} from './Bezier';
 import ShapeSheet from './ShapeSheet';
 import ShapeSheetRenderer from './ShapeSheetRenderer';
@@ -39,13 +39,32 @@ function railEndpoint( trackEndpoint:TrackEndpoint, rail:TrackTypeRail ):TrackEn
 	};  
 }
 
-function trackCurve( start:TrackEndpoint, end:TrackEndpoint ):Curve {
+
+
+function guessCurve( c:Curve, startDir:Vector3D, endDir:Vector3D ):Curve {
+	const b0=new Vector3D
+	const b3=new Vector3D
+	c(0.00, b0);
+	c(1.00, b3);
+	
+	const len = estimateCurveLength(c);
+	// len / 3 seems to allow for nice 45 degree curves
+	const b1 = Vector3D.add( b0, startDir.normalize(+len/3) );
+	const b2 = Vector3D.add( b3,   endDir.normalize(-len/3) );
+	
+	return makeCubicBezierCurve(b0, b1, b2, b3);
+}
+
+function trackCurve( start:TrackEndpoint, end:TrackEndpoint, iter:number=1 ):Curve {
 	const startForward = TransformationMatrix3D.fromQuaternion(start.orientation).multiplyVector(Vector3D.I); 
-	const endForward = TransformationMatrix3D.fromQuaternion(end.orientation).multiplyVector(Vector3D.I);
-	return makeCubicBezierCurve(
-		start.position, addVect3d(start.position, startForward),
-		subtractVect3d(end.position, endForward), end.position
-	);
+	const endForward   = TransformationMatrix3D.fromQuaternion(end.orientation  ).multiplyVector(Vector3D.I);
+	
+	let curve = makeCubicBezierCurve(start.position, start.position, end.position, end.position);
+	for( let i=0; i<iter; ++i ) {
+		curve = guessCurve(curve, startForward, endForward);
+	}
+	
+	return curve;
 }
 
 export default class RailDemo {

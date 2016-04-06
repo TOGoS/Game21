@@ -28,12 +28,26 @@ export default class Vector3D {
 		return new Vector3D(this.x*scale, this.y*scale, this.z*scale);
 	}
 	
-	public normalize():Vector3D {
-		return this.scale( 1/this.length );
+	public normalize(targetLength:number=1):Vector3D {
+		if( this.length == 0 ) return this;
+		return this.scale( targetLength/this.length );
 	}
 	
 	public toArray():Array<number> {
 		return [this.x, this.y, this.z];
+	}
+	
+	public static add( v0:Vector3D, v1:Vector3D ):Vector3D {
+		return new Vector3D(v0.x+v1.x, v0.y+v1.y, v0.z+v1.z);
+	}
+	public static subtract( v0:Vector3D, v1:Vector3D ):Vector3D {
+		return new Vector3D(v0.x-v1.x, v0.y-v1.y, v0.z-v1.z);
+	}
+	
+	public static differenceMagnitude( v0:Vector3D, v1:Vector3D ):number {
+		// return subtract(v0,v1).length
+		const dx=v0.x-v1.x, dy=v0.y-v1.y, dz=v0.z-v1.z;
+		return Math.sqrt(dx*dx + dy*dy + dz*dz);
 	}
 	
 	public roundToGrid(xGrid:number=1, yGrid:number=xGrid, zGrid:number=xGrid, dest:Vector3D=new Vector3D) : Vector3D {
