@@ -45,7 +45,7 @@ var isDeepFrozen = function(val) {
  * Why would you use this instead of deepFreeze?
  * Probably shouldn't.
  */
-var freeze = function<T>(obj:T, inPlace:boolean):T {
+var freeze = function<T>(obj:T, inPlace:boolean=false):T {
 	if( Object.isFrozen(obj) ) return obj;
 	
 	var hasAnyMutableProperties = false;

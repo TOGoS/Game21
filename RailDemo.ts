@@ -6,12 +6,11 @@ import ShapeSheetRenderer from './ShapeSheetRenderer';
 import ShapeSheetUtil from './ShapeSheetUtil';
 import SurfaceColor from './SurfaceColor';
 import TransformationMatrix3D from './TransformationMatrix3D';
+import Quaternion from './Quaternion';
 
 class TrackEndpoint {
 	public position:Vector3D;
-	// TODO: Replace forward, up with quaternion
-	public forward:Vector3D;
-	public up:Vector3D;
+	public orientation:Quaternion;
 }
 class TrackTypeRail {
 	public materialIndex:number;
@@ -31,23 +30,21 @@ const subtractVect3d = function( v0:Vector3D, v1:Vector3D ) {
 
 function railEndpoint( trackEndpoint:TrackEndpoint, rail:TrackTypeRail ):TrackEndpoint {
 	const pos:Vector3D = trackEndpoint.position;
-	const fwd:Vector3D = trackEndpoint.forward.normalize();
-	const xform = new TransformationMatrix3D(
-		+fwd.x, -fwd.y, 0, pos.x,
-		+fwd.y, +fwd.x, 0, pos.y,
-		     0,      0, 1, pos.z // Assuming no Z component in forward for now
-	)
+	const xform = TransformationMatrix3D.IDENTITY.
+		multiply(TransformationMatrix3D.translation(trackEndpoint.position)).
+		multiply(TransformationMatrix3D.fromQuaternion(trackEndpoint.orientation));
 	return {
 		position: xform.multiplyVector(rail.offset),
-		forward: trackEndpoint.forward,
-		up: trackEndpoint.up
+		orientation: trackEndpoint.orientation
 	};  
 }
 
 function trackCurve( start:TrackEndpoint, end:TrackEndpoint ):Curve {
+	const startForward = TransformationMatrix3D.fromQuaternion(start.orientation).multiplyVector(Vector3D.I); 
+	const endForward = TransformationMatrix3D.fromQuaternion(end.orientation).multiplyVector(Vector3D.I);
 	return makeCubicBezierCurve(
-		start.position, addVect3d(start.position, start.forward),
-		subtractVect3d(end.position, end.forward), end.position
+		start.position, addVect3d(start.position, startForward),
+		subtractVect3d(end.position, endForward), end.position
 	);
 }
 
@@ -79,13 +76,11 @@ export default class RailDemo {
 		
 		const trackStart:TrackEndpoint = {
 			position: new Vector3D(scale*1, scale*8, 0),
-			forward: new Vector3D(0, -scale, 0),
-			up: minusZ 
+			orientation: Quaternion.fromXYZAxisAngle(0,0,1,-Math.PI/2)
 		};
 		const trackEnd:TrackEndpoint = {
 			position: new Vector3D(scale*3, scale*3, 0),
-			forward: new Vector3D(+scale, -scale, 0),
-			up: minusZ
+			orientation: Quaternion.fromXYZAxisAngle(0,0,1,-Math.PI/4)
 		};
 		
 		const leftRail:TrackTypeRail = {

@@ -1,4 +1,6 @@
+import DeepFreezer from './DeepFreezer';
 import Vector3D from './Vector3D';
+import Quaternion from './Quaternion';
 
 const fmtNum = function(num:number, size:number, digits=2) {
 	var s = num.toPrecision(digits);
@@ -33,7 +35,7 @@ export default class TransformationMatrix3D {
 	public get "1z"() { return 0; }
 	public get "11"() { return 1; }
 		
-	public static IDENTITY = new TransformationMatrix3D(1,0,0,0,0,1,0,0,0,0,1,0);
+	public static IDENTITY = DeepFreezer.deepFreeze(new TransformationMatrix3D(1,0,0,0,0,1,0,0,0,0,1,0));
 	
 	public multiplyVector( v:Vector3D, dest:Vector3D=new Vector3D ) : Vector3D {
 		return dest.set(
@@ -97,6 +99,19 @@ export default class TransformationMatrix3D {
 	
 	public static fromAxisAngle( axis:Vector3D, angle:number, dest:TransformationMatrix3D=new TransformationMatrix3D() ):TransformationMatrix3D {
 		return this.fromXYZAxisAngle(axis.x, axis.y, axis.z, angle, dest);
+	}
+	
+	public static fromQuaternion( q:Quaternion, dest:TransformationMatrix3D=new TransformationMatrix3D() ):TransformationMatrix3D {
+		// Symbols defined to match those used on
+		// https://en.wikipedia.org/wiki/Quaternions_and_spatial_rotation#Quaternion-derived_rotation_matrix
+		const r = q.a, i=q.b, j=q.c, k=q.d;
+		const rr = r*r, ii = i*i, jj = j*j, kk = k*k;
+		const ij = i*j, ik = i*k, ir = i*r, kr = k*r, jk = j*k, jr = j*r;
+		return dest.set(
+			1 - 2*(jj + kk),     2*(ij - kr),     2*(ik + jr), 0,
+			    2*(ij + kr), 1 - 2*(ii + kk),     2*(jk - ir), 0,
+			    2*(ik - jr),     2*(jk + ir), 1 - 2*(ii + jj), 0
+		);
 	}
 	
 	public get rows():Array<Array<number>> {

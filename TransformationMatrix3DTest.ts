@@ -1,4 +1,5 @@
 import Vector3D from './Vector3D';
+import Quaternion from './Quaternion';
 import TransformationMatrix3D from './TransformationMatrix3D';
 
 function vectorToString( v:Vector3D, precision:number=4 ) {
@@ -14,8 +15,13 @@ function assertVectorsApproximatelyEqual( v0:Vector3D, v1:Vector3D, message?:str
 
 function assertRotation( expected:Vector3D, input:Vector3D, axis:Vector3D, angle:number ) {
 	const rotate = TransformationMatrix3D.fromAxisAngle(axis, Math.PI/2);
-	const rotated = rotate.multiplyVector( input );
-	assertVectorsApproximatelyEqual( expected, rotated, vectorToString(input)+" rotated around axis "+vectorToString(axis)+"; matrix:\n"+rotate.toString());
+	const rotatedNormal = rotate.multiplyVector(input);
+	assertVectorsApproximatelyEqual( expected, rotatedNormal, vectorToString(input)+" rotated around axis "+vectorToString(axis)+"; matrix:\n"+rotate.toString());
+	
+	const q = Quaternion.fromAxisAngle( axis, angle );
+	const qRotate = TransformationMatrix3D.fromQuaternion(q);
+	const rotatedQuaternionly = qRotate.multiplyVector(input);
+	assertVectorsApproximatelyEqual( expected, rotatedNormal, vectorToString(input)+" rotated around axis "+vectorToString(axis)+" using quaternion: "+q.toString()+"; matrix:\n"+rotate.toString());
 }
 
 assertRotation( new Vector3D(0,0,-1), new Vector3D(1,0,0), new Vector3D(0,1,0), Math.PI/2 );
@@ -52,7 +58,7 @@ assertVectorsApproximatelyEqual(new Vector3D(4,0,3), rightBy3AndUpBy2.multiplyVe
 		.multiply(TransformationMatrix3D.fromAxisAngle(new Vector3D(0,1,0), Math.PI/2))
 		.multiply(TransformationMatrix3D.translation(new Vector3D(3,0,0)))
 
-	assertVectorsApproximatelyEqual(new Vector3D(0,0,-3), complexTransform.multiplyVector(new Vector3D(0,0,0)), "complex transform:\n"+complexTransform);
+	assertVectorsApproximatelyEqual(new Vector3D(0,0,-3), complexTransform.multiplyVector(Vector3D.ZERO), "complex transform:\n"+complexTransform);
 }
 
 {
@@ -67,7 +73,7 @@ assertVectorsApproximatelyEqual(new Vector3D(4,0,3), rightBy3AndUpBy2.multiplyVe
 		.multiply(TransformationMatrix3D.fromAxisAngle(new Vector3D(0,1,0), Math.PI/2))
 		.multiply(TransformationMatrix3D.translation(new Vector3D(3,0,0)));
 
-	assertVectorsApproximatelyEqual(new Vector3D(2,0,-3), complexTransform.multiplyVector(new Vector3D(0,0,0)), "complex transform:\n"+complexTransform);
+	assertVectorsApproximatelyEqual(new Vector3D(2,0,-3), complexTransform.multiplyVector(Vector3D.ZERO), "complex transform:\n"+complexTransform);
 }
 
 {
@@ -84,5 +90,19 @@ assertVectorsApproximatelyEqual(new Vector3D(4,0,3), rightBy3AndUpBy2.multiplyVe
 		.multiply(TransformationMatrix3D.scale(2))
 		.multiply(TransformationMatrix3D.translation(new Vector3D(3,0,0)));
 
-	assertVectorsApproximatelyEqual(new Vector3D(2,0,-6), complexTransform.multiplyVector(new Vector3D(0,0,0)), "complex transform:\n"+complexTransform);
+	assertVectorsApproximatelyEqual(new Vector3D(2,0,-6), complexTransform.multiplyVector(Vector3D.ZERO), "complex transform:\n"+complexTransform);
+}
+
+
+// Okay, now let's play with quaternions.
+// Because I don't know how to test them separately from transformation matrices
+
+{
+	// For starters lets make sure the identity quaternion doesn't do anything
+	const q = Quaternion.fromXYZAxisAngle(1, 0, 0, 0);
+	const someVectors = [Vector3D.ZERO, Vector3D.I, Vector3D.J, Vector3D.K, new Vector3D(1,2,3)];
+	for( const v in someVectors ) {
+		const xm = TransformationMatrix3D.fromQuaternion(q);
+		assertVectorsApproximatelyEqual(someVectors[v], xm.multiplyVector(someVectors[v]));
+	}
 }
