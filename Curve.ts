@@ -25,4 +25,13 @@ export function estimateCurveLength(c:Curve, t0:number=0, t1:number=1, recurse:n
 	}
 }
 
+export function estimateCurveTangent(c:Curve, t:number, buf:Vector3D=new Vector3D) {
+	const smallNum = 1/1024;
+	c(t + 1/1024, buf);
+	const x1 = buf.x, y1=buf.y, z1=buf.z;
+	c(t - 1/1024, buf);
+	buf.set(x1-buf.x, y1-buf.y, z1-buf.z);
+	return buf.normalize(1, buf);
+}
+
 export default Curve;

@@ -23,20 +23,27 @@ export default class Vector3D {
 		this.set(0,0,0);
 	}
 	
-	public scale(scale:number):Vector3D {
-		if( scale == 1 ) return this;
-		return new Vector3D(this.x*scale, this.y*scale, this.z*scale);
+	public scale(scale:number, dest?:Vector3D):Vector3D {
+		if( scale == 1 && dest == null ) return this;
+		if( dest == null ) dest = new Vector3D;
+		return dest.set(this.x*scale, this.y*scale, this.z*scale);
 	}
 	
-	public normalize(targetLength:number=1):Vector3D {
-		if( this.length == 0 ) return this;
-		return this.scale( targetLength/this.length );
+	public normalize(targetLength:number=1, dest?:Vector3D):Vector3D {
+		const scale = this.length == 0 ? 1 : targetLength/this.length;
+		return this.scale( scale, dest );
 	}
 	
 	public toArray():Array<number> {
 		return [this.x, this.y, this.z];
 	}
 	
+	public static accumulate( v0:Vector3D, dest:Vector3D ):Vector3D {
+		dest.x += v0.x;
+		dest.y += v0.y;
+		dest.z += v0.z;
+		return dest;
+	}
 	public static add( v0:Vector3D, v1:Vector3D ):Vector3D {
 		return new Vector3D(v0.x+v1.x, v0.y+v1.y, v0.z+v1.z);
 	}

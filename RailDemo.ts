@@ -1,5 +1,5 @@
 import Vector3D from './Vector3D';
-import Curve, {estimateCurveLength} from './Curve';
+import Curve, {estimateCurveLength, estimateCurveTangent} from './Curve';
 import {makeCubicBezierCurve} from './Bezier';
 import ShapeSheet from './ShapeSheet';
 import ShapeSheetRenderer from './ShapeSheetRenderer';
@@ -66,17 +66,63 @@ export default class RailDemo {
 		this.shapeSheetUtil = util;
 	}
 	
-	drawRail(trackType:TrackType, start:TrackEndpoint, end:TrackEndpoint) {
+	protected _drawRails(rails:Array<TrackTypeRail>, startOrientation:Quaternion, endOrientation:Quaternion, trackCurve:Curve, divisions:number=16) {
+		let prevTrackPosition:Vector3D = new Vector3D;
+		let nextTrackPosition:Vector3D = new Vector3D;
+		let prevRailPosition:Vector3D = new Vector3D;
+		let nextRailPosition:Vector3D = new Vector3D;
+		let prevOrientation:Quaternion = new Quaternion;
+		let nextOrientation:Quaternion = new Quaternion;
+		let prevTransform = new TransformationMatrix3D;
+		let nextTransform = new TransformationMatrix3D;
+		trackCurve(0, prevTrackPosition);
+		Quaternion.slerp(startOrientation, endOrientation, 0, true, prevOrientation);
+		TransformationMatrix3D.fromQuaternion(prevOrientation, prevTransform);
+		prevTransform.x1 = prevTrackPosition.x;
+		prevTransform.y1 = prevTrackPosition.y;
+		prevTransform.z1 = prevTrackPosition.z;
+		for( let i=1; i <= divisions; ++i ) {
+			const nextT = i/divisions;
+			trackCurve(nextT, nextTrackPosition);
+			Quaternion.slerp(startOrientation, endOrientation, nextT, true, nextOrientation);
+			TransformationMatrix3D.fromQuaternion(nextOrientation, nextTransform);
+			nextTransform.x1 = nextTrackPosition.x;
+			nextTransform.y1 = nextTrackPosition.y;
+			nextTransform.z1 = nextTrackPosition.z;
+			for( let r in rails ) {
+				let rail = rails[r];
+				prevTransform.multiplyVector(rail.offset, prevRailPosition);
+				nextTransform.multiplyVector(rail.offset, nextRailPosition);
+				this.shapeSheetUtil.plotLine(
+					prevRailPosition.x, prevRailPosition.y, prevRailPosition.z, rail.radius,
+					nextRailPosition.x, nextRailPosition.y, nextRailPosition.z, rail.radius,
+					null
+				)
+			}
+			let tempTransform     = prevTransform    ; prevTransform     = nextTransform    ; nextTransform     = tempTransform    ;
+			let tempOrientation   = prevOrientation  ; prevOrientation   = nextOrientation  ; nextOrientation   = tempOrientation  ;
+			let tempTrackPosition = prevTrackPosition; prevTrackPosition = nextTrackPosition; nextTrackPosition = tempTrackPosition;
+		}
+	}
+	
+	drawTrack(trackType:TrackType, start:TrackEndpoint, end:TrackEndpoint) {
+		const curve = trackCurve(start, end);
+		const buf = new Vector3D;
+		
+		this._drawRails(trackType.rails, start.orientation, end.orientation, curve, 16);
+		/*
 		for( let r in trackType.rails ) {
 			const rail = trackType.rails[r];
+			/+
 			const railStart = railEndpoint(start, rail);
 			const railEnd   = railEndpoint(end  , rail);
 			const railCurve = trackCurve(railStart, railEnd);
 			this.shapeSheetUtil.plottedMaterialIndexFunction = function() { return rail.materialIndex; };
 			this.shapeSheetUtil.plotCurve(railCurve, rail.radius, rail.radius, this.shapeSheetUtil.plotSphere);
+			+/
 		}
+		*/
 		
-		const curve = trackCurve(start, end);
 		this.shapeSheetUtil.plottedMaterialIndexFunction = function() { return 8; };
 		this.shapeSheetUtil.plotCurve(curve, 2, 2, this.shapeSheetUtil.plotSphere);
 	}
@@ -109,7 +155,7 @@ export default class RailDemo {
 			rails: [ leftRail, rightRail ]
 		};
 		
-		this.drawRail(trackType, trackStart, trackEnd);
+		this.drawTrack(trackType, trackStart, trackEnd);
 		this.shapeSheetUtil.renderer.requestCanvasUpdate();
 		console.log("Rail demo...");
 	}

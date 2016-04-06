@@ -27,7 +27,7 @@ var infiniMinus = function(a, b) {
 function normalizeVect3dToXYUnitSquare(vect:Vector3D):Vector3D {
 	var len = Math.max(Math.abs(vect.x), Math.abs(vect.y));
 	if( len == 0 ) return vect;
-	return vect.scale(len);
+	return vect.scale(1/len);
 };
 
 function disto( x0:number, y0:number, z0:number, x1:number, y1:number, z1:number ):number {
@@ -370,7 +370,7 @@ class ShapeSheetUtil {
 		const stepVect = normalizeVect3dToXYUnitSquare(vect);
 		const stepCount = vect.length / stepVect.length;
 		const stepR = (r1-r0)/stepCount;
-		for( let i=0; i<=stepCount; ++i ) {
+		for( let i=0; i <= stepCount; ++i ) {
 			plotFunc.call( this, x0+stepVect.x*i, y0+stepVect.y*i, z0+stepVect.z*i, r0+stepR*i );
 		}
 	};
