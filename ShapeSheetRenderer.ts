@@ -180,29 +180,33 @@ export default class ShapeSheetRenderer {
 			Material.NONE,
 			// 4-7 (primary material)
 			{
-				diffuse: new SurfaceColor(1,1.0,0.9,1.0)
+				diffuse: new SurfaceColor(1.0,1.0,0.9)
 			},
 			{
-				diffuse: new SurfaceColor(1,0.9,0.8,1.0)
+				diffuse: new SurfaceColor(1.0,0.9,0.8)
 			},
 			{
-				diffuse: new SurfaceColor(1,0.8,0.7,1.0)
+				diffuse: new SurfaceColor(1.0,0.8,0.7)
 			},
 			{
-				diffuse: new SurfaceColor(1,0.7,0.8,1.0)
+				diffuse: new SurfaceColor(1.0,0.7,0.8)
 			},
 			// 8-11 (different material)
 			{
-				diffuse: new SurfaceColor(1,0.80,0.70,0.4)
+				diffuse: new SurfaceColor(0.40,0.70,0.4)
 			},
 			{
-				diffuse: new SurfaceColor(1,0.75,0.70,0.40)
+				diffuse: new SurfaceColor(0.35,0.70,0.40)
 			},
 			{
-				diffuse: new SurfaceColor(1,0.70,0.65,0.35)
+				diffuse: new SurfaceColor(0.30,0.65,0.35)
 			},
 			{
-				diffuse: new SurfaceColor(1,0.65,0.60,0.35)
+				diffuse: new SurfaceColor(0.25,0.60,0.35)
+			},
+			// 12 (weird transparent thing for testing fog shader)
+			{
+				diffuse: new SurfaceColor(0.25,0.60,0.35,0.5)
 			}
 		];
 		
@@ -542,7 +546,6 @@ export default class ShapeSheetRenderer {
 			var fogT = (1-fogA); // Fog transparency; how much of original color to keep at depth = 1 pixel
 			for( y=minY; y < maxY; ++y ) for( x=minX, i=y*width+x; x < maxX; ++x, ++i ) {
 				d = cellAverageDepths[i];
-				if( d < originDepth ) continue;
 				if( d === Infinity ) {
 					cellColors[i*4+0] = fogR;
 					cellColors[i*4+1] = fogG;
@@ -562,7 +565,7 @@ export default class ShapeSheetRenderer {
 				b = b*a + fogB*(1-a);
 				// Now add the fog ahead;
 				// mix = how much of the original color to keep
-				oMix = Math.pow(fogT, (cellAverageDepths[i] - originDepth));
+				oMix = d < originDepth ? 1 : Math.pow(fogT, d - originDepth);
 				fMix = 1-oMix;
 				cellColors[i*4+0] = r*oMix + fogR*fMix;
 				cellColors[i*4+1] = g*oMix + fogG*fMix;

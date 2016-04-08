@@ -1,7 +1,7 @@
 import DeepFreezer from './DeepFreezer';
 
 class SurfaceColor {
-	constructor(public r:number, public g:number, public b:number, public a:number) {
+	constructor(public r:number, public g:number, public b:number, public a:number=1) {
 		DeepFreezer.freeze(this, true); // We're immutable yeahh!
 	}
 	
