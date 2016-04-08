@@ -4,6 +4,7 @@
 		"target": "es5",
 		"module": "amd",
 		"sourceMap": true,
+		"noFallthroughCasesInSwitch": true,
 		"outFile": "game21libs.amd.es5.js"
 	},
 	"exclude": [
