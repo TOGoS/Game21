@@ -30,18 +30,8 @@
 </canvas>
 </div>
 
-<?php
-	$requireJsFiles = [
-		'DeepFreezer.js',
-		'ShapeSheet.js',
-		'ShapeSheetTransforms.js',
-		'ShapeSheetRenderer.js',
-		'ShapeSheetUtil.js',
-		'CanvasWorldView.js'
-	];
-	
-	require_js($requireJsFiles, $inlineResources);
-?>
+<?php require_game21_js_libs($inlineResources);; ?>
+
 <script>//<![CDATA[
 (function() {
 	var wv = new CanvasWorldView();

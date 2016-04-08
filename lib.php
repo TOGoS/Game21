@@ -40,6 +40,10 @@ function require_js($files, $inline=false, $extraProps=array()) {
 	}
 };
 
+function require_game21_js_libs( $inline=false ) {
+	require_js(['fakerequire.js', 'game21libs.amd.es5.js'], $inline);
+}
+
 function parse_bool($b, $emptyValue=false) {
 	if( $b === null ) return $emptyValue;
 	if( is_bool($b) ) return $b;

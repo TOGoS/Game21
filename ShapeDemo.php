@@ -89,7 +89,7 @@ canvas.shape-view {
 ></canvas>
 </div>
 
-<?php require_js(['fakerequire.js', 'game21libs.amd.es5.js'], $inlineResources); ?>
+<?php require_game21_js_libs($inlineResources);; ?>
 <script type="text/javascript">
 	require(['ShapeSheetDemo'], function(ShapeSheetDemo) { });
 </script>
