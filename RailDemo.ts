@@ -203,12 +203,12 @@ export default class RailDemo {
 		const curve = trackCurve(start, end);
 		const buf = new Vector3D;
 		
-		this._drawTrackSegmentRails(trackType.rails, start.orientation, end.orientation, curve, 16);
-		
 		for( let t in trackType.ties ) {
 			let tie = trackType.ties[t];
 			this._drawTrackSegmentTies(tie, start.orientation, end.orientation, curve);
 		}
+		
+		this._drawTrackSegmentRails(trackType.rails, start.orientation, end.orientation, curve, 16);
 	}
 	
 	run():void {
