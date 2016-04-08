@@ -60,17 +60,33 @@ abstract class 'object visual' : comment @ unindent @ «
 	Visual is also ind
 »
 
-class 'frame applicability flag' : extends(symbol)
-
-class 'shape sheet visual frame' {
-	shape sheet shape : UUID reference(shape sheet shape)
-	# Map of flags to their preferred values;
-	# the frame with the most matching flags is the one used
-	applicability flags : map(frame applicability flag, scalar)
+class 'shape sheet slice' {
+	shape sheet : shape sheet
+	origin : 3D vector
+	resolution : number : comment @ "pixels per meter"
+	bounds : pixel rectangle
 }
 
-class 'shape object visual' : extends(object visual) {
+class 'shape sheet animation' {
+	speed : number : comment @ "frames per second"
+	on end : ('stop'|'loop')
+	frames : list(shape sheet slice)
+}
+
+class 'state applicability flag' : extends(symbol)
+
+class 'shape sheet object visual state' {
+	shape sheet shape : UUID reference(shape sheet shape)
+	# Map of flags to their preferred values;
+	# the state with the most matching flags is the one used
+	applicability flags : map(state applicability flag, scalar)
+	
+	animation : shape sheet animation
+}
+
+class 'shape object object visual' : extends(object visual) {
 	material map : UUID reference(material map)
+	states : set(shape sheet object visual state)
 }
 
 #### World data
