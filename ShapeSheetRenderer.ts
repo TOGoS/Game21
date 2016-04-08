@@ -193,16 +193,16 @@ export default class ShapeSheetRenderer {
 			},
 			// 8-11 (different material)
 			{
-				diffuse: new SurfaceColor(0.40,0.70,0.4)
+				diffuse: new SurfaceColor(0.70,0.30,0.2)
 			},
 			{
-				diffuse: new SurfaceColor(0.35,0.70,0.40)
+				diffuse: new SurfaceColor(0.65,0.30,0.20)
 			},
 			{
-				diffuse: new SurfaceColor(0.30,0.65,0.35)
+				diffuse: new SurfaceColor(0.60,0.25,0.15)
 			},
 			{
-				diffuse: new SurfaceColor(0.25,0.60,0.35)
+				diffuse: new SurfaceColor(0.55,0.20,0.15)
 			},
 			// 12 (weird transparent thing for testing fog shader)
 			{
