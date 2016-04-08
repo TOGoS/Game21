@@ -5,6 +5,7 @@
 		"module": "amd",
 		"sourceMap": true,
 		"noFallthroughCasesInSwitch": true,
+		"noImplicitReturns": true,
 		"outFile": "game21libs.amd.es5.js"
 	},
 	"exclude": [
