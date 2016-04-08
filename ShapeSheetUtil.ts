@@ -11,9 +11,13 @@ import ProceduralShape from './ProceduralShape';
 import TransformationMatrix3D from './TransformationMatrix3D';
 import ImageSlice from './ImageSlice';
 
-type PlottedMaterialIndexFunction = (x:number, y:number, z:number, z0:number, z1:number, z2:number, z3:number)=>number;
-type PlotFunction = (x:number, y:number, z:number, rad:number)=>void;
+export type PlottedMaterialIndexFunction = (x:number, y:number, z:number, z0:number, z1:number, z2:number, z3:number)=>number;
+export type PlotFunction = (x:number, y:number, z:number, rad:number)=>void;
 type Vector3DBuffer = Vector3D;
+
+export function constantMaterialIndexFunction( v:number ) {
+	return function(x:number,y:number,z:number,z0:number,z1:number,z2:number,z3:number) { return v; };
+};
 
 var infiniMinus = function(a, b) {
 	if( a === b ) return 0;

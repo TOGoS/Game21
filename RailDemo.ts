@@ -3,7 +3,7 @@ import Curve, {estimateCurveLength, estimateCurveTangent} from './Curve';
 import {makeCubicBezierCurve} from './Bezier';
 import ShapeSheet from './ShapeSheet';
 import ShapeSheetRenderer from './ShapeSheetRenderer';
-import ShapeSheetUtil from './ShapeSheetUtil';
+import ShapeSheetUtil, {PlottedMaterialIndexFunction, constantMaterialIndexFunction} from './ShapeSheetUtil';
 import SurfaceColor from './SurfaceColor';
 import TransformationMatrix3D from './TransformationMatrix3D';
 import Quaternion from './Quaternion';
@@ -13,12 +13,29 @@ class TrackEndpoint {
 	public orientation:Quaternion;
 }
 class TrackTypeRail {
-	public materialIndex:number;
+	public materialIndexFunction:PlottedMaterialIndexFunction;
 	public offset:Vector3D; // Offset when forward = +x and up = -z
+	public radius:number;
+}
+
+enum TiePattern {
+	Perpendicular,     //  | | | | |
+	Zig          ,     //   \ \ \ \
+	ZigZag       ,     //   \ / \ / 
+}
+
+class TrackTypeTie {
+	public materialIndexFunction:PlottedMaterialIndexFunction;
+	public pattern:TiePattern;
+	public spacing:number; // Distance between ties
+	public y0:number;
+	public y1:number;
 	public radius:number;
 }
 class TrackType {
 	public rails:Array<TrackTypeRail>;
+	public ties:Array<TrackTypeTie>;
+	// Might eventually want a way to add arbitrary other stuff
 }
 
 function railEndpoint( trackEndpoint:TrackEndpoint, rail:TrackTypeRail ):TrackEndpoint {
@@ -66,7 +83,9 @@ export default class RailDemo {
 		this.shapeSheetUtil = util;
 	}
 	
-	protected _drawRails(rails:Array<TrackTypeRail>, startOrientation:Quaternion, endOrientation:Quaternion, trackCurve:Curve, divisions:number=16) {
+	protected _drawTrackSegmentRails(
+		rails:Array<TrackTypeRail>, startOrientation:Quaternion, endOrientation:Quaternion, trackCurve:Curve, divisions:number=16
+	) {
 		let prevTrackPosition:Vector3D = new Vector3D;
 		let nextTrackPosition:Vector3D = new Vector3D;
 		let prevRailPosition:Vector3D = new Vector3D;
@@ -93,6 +112,7 @@ export default class RailDemo {
 				let rail = rails[r];
 				prevTransform.multiplyVector(rail.offset, prevRailPosition);
 				nextTransform.multiplyVector(rail.offset, nextRailPosition);
+				this.shapeSheetUtil.plottedMaterialIndexFunction = rail.materialIndexFunction;
 				this.shapeSheetUtil.plotLine(
 					prevRailPosition.x, prevRailPosition.y, prevRailPosition.z, rail.radius,
 					nextRailPosition.x, nextRailPosition.y, nextRailPosition.z, rail.radius,
@@ -105,26 +125,90 @@ export default class RailDemo {
 		}
 	}
 	
+	protected _drawTrackSegmentTies(tie:TrackTypeTie, startOrientation:Quaternion, endOrientation:Quaternion, trackCurve:Curve) {
+		const segmentLength = estimateCurveLength(trackCurve);
+		const divisions = Math.round( segmentLength / tie.spacing );
+		
+		const leftOffset  = new Vector3D(0, tie.y0, 0);
+		const rightOffset = new Vector3D(0, tie.y1, 0);
+		
+		let prevTrackPosition:Vector3D = new Vector3D;
+		let nextTrackPosition:Vector3D = new Vector3D;
+		// Sub-segment corner positions
+		//let c0rPosition:Vector3D = new Vector3D;
+		//let c0lPosition:Vector3D = new Vector3D;
+		//let c1rPosition:Vector3D = new Vector3D;
+		//let c1lPosition:Vector3D = new Vector3D;
+		let tep0 = new Vector3D;
+		let tep1 = new Vector3D;
+		let prevOrientation:Quaternion = new Quaternion;
+		let nextOrientation:Quaternion = new Quaternion;
+		let prevTransform = new TransformationMatrix3D;
+		let nextTransform = new TransformationMatrix3D;
+		trackCurve(0, prevTrackPosition);
+		Quaternion.slerp(startOrientation, endOrientation, 0, true, prevOrientation);
+		TransformationMatrix3D.fromQuaternion(prevOrientation, prevTransform);
+		prevTransform.x1 = prevTrackPosition.x;
+		prevTransform.y1 = prevTrackPosition.y;
+		prevTransform.z1 = prevTrackPosition.z;
+		
+		const reps = tie.pattern == TiePattern.Perpendicular ? divisions + 1 : divisions;
+
+		this.shapeSheetUtil.plottedMaterialIndexFunction = tie.materialIndexFunction;
+		
+		for( let i=1; i <= reps; ++i ) {
+			const nextT = i/divisions;
+			trackCurve(nextT, nextTrackPosition);
+			Quaternion.slerp(startOrientation, endOrientation, nextT, true, nextOrientation);
+			TransformationMatrix3D.fromQuaternion(nextOrientation, nextTransform);
+			nextTransform.x1 = nextTrackPosition.x;
+			nextTransform.y1 = nextTrackPosition.y;
+			nextTransform.z1 = nextTrackPosition.z;
+			
+			switch( tie.pattern ) {
+			case TiePattern.Perpendicular:
+				prevTransform.multiplyVector(leftOffset , tep0);
+				prevTransform.multiplyVector(rightOffset, tep1);
+				break;
+			case TiePattern.Zig:
+				prevTransform.multiplyVector(leftOffset , tep0);
+				nextTransform.multiplyVector(rightOffset, tep1);
+				break;
+			case TiePattern.ZigZag:
+				if( (i & 1) == 1 ) {
+					prevTransform.multiplyVector(leftOffset , tep0);
+					nextTransform.multiplyVector(rightOffset, tep1);
+				} else {
+					prevTransform.multiplyVector(rightOffset, tep0);
+					nextTransform.multiplyVector(leftOffset , tep1);
+				}
+				break;
+			default:
+				throw new Error("Unsupported tie pattern: "+tie.pattern);
+			}
+			
+			this.shapeSheetUtil.plotLine(
+				tep0.x, tep0.y, tep0.z, tie.radius,
+				tep1.x, tep1.y, tep1.z, tie.radius,
+				null
+			);
+			
+			let tempTransform     = prevTransform    ; prevTransform     = nextTransform    ; nextTransform     = tempTransform    ;
+			let tempOrientation   = prevOrientation  ; prevOrientation   = nextOrientation  ; nextOrientation   = tempOrientation  ;
+			let tempTrackPosition = prevTrackPosition; prevTrackPosition = nextTrackPosition; nextTrackPosition = tempTrackPosition;
+		}
+	}
+	
 	drawTrack(trackType:TrackType, start:TrackEndpoint, end:TrackEndpoint) {
 		const curve = trackCurve(start, end);
 		const buf = new Vector3D;
 		
-		this._drawRails(trackType.rails, start.orientation, end.orientation, curve, 16);
-		/*
-		for( let r in trackType.rails ) {
-			const rail = trackType.rails[r];
-			/+
-			const railStart = railEndpoint(start, rail);
-			const railEnd   = railEndpoint(end  , rail);
-			const railCurve = trackCurve(railStart, railEnd);
-			this.shapeSheetUtil.plottedMaterialIndexFunction = function() { return rail.materialIndex; };
-			this.shapeSheetUtil.plotCurve(railCurve, rail.radius, rail.radius, this.shapeSheetUtil.plotSphere);
-			+/
-		}
-		*/
+		this._drawTrackSegmentRails(trackType.rails, start.orientation, end.orientation, curve, 16);
 		
-		this.shapeSheetUtil.plottedMaterialIndexFunction = function() { return 8; };
-		this.shapeSheetUtil.plotCurve(curve, 2, 2, this.shapeSheetUtil.plotSphere);
+		for( let t in trackType.ties ) {
+			let tie = trackType.ties[t];
+			this._drawTrackSegmentTies(tie, start.orientation, end.orientation, curve);
+		}
 	}
 	
 	run():void {
@@ -141,18 +225,39 @@ export default class RailDemo {
 			orientation: Quaternion.fromXYZAxisAngle(0,0,1,-Math.PI/4)
 		};
 		
+		const railMf = constantMaterialIndexFunction(4);
+		const tieMf = constantMaterialIndexFunction(8);
+		
+		const y0 = -scale*2/3;
+		const y1 = +scale*2/3;
+		
 		const leftRail:TrackTypeRail = {
-			offset: new Vector3D(0, -scale*2/3, 0),
-			materialIndex: 4,
+			offset: new Vector3D(0, y0, 0),
+			materialIndexFunction: railMf,
 			radius: scale/8
 		};
 		const rightRail:TrackTypeRail = {
-			offset: new Vector3D(0, +scale*2/3, 0),
-			materialIndex: 4,
+			offset: new Vector3D(0, y1, 0),
+			materialIndexFunction: railMf,
 			radius: scale/8
 		};
+		const tie1:TrackTypeTie = {
+			materialIndexFunction: tieMf,
+			pattern: TiePattern.Perpendicular,
+			spacing: scale,
+			y0: y0, y1: y1,
+			radius: scale/10
+		};
+		const tie2:TrackTypeTie = {
+			materialIndexFunction: tieMf,
+			pattern: TiePattern.ZigZag,
+			spacing: scale,
+			y0: y0, y1: y1,
+			radius: scale/10
+		};
 		const trackType:TrackType = {
-			rails: [ leftRail, rightRail ]
+			rails: [ leftRail, rightRail ],
+			ties: [ tie1, tie2 ]
 		};
 		
 		this.drawTrack(trackType, trackStart, trackEnd);
