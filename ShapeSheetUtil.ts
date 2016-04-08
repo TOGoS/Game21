@@ -6,6 +6,11 @@ import Rectangle from './Rectangle';
 import ShapeSheet from './ShapeSheet';
 import ShapeSheetRenderer from './ShapeSheetRenderer';
 
+// For slicing stuff, which maybe doesn't really belong here
+import ProceduralShape from './ProceduralShape';
+import TransformationMatrix3D from './TransformationMatrix3D';
+import ImageSlice from './ImageSlice';
+
 type PlottedMaterialIndexFunction = (x:number, y:number, z:number, z0:number, z1:number, z2:number, z3:number)=>number;
 type PlotFunction = (x:number, y:number, z:number, rad:number)=>void;
 type Vector3DBuffer = Vector3D;
@@ -40,7 +45,7 @@ class ShapeSheetUtil {
 	protected _renderer:ShapeSheetRenderer;
 	public plottedMaterialIndexFunction:PlottedMaterialIndexFunction;
 	
-	constructor(shapeSheet, renderer:ShapeSheetRenderer) {
+	constructor(shapeSheet, renderer:ShapeSheetRenderer=null) {
 		this._shapeSheet = shapeSheet;
 		this._renderer = renderer;
 		this.plottedMaterialIndexFunction = function(x, y, z, z0, z1, z2, z3) {
@@ -398,6 +403,63 @@ class ShapeSheetUtil {
 		plotFunc.call( this, v.x, v.y, v.z, r1 );
 		this._plotCurveSegment( curve, r0, r1, 0, 1, plotFunc, v );
 	};
+	
+	//// Cropping functions
+	
+	public static findAutocrop( ss:ShapeSheet, bounds:Rectangle ):Rectangle {
+		const minX = Math.ceil(bounds.minX)|0;
+		const minY = Math.ceil(bounds.minY)|0;
+		const maxX = Math.ceil(bounds.maxX)|0;
+		const maxY = Math.ceil(bounds.maxY)|0;
+		
+		let opaqueMinX = +Infinity;
+		let opaqueMinY = +Infinity;
+		let opaqueMaxX = -Infinity;
+		let opaqueMaxY = -Infinity;
+		
+		const cellCornerDepths = ss.cellCornerDepths;
+		
+		for( let y=minY; y<maxY; ++y ) {
+			for( let x=minX, i=x+ss.width*y; x<maxX; ++x, ++i ) {
+				if(
+					cellCornerDepths[i*4+0] != Infinity ||
+					cellCornerDepths[i*4+1] != Infinity ||
+					cellCornerDepths[i*4+2] != Infinity ||
+					cellCornerDepths[i*4+3] != Infinity
+				) {
+					opaqueMinX = Math.min(opaqueMinX, x  );
+					opaqueMaxX = Math.max(opaqueMaxX, x+1);
+					opaqueMinY = Math.min(opaqueMinY, y  );
+					opaqueMaxY = Math.max(opaqueMaxY, y+1);
+				}
+			}
+		}
+		
+		return new Rectangle(opaqueMinX, opaqueMinY, opaqueMaxX, opaqueMaxY);
+	}
+	
+	public static autocrop( sss:ImageSlice<ShapeSheet>, newSheet:boolean=false ):ImageSlice<ShapeSheet> {
+		const cropRect:Rectangle = this.findAutocrop(sss.sheet, sss.bounds);
+		if( Rectangle.areEqual(sss.bounds, cropRect) ) return sss;
+		
+		if( newSheet ) {
+			throw new Error("Hahaa, newSheet=true doesn't work yet");
+		}
+		
+		return new ImageSlice<ShapeSheet>( sss.sheet, sss.origin, sss.resolution, cropRect );
+	}
+	
+	public static proceduralShapeToShapeSheet( ps:ProceduralShape, xf:TransformationMatrix3D ):ImageSlice<ShapeSheet> {
+		const bounds = ps.estimateOuterBounds(xf).growToIntegerBoundaries();
+		const origin:Vector3D = new Vector3D(
+			-bounds.minX
+			-bounds.minY,
+			0);
+		const ss = new ShapeSheet(bounds.width, bounds.height);
+		const ssu = new ShapeSheetUtil(ss);
+		ps.draw( ssu, TransformationMatrix3D.multiply(TransformationMatrix3D.translation(origin), xf) );
+		return this.autocrop(new ImageSlice<ShapeSheet>(ss, origin, xf.scale, bounds));
+	}
 };
 
 export default ShapeSheetUtil;

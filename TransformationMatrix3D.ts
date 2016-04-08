@@ -19,6 +19,13 @@ export default class TransformationMatrix3D {
 		public zx:number=0, public zy:number=0, public zz:number=0, public z1:number=0
 	) { }
 	
+	public get scale():number {
+		const xScale = Math.sqrt(this.xx*this.xx + this.yx*this.yx + this.zx*this.zx);
+		const yScale = Math.sqrt(this.xy*this.xy + this.yy*this.yy + this.zy*this.zy);
+		const zScale = Math.sqrt(this.xz*this.xz + this.yz*this.yz + this.zz*this.zz);
+		return (xScale + yScale + zScale) / 3;
+	}
+	
 	public set(
 		xx:number, xy:number, xz:number, x1:number,
 		yx:number, yy:number, yz:number, y1:number,

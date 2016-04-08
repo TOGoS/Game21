@@ -45,4 +45,8 @@ export default class Rectangle {
 			Math.max(r0.maxY, r1.maxY)
 		);
 	}
+	
+	public static areEqual(r0:Rectangle, r1:Rectangle):boolean {
+		return r0.minX == r1.minX && r0.minY == r1.minY && r0.maxX == r1.maxX && r0.maxY == r1.maxY;
+	}
 }

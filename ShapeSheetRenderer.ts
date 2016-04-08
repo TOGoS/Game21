@@ -140,7 +140,7 @@ export class DirectionalLight {
 
 type Map<T> = {[k: string]: T};
 
-export default class {
+export default class ShapeSheetRenderer {
 	public shapeSheet:ShapeSheet;
 	public canvas:HTMLCanvasElement;
 	public shadowsEnabled:boolean;
@@ -531,7 +531,7 @@ export default class {
 
 	//// Shader constructors
 
-	static makeFogShader(originDepth:number, fogColor:SurfaceColor):Shader {
+	public static makeFogShader(originDepth:number, fogColor:SurfaceColor):Shader {
 		return function(ss:ShapeSheet, region:Rectangle):void {
 			const {minX, maxX, minY, maxY} = region.assertIntegerBoundaries();
 			const fogR = fogColor.r, fogG = fogColor.g, fogB = fogColor.b, fogA = fogColor.a;
@@ -573,4 +573,16 @@ export default class {
 			}
 		};
 	};
+	
+	public static shapeSheetToImage( ss:ShapeSheet, lights:Map<DirectionalLight>  ):HTMLImageElement {
+		const canv:HTMLCanvasElement = <HTMLCanvasElement>document.createElement('canvas');
+		canv.width = ss.width;
+		canv.height = ss.height;
+		const rend:ShapeSheetRenderer = new ShapeSheetRenderer(ss, canv);
+		rend.lights = lights;
+		rend.updateCanvas();
+		const img:HTMLImageElement = <HTMLImageElement>document.createElement('img');
+		img.src = canv.toDataURL();
+		return img;
+	}
 };
