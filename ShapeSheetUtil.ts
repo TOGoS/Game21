@@ -66,9 +66,9 @@ class ShapeSheetUtil {
 		y = y|0;
 		if( x < 0 ) return;
 		if( y < 0 ) return;
-		var width = ss.width;
-		var cellMaterialIndexes = ss.cellMaterialIndexes;
-		var cellCornerDepths = ss.cellCornerDepths;
+		const width = ss.width;
+		const cellMaterialIndexes = ss.cellMaterialIndexes;
+		const cellCornerDepths = ss.cellCornerDepths;
 		if( x >= width ) return;
 		if( y >= ss.height ) return;
 		
@@ -77,13 +77,13 @@ class ShapeSheetUtil {
 			materialIndex = (this.plottedMaterialIndexFunction)(x,y,avgZ,z0,z1,z2,z3);
 		}
 		
-		var idx = x+y*width;
-		var oldZ0 = cellCornerDepths[idx*4+0],
+		const
+			idx = x + y*width,
+			oldZ0 = cellCornerDepths[idx*4+0],
 			oldZ1 = cellCornerDepths[idx*4+1],
 			oldZ2 = cellCornerDepths[idx*4+2],
 			oldZ3 = cellCornerDepths[idx*4+3];
-		// TODO: wouldn't it be simpler and still work to just do avgZ < oldAvgZ?
-		var ox =
+		const ox =
 			infiniMinus(z0, oldZ0) +
 			infiniMinus(z1, oldZ1) +
 			infiniMinus(z2, oldZ2) +
