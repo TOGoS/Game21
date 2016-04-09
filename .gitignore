@@ -1,7 +1,11 @@
+/node_modules
+/RailDemo.html
+/JSTestRunner.html
 /ShapeDemo.html
 /ShapeDemo.html.urn
 /ShapeDemo.html.url
-/node_modules
+/SSIDemo.html
+
 *.js
 *.js.map
 !/require.js

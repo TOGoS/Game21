@@ -2,7 +2,8 @@ import DeepFreezer from './DeepFreezer';
 import Vector3D from './Vector3D';
 import LightColor from './LightColor';
 import ShapeSheet from './ShapeSheet';
-import ShapeSheetRenderer, {DirectionalLight} from './ShapeSheetRenderer';
+import DirectionalLight from './DirectionalLight';
+import ShapeSheetRenderer from './ShapeSheetRenderer';
 import ShapeSheetUtil from './ShapeSheetUtil';
 
 var ShapeSheetDemo = function(shapeSheetUtil:ShapeSheetUtil) {

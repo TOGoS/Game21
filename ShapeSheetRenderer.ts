@@ -5,6 +5,10 @@ import SurfaceColor from './SurfaceColor';
 import LightColor from './LightColor';
 import Material from './Material';
 import Vector3D from './Vector3D';
+import KeyedList from './KeyedList';
+import DirectionalLight from './DirectionalLight';
+import {DEFAULT_LIGHTS} from './Lights';
+import {DEFAULT_MATERIALS} from './Materials';
 
 const LARGE_NUMBER = 1000;
 
@@ -111,35 +115,6 @@ declare namespace Object {
 	function is(a:any, b:any):boolean;
 }
 
-export class DirectionalLight {
-	public direction:Vector3D;
-	public shadowFuzz:number = 0;
-	public shadowDistance:number = Infinity;
-	public minimumShadowLight:number = 0;
-	public traceVector:Vector3D;
-	public traceVectorLength:number;
-	
-	constructor(direction:Vector3D, public color:LightColor, {
-		shadowFuzz, shadowDistance, minimumShadowLight} = {shadowFuzz:0, shadowDistance:Infinity, minimumShadowLight:0
-	}) {
-		this.direction = direction.normalize();
-		this.traceVector = this.direction.scale(-1);
-		this.traceVectorLength = this.traceVector.length;
-		
-		this.shadowFuzz = shadowFuzz;
-		this.shadowDistance = shadowDistance;
-		this.minimumShadowLight = minimumShadowLight;
-		
-		DeepFreezer.deepFreeze(this,true);
-	}
-	
-	public static fromProperties( props ) {
-		return new DirectionalLight( props.direction, props.color, props );
-	};
-}
-
-type Map<T> = {[k: string]: T};
-
 export default class ShapeSheetRenderer {
 	public shapeSheet:ShapeSheet;
 	public canvas:HTMLCanvasElement;
@@ -150,10 +125,10 @@ export default class ShapeSheetRenderer {
 	public updatingCanvasRectangles:Array<Rectangle>;
 	public showUpdateRectangles:boolean;
 	public canvasUpdateCount:number;
-	public materials:Array<Material>;
 	public shadowDistanceOverride:number;
 	
-	protected _lights:Map<DirectionalLight>;
+	protected _materials:Array<Material>;
+	protected _lights:KeyedList<DirectionalLight>;
 	protected canvasUpdateRequested:boolean;
 	protected maxShadowDistance:number;
 	
@@ -185,64 +160,26 @@ export default class ShapeSheetRenderer {
 		// Need to set these last because setting them
 		// may rely on other things being initialized
 		
-		this.materials = [
-			// 0-3 (reserved)
-			Material.NONE,
-			Material.NONE,
-			Material.NONE,
-			Material.NONE,
-			// 4-7 (primary material)
-			{
-				diffuse: new SurfaceColor(1.0,1.0,0.9)
-			},
-			{
-				diffuse: new SurfaceColor(1.0,0.9,0.8)
-			},
-			{
-				diffuse: new SurfaceColor(1.0,0.8,0.7)
-			},
-			{
-				diffuse: new SurfaceColor(1.0,0.7,0.8)
-			},
-			// 8-11 (different material)
-			{
-				diffuse: new SurfaceColor(0.70,0.30,0.2)
-			},
-			{
-				diffuse: new SurfaceColor(0.65,0.30,0.20)
-			},
-			{
-				diffuse: new SurfaceColor(0.60,0.25,0.15)
-			},
-			{
-				diffuse: new SurfaceColor(0.55,0.20,0.15)
-			},
-			// 12 (weird transparent thing for testing fog shader)
-			{
-				diffuse: new SurfaceColor(0.25,0.60,0.35,0.5)
-			}
-		];
+		this.materials = DEFAULT_MATERIALS;
+		this.lights = DEFAULT_LIGHTS;
 		
-		this.lights = {
-			"primary": new DirectionalLight(
-				new Vector3D(1,2,1),
-				new LightColor(0.6, 0.6, 0.6), {
-					shadowFuzz: 0.1,
-					shadowDistance: 32,
-					minimumShadowLight: 0.05
-				}),
-			"glow": new DirectionalLight(
-				new Vector3D(-1,-2,-1),
-				new LightColor(0.1, 0.01, 0.01), {
-					shadowFuzz: 0.1,
-					shadowDistance: 32,
-					minimumShadowLight: 0.1
-				})
-		};
+		this.cellCoverages.fill(0);
+		this.minimumAverageDepth = Infinity;
+		this.cellAverageDepths.fill(Infinity);
+		
+		this.dataUpdated(this.shapeSheet.bounds, true, true);
 	};
 	
-	get lights():Map<DirectionalLight> { return this._lights; };
-	set lights(lights:Map<DirectionalLight>) {
+	get materials() {
+		return this._materials;
+	}
+	set materials(materials:Array<Material>) {
+		this._materials = DeepFreezer.deepFreeze(materials);
+		this.materialsUpdated();
+	};
+	
+	get lights():KeyedList<DirectionalLight> { return this._lights; };
+	set lights(lights:KeyedList<DirectionalLight>) {
 		if( Object.is(lights, this._lights) ) return;
 		
 		this._lights = DeepFreezer.deepFreeze(lights);
@@ -253,7 +190,7 @@ export default class ShapeSheetRenderer {
 	 * Slightly more efficient method for updating some lights
 	 * (since unchanged ones don't need to be re-normalized) 
 	 */
-	putLights(updatedLights:Map<DirectionalLight>):void {
+	putLights(updatedLights:KeyedList<DirectionalLight>):void {
 		let lights = DeepFreezer.thaw(this._lights);
 		for( let i in updatedLights ) {
 			lights[i] = DeepFreezer.deepFreeze(updatedLights[i]);
@@ -261,13 +198,6 @@ export default class ShapeSheetRenderer {
 		this.lights = DeepFreezer.deepFreeze(lights, true);
 		this.lightsUpdated();
 	};
-	
-	initBuffer() {
-		this.shapeSheet.initBuffer();
-		this.cellCoverages.fill(0);
-		this.minimumAverageDepth = Infinity;
-		this.cellAverageDepths.fill(Infinity);
-	}
 	
 	public getCellInfo(x:number, y?:number) {
 		const ss = this.shapeSheet;
@@ -526,6 +456,7 @@ export default class ShapeSheetRenderer {
 	};
 	
 	updateCanvas():void {
+		this.canvasUpdateRequested = false;
 		var i, r;
 		this.updateCellColors();
 		processRectangleUpdates(this.updatingCanvasRectangles, this.copyToCanvas.bind(this));
@@ -536,11 +467,10 @@ export default class ShapeSheetRenderer {
 		if( this.canvasUpdateRequested ) return;
 		this.canvasUpdateRequested = true;
 		window.requestAnimationFrame( (function() {
-			this.canvasUpdateRequested = false;
 			this.updateCanvas();
 		}).bind(this) );
 	};
-
+	
 	////
 	
 	dataUpdated(region:Rectangle, shouldRecalculateNormals:boolean=true, shouldRecalculateColors:boolean=true):void {
@@ -574,6 +504,10 @@ export default class ShapeSheetRenderer {
 		}
 		this.dataUpdated(this.shapeSheet.bounds, false, true);
 	};
+	
+	protected materialsUpdated():void {
+		this.dataUpdated(this.shapeSheet.bounds, false, true);
+	}
 
 	//// Shader constructors
 
@@ -620,11 +554,12 @@ export default class ShapeSheetRenderer {
 		};
 	};
 	
-	public static shapeSheetToImage( ss:ShapeSheet, lights:Map<DirectionalLight>  ):HTMLImageElement {
+	public static shapeSheetToImage( ss:ShapeSheet, materials:Array<Material>, lights:KeyedList<DirectionalLight>  ):HTMLImageElement {
 		const canv:HTMLCanvasElement = <HTMLCanvasElement>document.createElement('canvas');
 		canv.width = ss.width;
 		canv.height = ss.height;
 		const rend:ShapeSheetRenderer = new ShapeSheetRenderer(ss, canv);
+		rend.materials = materials;
 		rend.lights = lights;
 		rend.updateCanvas();
 		const img:HTMLImageElement = <HTMLImageElement>document.createElement('img');

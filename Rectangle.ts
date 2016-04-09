@@ -10,6 +10,15 @@ export default class Rectangle {
 	get area():number { return this.width < 0 || this.height < 0 ? 0 : this.width*this.height; }
 	get isPositiveSize():boolean { return this.width > 0 && this.height > 0; }
 	
+	public toNonNegativeRectangle():Rectangle {
+		if( this.width >= 0 && this.height >= 0 ) return this;
+		
+		let minX = this.minX, minY = this.minY, maxX = this.maxX, maxY = this.maxY;
+		if( minX > maxX ) minX = maxX = 0;
+		if( minY > maxY ) minY = maxY = 0;
+		return new Rectangle(minX, minY, maxX, maxY);
+	}
+	
 	public grow(minX:number, minY:number=minX, maxX:number=minX, maxY:number=minY) {
 		if( minX < 0 ) throw new Error("Grow shouldn't be < 0!");
 		return new Rectangle(this.minX - minX, this.minY - minX, this.maxX + minX, this.maxY + minX );
@@ -27,7 +36,7 @@ export default class Rectangle {
 		if( this.maxY !== (this.maxY|0) ) throw new Error("MinX not an integer: "+this.maxY);
 		return this;
 	}
-		
+	
 	public static intersection(r0:Rectangle, r1:Rectangle) {
 		return new Rectangle(
 			Math.max(r0.minX, r1.minX),

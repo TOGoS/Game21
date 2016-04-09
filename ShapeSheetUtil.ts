@@ -443,7 +443,7 @@ class ShapeSheetUtil {
 	}
 	
 	public static autocrop( sss:ImageSlice<ShapeSheet>, newSheet:boolean=false ):ImageSlice<ShapeSheet> {
-		const cropRect:Rectangle = this.findAutocrop(sss.sheet, sss.bounds);
+		const cropRect:Rectangle = this.findAutocrop(sss.sheet, sss.bounds).toNonNegativeRectangle();
 		if( Rectangle.areEqual(sss.bounds, cropRect) ) return sss;
 		
 		if( newSheet ) {
