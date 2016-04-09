@@ -223,6 +223,28 @@ class ShapeSheetUtil {
 		return normalZ;
 	};
 	
+	public blit( sss:ShapeSheet, sx0:number, sy0:number, w:number, h:number, dx0:number, dy0:number, dz:number ) {
+		const dss = this.shapeSheet;
+		sx0 = Math.round(sx0)|0;
+		sy0 = Math.round(sy0)|0;
+		dx0 = Math.round(dx0)|0;
+		dy0 = Math.round(dy0)|0;
+		const minDx = Math.max(0, dx0);
+		const minDy = Math.max(0, dy0);
+		const maxDx = Math.min(dx0+sss.width -sx0, Math.min(dss.width , dx0+w));
+		const maxDy = Math.min(dy0+sss.height-sy0, Math.min(dss.height, dy0+h));
+		
+		const sMI  = sss.cellMaterialIndexes;
+		const sCCD = sss.cellCornerDepths;
+		const dMI  = dss.cellMaterialIndexes;
+		const dCCD = dss.cellCornerDepths;
+		const plotMode = this.plotMode;
+		
+		for( let dy=minDy, sy=dy+(sy0-dy0); dy < maxDy; ++dy, ++sy ) for( let dx=minDx, sx=sx0+(sx0-dx0), di=dx+dss.width*dy, si=sx+sss.width*sy; dx < maxDx; ++dx, ++di, ++si ) {
+			this.plotPixel( dx, dy, dz+sCCD[si*4+0], dz+sCCD[si*4+1], dz+sCCD[si*4+2], dz+sCCD[si*4+3], sMI[si] );
+		}
+	}
+	
 	/**
 	 * Modifies points array in-place to snap all points to the nearest whatever
 	 * 
@@ -446,15 +468,26 @@ class ShapeSheetUtil {
 		return new Rectangle(opaqueMinX, opaqueMinY, opaqueMaxX, opaqueMaxY);
 	}
 	
+	public static crop( sss:ImageSlice<ShapeSheet>, cropRect:Rectangle, newSheet:boolean ):ImageSlice<ShapeSheet> {
+		if( newSheet ) {
+			const croppedSs = new ShapeSheet(cropRect.width, cropRect.height);
+			const ssu = new ShapeSheetUtil(croppedSs);
+			ssu.blit( sss.sheet, cropRect.minX, cropRect.minY, cropRect.width, cropRect.height, 0, 0, 0 );
+			return new ImageSlice<ShapeSheet>(
+				croppedSs,
+				new Vector3D(sss.origin.x - cropRect.minX, sss.origin.y - cropRect.minY, sss.origin.z),
+				sss.resolution,
+				new Rectangle(0,0,cropRect.width,cropRect.height))
+		}
+		
+		return new ImageSlice<ShapeSheet>( sss.sheet, sss.origin, sss.resolution, cropRect );
+	}
+	
 	public static autocrop( sss:ImageSlice<ShapeSheet>, newSheet:boolean=false ):ImageSlice<ShapeSheet> {
 		const cropRect:Rectangle = this.findAutocrop(sss.sheet, sss.bounds).toNonNegativeRectangle();
 		if( Rectangle.areEqual(sss.bounds, cropRect) ) return sss;
 		
-		if( newSheet ) {
-			throw new Error("Hahaa, newSheet=true doesn't work yet");
-		}
-		
-		return new ImageSlice<ShapeSheet>( sss.sheet, sss.origin, sss.resolution, cropRect );
+		return this.crop(sss, cropRect, newSheet);
 	}
 	
 	public static proceduralShapeToShapeSheet( ps:ProceduralShape, xf:TransformationMatrix3D ):ImageSlice<ShapeSheet> {

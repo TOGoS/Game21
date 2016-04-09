@@ -30,7 +30,7 @@ export default class SSIDemo {
 		if( isEmpty(ss) ) throw new Error("ShapeSheet unexpectedly empty after plotSphere");
 		
 		const sss = new ImageSlice(ss, new Vector3D(32,32,0), 16, new Rectangle(0,0,128,128));
-		const croppedSss:ImageSlice<ShapeSheet> = ShapeSheetUtil.autocrop(sss);
+		const croppedSss:ImageSlice<ShapeSheet> = ShapeSheetUtil.autocrop(sss, true);
 		if( isEmpty(croppedSss.sheet) ) throw new Error("ShapeSheet unexpectedly empty after cropping");
 		return ShapeSheetRenderer.shapeSheetToImage(croppedSss.sheet, materials, lights);
 	};
