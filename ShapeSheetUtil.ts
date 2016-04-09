@@ -371,7 +371,7 @@ class ShapeSheetUtil {
 		
 		if( x0 == x1 && y0 == y1 ) {
 			var z = Math.min(z0, z1);
-			plotFunc.call( this, x0, y0, z, Math.max(x0, x1) );
+			plotFunc.call( this, x0, y0, z, Math.max(r0, r1) );
 			return;
 		}
 		
