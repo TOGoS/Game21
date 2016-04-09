@@ -305,8 +305,8 @@ class ShapeSheetUtil {
 			leftX =  nextLeftX;  leftZ =  nextLeftZ;
 		}
 	};
-
-	 plotAABeveledCuboid( x:number, y:number, z:number, w:number, h:number, bevelDepth:number ):void {
+	
+	plotAABeveledCuboid( x:number, y:number, z:number, w:number, h:number, bevelDepth:number ):void {
 		var x0 = x, x1=x+bevelDepth, x2=x+w-bevelDepth, x3=x+w;
 		var y0 = y, y1=y+bevelDepth, y2=y+h-bevelDepth, y3=y+h;
 		var z0 = z, z1 = z+bevelDepth;
