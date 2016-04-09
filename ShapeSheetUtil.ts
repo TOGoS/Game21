@@ -5,6 +5,7 @@ import Curve from './Curve';
 import Rectangle from './Rectangle';
 import ShapeSheet from './ShapeSheet';
 import ShapeSheetRenderer from './ShapeSheetRenderer';
+import PlotMode from './PlotMode';
 
 // For slicing stuff, which maybe doesn't really belong here
 import ProceduralShape from './ProceduralShape';
@@ -48,6 +49,7 @@ class ShapeSheetUtil {
 	protected _shapeSheet:ShapeSheet;
 	protected _renderer:ShapeSheetRenderer;
 	public plottedMaterialIndexFunction:PlottedMaterialIndexFunction;
+	public plotMode:PlotMode;
 	
 	constructor(shapeSheet, renderer:ShapeSheetRenderer=null) {
 		this._shapeSheet = shapeSheet;
@@ -55,11 +57,13 @@ class ShapeSheetUtil {
 		this.plottedMaterialIndexFunction = function(x, y, z, z0, z1, z2, z3) {
 			return 4 + (Math.random()*4)|0;
 		};
+		this.plotMode = PlotMode.DEFAULT;
 	}
 	
 	get shapeSheet():ShapeSheet { return this._shapeSheet; }
 	get renderer():ShapeSheetRenderer { return this._renderer; }
-
+	
+	// TODO: Mind plotMode
 	plotPixel(x:number, y:number, z0:number, z1:number, z2:number, z3:number, materialIndex?:number):void {
 		var ss = this.shapeSheet;
 		x = x|0;
