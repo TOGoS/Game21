@@ -229,8 +229,8 @@ class ShapeSheetUtil {
 		sy0 = Math.round(sy0)|0;
 		dx0 = Math.round(dx0)|0;
 		dy0 = Math.round(dy0)|0;
-		const minDx = Math.max(0, dx0);
-		const minDy = Math.max(0, dy0);
+		const minDx = Math.max(dx0-sx0, Math.max(0, dx0));
+		const minDy = Math.max(dy0-sx0, Math.max(0, dy0));
 		const maxDx = Math.min(dx0+sss.width -sx0, Math.min(dss.width , dx0+w));
 		const maxDy = Math.min(dy0+sss.height-sy0, Math.min(dss.height, dy0+h));
 		
@@ -240,7 +240,7 @@ class ShapeSheetUtil {
 		const dCCD = dss.cellCornerDepths;
 		const plotMode = this.plotMode;
 		
-		for( let dy=minDy, sy=dy+(sy0-dy0); dy < maxDy; ++dy, ++sy ) for( let dx=minDx, sx=sx0+(sx0-dx0), di=dx+dss.width*dy, si=sx+sss.width*sy; dx < maxDx; ++dx, ++di, ++si ) {
+		for( let dy=minDy, sy=dy+(sy0-dy0); dy < maxDy; ++dy, ++sy ) for( let dx=minDx, sx=dx+(sx0-dx0), di=dx+dss.width*dy, si=sx+sss.width*sy; dx < maxDx; ++dx, ++di, ++si ) {
 			this.plotPixel( dx, dy, dz+sCCD[si*4+0], dz+sCCD[si*4+1], dz+sCCD[si*4+2], dz+sCCD[si*4+3], sMI[si] );
 		}
 	}
