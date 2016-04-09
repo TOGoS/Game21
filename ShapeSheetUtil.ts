@@ -64,7 +64,7 @@ class ShapeSheetUtil {
 	get renderer():ShapeSheetRenderer { return this._renderer; }
 	
 	// TODO: Mind plotMode
-	plotPixel(x:number, y:number, z0:number, z1:number, z2:number, z3:number, materialIndex?:number):void {
+	protected plotPixel(x:number, y:number, z0:number, z1:number, z2:number, z3:number, materialIndex?:number):void {
 		var ss = this.shapeSheet;
 		x = x|0;
 		y = y|0;
@@ -102,6 +102,10 @@ class ShapeSheetUtil {
 		}
 	};
 	
+	protected dataUpdated(rect:Rectangle) {
+		if( this.renderer ) this.renderer.dataUpdated(rect, true, true);
+	}
+	
 	/** Shift the Z of every cell by this amount. */
 	shiftZ(diff:number):void {
 		var ss = this.shapeSheet;
@@ -119,7 +123,7 @@ class ShapeSheetUtil {
 			this.renderer.dataUpdated(this._shapeSheet.bounds, false, true);
 		}
 	};
-
+	
 	plotFlatTBQuad(topY:number, bottomY:number, topX0:number, topZ0:number, topX1:number, topZ1:number, bottomX0:number, bottomZ0:number, bottomX1:number, bottomZ1:number):void {
 		// e.g. topY = 0.5, bottomY = 2, topX0 = topX1 = 2.5, bottomX0 = 1, bottomX1 = 5
 		//
@@ -198,9 +202,9 @@ class ShapeSheetUtil {
 		
 		var boundingBoxX0 = Math.min(topX0, bottomX0)|0, boundingBoxX1 = Math.ceil(Math.max(topX1,bottomX1))|0;
 		
-		if( this.renderer ) this.renderer.dataUpdated(new Rectangle(boundingBoxX0, startY, boundingBoxX1, endY), true, true);
+		this.dataUpdated(new Rectangle(boundingBoxX0, startY, boundingBoxX1, endY));
 	};
-
+	
 	/**
 	 * If the fingers of your left hand wrap around a polygon (i.e. clockwise)
 	 * the un-normalized vector of your left thumb has this Z component
@@ -241,8 +245,12 @@ class ShapeSheetUtil {
 		const plotMode = this.plotMode;
 		
 		for( let dy=minDy, sy=dy+(sy0-dy0); dy < maxDy; ++dy, ++sy ) for( let dx=minDx, sx=dx+(sx0-dx0), di=dx+dss.width*dy, si=sx+sss.width*sy; dx < maxDx; ++dx, ++di, ++si ) {
+			// I expect it would benefit speed a lot to inline this, but that would be a pain.
+			// So don't do it unless you really need to.
 			this.plotPixel( dx, dy, dz+sCCD[si*4+0], dz+sCCD[si*4+1], dz+sCCD[si*4+2], dz+sCCD[si*4+3], sMI[si] );
 		}
+		
+		this.dataUpdated(new Rectangle(minDx, minDy, maxDx, maxDy));
 	}
 	
 	/**
@@ -265,7 +273,7 @@ class ShapeSheetUtil {
 			points[i*3+2] = snap(points[i*3+2], zFrac);
 		}
 	};
-
+	
 	plotConvexPolygon( points:Array<number> ):void {
 		var normalZ = this.leftThumbZ(points);
 		if( normalZ > 0 ) return; // back face culling!
@@ -389,7 +397,7 @@ class ShapeSheetUtil {
 				);
 			}
 		}
-		if( this.renderer ) this.renderer.dataUpdated(boundingRect, true, true);
+		this.dataUpdated(boundingRect);
 	};
 	
 	plotLine( x0:number, y0:number, z0:number, r0:number, x1:number, y1:number, z1:number, r1:number, plotFunc:PlotFunction ) {
