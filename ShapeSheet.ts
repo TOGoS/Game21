@@ -1,6 +1,6 @@
 import Rectangle from './Rectangle';
 
-export default class {
+export default class ShapeSheet {
 	// Treat these all as read-only
 	public width:number;
 	public height:number;
