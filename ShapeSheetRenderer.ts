@@ -105,7 +105,7 @@ function addToUpdateRectangleList(rectangleList:Array<Rectangle>, rect:Rectangle
 };
 
 
-export type Shader = (ss:ShapeSheet, region:Rectangle) => void;
+export type Shader = (ssr:ShapeSheetRenderer, region:Rectangle) => void;
 
 declare namespace Object {
 	function is(a:any, b:any):boolean;
@@ -157,8 +157,21 @@ export default class ShapeSheetRenderer {
 	protected canvasUpdateRequested:boolean;
 	protected maxShadowDistance:number;
 	
+	public cellCoverages:Uint8Array;
+	public cellAverageDepths:Float32Array;
+	public cellNormals:Float32Array;
+	public cellColors:Float32Array;
+	public minimumAverageDepth:number;
+	
 	constructor(shapeSheet:ShapeSheet, canvas:HTMLCanvasElement) {
 		this.shapeSheet = shapeSheet;
+		
+		const cellCount = shapeSheet.area;
+		this.cellCoverages       = new Uint8Array(cellCount); // coverage based on depth; 0,1,2,3,4 (divide by 4.0 to get opacity factor)
+		this.cellAverageDepths   = new Float32Array(cellCount);
+		this.cellNormals         = new Float32Array(cellCount*3); // normal vector X,Y,Z
+		this.cellColors          = new Float32Array(cellCount*4); // r,g,b,a of each cell after shading
+		
 		this.canvas = canvas;
 		this.shadowsEnabled = true;
 		this.shaders = [];
@@ -249,6 +262,35 @@ export default class ShapeSheetRenderer {
 		this.lightsUpdated();
 	};
 	
+	initBuffer() {
+		this.shapeSheet.initBuffer();
+		this.cellCoverages.fill(0);
+		this.minimumAverageDepth = Infinity;
+		this.cellAverageDepths.fill(Infinity);
+	}
+	
+	public getCellInfo(x:number, y?:number) {
+		const ss = this.shapeSheet;
+		const idx = y == null ? (x|0) : (y|0)*ss.width + (x|0);
+		if( idx < 0 || idx >= ss.width*ss.height ) return null;
+		return {
+			materialIndex: ss.cellMaterialIndexes[idx],
+			cornerDepths: [
+				ss.cellCornerDepths[idx*4+0],
+				ss.cellCornerDepths[idx*4+1],
+				ss.cellCornerDepths[idx*4+2],
+				ss.cellCornerDepths[idx*4+3]
+			],
+			averageDepth: this.cellAverageDepths[idx],
+			color: [
+				this.cellColors[idx*4+0],
+				this.cellColors[idx*4+1],
+				this.cellColors[idx*4+2],
+				this.cellColors[idx*4+3]
+			]
+		};
+	};
+	
 	calculateDepthDerivedData(region:Rectangle) {
 		const ss = this.shapeSheet;
 		region = Rectangle.intersection( region, ss.bounds );
@@ -258,11 +300,11 @@ export default class ShapeSheetRenderer {
 		
 		var i, x, y;
 		const cornerDepths = ss.cellCornerDepths;
-		const averageDepths = ss.cellAverageDepths;
-		let minimumAverageDepth = isFullRerender ? Infinity : ss.minimumAverageDepth;
+		const averageDepths = this.cellAverageDepths;
+		let minimumAverageDepth = isFullRerender ? Infinity : this.minimumAverageDepth;
 		
-		const cellCoverages = ss.cellCoverages;
-		const cellNormals = ss.cellNormals;
+		const cellCoverages = this.cellCoverages;
+		const cellNormals = this.cellNormals;
 
 		for( y=minY; y < maxY; ++y ) for( x=minX, i=ss.width*y+x; x < maxX; ++x, ++i ) {
 			let z0 = cornerDepths[i*4+0],
@@ -296,7 +338,7 @@ export default class ShapeSheetRenderer {
 			cellNormals[i*3+2] = normalZ;
 		}
 		
-		ss.minimumAverageDepth = minimumAverageDepth;
+		this.minimumAverageDepth = minimumAverageDepth;
 	};
 
 	/**
@@ -334,13 +376,13 @@ export default class ShapeSheetRenderer {
 		
 		var i, l, x, y, d;
 		var stx, sty, stz, stdx, stdy, stdz; // shadow tracing
-		var cellColors = ss.cellColors;
-		var cellCoverages = ss.cellCoverages;
-		var cellNormals = ss.cellNormals;
+		var cellColors = this.cellColors;
+		var cellCoverages = this.cellCoverages;
+		var cellNormals = this.cellNormals;
 		var materials = this.materials;
 		var cellMaterialIndexes = ss.cellMaterialIndexes;
-		var cellAvgDepths = ss.cellAverageDepths;
-		var minAvgDepth = ss.minimumAverageDepth;
+		var cellAvgDepths = this.cellAverageDepths;
+		var minAvgDepth = this.minimumAverageDepth;
 		var lights = this.lights;
 		var shadowsEnabled = this.shadowsEnabled;
 		var light:DirectionalLight;
@@ -406,7 +448,7 @@ export default class ShapeSheetRenderer {
 		}
 		var s;
 		for( s in this.shaders ) {
-			this.shaders[s](ss, region);
+			this.shaders[s](this, region);
 		}
 		if( this.showUpdateRectangles ) {
 			var fullb = 0.25;
@@ -460,7 +502,7 @@ export default class ShapeSheetRenderer {
 			if( c > 1 ) return 255;
 			return (c*255)|0;
 		};
-		var cellColors = ss.cellColors;
+		var cellColors = this.cellColors;
 		
 		var imgData = ctx.getImageData(minX, minY, w, h);
 		var imgDataData = imgData.data;
@@ -536,12 +578,13 @@ export default class ShapeSheetRenderer {
 	//// Shader constructors
 
 	public static makeFogShader(originDepth:number, fogColor:SurfaceColor):Shader {
-		return function(ss:ShapeSheet, region:Rectangle):void {
+		return function(ssr:ShapeSheetRenderer, region:Rectangle):void {
+			const ss = ssr.shapeSheet;
 			const {minX, maxX, minY, maxY} = region.assertIntegerBoundaries();
 			const fogR = fogColor.r, fogG = fogColor.g, fogB = fogColor.b, fogA = fogColor.a;
 			var width = ss.width;
-			var cellAverageDepths = ss.cellAverageDepths;
-			var cellColors = ss.cellColors;
+			var cellAverageDepths = ssr.cellAverageDepths;
+			var cellColors = ssr.cellColors;
 			var x, y, i, d, r, g, b, a, oMix, fMix;
 			var fogT = (1-fogA); // Fog transparency; how much of original color to keep at depth = 1 pixel
 			for( y=minY; y < maxY; ++y ) for( x=minX, i=y*width+x; x < maxX; ++x, ++i ) {

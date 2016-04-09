@@ -103,7 +103,7 @@ class ShapeSheetUtil {
 		var ss = this.shapeSheet;
 		var i;
 		var cellCornerDepths = ss.cellCornerDepths;
-		var cellAverageDepths = ss.cellAverageDepths;
+		var cellAverageDepths = this.renderer.cellAverageDepths;
 		
 		for( i=ss.width*ss.height*4-1; i>=0; --i ) {
 			cellCornerDepths[i] += diff;

@@ -1,6 +1,7 @@
 - noImplicitAny: true
 - noImplicitReturns: true
 
+- SSIDemo (shape sheet to image demo)
 - Make a train run on the rails
 
 - Define standard materials, including
@@ -9,6 +10,9 @@
   standard index meanings for power, signal, data, us1..us3
 
 - states, animation frames can both apply additional material map (and maybe object rotations?  sure, why not)
+
+- Shader that forces opacity to 0 or 1
+- Shader that only applies fog to opaque cells
 
 Possibly outdated but maybe not:
 - Demo for project log: Generate a bunch of different blocks from a shape
