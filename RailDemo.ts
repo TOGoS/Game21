@@ -153,7 +153,7 @@ export default class RailDemo {
 		prevTransform.z1 = prevTrackPosition.z;
 		
 		const reps = tie.pattern == TiePattern.Perpendicular ? divisions + 1 : divisions;
-
+		
 		this.shapeSheetUtil.plottedMaterialIndexFunction = tie.materialIndexFunction;
 		
 		for( let i=1; i <= reps; ++i ) {
@@ -216,15 +216,6 @@ export default class RailDemo {
 		
 		const minusZ = new Vector3D(0,0,-1);
 		
-		const trackStart:TrackEndpoint = {
-			position: new Vector3D(scale*1, scale*8, 0),
-			orientation: Quaternion.fromXYZAxisAngle(0,0,1,-Math.PI/2)
-		};
-		const trackEnd:TrackEndpoint = {
-			position: new Vector3D(scale*3, scale*3, 0),
-			orientation: Quaternion.fromXYZAxisAngle(0,0,1,-Math.PI/4)
-		};
-		
 		const railMf = constantMaterialIndexFunction(4);
 		const tieMf = constantMaterialIndexFunction(8);
 		
@@ -241,6 +232,11 @@ export default class RailDemo {
 			materialIndexFunction: railMf,
 			radius: scale/8
 		};
+		const bottomRail:TrackTypeRail = {
+			offset: new Vector3D(0, 0, y1),
+			materialIndexFunction: tieMf,
+			radius: scale/4
+		};
 		const tie1:TrackTypeTie = {
 			materialIndexFunction: tieMf,
 			pattern: TiePattern.Perpendicular,
@@ -256,11 +252,61 @@ export default class RailDemo {
 			radius: scale/10
 		};
 		const trackType:TrackType = {
-			rails: [ leftRail, rightRail ],
+			rails: [ leftRail, rightRail, bottomRail ],
 			ties: [ tie1, tie2 ]
 		};
+
+		class TrackSegment { start : TrackEndpoint; end : TrackEndpoint; type : TrackType }
 		
-		this.drawTrack(trackType, trackStart, trackEnd);
+		const trackSegments:Array<TrackSegment> = [
+			{
+				start: {
+					position: new Vector3D(scale*-1, scale*8, 0),
+					orientation: Quaternion.fromXYZAxisAngle(1,0,0,0)
+				},
+				end: {
+					position: new Vector3D(scale*3, scale*8, 0),
+					orientation: Quaternion.fromXYZAxisAngle(1,0,0,0)
+				},
+				type: trackType
+			},
+			{
+				start: {
+					position: new Vector3D(scale*3, scale*8, 0),
+					orientation: Quaternion.fromXYZAxisAngle(1,0,0,0)
+				},
+				end: {
+					position: new Vector3D(scale*13, scale*3, 0),
+					orientation: Quaternion.multiply(
+						Quaternion.fromXYZAxisAngle(1,0,0,+Math.PI),
+						Quaternion.fromXYZAxisAngle(0,0,1,+Math.PI/4)
+					)
+				},
+				type: trackType
+			},
+			{
+				start: {
+					position: new Vector3D(scale*13, scale*3, 0),
+					orientation: Quaternion.multiply(
+						Quaternion.fromXYZAxisAngle(1,0,0,+Math.PI),
+						Quaternion.fromXYZAxisAngle(0,0,1,+Math.PI/4)
+					)
+				},
+				end: {
+					position: new Vector3D(scale*17, scale*-1, 0),
+					orientation: Quaternion.multiply(
+						Quaternion.fromXYZAxisAngle(1,0,0,+Math.PI),
+						Quaternion.fromXYZAxisAngle(0,0,1,+Math.PI/4)
+					)
+				},
+				type: trackType
+			}
+		];
+				
+		for( const ts in trackSegments ) {
+			const trackSeg = trackSegments[ts];
+			this.drawTrack(trackSeg.type, trackSeg.start, trackSeg.end);
+		}
 		this.shapeSheetUtil.renderer.requestCanvasUpdate();
 		console.log("Rail demo...");
 	}
