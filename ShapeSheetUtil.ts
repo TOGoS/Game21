@@ -449,8 +449,8 @@ class ShapeSheetUtil {
 		
 		const cellCornerDepths = ss.cellCornerDepths;
 		
-		for( let y=minY; y<maxY; ++y ) {
-			for( let x=minX, i=x+ss.width*y; x<maxX; ++x, ++i ) {
+		for( let y=minY; y < maxY; ++y ) {
+			for( let x=minX, i=x+ss.width*y; x < maxX; ++x, ++i ) {
 				if(
 					cellCornerDepths[i*4+0] != Infinity ||
 					cellCornerDepths[i*4+1] != Infinity ||
