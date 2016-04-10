@@ -30,7 +30,11 @@ function require_js($files, $inline=false, $extraProps=array()) {
 		echo "<script type=\"text/javascript\"{$epStr}>/* <![CDATA[ */\n";
 		foreach( $files as $file ) {
 			echo "////// $file //////\n\n";
-			require $file;
+			$content = file_get_contents($file);
+			// Relative sourceMappingURLs won't be valid,
+			// so remove them.
+			$content = preg_replace('@//#[ \t]*sourceMappingURL=([^:]*)([ \r\t]*(\n|$))@','',$content);
+			echo rtrim($content), "\n";
 		}
 		echo "/* ]]> */</script>\n";
 	} else {
