@@ -180,7 +180,7 @@ ShapeSheetDemo.prototype.animateLightning = function() {
 				if( Math.random() < 0.01 ) {
 					level = 1;
 					bolts[i] = Math.random();
-					lights[i] = DirectionalLight.fromProperties({
+					lights[i] = DirectionalLight.createFrom({
 						direction: new Vector3D(Math.random()-0.5, Math.random()-0.5, Math.random()-0.5),
 						color: new LightColor(level,level,level),
 						shadowFuzz: 0.5,

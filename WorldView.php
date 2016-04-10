@@ -34,9 +34,14 @@
 
 <script>//<![CDATA[
 (function() {
-	var wv = new CanvasWorldView();
-	wv.initUi(document.getElementById('world-view-canvas'));
-	wv.runDemo();
+	var CanvasWorldView;
+	
+	require(['CanvasWorldView'], function(_CanvasWorldView) {
+		CanvasWorldView = _CanvasWorldView.default;
+		var wv = new CanvasWorldView();
+		wv.initUi(document.getElementById('world-view-canvas'));
+		wv.runDemo2();
+	});
 })();
 //]]></script>
 

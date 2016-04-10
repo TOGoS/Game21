@@ -64,4 +64,28 @@ export default class Vector3D {
 			roundToNearestMultiple(this.z, zGrid)
 		);
 	}
+	
+	public static createFrom(thing:any):Vector3D {
+		let x=null, y=null, z=null;
+		if( thing instanceof Array ) {
+			x = thing[0]; y = thing[1]; z = thing[2];
+		} else {
+			x = thing.x; y = thing.y; z = thing.z;
+		}
+		
+		let errors = [];
+		if( typeof x != 'number' ) errors.push("'x' must be a number; got "+JSON.stringify(x));
+		if( typeof y != 'number' ) errors.push("'y' must be a number; got "+JSON.stringify(y));
+		if( typeof z != 'number' ) errors.push("'z' must be a number; got "+JSON.stringify(z));
+		if( errors.length > 0 ) {
+			throw new Error("Errors while trying to interpret "+JSON.stringify(thing)+" as Vector3D:\n"+errors.join("\n"));
+		}
+		
+		return new Vector3D( x, y, z );
+	}
+	
+	public static from(thing:any):Vector3D {
+		if( thing instanceof Vector3D ) return thing;
+		return this.createFrom(thing);
+	}
 }

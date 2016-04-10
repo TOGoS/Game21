@@ -8,8 +8,8 @@ export default class DirectionalLight {
 	public traceVector:Vector3D;
 	public traceVectorLength:number;
 	
-	constructor(public direction:Vector3D, public color:LightColor, {
-		shadowFuzz, shadowDistance, minimumShadowLight} = {shadowFuzz:0, shadowDistance:Infinity, minimumShadowLight:0
+	constructor(public direction:Vector3D, public color:LightColor,
+		{shadowFuzz, shadowDistance, minimumShadowLight} = {shadowFuzz:0, shadowDistance:Infinity, minimumShadowLight:0
 	}) {
 		this.shadowFuzz = shadowFuzz;
 		this.shadowDistance = shadowDistance;
@@ -23,9 +23,12 @@ export default class DirectionalLight {
 			this.traceVector = this.direction.scale(-1);
 			this.traceVectorLength = this.traceVector.length;
 		}
+		if( typeof this.shadowFuzz != 'number' ) this.shadowFuzz = 0;
+		if( typeof this.shadowDistance != 'number' ) this.shadowDistance = Infinity;
+		if( typeof this.minimumShadowLight != 'number' ) this.minimumShadowLight = 0;
 	}
 	
-	public static fromProperties( props ) {
-		return new DirectionalLight( props.direction, props.color, props );
+	public static createFrom( props ):DirectionalLight {
+		return new DirectionalLight( Vector3D.from(props.direction), LightColor.from(props.color), props );
 	};
 }
