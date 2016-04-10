@@ -41,8 +41,12 @@ var fakerequire = (function() {
 		try {
 			var args = resolveDeps(depNames, { exports: exports, require: null });
 		} catch( e ) {
-			errback(e);
-			return;
+			if( errback == null ) {
+				throw e;
+			} else {
+				errback(e);
+				return;
+			}
 		}
 		callback.apply(callback, args);
 	};
