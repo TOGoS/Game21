@@ -1,8 +1,16 @@
+Boring code stuff:
+- Organize into src/ts/ build/ etc.
+- Build libs as nodejs modules (related to above)
 - noImplicitAny: true
 - noImplicitReturns: true
 
-- SSIDemo (shape sheet to image demo)
-- Make a train run on the rails
+Infrastructure:
+- WebSockets proof-of-concept
+- Router
+
+Fun stuff:
+- Visual demo of multi-room maze
+- Visual demo of train running on tracks
 
 - Define standard materials, including
   several for indicator lights with separate materials for each state (off, half-on, on, unspecified)
