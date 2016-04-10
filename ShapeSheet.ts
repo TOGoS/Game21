@@ -4,20 +4,17 @@ export default class ShapeSheet {
 	// Treat these all as read-only
 	public width:number;
 	public height:number;
+	protected _bounds:Rectangle;
 	public cellMaterialIndexes:Uint16Array;
 	public cellCornerDepths:Float32Array;
 	
-	public get bounds():Rectangle {
-		return new Rectangle(0, 0, this.width, this.height).assertIntegerBoundaries();
-	}
-	
-	public get area():number {
-		return this.width*this.height;
-	}
+	public get bounds():Rectangle { return this._bounds; }
+	public get area():number { return this.width * this.height; }
 	
 	constructor(width:number, height:number) {
 		this.width = width|0;
 		this.height = height|0;
+		this._bounds = new Rectangle(0, 0, this.width, this.height);
 		const cellCount:number = (width*height)|0;
 		this.cellMaterialIndexes = new Uint16Array(cellCount);
 		this.cellCornerDepths    = new Float32Array(cellCount*4); // Depth (in pixels) of each corner
@@ -31,7 +28,6 @@ export default class ShapeSheet {
 		// calculated by calculateCellDepthDerivedData based on cellCornerDepths
 		// (this stuff is only used by renderer; maybe it should live there):
 		// calculated by calculateCellColors based on the above:
-		
 		//this.canvasUpdateRequested = false;
 	}
 	

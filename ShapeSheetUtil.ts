@@ -106,6 +106,11 @@ class ShapeSheetUtil {
 		if( this.renderer ) this.renderer.dataUpdated(rect, true, true);
 	}
 	
+	clear() {
+		this.shapeSheet.initBuffer();
+		this.dataUpdated(this.shapeSheet.bounds);
+	}
+	
 	/** Shift the Z of every cell by this amount. */
 	shiftZ(diff:number):void {
 		var ss = this.shapeSheet;

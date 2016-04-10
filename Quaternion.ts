@@ -11,6 +11,10 @@ export default class Quaternion {
 	
 	public static IDENTITY = DeepFreezer.deepFreeze(new Quaternion(1,0,0,0));
 	
+	public normalize():Quaternion {
+		return Quaternion.normalize(this);
+	}
+	
 	/**
 	 * Assumes x, y, z is normalized!
 	 */
@@ -39,6 +43,19 @@ export default class Quaternion {
 	
 	public static dotProduct(q0:Quaternion, q1:Quaternion):number {
 		return q0.a*q1.a + q0.b*q1.b + q0.c*q1.c + q0.d*q1.d;
+	}
+	
+	public static normalize(q:Quaternion, dest:Quaternion=new Quaternion):Quaternion {
+		const len = Math.sqrt(q.a*q.a + q.b*q.b + q.c*q.c + q.d*q.d);
+		if( len == 0 ) dest.set(q.a, q.b, q.c, q.d);
+		dest.set(q.a/len, q.b/len, q.c/len, q.d/len);
+		return dest;
+	}
+	
+	public static random() {
+		const q:Quaternion = new Quaternion(Math.random(), Math.random(), Math.random(), Math.random());
+		this.normalize(q,q);
+		return q;
 	}
 	
 	// based on this guy's code:

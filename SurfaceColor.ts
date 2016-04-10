@@ -5,7 +5,7 @@ class SurfaceColor {
 		DeepFreezer.freeze(this, true); // We're immutable yeahh!
 	}
 	
-	public static NONE:SurfaceColor = new SurfaceColor(0,0,0,0);
+	public static NONE:SurfaceColor = DeepFreezer.deepFreeze(new SurfaceColor(0,0,0,0));
 }
 
 export default SurfaceColor;
