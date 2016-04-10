@@ -1,6 +1,4 @@
 Boring code stuff:
-- Organize into src/ts/ build/ etc.
-- Build libs as nodejs modules (related to above)
 - noImplicitAny: true
 - noImplicitReturns: true
 
