@@ -1,11 +1,11 @@
 {
-	"compileOnSave": true,
 	"compilerOptions": {
 		"target": "es5",
 		"module": "amd",
 		"sourceMap": true,
 		"noFallthroughCasesInSwitch": true,
 		"noImplicitReturns": true,
+		"sourceRoot": "src/main/ts",
 		"outFile": "game21libs.amd.es5.js"
 	},
 	"exclude": [

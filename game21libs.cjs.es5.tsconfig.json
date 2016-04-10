@@ -1,0 +1,14 @@
+{
+	"compilerOptions": {
+		"target": "es5",
+		"module": "commonjs",
+		"sourceMap": true,
+		"noFallthroughCasesInSwitch": true,
+		"noImplicitReturns": true,
+		"sourceRoot": "src/main/ts",
+		"outDir": "target/cjs"
+	},
+	"exclude": [
+		"node_modules"
+	]
+}

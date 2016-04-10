@@ -5,8 +5,6 @@
 /ShapeDemo.html.urn
 /ShapeDemo.html.url
 /SSIDemo.html
-
-*.js
-*.js.map
-!/require.js
-!/fakerequire.js
+/target
+/game21libs.amd.es5.js
+/game21libs.amd.es5.js.map

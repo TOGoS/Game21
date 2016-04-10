@@ -106,3 +106,5 @@ assertVectorsApproximatelyEqual(new Vector3D(4,0,3), rightBy3AndUpBy2.multiplyVe
 		assertVectorsApproximatelyEqual(someVectors[v], xm.multiplyVector(someVectors[v]));
 	}
 }
+
+export default "Tests passed!";
