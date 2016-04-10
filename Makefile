@@ -1,11 +1,12 @@
-tsc_inputs = $(shell find -name '*.ts' | grep -v node_modules)
+tsc_inputs = $(shell find src/main/ts)
 
 generated_js_files = \
 	$(shell find -name '*.ts' | grep -v node_modules | sed 's/\.ts$$/\.js/') \
 	$(shell find -name '*.es5.js' -o -name '*.es6.js')
 all_js_files = $(shell find -name '*.js') ${generated_js_files}
 
-tsc := node_modules/typescript/bin/tsc
+node := node
+tsc := ${node} node_modules/typescript/bin/tsc
 
 default: ShapeDemo.html
 
@@ -41,5 +42,12 @@ node_modules: package.json
 	npm install
 	touch "$@"
 
-game21libs.amd.es5.js: ${tsc_inputs} tsconfig.json node_modules
-	${tsc} -p . --outFile "$@"
+%.js: %.tsconfig.json ${tsc_inputs} node_modules
+	${tsc} -p "$<" --outFile "$@"
+
+target/cjs: game21libs.cjs.es5.tsconfig.json ${tsc_inputs} node_modules
+	${tsc} -p "$<" --outDir "$@"
+	touch "$@"
+
+run-unit-tests: target/cjs
+	cd target/cjs && (find -name '*Test.js' | xargs ${node})
