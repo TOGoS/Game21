@@ -8,7 +8,7 @@ all_js_files = $(shell find -name '*.js') ${generated_js_files}
 node := node
 tsc := ${node} node_modules/typescript/bin/tsc
 
-default: ShapeDemo.html
+default: ShapeDemo.html target/cjs
 
 sortaclean:
 	rm -rf ${generated_js_files} ShapeDemo.html ShapeDemo.html.urn
@@ -51,3 +51,6 @@ target/cjs: game21libs.cjs.es5.tsconfig.json ${tsc_inputs} node_modules
 
 run-unit-tests: target/cjs
 	cd target/cjs && (find -name '*Test.js' | xargs ${node})
+
+run-router: target/cjs
+	node target/cjs/Router.js
