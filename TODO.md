@@ -3,7 +3,6 @@ Boring code stuff:
 - noImplicitReturns: true
 
 Infrastructure:
-- WebSockets proof-of-concept
 - Router
 
 Fun stuff:
