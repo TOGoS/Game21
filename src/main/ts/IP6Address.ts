@@ -6,10 +6,16 @@ export function parseIp6Address(addrText):IP6Address {
 		throw new Error("Too many digit groups in IPv6 address: "+addrText);
 	}
 	var i:number, j:number, implicitBlanks:boolean=false;
-	for( i=0; i<wordTexts.length; ++i ) {
+	for( i=0; i < wordTexts.length; ++i ) {
 		if( wordTexts[i] == '' ) {
 			if( implicitBlanks ) {
-				throw new Error("IP6 address text has more than one '::': "+addrText);
+				if( i == 1 ) {
+					// it's like ::something, which is fine
+				} else if( i == wordTexts.length-1 ) {
+					// something::; also fine.
+				} else {
+					throw new Error("IP6 address text has more than one '::': "+addrText);
+				}
 			} else {
 				implicitBlanks = true;
 			}
@@ -31,13 +37,47 @@ export function parseIp6Address(addrText):IP6Address {
 }
 
 export function stringifyIp6Address(addr:Uint8Array, shorten:boolean=true):string {
+	let currentZeroSpanOffset = 0;
+	let currentZeroSpanLength = 0;
+	let longestZeroSpanOffset = -1;
+	let longestZeroSpanLength = 0;
 	var words:DataView = new DataView(addr.buffer);
-	// TODO: shorten
+	for( i=0; i < 8; ++i ) {
+		if( shorten && words.getUint16(i << 1) == 0 ) {
+			if( i == currentZeroSpanOffset + currentZeroSpanLength ) {
+				++currentZeroSpanLength;
+				if( currentZeroSpanLength > longestZeroSpanLength ) {
+					longestZeroSpanOffset = currentZeroSpanOffset;
+					longestZeroSpanLength = currentZeroSpanLength;
+				}
+			} else {
+				currentZeroSpanOffset = i;
+				currentZeroSpanLength = 1;
+			}
+		} else {
+			currentZeroSpanLength = 0;
+		}
+	}
+	
+	if( longestZeroSpanLength < 2 ) {
+		longestZeroSpanLength = 0;
+		longestZeroSpanOffset = -1;
+	}
+	const longestZeroSpanEnd = longestZeroSpanOffset + longestZeroSpanLength;
+	
 	var i;
 	var wordTexts = [];
 	for( i=0; i < 8; ++i ) {
-		wordTexts.push(words.getUint16(i<<1).toString(16));
+		if( i == longestZeroSpanOffset ) {
+			if( i == 0 ) wordTexts.push('');
+			wordTexts.push('');
+		} else if( i > longestZeroSpanOffset && i < longestZeroSpanEnd ) {
+			// do nothing
+		} else {
+			wordTexts.push(words.getUint16(i<<1).toString(16));
+		}
 	}
+	if( longestZeroSpanEnd == 8 ) wordTexts.push('');
 	return wordTexts.join(':');
 }
 

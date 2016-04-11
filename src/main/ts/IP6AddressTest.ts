@@ -26,3 +26,35 @@ function assertEquals( expected, actual ) {
 	assertEquals(0x00, addr[14]);
 	assertEquals(0x02, addr[15]);
 }
+
+//// Make sure canonicalization works
+
+{
+	const addr = parseIp6Address('fe80:0:0:0:0:0:0:2');
+	assertEquals('fe80::2', stringifyIp6Address(addr));
+}
+
+{
+	const addr = parseIp6Address('fe80:0:0:1:0:0:0:2');
+	assertEquals('fe80:0:0:1::2', stringifyIp6Address(addr));
+}
+
+{
+	const addr = parseIp6Address('::');
+	assertEquals('::', stringifyIp6Address(addr));
+}
+
+{
+	const addr = parseIp6Address('fe80::0:0:0:0');
+	assertEquals('fe80::', stringifyIp6Address(addr));
+}
+
+{
+	const addr = parseIp6Address('0:0:0::1');
+	assertEquals('::1', stringifyIp6Address(addr));
+}
+
+{
+	const addr = parseIp6Address('1::2');
+	assertEquals('1:0:0:0:0:0:0:2', stringifyIp6Address(addr, false));
+}
