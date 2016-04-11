@@ -3,6 +3,7 @@ Boring code stuff:
 - noImplicitReturns: true
 
 Infrastructure:
+- Better WebSocket demo with packets and IP6Addresses and some options on the page like which URL to connect to
 - Router
 
 Fun stuff:

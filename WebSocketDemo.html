@@ -1,8 +1,26 @@
 <html>
 <body>
 
-<script type="text/javascript" src="WebSocketDemo.js">
+<script type="text/javascript" src="WebSocketDemo.js"></script>
+<script type="text/javascript">
+	var wsDemo = new WebSocketDemo();
+	
+	function connectIfNotConnected(form) {
+		wsDemo.connectIfNotConnected(form.serverAddress.value);
+		wsDemo.packetEncodingMode = form.binary.checked ? "TUN" : "JSON";
+		return wsDemo;
+	}
+	
+	function sendPing(form) {
+		connectIfNotConnected(form).ping();
+	}
 </script>
+
+<form onsubmit="return false">
+<label>Server Address <input type="text" name="serverAddress" value="ws://localhost:4080/router" title="Router WebSocket address"/></label><br />
+<label>Binary packets <input type="checkbox" name="binary"/></label><br />
+<button onclick="sendPing(this.form)">Send Ping</button>
+</form>
 
 </body>
 </html>
