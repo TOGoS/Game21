@@ -91,7 +91,7 @@ function fitpar($cw, $ch, $iw, $ih) {
 }
 
 function find_ts_test_modules() {
-	$filenames = scandir('.');
+	$filenames = scandir('src/main/ts');
 	$modules = [];
 	foreach( $filenames as $fn ) {
 		if( preg_match('/^(.*Test)\.ts$/',$fn,$bif) ) {
