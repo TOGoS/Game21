@@ -18,6 +18,7 @@ export default class WebSocketClient {
 	public localAddress:string;
 	public peerAddress:string;
 	public nextPingSequenceNumber:number=0;
+	public console;
 	
 	constructor() {
 		this.connection = null;
@@ -26,22 +27,23 @@ export default class WebSocketClient {
 		// placeholders!
 		this.localAddress = "fe80::1";
 		this.peerAddress = "fe80::2";
+		this.console = window.console;
 	}
 	public connectIfNotConnected(wsUrl) {
 		if( this.connection == null ) {
 			this.connection = new WebSocket(wsUrl);
 			this.connection.binaryType = 'arraybuffer';
 			this.connection.onopen = this.onOpen.bind(this);
-			this.connection.onerror = function(error) {
-				console.log("Websocket Error: "+error);
+			this.connection.onerror = error => {
+				this.console.log("Websocket Error: ", error);
 			};
 			this.connection.onmessage = this.onMessage.bind(this);
-			console.log("Connecting...");
+			this.console.log("Connecting...");
 		}
 		return this;
 	}
 	protected onOpen() {
-		console.log('Connected! '+this.enqueuedMessages.length+" messages enqueued.");
+		this.console.log('Connected! '+this.enqueuedMessages.length+" messages enqueued.");
 		for( var i=0; i < this.enqueuedMessages.length; ++i ) {
 			this.connection.send(this.enqueuedMessages[i]);
 		}
@@ -56,7 +58,7 @@ export default class WebSocketClient {
 		} else {
 			encoding = "???";
 		}
-		console.log("Received "+encoding+"-encoded message: "+data);
+		this.console.log("Received "+encoding+"-encoded message: "+data);
 	};
 	protected enqueueMessage(data) {
 		if( this.connection != null && this.connection.readyState == 1 ) {

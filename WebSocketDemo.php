@@ -2,6 +2,42 @@
 <!DOCTYPE html>
 <html>
 <head>
+<style>
+* {
+	box-sizing: border-box;
+}
+.console-output {
+	width: 100%;
+	min-height: 64px;
+}
+.console-output > p {
+	margin: 2px 4px;
+	padding: 2px 4px;
+}
+.console-command-form {
+	display: flex;
+	flex-direction: row;
+	width: 100%;
+}
+.console-command-form > * {
+	margin: 0;
+}
+.console-command-input {
+	border: none;
+	border-top: 1px solid darkgray;
+	flex-grow: 1;
+}
+.console-command-submit-button {
+	flex-grow: 0;
+}
+.console-output, .console-command-input {
+	background: black;
+	color: silver;
+	margin: 0;
+	padding: 2px 4px;
+	font-family: monospace;
+}
+</style>
 <meta charset="utf-8"/>
 </head>
 <body>
@@ -12,11 +48,24 @@
 <button onclick="wsClientPage.sendPing()">Send Ping</button>
 </form>
 
+<div id="console-area" style="background:purple">
+</div>
+
 <?php require_game21_js_libs($inlineResources); ?>
 <script type="text/javascript">
-	require(['togos-game21/WebSocketClient'], function(_WebSocketClient) {
+	require(['togos-game21/WebSocketClient', 'togos-game21/ui/Console'], function(_WebSocketClient, _Console) {
+		var shell = new _Console.ShellProcess();
+		shell.document = document;
+		shell.defineCommand('echo', function(argv, proc) {
+			proc.printLine(0, argv.slice(1).join(" "));
+			proc.exit(0);
+		});
+		window.shellProc = shell;
+		document.getElementById('console-area').appendChild(shell.initUi());
+		
 		var WebSocketClient = _WebSocketClient.default;
 		var wsClient = new WebSocketClient();
+		wsClient.console = shellProc;
 				
 		var WSClientPage = function(form) {
 			this.form = form;
