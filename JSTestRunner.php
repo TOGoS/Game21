@@ -22,7 +22,7 @@
 <p id="result">Running...</p>
 <pre id="debug">&nbsp;</pre>
 
-<?php require_js(['fakerequire.js', 'game21libs.amd.es5.js'], $inlineResources); ?>
+<?php require_game21_js_libs($inlineResources); ?>
 <script type="text/javascript">//<![CDATA[
 (function() {
 	var testModNames = <?php ejsv(array_values(find_ts_test_modules())); ?>;

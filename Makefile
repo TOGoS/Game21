@@ -53,4 +53,4 @@ run-unit-tests: target/cjs
 	cd target/cjs && (find -name '*Test.js' | xargs ${node})
 
 run-router: target/cjs
-	node target/cjs/Router.js
+	node target/cjs/togos-game21/Router.js

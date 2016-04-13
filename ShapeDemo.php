@@ -91,7 +91,7 @@ canvas.shape-view {
 
 <?php require_game21_js_libs($inlineResources);; ?>
 <script type="text/javascript">
-	require(['ShapeSheetDemo'], function(ShapeSheetDemo) { });
+	require(['togos-game21/ShapeSheetDemo'], function(ShapeSheetDemo) { });
 </script>
 
 <?php if($lightningEnabled): ?>

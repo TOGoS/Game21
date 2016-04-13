@@ -48,7 +48,7 @@ canvas.shape-view {
 
 <?php require_game21_js_libs($inlineResources);; ?>
 <script type="text/javascript">//<![CDATA[
-	require(['RailDemo'], function(RailDemo) {
+	require(['togos-game21/RailDemo'], function(RailDemo) {
 		RailDemo.runDemo();
 	});
 //]]></script>

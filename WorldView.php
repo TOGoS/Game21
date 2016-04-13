@@ -36,7 +36,7 @@
 (function() {
 	var CanvasWorldView;
 	
-	require(['CanvasWorldView'], function(_CanvasWorldView) {
+	require(['togos-game21/CanvasWorldView'], function(_CanvasWorldView) {
 		CanvasWorldView = _CanvasWorldView.default;
 		var wv = new CanvasWorldView();
 		wv.initUi(document.getElementById('world-view-canvas'));

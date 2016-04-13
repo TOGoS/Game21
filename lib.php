@@ -91,11 +91,12 @@ function fitpar($cw, $ch, $iw, $ih) {
 }
 
 function find_ts_test_modules() {
-	$filenames = scandir('src/main/ts');
+	$filenames = scandir('src/main/ts/togos-game21');
 	$modules = [];
 	foreach( $filenames as $fn ) {
 		if( preg_match('/^(.*Test)\.ts$/',$fn,$bif) ) {
-			$modules[$bif[1]] = $bif[1];
+			$modName = 'togos-game21/'.$bif[1];
+			$modules[$modName] = $modName;
 		}
 	}
 	return $modules;
