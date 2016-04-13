@@ -5,6 +5,7 @@
 		"sourceMap": true,
 		"noFallthroughCasesInSwitch": true,
 		"noImplicitReturns": true,
+		"rootDir": ".",
 		"outFile": "../../../target/game21libs.amd.es5.js"
 	},
 	"exclude": [

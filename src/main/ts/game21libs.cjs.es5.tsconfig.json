@@ -5,6 +5,7 @@
 		"sourceMap": true,
 		"noFallthroughCasesInSwitch": true,
 		"noImplicitReturns": true,
+		"rootDir": ".",
 		"outDir": "../../../target/cjs"
 	},
 	"exclude": [
