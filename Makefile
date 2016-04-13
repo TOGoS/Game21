@@ -24,7 +24,7 @@ clean: sortaclean
 	default \
 	publish-demo
 
-ShapeDemo.html: $(shell find -name '*.php') game21libs.amd.es5.js
+ShapeDemo.html: $(shell find -name '*.php') target/game21libs.amd.es5.js
 	php ShapeDemo.php --inline-resources shadowDistanceOverride=Infinity >"$@"
 
 ShapeDemo.html.urn: ShapeDemo.html
@@ -42,10 +42,10 @@ node_modules: package.json
 	npm install
 	touch "$@"
 
-%.js: %.tsconfig.json ${tsc_inputs} node_modules
+target/%.js: src/main/ts/%.tsconfig.json ${tsc_inputs} node_modules
 	${tsc} -p "$<" --outFile "$@"
 
-target/cjs: game21libs.cjs.es5.tsconfig.json ${tsc_inputs} node_modules
+target/cjs: src/main/ts/game21libs.cjs.es5.tsconfig.json ${tsc_inputs} node_modules
 	${tsc} -p "$<" --outDir "$@"
 	touch "$@"
 
