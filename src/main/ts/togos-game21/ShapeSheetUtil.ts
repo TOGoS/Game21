@@ -89,7 +89,13 @@ class ShapeSheetUtil {
 		}
 		
 		if( materialIndex == null ) {
-			var avgZ = (z0+z1+z2+z3)/4;
+			let avgZ = 0;
+			let nonInfinityCorners = 0;
+			if( z0 != Infinity ) { avgZ += z0; ++nonInfinityCorners; }
+			if( z1 != Infinity ) { avgZ += z1; ++nonInfinityCorners; }
+			if( z2 != Infinity ) { avgZ += z2; ++nonInfinityCorners; }
+			if( z3 != Infinity ) { avgZ += z3; ++nonInfinityCorners; }
+			avgZ = nonInfinityCorners == 0 ? Infinity : avgZ/nonInfinityCorners;
 			materialIndex = (this.plottedMaterialIndexFunction)(x,y,avgZ,z0,z1,z2,z3);
 		}
 		
@@ -99,16 +105,20 @@ class ShapeSheetUtil {
 			oldZ1 = cellCornerDepths[idx*4+1],
 			oldZ2 = cellCornerDepths[idx*4+2],
 			oldZ3 = cellCornerDepths[idx*4+3];
+		
+		if( z0 <= oldZ0 ) cellCornerDepths[idx*4+0] = z0;
+		if( z1 <= oldZ1 ) cellCornerDepths[idx*4+1] = z1;
+		if( z2 <= oldZ2 ) cellCornerDepths[idx*4+2] = z2;
+		if( z3 <= oldZ3 ) cellCornerDepths[idx*4+3] = z3;
+		
 		const ox =
 			infiniMinus(z0, oldZ0) +
 			infiniMinus(z1, oldZ1) +
 			infiniMinus(z2, oldZ2) +
 			infiniMinus(z3, oldZ3);
-		if( z0 < oldZ0 ) cellCornerDepths[idx*4+0] = z0;
-		if( z1 < oldZ1 ) cellCornerDepths[idx*4+1] = z1;
-		if( z2 < oldZ2 ) cellCornerDepths[idx*4+2] = z2;
-		if( z3 < oldZ3 ) cellCornerDepths[idx*4+3] = z3;
-		if( ox < 0 ) {
+		const minZ = Math.min(z0, z1, z2, z3);
+		const oldMinZ = Math.min(oldZ0, oldZ1, oldZ2, oldZ3);
+		if( materialIndex && (ox < 0 || minZ < oldMinZ) ) {
 			// Then our new thing is on average in front of the old thing
 			cellMaterialIndexes[idx] = materialIndex;
 		}
