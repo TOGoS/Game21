@@ -78,9 +78,11 @@ export default class WebSocketClient {
 		if( peerAddress == null ) peerAddress = this.peerAddress;
 		
 		this.enqueuePacket({
-			protocolName: "IPv6",
-			sourceAddress: this.localAddress, destAddress: peerAddress,
-			subProtocolName: "ICMPv6", payloadObject: {
+			ipVersion: 6,
+			sourceAddressString: this.localAddress,
+			destAddressString: peerAddress,
+			subProtocolNumber: 58,
+			payloadObject: {
 				type: 128,
 				code: 0,
 				payloadObject: {

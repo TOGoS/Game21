@@ -12,8 +12,9 @@ class IP6Prefix {
 	public address:IP6Address;
 	public length:number; // Of bits of prefix, e.g. 64
 	constructor(address:IP6Address, length:number) {
-		if( this.length % 8 != 0 ) throw new Error("Non-multiple-of-8 prefix length is unsupported by IP6Prefix constructor!");
+		if( length % 8 != 0 ) throw new Error("Non-multiple-of-8 prefix length is unsupported by IP6Prefix constructor!");
 		this.address = new Uint8Array(length*8);
+		this.length = length;
 		for( let i=0; i<(length/8); ++i ) {
 			this.address[i] = address[i];
 		} // Rest are zeroes!
@@ -96,6 +97,9 @@ function getRequestClientAddress(req:ExpressRequest) {
 class Router {
 	public routes:RouteList = new RouteList;
 	public links:KeyedList<Link> = {};
+	public nextClientAddress
+	public networkPrefix:IP6Prefix = new IP6Prefix(parseIp6Address("1234:0:0:1::"),64);
+	public routerAddress:IP6Address = parseIp6Address("1234:0:0:1::1");
 	protected nextLinkId = 1;
 	
 	protected newLinkId():LinkID {
@@ -115,10 +119,10 @@ class Router {
 	
 	public messageReceived(packetInfo:any, sourceLinkId:LinkID) {
 		let destAddress;
-		if( typeof(packetInfo.destAddress) === 'string' ) {
-			destAddress = parseIp6Address(packetInfo.destAddress);
+		if( typeof(packetInfo.destAddressString) === 'string' ) {
+			destAddress = parseIp6Address(packetInfo.destAddressString);
 		} else {
-			console.log("packetInfo.destAddress not a string; packetInfo = "+JSON.stringify(packetInfo));
+			console.log("packetInfo.destAddressString not a string; packetInfo = "+JSON.stringify(packetInfo));
 			return;
 		}
 		const destLinkId:LinkID = this.routes.route(destAddress);
@@ -131,7 +135,7 @@ class Router {
 			console.log("Packet could not be routed to "+stringifyIp6Address(destAddress)+"; link '"+destLinkId+"' does not exist.");
 			return;
 		}
-		console.log("Routing packet from "+packetInfo.sourceAddress+" to "+stringifyIp6Address(destAddress));
+		console.log("Routing packet from "+packetInfo.sourceAddressString+" to "+stringifyIp6Address(destAddress));
 		destLink.send(packetInfo);
 	}
 	
@@ -174,6 +178,25 @@ class Router {
 				}
 				
 				this.messageReceived(packetInfo, linkId);
+			});
+			
+			link.send({
+				ipVersion: 6,
+				destAddressString: "ff02::1:3",
+				sourceAddressString: stringifyIp6Address(this.routerAddress),
+				subProtocolNumber: 58,
+				payloadObject: {
+					type: 134, // router advertisement
+					options: [
+						{
+							type: 3, // prefix information
+							prefix: {
+								length: this.networkPrefix.length,
+								addressString: stringifyIp6Address(this.networkPrefix.address)
+							}
+						}
+					]
+				}
 			});
 		});
 		
