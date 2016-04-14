@@ -80,6 +80,7 @@ function trackCurve( start:TrackEndpoint, end:TrackEndpoint, iter:number=1 ):Cur
 }
 
 export default class RailDemo {
+	public scale:number;
 	protected shapeSheetUtil:ShapeSheetUtil;
 	constructor(util:ShapeSheetUtil) {
 		this.shapeSheetUtil = util;
@@ -216,7 +217,7 @@ export default class RailDemo {
 	}
 	
 	run():void {
-		const scale = 16;
+		const scale = this.scale;
 		
 		const minusZ = new Vector3D(0,0,-1);
 		
@@ -321,13 +322,12 @@ export default class RailDemo {
 	}
 }
 
-export function runDemo() {
+export function buildDemo() {
 	var canv = <HTMLCanvasElement>document.getElementById('shaded-preview-canvas');
 	
 	var shapeSheet = new ShapeSheet(canv.width, canv.height);
 	var shapeSheetRenderer = new ShapeSheetRenderer(shapeSheet, canv);
 	shapeSheetRenderer.shaders.push(ShapeSheetRenderer.makeFogShader(0, new SurfaceColor(0, 0, 0, 0.01)));
 	var shapeSheetUtil = new ShapeSheetUtil(shapeSheet, shapeSheetRenderer);
-	var railDemo = new RailDemo(shapeSheetUtil);
-	railDemo.run();
+	return new RailDemo(shapeSheetUtil);
 }

@@ -31,23 +31,8 @@ $demoConfigDefaults = [
 	'lightRotationEnabled' => true,
 ];
 
-foreach( $demoConfigDefaults as $k=>$default ) {
-	$shouldBeBool = is_bool($default);
-	
-	if( isset($_REQUEST[$k]) ) $demoConfig[$k] = $_REQUEST[$k];
-	else if( isset($demoConfig[$k]) );
-	else if( is_callable($default) ) $demoConfig[$k] = call_user_func($default, $demoConfig);
-	else $demoConfig[$k] = $default;
-	
-	if( $shouldBeBool ) $demoConfig[$k] = parse_bool($demoConfig[$k]);
-}
-
-foreach( $demoConfigDefaults as $k=>$_ ) {
-	$$k = $demoConfig[$k];
-}
-
-$showUpdateRectangles = parse_bool($showUpdateRectangles);
-$inlineResources = parse_bool($inlineResources);
+$demoConfig = config_from_env($demoConfigDefaults, $demoConfig);
+extract($demoConfig, EXTR_SKIP|EXTR_REFS);
 
 list($shapeViewWidth, $shapeViewHeight) = fitpar($shapeViewMaxWidth, $shapeViewMaxHeight, $width, $height);
 

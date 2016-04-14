@@ -1,14 +1,16 @@
 <?php
-	require_once 'lib.php';
-	
-	if( !isset($title) ) $title = "Rail Demo";
-	if( !isset($inlineResources) ) $inlineResources = false;
-	if( !isset($width ) ) $width  = isset($_REQUEST['width' ]) ? $_REQUEST['width' ] : 256;
-	if( !isset($height) ) $height = isset($_REQUEST['height']) ? $_REQUEST['height'] : 256;
-	
-	$shapeViewMaxWidth = 768;
-	$shapeViewMaxHeight = 384;
-	list($shapeViewWidth, $shapeViewHeight) = fitpar($shapeViewMaxWidth, $shapeViewMaxHeight, $width, $height);
+
+require_once 'lib.php';
+
+$demoConfigDefaults = [
+	'scale' => 16,
+	'width' => function($config) { return $config['scale'] * 16; },
+	'height' => function($config) { return $config['scale'] * 16; },
+];
+
+$config = config_from_env($demoConfigDefaults);
+extract($config, EXTR_SKIP|EXTR_REFS);
+
 ?>
 <!DOCTYPE html>
 <html>
@@ -49,7 +51,9 @@ canvas.shape-view {
 <?php require_game21_js_libs($inlineResources);; ?>
 <script type="text/javascript">//<![CDATA[
 	require(['togos-game21/RailDemo'], function(RailDemo) {
-		RailDemo.runDemo();
+		var railDemo = RailDemo.buildDemo();
+		railDemo.scale = <?php ejsv($scale); ?>;
+		railDemo.run();
 	});
 //]]></script>
 

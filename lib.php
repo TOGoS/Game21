@@ -1,5 +1,20 @@
 <?php
 
+function config_from_env(array $defaults, array $input=array()) {
+	$config = array();
+	foreach( $defaults as $k=>$default ) {
+		$shouldBeBool = is_bool($default);
+		
+		if( isset($_REQUEST[$k]) ) $config[$k] = $_REQUEST[$k];
+		else if( isset($input[$k]) ) $config[$k] = $input[$k];
+		else if( is_callable($default) ) $config[$k] = call_user_func($default, $config);
+		else $config[$k] = $default;
+		
+		if( $shouldBeBool ) $config[$k] = parse_bool($config[$k]);
+	}
+	return $config;
+}
+
 function eht($text) {
 	if( $text === null ) return '';
 	if( is_bool($text) ) $text = $text ? 'true' : 'false';
