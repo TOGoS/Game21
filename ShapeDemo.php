@@ -18,6 +18,7 @@ require_once 'lib.php';
 $demoConfigDefaults = [
 	'mode' => 'editor',
 	'title' => 'Blobs!',
+	'simplexScale' => 1,
 	'inlineResources' => false,
 	'width' => 128,
 	'height' => 64,
@@ -88,6 +89,7 @@ canvas.shape-view {
   width="<?php eht($width); ?>" height="<?php eht($height); ?>"
   data-show-update-rectangles="<?php eht($showUpdateRectangles); ?>"
   data-shadow-distance-override="<?php eht($shadowDistanceOverride); ?>"
+  data-simplex-scale="<?php eht($simplexScale); ?>"
   data-demo-mode="<?php eht($demoMode); ?>"
   data-lightning-enabled="<?php eht($lightningEnabled); ?>"
   data-light-rotation-enabled="<?php eht($lightRotationEnabled); ?>"

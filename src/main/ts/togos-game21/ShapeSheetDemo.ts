@@ -4,12 +4,13 @@ import LightColor from './LightColor';
 import ShapeSheet from './ShapeSheet';
 import DirectionalLight from './DirectionalLight';
 import ShapeSheetRenderer from './ShapeSheetRenderer';
-import ShapeSheetUtil from './ShapeSheetUtil';
+import ShapeSheetUtil, {NOOP_PLOTTED_DEPTH_FUNCTION} from './ShapeSheetUtil';
 import SimplexNoise from '../SimplexNoise';
 
 class ShapeSheetDemo {
 	public shapeSheetUtil:ShapeSheetUtil;
 	public shifting:boolean;
+	public simplexScale:number=1;
 	
 	constructor(shapeSheetUtil:ShapeSheetUtil) {
 		this.shapeSheetUtil = shapeSheetUtil;
@@ -27,19 +28,25 @@ class ShapeSheetDemo {
 		var minwh = Math.min(width,height);
 		
 		const simplex = new SimplexNoise(Math.random);
+		const clamp = (min,num,max) => Math.max(min,Math.min(num,max));
+		const sxs = this.simplexScale;
 		
-		util.plottedDepthFunction = (x,y,z) => z +
+		const layeredSimplex4 = (x,y,z) =>
 			simplex.noise3d(x/2, y/2, z/2) * 0.25 +
 			simplex.noise3d(x/5, y/5, z/5) * 0.5 +
 			simplex.noise3d(x/25, y/25, z/25) * 5 + 
 			simplex.noise3d(x/50, y/50, z/50) * 15;
-		util.plottedMaterialIndexFunction = () => 8;
+		util.plottedDepthFunction = sxs == 0 ?
+			NOOP_PLOTTED_DEPTH_FUNCTION : (x,y,z) => (z == Infinity ? z : (z + layeredSimplex4(x/sxs, y/sxs, z/sxs) * sxs));
+		util.plottedMaterialIndexFunction = (x,y,z) => clamp(8, 10+2*simplex.noise3d(x, y, z), 12)|0;
 		util.plotAABeveledCuboid(0,0,minwh,width,height,0);
 		
-		util.plottedDepthFunction = (x,y,z) => z +
+		const layeredSimplex2 = (x,y,z) =>
 			simplex.noise3d(x/2, y/2, z/2) * 0.25 +
-			simplex.noise3d(x/5, y/5, z/5) * 0.5;
-		util.plottedMaterialIndexFunction = () => 4;
+			simplex.noise3d(x/5, y/5, z/5) * 0.5;		
+		util.plottedDepthFunction = sxs == 0 ?
+			NOOP_PLOTTED_DEPTH_FUNCTION : (x,y,z) => (z == Infinity ? z : (z + layeredSimplex2(x/sxs, y/sxs, z/sxs) * sxs));
+		util.plottedMaterialIndexFunction = (x,y,z) => clamp(4, 6+2*simplex.noise3d(x/4, y/4, z/4), 8)|0;
 		
 		util.plotSphere(width/2, height/2, minwh*2, minwh/4);
 		util.plotSphere(width/2, height/2, minwh*1, minwh/8);
@@ -256,9 +263,10 @@ function run() {
 	shapeSheetRenderer.shadowDistanceOverride = parseNumber(canv.dataset['shadowDistanceOverride'], null);
 	const shapeSheetUtil = new ShapeSheetUtil(shapeSheet, shapeSheetRenderer);
 	const shapeSheetDemo = new ShapeSheetDemo(shapeSheetUtil);
-	shapeSheetDemo.buildDemo();
+	shapeSheetDemo.simplexScale = parseNumber(canv.dataset['simplexScale'], 1);
 	shapeSheetDemo.shifting = demoMode == 'shiftingLavaLamp';
 	//shapeSheetDemo.buildPolygonDemo();
+	shapeSheetDemo.buildDemo();
 	if( parseBool(canv.dataset['lightRotationEnabled']) ) shapeSheetDemo.animateLights();
 	shapeSheetDemo.animateLavaLamp();
 	if( parseBool(canv.dataset['lightningEnabled']) ) shapeSheetDemo.animateLightning();
