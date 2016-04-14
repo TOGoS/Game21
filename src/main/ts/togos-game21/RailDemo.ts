@@ -3,7 +3,7 @@ import Curve, {estimateCurveLength, estimateCurveTangent} from './Curve';
 import {makeCubicBezierCurve} from './Bezier';
 import ShapeSheet from './ShapeSheet';
 import ShapeSheetRenderer from './ShapeSheetRenderer';
-import ShapeSheetUtil, {PlottedMaterialIndexFunction, constantMaterialIndexFunction} from './ShapeSheetUtil';
+import ShapeSheetUtil, {PlottedMaterialIndexFunction, PlottedDepthFunction, NOOP_PLOTTED_DEPTH_FUNCTION, constantMaterialIndexFunction} from './ShapeSheetUtil';
 import SurfaceColor from './SurfaceColor';
 import TransformationMatrix3D from './TransformationMatrix3D';
 import Quaternion from './Quaternion';
@@ -13,7 +13,8 @@ class TrackEndpoint {
 	public orientation:Quaternion;
 }
 class TrackTypeRail {
-	public materialIndexFunction:PlottedMaterialIndexFunction;
+	public surfaceDepthFunction:PlottedDepthFunction;
+	public surfaceMaterialIndexFunction:PlottedMaterialIndexFunction;
 	public offset:Vector3D; // Offset when forward = +x and up = -z
 	public radius:number;
 }
@@ -25,7 +26,8 @@ enum TiePattern {
 }
 
 class TrackTypeTie {
-	public materialIndexFunction:PlottedMaterialIndexFunction;
+	public surfaceDepthFunction:PlottedDepthFunction;
+	public surfaceMaterialIndexFunction:PlottedMaterialIndexFunction;
 	public pattern:TiePattern;
 	public spacing:number; // Distance between ties
 	public y0:number;
@@ -112,7 +114,8 @@ export default class RailDemo {
 				let rail = rails[r];
 				prevTransform.multiplyVector(rail.offset, prevRailPosition);
 				nextTransform.multiplyVector(rail.offset, nextRailPosition);
-				this.shapeSheetUtil.plottedMaterialIndexFunction = rail.materialIndexFunction;
+				this.shapeSheetUtil.plottedDepthFunction = rail.surfaceDepthFunction;
+				this.shapeSheetUtil.plottedMaterialIndexFunction = rail.surfaceMaterialIndexFunction;
 				this.shapeSheetUtil.plotLine(
 					prevRailPosition.x, prevRailPosition.y, prevRailPosition.z, rail.radius,
 					nextRailPosition.x, nextRailPosition.y, nextRailPosition.z, rail.radius,
@@ -154,7 +157,8 @@ export default class RailDemo {
 		
 		const reps = tie.pattern == TiePattern.Perpendicular ? divisions + 1 : divisions;
 		
-		this.shapeSheetUtil.plottedMaterialIndexFunction = tie.materialIndexFunction;
+		this.shapeSheetUtil.plottedDepthFunction = tie.surfaceDepthFunction;
+		this.shapeSheetUtil.plottedMaterialIndexFunction = tie.surfaceMaterialIndexFunction;
 		
 		for( let i=1; i <= reps; ++i ) {
 			const nextT = i/divisions;
@@ -224,28 +228,33 @@ export default class RailDemo {
 		
 		const leftRail:TrackTypeRail = {
 			offset: new Vector3D(0, y0, 0),
-			materialIndexFunction: railMf,
+			surfaceDepthFunction: NOOP_PLOTTED_DEPTH_FUNCTION,
+			surfaceMaterialIndexFunction: railMf,
 			radius: scale/8
 		};
 		const rightRail:TrackTypeRail = {
 			offset: new Vector3D(0, y1, 0),
-			materialIndexFunction: railMf,
+			surfaceDepthFunction: NOOP_PLOTTED_DEPTH_FUNCTION,
+			surfaceMaterialIndexFunction: railMf,
 			radius: scale/8
 		};
 		const bottomRail:TrackTypeRail = {
 			offset: new Vector3D(0, 0, y1),
-			materialIndexFunction: tieMf,
+			surfaceDepthFunction: (x,y,z) => z+Math.random()*0.5,
+			surfaceMaterialIndexFunction: tieMf,
 			radius: scale/4
 		};
 		const tie1:TrackTypeTie = {
-			materialIndexFunction: tieMf,
+			surfaceDepthFunction: NOOP_PLOTTED_DEPTH_FUNCTION,
+			surfaceMaterialIndexFunction: tieMf,
 			pattern: TiePattern.Perpendicular,
 			spacing: scale,
 			y0: y0, y1: y1,
 			radius: scale/10
 		};
 		const tie2:TrackTypeTie = {
-			materialIndexFunction: tieMf,
+			surfaceDepthFunction: NOOP_PLOTTED_DEPTH_FUNCTION,
+			surfaceMaterialIndexFunction: tieMf,
 			pattern: TiePattern.ZigZag,
 			spacing: scale,
 			y0: y0, y1: y1,

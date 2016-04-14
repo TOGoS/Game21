@@ -13,6 +13,7 @@ import TransformationMatrix3D from './TransformationMatrix3D';
 import ImageSlice from './ImageSlice';
 
 export type PlottedMaterialIndexFunction = (x:number, y:number, z:number, z0:number, z1:number, z2:number, z3:number)=>number;
+export type PlottedDepthFunction = (x:number, y:number, z:number)=>number;
 export type PlotFunction = (x:number, y:number, z:number, rad:number)=>void;
 type Vector3DBuffer = Vector3D;
 
@@ -45,10 +46,13 @@ function disto( x0:number, y0:number, z0:number, x1:number, y1:number, z1:number
 	return Math.sqrt( dx*dx + dy*dy + dz*dz );
 };
 
+export const NOOP_PLOTTED_DEPTH_FUNCTION = (x,y,z) => z;
+
 class ShapeSheetUtil {
 	protected _shapeSheet:ShapeSheet;
 	protected _renderer:ShapeSheetRenderer;
 	public plottedMaterialIndexFunction:PlottedMaterialIndexFunction;
+	public plottedDepthFunction:PlottedDepthFunction;
 	public plotMode:PlotMode;
 	
 	constructor(shapeSheet, renderer:ShapeSheetRenderer=null) {
@@ -57,6 +61,7 @@ class ShapeSheetUtil {
 		this.plottedMaterialIndexFunction = function(x, y, z, z0, z1, z2, z3) {
 			return 4 + (Math.random()*4)|0;
 		};
+		this.plottedDepthFunction = NOOP_PLOTTED_DEPTH_FUNCTION;
 		this.plotMode = PlotMode.DEFAULT;
 	}
 	
@@ -75,6 +80,13 @@ class ShapeSheetUtil {
 		const cellCornerDepths = ss.cellCornerDepths;
 		if( x >= width ) return;
 		if( y >= ss.height ) return;
+		
+		if( this.plottedDepthFunction !== NOOP_PLOTTED_DEPTH_FUNCTION ) {
+			z0 = this.plottedDepthFunction(x+0, y+0, z0);
+			z1 = this.plottedDepthFunction(x+1, y+0, z1);
+			z2 = this.plottedDepthFunction(x+0, y+1, z2);
+			z3 = this.plottedDepthFunction(x+1, y+1, z3);
+		}
 		
 		if( materialIndex == null ) {
 			var avgZ = (z0+z1+z2+z3)/4;
