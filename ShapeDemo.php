@@ -31,10 +31,14 @@ $demoConfigDefaults = [
 ];
 
 foreach( $demoConfigDefaults as $k=>$default ) {
+	$shouldBeBool = is_bool($default);
+	
 	if( isset($_REQUEST[$k]) ) $demoConfig[$k] = $_REQUEST[$k];
-	else if( isset($demoConfig[$k]) ) continue;
+	else if( isset($demoConfig[$k]) );
 	else if( is_callable($default) ) $demoConfig[$k] = call_user_func($default, $demoConfig);
 	else $demoConfig[$k] = $default;
+	
+	if( $shouldBeBool ) $demoConfig[$k] = parse_bool($demoConfig[$k]);
 }
 
 foreach( $demoConfigDefaults as $k=>$_ ) {
@@ -74,6 +78,8 @@ canvas.shape-view {
 <title><?php eht($title); ?></title>
 </head>
 <body>
+
+<!-- Demo config: <?php echo json_encode($demoConfig, JSON_PRETTY_PRINT); ?> -->
 
 <p style="position:fixed; color:white">FPS: <span id="fps-counter">&nbsp;</span></p>
 
