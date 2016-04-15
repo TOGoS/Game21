@@ -1,3 +1,4 @@
+import KeyedList from './KeyedList';
 import DeepFreezer from './DeepFreezer';
 import Vector3D from './Vector3D';
 import Cuboid from './Cuboid';
@@ -9,18 +10,60 @@ import ShapeSheetUtil, {NOOP_PLOTTED_DEPTH_FUNCTION} from './ShapeSheetUtil';
 import SimplexNoise from '../SimplexNoise';
 import DensityFunction3D, {makeDensityFunction} from './DensityFunction3D';
 
+function betterParseNumber(n, emptyValue=0) {
+	if( n == null ) return null;
+	if( typeof(n) == 'number' ) return n;
+	if( typeof(n) == 'string' ) {
+		n = n.trim();
+		if( n == '' ) return emptyValue;
+		return parseFloat(n);
+	}
+	throw new Error("Don't know how to parse "+typeof(n)+" as number");
+}
+
+function betterParseBoolean(n, emptyValue=false) {
+	if( n == null ) return null;
+	if( typeof(n) == 'boolean' ) return n;
+	if( typeof(n) == 'number' ) return n > 0;
+	if( typeof(n) == 'string' ) {
+		n = n.trim().toLowerCase();
+		if( n == '' ) return emptyValue;
+		if( n == 'false' || n == 'f' || n == 'no' || n == 'n' || n == 'off' ) return false;
+		if( n == 'true' || n == 't' || n == 'yes' || n == 'y' || n == 'on' ) return true;
+		throw new Error('Don\'t know how to parse "'+n+'" as boolean');
+	}
+	throw new Error("Don't know how to interpret "+typeof(n)+" as boolean");
+}
+
 class ShapeSheetDemo {
 	public shapeSheetUtil:ShapeSheetUtil;
-	public shifting:boolean;
+	
+	// Shape generation parameters
+	public grainSize:number=10;
 	public simplexScale:number=1;
+	
+	// Animation parameters
+	public lightRotationEnabled:boolean = true;
+	public zShiftingEnabled:boolean = true;
+	public lavaLampEnabled:boolean = true;
+	public lightningEnabled:boolean = true;
 	
 	constructor(shapeSheetUtil:ShapeSheetUtil) {
 		this.shapeSheetUtil = shapeSheetUtil;
-		this.shifting = false;
+		this.zShiftingEnabled = false;
 	};
 	
 	get shapeSheet() { return this.shapeSheetUtil.shapeSheet; }
 	get renderer() { return this.shapeSheetUtil.renderer; }
+	
+	get updateRectanglesVisible() { return this.renderer.updateRectanglesVisible; }
+	set updateRectanglesVisible(d) {
+		this.renderer.updateRectanglesVisible = betterParseBoolean(d);
+	}
+	get shadowDistanceOverride() { return this.renderer.shadowDistanceOverride; }
+	set shadowDistanceOverride(sdo) {
+		this.renderer.shadowDistanceOverride = betterParseNumber(sdo, 0);
+	}
 
 	public buildStandardDemoShapes() {
 		var util = this.shapeSheetUtil;
@@ -75,8 +118,6 @@ class ShapeSheetDemo {
 		util.plotSphere(42, 14, 24, 10);
 	};
 	
-	public grainSize:number = 10;
-	
 	public buildDensityFunctionDemoShapes() {
 		const w = this.shapeSheet.width;
 		const h = this.shapeSheet.height;
@@ -94,7 +135,7 @@ class ShapeSheetDemo {
 		
 		const grain = (x,y,z) => {
 			const xDiv = this.grainSize * 40;
-			const v = simplex.noise3d(40 + x/xDiv, y/xDiv, z/xDiv)*40;
+			const v = simplex.noise3d(40 + x/xDiv, y/xDiv, z/xDiv)*10;
 			return v - Math.floor(v);
 		}
 		
@@ -154,7 +195,9 @@ class ShapeSheetDemo {
 		var lightsMoving = true;
 		var renderer = this.renderer;
 		var f = 0;
-		return setInterval( (function() {
+		return setInterval( () => {
+			if( !this.lightRotationEnabled ) return;
+			
 			if( lightsMoving ) {
 				var lights = DeepFreezer.thaw(this.renderer.lights);
 				if( lights["primary"] != null ) {
@@ -171,7 +214,7 @@ class ShapeSheetDemo {
 				++f;
 			}
 			renderer.requestCanvasUpdate();
-		}).bind(this), 1000 / 60);
+		}, 1000 / 60);
 	};
 
 	public startLavaLamp() {
@@ -180,7 +223,9 @@ class ShapeSheetDemo {
 		let vx = 1, vy = 1, vrad = 0;
 		let ang = 0;
 		let i = 0;
-		return setInterval((function() {
+		return setInterval(() => {
+			if( !this.lavaLampEnabled ) return;
+			
 			const util:ShapeSheetUtil = this.shapeSheetUtil;
 			const renderer:ShapeSheetRenderer = util.renderer;
 			const ss:ShapeSheet = this.shapeSheet;
@@ -207,7 +252,7 @@ class ShapeSheetDemo {
 			vrad += Math.random()-0.5;
 			if( Math.abs(vrad) > 1 ) vrad *= 0.5;
 
-			if( this.shifting ) util.shiftZ(1);
+			if( this.zShiftingEnabled ) util.shiftZ(1);
 			var vMag = Math.sqrt(vx*vx + vy*vy);
 			var aheadX = vx / vMag, aheadY = vy / vMag;
 			var sideX  = aheadY   , sideY = -aheadX;
@@ -216,7 +261,7 @@ class ShapeSheetDemo {
 			var cos = Math.cos(ang);
 			var plotX = x + sin * sideX * loopRad;
 			var plotY = plotY = y + sin * sideY * loopRad;
-			var plotZ = 0 + cos * loopRad - (this.shifting ? 0 : i);
+			var plotZ = 0 + cos * loopRad - (this.zShiftingEnabled ? 0 : i);
 			
 			util.plotSphere(plotX, plotY, plotZ, rad);
 			/*
@@ -232,13 +277,15 @@ class ShapeSheetDemo {
 			
 			ang += Math.PI / 16;
 			++i;
-		}).bind(this), 10);
+		}, 10);
 	};
-
+	
 	public startLightning() {
 		var bolts = {lightning0:-Infinity, lightning1:-Infinity, lightning2:-Infinity};
-		var lights = {};
-		setInterval( (function() {
+		var lights:KeyedList<DirectionalLight> = {};
+		setInterval( () => {
+			if( !this.lightningEnabled ) return;
+			
 			var i, level;
 			for( i in bolts ) {
 				level = bolts[i];
@@ -273,7 +320,7 @@ class ShapeSheetDemo {
 				}
 			}
 			this.renderer.putLights(lights);
-		}).bind(this), 10);
+		}, 10);
 	};
 }
 

@@ -1,8 +1,17 @@
 <?php
 
-function config_from_env(array $defaults, array $input=array()) {
+function config_from_env(array $properties, array $input=array()) {
 	$config = array();
-	foreach( $defaults as $k=>$default ) {
+	foreach( $properties as $k=>$prop ) {
+		if( !is_array($prop) ) {
+			$prop = [
+				'valueType' => gettype($prop),
+				'defaultValue' => $prop,
+				'affects' => 'pageGeneration',
+			];
+		}
+		
+		$default = $prop['defaultValue'];
 		$shouldBeBool = is_bool($default);
 		
 		if( isset($_REQUEST[$k]) ) $config[$k] = $_REQUEST[$k];
