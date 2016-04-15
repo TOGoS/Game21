@@ -116,30 +116,40 @@ declare namespace Object {
 }
 
 export default class ShapeSheetRenderer {
-	public shapeSheet:ShapeSheet;
+	// Intrinsic properties
+	/** Don't change!  Create a new renderer instead!
+	 * I mean maybe you could if dimensions match, but why. */
+	protected _shapeSheet:ShapeSheet;
 	public canvas:HTMLCanvasElement;
-	public shadowsEnabled:boolean;
-	public shaders:Array<Shader>;
-	public updatingDepthRectangles:Array<Rectangle>;
-	public updatingColorRectangles:Array<Rectangle>;
-	public updatingCanvasRectangles:Array<Rectangle>;
-	public showUpdateRectangles:boolean;
-	public canvasUpdateCount:number;
-	public shadowDistanceOverride:number;
 	
+	// Configuration
+	public shadowsEnabled:boolean = true;
+	public shaders:Array<Shader> = [];
+	public updateRectanglesVisible:boolean = false;
+	protected _shadowDistanceOverride:number = null;
 	protected _materials:Array<Material>;
 	protected _lights:KeyedList<DirectionalLight>;
-	protected canvasUpdateRequested:boolean;
-	protected maxShadowDistance:number;
-	
+
+	// Cached information
 	public cellCoverages:Uint8Array;
 	public cellAverageDepths:Float32Array;
 	public cellNormals:Float32Array;
 	public cellColors:Float32Array;
 	public minimumAverageDepth:number;
+	protected maxShadowDistance:number = Infinity;
+	
+	// Update state
+	protected canvasUpdateRequested:boolean = false;
+	// TODO: these should probably be protected?
+	public updatingDepthRectangles:Array<Rectangle> = [];
+	public updatingColorRectangles:Array<Rectangle> = [];
+	public updatingCanvasRectangles:Array<Rectangle> = [];
+	
+	// Debugging info
+	public canvasUpdateCount:number = 0;
 	
 	constructor(shapeSheet:ShapeSheet, canvas:HTMLCanvasElement) {
-		this.shapeSheet = shapeSheet;
+		this._shapeSheet = shapeSheet;
 		
 		const cellCount = shapeSheet.area;
 		this.cellCoverages       = new Uint8Array(cellCount); // coverage based on depth; 0,1,2,3,4 (divide by 4.0 to get opacity factor)
@@ -148,14 +158,6 @@ export default class ShapeSheetRenderer {
 		this.cellColors          = new Float32Array(cellCount*4); // r,g,b,a of each cell after shading
 		
 		this.canvas = canvas;
-		this.shadowsEnabled = true;
-		this.shaders = [];
-		this.updatingDepthRectangles  = []; // Tracks rectangles that need to have calculateCellDepthDerivedData called
-		this.updatingColorRectangles  = []; // Tracks rectangles that need to have calculateCellColors called
-		this.updatingCanvasRectangles = []; // Tracks rectangles that need to be copied to the canvas
-		this.maxShadowDistance = Infinity;
-		this.showUpdateRectangles = false;
-		this.canvasUpdateCount = 0;
 		
 		// Need to set these last because setting them
 		// may rely on other things being initialized
@@ -169,6 +171,8 @@ export default class ShapeSheetRenderer {
 		
 		this.dataUpdated(this.shapeSheet.bounds, true, true);
 	};
+	
+	get shapeSheet():ShapeSheet { return this._shapeSheet; }
 	
 	get materials() {
 		return this._materials;
@@ -185,6 +189,17 @@ export default class ShapeSheetRenderer {
 		this._lights = DeepFreezer.deepFreeze(lights);
 		this.lightsUpdated();
 	};
+	
+	get shadowDistanceOverride() { return this._shadowDistanceOverride; }
+	set shadowDistanceOverride(sdo:number) {
+		if( sdo === undefined ) sdo = null;
+		if( sdo !== null && typeof(sdo) != 'number' ) {
+			throw new Error("Non-number provided for shadowDistanceOverride: "+JSON.stringify(sdo));
+		}
+		if( this._shadowDistanceOverride === sdo ) return; // no-op!
+		this._shadowDistanceOverride = sdo;
+		this.lightsUpdated();
+	}
 
 	/**
 	 * Slightly more efficient method for updating some lights
@@ -333,7 +348,7 @@ export default class ShapeSheetRenderer {
 			for( l in lights ) {
 				light = lights[l];
 				var dotProd = -(normalX*light.direction.x + normalY*light.direction.y + normalZ*light.direction.z);
-				const shadowDistance = this.shadowDistanceOverride != null ? this.shadowDistanceOverride : light.shadowDistance;
+				const shadowDistance = this._shadowDistanceOverride != null ? this._shadowDistanceOverride : light.shadowDistance;
 				let shadist = shadowDistance; // Distance to end of where we care
 				if( dotProd > 0 ) {
 					var diffuseAmt = dotProd; // Yep, that's how you calculate it.
@@ -380,7 +395,7 @@ export default class ShapeSheetRenderer {
 		for( s in this.shaders ) {
 			this.shaders[s](this, region);
 		}
-		if( this.showUpdateRectangles ) {
+		if( this.updateRectanglesVisible ) {
 			var fullb = 0.25;
 			var halfb = 0.125;
 			for( x=minX, i=width*minY+x; x<maxX; ++x, ++i ) {
@@ -446,7 +461,7 @@ export default class ShapeSheetRenderer {
 				imgDataData[idi*4+3] = cellColors[bi*4+3] * 255;
 			}
 		}
-		if( this.showUpdateRectangles ) {
+		if( this.updateRectanglesVisible ) {
 			imgDataData[0+0] = 255;
 			imgDataData[0+2] = 255;
 			imgDataData[(w*h*4)-4] = 255;
@@ -492,18 +507,22 @@ export default class ShapeSheetRenderer {
 			this.updatingCanvasRectangles = addToUpdateRectangleList(this.updatingCanvasRectangles, region);
 		}
 	};
-
+	
 	protected lightsUpdated():void {
-		this.maxShadowDistance = 0;
-		for( const l in this._lights ) {
-			var light = this._lights[l];
-			this.maxShadowDistance = Math.max(light.shadowDistance, this.maxShadowDistance);
+		// Recalculate max shadow distance
+		if( this._shadowDistanceOverride != null ) {
+			this.maxShadowDistance = this._shadowDistanceOverride;
+		} else {
+			this.maxShadowDistance = 0;
+			for( const l in this._lights ) {
+				var light = this._lights[l];
+				this.maxShadowDistance = Math.max(light.shadowDistance, this.maxShadowDistance);
+			}
 		}
-		if( this.shadowDistanceOverride != null ) {
-			this.maxShadowDistance = this.shadowDistanceOverride;
-		}
+		
+		// And invalidate everything
 		this.dataUpdated(this.shapeSheet.bounds, false, true);
-	};
+	}
 	
 	protected materialsUpdated():void {
 		this.dataUpdated(this.shapeSheet.bounds, false, true);
