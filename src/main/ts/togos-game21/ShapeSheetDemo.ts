@@ -80,7 +80,8 @@ class ShapeSheetDemo {
 	public buildDensityFunctionDemoShapes() {
 		const w = this.shapeSheet.width;
 		const h = this.shapeSheet.height;
-		const plotX = w/2, plotY = h/2, plotZ = 0, rad = w / 4; 
+		var nsize = Math.max(64, Math.min(w, h));
+		const plotX = w/2, plotY = h/2, plotZ = 0, rad = nsize/4;
 		
 		const simplex = new SimplexNoise(Math.random);
 		
@@ -88,7 +89,7 @@ class ShapeSheetDemo {
 			const dx = x-plotX, dy = y-plotY, dz = z-plotZ;
 			//return simplex.noise3d(x/rad,y/rad,z/rad) * 1;
 			const sr = this.simplexScale * rad;
-			return rad - Math.sqrt(dx*dx+dy*dy+dz*dz) + simplex.noise3d(x/sr, y/sr, z/sr) * sr;
+			return rad - Math.sqrt(dx*dx+dy*dy+dz*dz) + ((sr == 0) ? 0 : simplex.noise3d(x/sr, y/sr, z/sr) * sr);
 		});
 		
 		const grain = (x,y,z) => {
@@ -104,7 +105,9 @@ class ShapeSheetDemo {
 			const grainIdx = (grain(x,y,z) * 4)|0;
 			return z + ((grainIdx) == 0 ? +0.3 : 0);
 		};
-		this.shapeSheetUtil.plotDensityFunction(df, new Cuboid(plotX-rad*2, plotY-rad*2, plotZ-rad*2, plotX+rad*2, plotY+rad*2, plotZ+rad*2), 20);
+		const smallBounds = new Cuboid(plotX-rad*2, plotY-rad*2, plotZ-rad*2, plotX+rad*2, plotY+rad*2, plotZ+rad*2);
+		const fullBounds = new Cuboid(0, 0, plotZ-rad*4, w, h, +plotZ+rad*4);
+		this.shapeSheetUtil.plotDensityFunction(df, fullBounds, 20);
 	}	
 	
 	public buildPolygonDemoShapes() {
@@ -147,7 +150,7 @@ class ShapeSheetDemo {
 		//util.plotConvexPolygon( [32,16,0, 48,32,0, 32,48,0, 16,40,0, 16,24,0] );
 	};
 
-	public animateLights() {
+	public startLightRotation() {
 		var lightsMoving = true;
 		var renderer = this.renderer;
 		var f = 0;
@@ -171,7 +174,7 @@ class ShapeSheetDemo {
 		}).bind(this), 1000 / 60);
 	};
 
-	public animateLavaLamp() {
+	public startLavaLamp() {
 		const ss:ShapeSheet = this.shapeSheet;
 		let x = ss.width/2, y = ss.width/2, rad = Math.random()*ss.width/8;
 		let vx = 1, vy = 1, vrad = 0;
@@ -232,7 +235,7 @@ class ShapeSheetDemo {
 		}).bind(this), 10);
 	};
 
-	public animateLightning() {
+	public startLightning() {
 		var bolts = {lightning0:-Infinity, lightning1:-Infinity, lightning2:-Infinity};
 		var lights = {};
 		setInterval( (function() {
@@ -293,35 +296,17 @@ function parseNumber(s:string, defaultVal:number=null) {
 	return parseFloat(s);
 }
 
-function run() {
-	const canv = <HTMLCanvasElement>document.getElementById('shaded-preview-canvas');
-	
-	const demoMode = canv.dataset['demoMode'];
-	
+export function buildShapeDemo(canv:HTMLCanvasElement) {
 	const shapeSheet = new ShapeSheet(canv.width, canv.height);
 	const shapeSheetRenderer = new ShapeSheetRenderer(shapeSheet, canv);
 	shapeSheetRenderer.shaders.push(ShapeSheetRenderer.makeFogShader(0, new SurfaceColor(0, 0, 0, 0.01)));
-	shapeSheetRenderer.showUpdateRectangles = parseBool(canv.dataset['showUpdateRectangles'], false);
-	shapeSheetRenderer.shadowDistanceOverride = parseNumber(canv.dataset['shadowDistanceOverride'], null);
 	const shapeSheetUtil = new ShapeSheetUtil(shapeSheet, shapeSheetRenderer);
 	const shapeSheetDemo = new ShapeSheetDemo(shapeSheetUtil);
-	shapeSheetDemo.simplexScale = parseNumber(canv.dataset['simplexScale'], 1);
-	shapeSheetDemo.shifting = demoMode == 'shiftingLavaLamp';
-	//shapeSheetDemo.buildPolygonDemo();
-	//shapeSheetDemo.buildStandardDemoShapes();
-	shapeSheetDemo.buildDensityFunctionDemoShapes();
-	if( parseBool(canv.dataset['lightRotationEnabled']) ) shapeSheetDemo.animateLights();
-	//shapeSheetDemo.animateLavaLamp();
-	if( parseBool(canv.dataset['lightningEnabled']) ) shapeSheetDemo.animateLightning();
 	
 	const fpsUpdater = new FPSUpdater(function() { return shapeSheetRenderer.canvasUpdateCount; }, document.getElementById('fps-counter').firstChild );
 	fpsUpdater.start();
 	
-	window.shapeSheet = shapeSheet;
-	window.shapeSheetUtil = shapeSheetUtil;
-	window.shapeSheetDemo = shapeSheetDemo;
+	return shapeSheetDemo;
 }
-
-run();
 
 export default ShapeSheetDemo;

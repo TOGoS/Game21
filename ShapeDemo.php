@@ -18,6 +18,7 @@ require_once 'lib.php';
 $demoConfigDefaults = [
 	'mode' => 'editor',
 	'title' => 'Blobs!',
+	'grainSize' => 10,
 	'simplexScale' => 1,
 	'inlineResources' => false,
 	'width' => 96,
@@ -26,7 +27,8 @@ $demoConfigDefaults = [
 	'shapeViewMaxHeight' => 384,
 	'showUpdateRectangles' => false,
 	'shadowDistanceOverride' => '',
-	'demoMode' => 'shiftingLavaLamp',
+	'zShiftingEnabled' => true,
+	'lavaLampEnabled' => true,
 	'lightningEnabled' => true,
 	'lightRotationEnabled' => true,
 ];
@@ -49,9 +51,14 @@ html, body {
 	margin: 0;
 	box-sizing: border-box;
 }
-.preview-region {
-	width: 100%;
+.main-content {
 	height: 100%;
+	margin: 0;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+}
+.preview-region {
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -59,6 +66,35 @@ html, body {
 canvas.shape-view {
 	image-rendering: -moz-crisp-edges;
 	image-rendering: pixelated;
+}
+.adjustment-form {
+	color: silver;
+}
+.adjustment-form input[type="text"] {
+	border: 1px inset rgb(128,64,64);
+	background: rgb(64,0,0);
+	color: white;
+}
+.adjustment-form input[type="submit"] {
+	border: 1px outset darkgray;
+	background: darkgray;
+	color: rgb(64,0,0);
+	font-weight: bold;
+	text-shadow: 0px +1px rgba(255,255,255,0.5), 0px -1px rgba(0,0,0,0.5);
+}
+
+.adjustment-form .parameters {
+	display: table;
+}
+.adjustment-form .parameters > div {
+	display: table-row;
+}
+.adjustment-form .parameters > div > * {
+	display: table-cell;
+}
+.adjustment-form .parameters > div > *:first-child {
+	display: table-cell;
+	padding-right: 10px;
 }
 </style>
 <title><?php eht($title); ?></title>
@@ -69,39 +105,53 @@ canvas.shape-view {
 
 <p style="position:fixed; color:white">FPS: <span id="fps-counter">&nbsp;</span></p>
 
+<div class="main-content">
 <div class="preview-region">
-<canvas id="shaded-preview-canvas" class="shape-view"
+<canvas id="demo-canvas" class="shape-view"
   width="<?php eht($width); ?>" height="<?php eht($height); ?>"
-  data-show-update-rectangles="<?php eht($showUpdateRectangles); ?>"
-  data-shadow-distance-override="<?php eht($shadowDistanceOverride); ?>"
-  data-simplex-scale="<?php eht($simplexScale); ?>"
-  data-demo-mode="<?php eht($demoMode); ?>"
-  data-lightning-enabled="<?php eht($lightningEnabled); ?>"
-  data-light-rotation-enabled="<?php eht($lightRotationEnabled); ?>"
   style="width: <?php eht($shapeViewWidth); ?>px; height: <?php eht($shapeViewHeight); ?>px"
 ></canvas>
 </div>
 
-<?php require_game21_js_libs($inlineResources);; ?>
-<script type="text/javascript">
-	require(['togos-game21/ShapeSheetDemo'], function(ShapeSheetDemo) { });
-</script>
-
-<form name="adjustment-form" id="adjustment-form">
-<label>Grain size</label><input type="text" value="10" name="grainSize" title="grain width"/><br />
-<label>Simplex scale</label><input type="text" value="1" name="simplexScale" title="simplex scale"/><br />
+<form name="adjustment-form" id="adjustment-form" class="adjustment-form">
+<div class="parameters">
+<div><label>Grain size</label>   <input type="text" value="<?php eht($grainSize); ?>" name="grainSize" title="grain width"/></div>
+<div><label>Simplex scale</label><input type="text" value="<?php eht($simplexScale); ?>" name="simplexScale" title="simplex scale"/></div>
+</div>
 <input type="submit" value="Regenerate"/>
 </form>
+</div>
 
+<?php require_game21_js_libs($inlineResources);; ?>
 <script type="text/javascript">
-	var adjForm = document.getElementById('adjustment-form');
-	adjForm.addEventListener('submit', function(evt) {
-		evt.preventDefault();
-		shapeSheetDemo.grainSize = parseFloat(adjForm.grainSize.value);
-		shapeSheetDemo.simplexScale = parseFloat(adjForm.simplexScale.value);
-		shapeSheetDemo.shapeSheet.initBuffer();
-		shapeSheetDemo.buildDensityFunctionDemoShapes();
+	require(['togos-game21/ShapeSheetDemo'], function(_ShapeSheetDemo) {
+		var canv = document.getElementById('demo-canvas')
+		var shapeSheetDemo = _ShapeSheetDemo.buildShapeDemo(canv);
+		var adjForm = document.getElementById('adjustment-form');
+		
+		var regenerate = function() {
+			shapeSheetDemo.grainSize = parseFloat(adjForm.grainSize.value);
+			shapeSheetDemo.simplexScale = parseFloat(adjForm.simplexScale.value);
+			shapeSheetDemo.shapeSheet.initBuffer();
+			shapeSheetDemo.buildDensityFunctionDemoShapes();
+		};
+		
+		adjForm.addEventListener('submit', function(evt) {
+			evt.preventDefault();
+			regenerate();
+		});
+		
+		shapeSheetDemo.shifting = <?php ejsv($zShiftingEnabled); ?>;
+		
+		regenerate();
+		if( <?php ejsv($lightRotationEnabled); ?> ) shapeSheetDemo.startLightRotation();
+		if( <?php ejsv($lavaLampEnabled); ?> ) shapeSheetDemo.startLavaLamp();
+		if( <?php ejsv($lightningEnabled); ?> ) shapeSheetDemo.startLightning();
+		shapeSheetDemo.renderer.shadowDistanceOverride = <?php ejsv($shadowDistanceOverride); ?>;
+		shapeSheetDemo.renderer.showUpdateRectangles = <?php ejsv($showUpdateRectangles); ?>;
 	});
+</script>
+<script type="text/javascript">
 </script>
 
 <?php if($lightningEnabled): ?>
