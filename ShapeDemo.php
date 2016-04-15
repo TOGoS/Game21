@@ -20,8 +20,8 @@ $demoConfigDefaults = [
 	'title' => 'Blobs!',
 	'simplexScale' => 1,
 	'inlineResources' => false,
-	'width' => 128,
-	'height' => 64,
+	'width' => 96,
+	'height' => 96,
 	'shapeViewMaxWidth' => 768,
 	'shapeViewMaxHeight' => 384,
 	'showUpdateRectangles' => false,
@@ -85,6 +85,23 @@ canvas.shape-view {
 <?php require_game21_js_libs($inlineResources);; ?>
 <script type="text/javascript">
 	require(['togos-game21/ShapeSheetDemo'], function(ShapeSheetDemo) { });
+</script>
+
+<form name="adjustment-form" id="adjustment-form">
+<label>Grain size</label><input type="text" value="10" name="grainSize" title="grain width"/><br />
+<label>Simplex scale</label><input type="text" value="1" name="simplexScale" title="simplex scale"/><br />
+<input type="submit" value="Regenerate"/>
+</form>
+
+<script type="text/javascript">
+	var adjForm = document.getElementById('adjustment-form');
+	adjForm.addEventListener('submit', function(evt) {
+		evt.preventDefault();
+		shapeSheetDemo.grainSize = parseFloat(adjForm.grainSize.value);
+		shapeSheetDemo.simplexScale = parseFloat(adjForm.simplexScale.value);
+		shapeSheetDemo.shapeSheet.initBuffer();
+		shapeSheetDemo.buildDensityFunctionDemoShapes();
+	});
 </script>
 
 <?php if($lightningEnabled): ?>

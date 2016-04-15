@@ -3,8 +3,10 @@ const LARGE_NUMBER = 1000;
 import Vector3D from './Vector3D';
 import Curve from './Curve';
 import Rectangle from './Rectangle';
+import Cuboid from './Cuboid';
 import ShapeSheet from './ShapeSheet';
 import ShapeSheetRenderer from './ShapeSheetRenderer';
+import DensityFunction3D from './DensityFunction3D';
 import PlotMode from './PlotMode';
 
 // For slicing stuff, which maybe doesn't really belong here
@@ -47,6 +49,19 @@ function disto( x0:number, y0:number, z0:number, x1:number, y1:number, z1:number
 };
 
 export const NOOP_PLOTTED_DEPTH_FUNCTION = (x,y,z) => z;
+
+const dfDestVectorBuffer = new Vector3D;
+const dfStartVectorBuffer = new Vector3D;
+
+const findSurfaceZ = function( df:DensityFunction3D, x:number, y:number, z0:number, z1:number=Infinity, maxIterations:number=10 ):number {
+	if( df(x,y,z0) > 0 ) return z0;
+	dfStartVectorBuffer.set(x,y,z0);
+	const v = df.findValue(dfStartVectorBuffer, Vector3D.K, 0, dfDestVectorBuffer, maxIterations);
+	if( v === Infinity || v === -Infinity ) {
+		return Infinity;
+	}
+	return dfDestVectorBuffer.z;
+}
 
 class ShapeSheetUtil {
 	protected _shapeSheet:ShapeSheet;
@@ -468,6 +483,33 @@ class ShapeSheetUtil {
 		plotFunc.call( this, v.x, v.y, v.z, r1 );
 		this._plotCurveSegment( curve, r0, r1, 0, 1, plotFunc, v );
 	};
+	
+	plotDensityFunction( df:DensityFunction3D, boundingCuboid:Cuboid, maxIterations:number=10 ):void {
+		// TODO: Support transformations somehow so the function doesn't have to do it?
+		// Will also want to support those for depth and material plotting functions...
+		const minX = Math.floor(boundingCuboid.minX)|0;
+		const minY = Math.floor(boundingCuboid.minY)|0;
+		const maxX = Math.ceil(boundingCuboid.maxX)|0;
+		const maxY = Math.ceil(boundingCuboid.maxY)|0;
+		const minZ = boundingCuboid.minZ;
+		const maxZ = boundingCuboid.maxZ;
+		const cornerDepths = new Float32Array(4*maxX-minX);
+		let z0:number, z1:number, z2:number, z3:number;
+		for( let y=minY; y<maxY; ++y ) {
+			z0 = findSurfaceZ(df, minX+0, y+0, minZ, maxZ, maxIterations);
+			z2 = findSurfaceZ(df, minX+0, y+1, minZ, maxZ, maxIterations);
+			for( let x=minX; x<maxX; ++x ) {
+				z1 = findSurfaceZ(df, x+1, y+0, minZ, maxZ, maxIterations);
+				z3 = findSurfaceZ(df, x+1, y+1, minZ, maxZ, maxIterations);
+				
+				this.plotPixel(x, y, z0, z1, z2, z3);
+				
+				z0 = z1;
+				z2 = z3;
+			}
+		}
+		this.dataUpdated(new Rectangle(minX, minY, maxX, maxY));
+	}
 	
 	//// Cropping functions
 	

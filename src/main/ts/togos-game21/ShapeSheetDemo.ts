@@ -1,11 +1,13 @@
 import DeepFreezer from './DeepFreezer';
 import Vector3D from './Vector3D';
+import Cuboid from './Cuboid';
 import LightColor from './LightColor';
 import ShapeSheet from './ShapeSheet';
 import DirectionalLight from './DirectionalLight';
 import ShapeSheetRenderer from './ShapeSheetRenderer';
 import ShapeSheetUtil, {NOOP_PLOTTED_DEPTH_FUNCTION} from './ShapeSheetUtil';
 import SimplexNoise from '../SimplexNoise';
+import DensityFunction3D, {makeDensityFunction} from './DensityFunction3D';
 
 class ShapeSheetDemo {
 	public shapeSheetUtil:ShapeSheetUtil;
@@ -20,7 +22,7 @@ class ShapeSheetDemo {
 	get shapeSheet() { return this.shapeSheetUtil.shapeSheet; }
 	get renderer() { return this.shapeSheetUtil.renderer; }
 
-	public buildDemo() {
+	public buildStandardDemoShapes() {
 		var util = this.shapeSheetUtil;
 
 		var width = util.shapeSheet.width;
@@ -72,8 +74,40 @@ class ShapeSheetDemo {
 		util.plotSphere(42, 36, 10, 10);
 		util.plotSphere(42, 14, 24, 10);
 	};
-
-	public buildPolygonDemo() {
+	
+	public grainSize:number = 10;
+	
+	public buildDensityFunctionDemoShapes() {
+		const w = this.shapeSheet.width;
+		const h = this.shapeSheet.height;
+		const plotX = w/2, plotY = h/2, plotZ = 0, rad = w / 4; 
+		
+		const simplex = new SimplexNoise(Math.random);
+		
+		const df:DensityFunction3D = makeDensityFunction( (x,y,z) => {
+			const dx = x-plotX, dy = y-plotY, dz = z-plotZ;
+			//return simplex.noise3d(x/rad,y/rad,z/rad) * 1;
+			const sr = this.simplexScale * rad;
+			return rad - Math.sqrt(dx*dx+dy*dy+dz*dz) + simplex.noise3d(x/sr, y/sr, z/sr) * sr;
+		});
+		
+		const grain = (x,y,z) => {
+			const xDiv = this.grainSize * 40;
+			const v = simplex.noise3d(40 + x/xDiv, y/xDiv, z/xDiv)*40;
+			return v - Math.floor(v);
+		}
+		
+		this.shapeSheetUtil.plottedMaterialIndexFunction = (x,y,z) => {
+			return 4 + (grain(x,y,z) * 4)|0;
+		};
+		this.shapeSheetUtil.plottedDepthFunction = (x,y,z) => {
+			const grainIdx = (grain(x,y,z) * 4)|0;
+			return z + ((grainIdx) == 0 ? +0.3 : 0);
+		};
+		this.shapeSheetUtil.plotDensityFunction(df, new Cuboid(plotX-rad*2, plotY-rad*2, plotZ-rad*2, plotX+rad*2, plotY+rad*2, plotZ+rad*2), 20);
+	}	
+	
+	public buildPolygonDemoShapes() {
 		var util = this.shapeSheetUtil;
 		var width = util.shapeSheet.width;
 		var height = util.shapeSheet.height;
@@ -138,17 +172,17 @@ class ShapeSheetDemo {
 	};
 
 	public animateLavaLamp() {
-		var ss = this.shapeSheet;
-		var x = ss.width/2, y = ss.width/2, rad = Math.random()*ss.width/8;
-		var vx = 1, vy = 1, vrad = 0;
-		var ang = 0;
-		var i = 0;
+		const ss:ShapeSheet = this.shapeSheet;
+		let x = ss.width/2, y = ss.width/2, rad = Math.random()*ss.width/8;
+		let vx = 1, vy = 1, vrad = 0;
+		let ang = 0;
+		let i = 0;
 		return setInterval((function() {
-			var util = this.shapeSheetUtil;
-			var renderer = util.renderer;
-			var ss = this.shapeSheet;
-			var width = ss.width;
-			var height = ss.height;
+			const util:ShapeSheetUtil = this.shapeSheetUtil;
+			const renderer:ShapeSheetRenderer = util.renderer;
+			const ss:ShapeSheet = this.shapeSheet;
+			const width:number = ss.width;
+			const height:number = ss.height;
 			
 			rad = Math.abs(rad + vrad);
 			if( rad <  4 ) { rad = 4; vrad = +1; }
@@ -182,6 +216,14 @@ class ShapeSheetDemo {
 			var plotZ = 0 + cos * loopRad - (this.shifting ? 0 : i);
 			
 			util.plotSphere(plotX, plotY, plotZ, rad);
+			/*
+			const df:DensityFunction3D = makeDensityFunction( (x,y,z) => {
+				const dx = x-plotX, dy = y-plotY, dz = z-plotZ;
+				return rad - Math.sqrt(dx*dx+dy*dy+dz*dz) + simplex.noise3d(x/10,y/10,z/10);
+			});
+			
+			util.plotDensityFunction(df, new Cuboid(plotX-rad*2, plotY-rad*2, plotZ-rad*2, plotX+rad*2, plotY+rad*2, plotZ+rad*2));
+			*/
 			
 			renderer.requestCanvasUpdate();
 			
@@ -266,9 +308,10 @@ function run() {
 	shapeSheetDemo.simplexScale = parseNumber(canv.dataset['simplexScale'], 1);
 	shapeSheetDemo.shifting = demoMode == 'shiftingLavaLamp';
 	//shapeSheetDemo.buildPolygonDemo();
-	shapeSheetDemo.buildDemo();
+	//shapeSheetDemo.buildStandardDemoShapes();
+	shapeSheetDemo.buildDensityFunctionDemoShapes();
 	if( parseBool(canv.dataset['lightRotationEnabled']) ) shapeSheetDemo.animateLights();
-	shapeSheetDemo.animateLavaLamp();
+	//shapeSheetDemo.animateLavaLamp();
 	if( parseBool(canv.dataset['lightningEnabled']) ) shapeSheetDemo.animateLightning();
 	
 	const fpsUpdater = new FPSUpdater(function() { return shapeSheetRenderer.canvasUpdateCount; }, document.getElementById('fps-counter').firstChild );
