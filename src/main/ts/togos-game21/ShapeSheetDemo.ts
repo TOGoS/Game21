@@ -41,6 +41,7 @@ class ShapeSheetDemo {
 	// Shape generation parameters
 	public grainSize:number=10;
 	public simplexScale:number=1;
+	public simplexOctaves:number=1;
 	
 	// Animation parameters
 	public lightRotationEnabled:boolean = true;
@@ -125,12 +126,18 @@ class ShapeSheetDemo {
 		const plotX = w/2, plotY = h/2, plotZ = 0, rad = nsize/4;
 		
 		const simplex = new SimplexNoise(Math.random);
+		const simplexOctaves = this.simplexOctaves;
 		
 		const df:DensityFunction3D = makeDensityFunction( (x,y,z) => {
 			const dx = x-plotX, dy = y-plotY, dz = z-plotZ;
 			//return simplex.noise3d(x/rad,y/rad,z/rad) * 1;
 			const sr = this.simplexScale * rad;
-			return rad - Math.sqrt(dx*dx+dy*dy+dz*dz) + ((sr == 0) ? 0 : simplex.noise3d(x/sr, y/sr, z/sr) * sr);
+			let noise = 0;
+			for( let o=0; o < simplexOctaves; ++o ) {
+				let oScale = 1<<o;
+				noise += simplex.noise3d(x*oScale/sr, y*oScale/sr, z*oScale/sr) / oScale
+			}
+			return rad - Math.sqrt(dx*dx+dy*dy+dz*dz) + ((sr == 0) ? 0 : noise * sr);
 		});
 		
 		const grain = (x,y,z) => {

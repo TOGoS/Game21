@@ -65,6 +65,13 @@ $configProperties = [
 		'comment' => 'Scale of simplex noise-based features.',
 		'affects' => 'shapeGeneration',
 	],
+	'simplexOctaves' => [
+		'valueType' => 'number',
+		'defaultValue' => 1,
+		'title' => 'simplex octaves',
+		'comment' => 'Number of levels of simplex noise (higher = more detail).',
+		'affects' => 'shapeGeneration',
+	],
 	
 	# Rendering
 	'shadowDistanceOverride' => [
