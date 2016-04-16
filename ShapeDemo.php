@@ -257,6 +257,9 @@ canvas.shape-view {
 </form>
 </div>
 
+<audio id="thunder-audio"  autoplay="autoplay" loop="loop" volume="<?php $lightningEnabled ? 1 : 0; ?>"
+	src="http://music-files.nuke24.net/uri-res/raw/urn:sha1:BK32QIASOGQD4AE5BV36GDO7JDBDDS7T/thunder.mp3" type="audio/mpeg"/>
+
 <?php require_game21_js_libs($inlineResources);; ?>
 <script type="text/javascript">
 	require(['togos-game21/ShapeSheetDemo'], function(_ShapeSheetDemo) {
@@ -319,17 +322,20 @@ foreach($configProperties as $name=>$paramInfo)
 		shapeSheetDemo.shifting = <?php ejsv($zShiftingEnabled); ?>;
 		
 		regenerate();
-		shapeSheetDemo.startLightRotation();
+		shapeSheetDemo.startLightAnimation();
 		shapeSheetDemo.startLavaLamp();
-		shapeSheetDemo.startLightning();
+		let thunderAudio = document.getElementById('thunder-audio');
+		shapeSheetDemo.on('lightTick', () => {
+			if( shapeSheetDemo.lightningEnabled && thunderAudio.volume < 1 ) {
+				thunderAudio.volume += 1/256;
+			} else if( !shapeSheetDemo.lightningEnabled && thunderAudio.volume > 0 ) {
+				thunderAudio.volume -= 1/256;
+			}
+		})
 	});
 </script>
 <script type="text/javascript">
 </script>
-
-<?php if($lightningEnabled): ?>
-<audio src="http://music-files.nuke24.net/uri-res/raw/urn:sha1:BK32QIASOGQD4AE5BV36GDO7JDBDDS7T/thunder.mp3" type="audio/mpeg" autoplay="autoplay" loop="loop"/>
-<?php endif; ?>
 
 </body>
 </html>

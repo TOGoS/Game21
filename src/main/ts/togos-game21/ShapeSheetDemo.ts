@@ -190,16 +190,31 @@ class ShapeSheetDemo {
 		
 		//util.plotConvexPolygon( [32,16,0, 48,32,0, 32,48,0, 16,40,0, 16,24,0] );
 	};
-
-	public startLightRotation() {
-		var lightsMoving = true;
+	
+	protected eventHandlers:KeyedList<Array<()=>void>> = {};
+	public on(eventName:string, handler:()=>void):void {
+		if( this.eventHandlers[eventName] == null ) {
+			this.eventHandlers[eventName] = [];
+		}
+		this.eventHandlers[eventName].push(handler);
+	}
+	protected triggerEventHandler(eventName:string):void {
+		if( this.eventHandlers[eventName] == null ) return;
+		for( let i in this.eventHandlers[eventName] ) {
+			(this.eventHandlers[eventName][i])();
+		}
+	}
+	
+	public startLightAnimation() {
 		var renderer = this.renderer;
+		var bolts = {lightning0:-Infinity, lightning1:-Infinity, lightning2:-Infinity};
+		
 		var f = 0;
 		return setInterval( () => {
-			if( !this.lightRotationEnabled ) return;
+			let lights = this.renderer.lights;
 			
-			if( lightsMoving ) {
-				var lights = DeepFreezer.thaw(this.renderer.lights);
+			if( this.lightRotationEnabled ) {
+				lights = DeepFreezer.thaw(lights);
 				if( lights["primary"] != null ) {
 					lights["primary"] = new DirectionalLight(
 						new Vector3D(+Math.sin(f*0.01), 0.8, +Math.cos(f*0.01)),
@@ -213,6 +228,49 @@ class ShapeSheetDemo {
 				renderer.lights = lights;
 				++f;
 			}
+			
+			if( this.lightningEnabled ) {
+				var i, level;
+				for( i in bolts ) {
+					level = bolts[i];
+					if( level === -Infinity ) {
+						if( Math.random() < 0.01 ) {
+							level = 1;
+							bolts[i] = Math.random();
+							lights = DeepFreezer.thaw(lights);
+							lights[i] = DirectionalLight.createFrom({
+								direction: new Vector3D(Math.random()-0.5, Math.random()-0.5, Math.random()-0.5),
+								color: new LightColor(level,level,level),
+								shadowFuzz: 0.5,
+								minimumShadowLight: 0.1
+							});
+						}
+					} else {
+						if( Math.random() < 0.1 ) {
+							level *= 2;
+						} else {
+							level *= Math.random();
+						}
+						if( level < 0.001 ) {
+							bolts[i] = -Infinity;
+							lights = DeepFreezer.thaw(lights);
+							delete lights[i];
+						} else {
+							if( lights[i] == null ) {
+								console.log("Somehow lights["+i+"] doesn't exist; can't update lightning.", lights);
+								continue;
+							}
+							lights = DeepFreezer.thaw(lights);
+							lights[i] = new DirectionalLight( lights[i].direction, new LightColor(level,level,level), lights[i] );
+							bolts[i] = level;
+						}
+					}
+				}
+			}
+			
+			this.renderer.lights = lights;
+			
+			this.triggerEventHandler('lightTick');
 			renderer.requestCanvasUpdate();
 		}, 1000 / 60);
 	};
@@ -277,49 +335,6 @@ class ShapeSheetDemo {
 			
 			ang += Math.PI / 16;
 			++i;
-		}, 10);
-	};
-	
-	public startLightning() {
-		var bolts = {lightning0:-Infinity, lightning1:-Infinity, lightning2:-Infinity};
-		var lights:KeyedList<DirectionalLight> = {};
-		setInterval( () => {
-			if( !this.lightningEnabled ) return;
-			
-			var i, level;
-			for( i in bolts ) {
-				level = bolts[i];
-				if( level === -Infinity ) {
-					if( Math.random() < 0.01 ) {
-						level = 1;
-						bolts[i] = Math.random();
-						lights[i] = DirectionalLight.createFrom({
-							direction: new Vector3D(Math.random()-0.5, Math.random()-0.5, Math.random()-0.5),
-							color: new LightColor(level,level,level),
-							shadowFuzz: 0.5,
-							minimumShadowLight: 0.1
-						});
-					}
-				} else {
-					if( Math.random() < 0.1 ) {
-						level *= 2;
-					} else {
-						level *= Math.random();
-					}
-					if( level < 0.001 ) {
-						bolts[i] = -Infinity;
-						delete lights[i];
-					} else {
-						if( lights[i] == null ) {
-							console.log("Somehow lights["+i+"] doesn't exist; can't update lightning.", lights);
-							continue;
-						}
-						lights[i] = new DirectionalLight( lights[i].direction, new LightColor(level,level,level), lights[i] );
-						bolts[i] = level;
-					}
-				}
-			}
-			this.renderer.putLights(lights);
 		}, 10);
 	};
 }
