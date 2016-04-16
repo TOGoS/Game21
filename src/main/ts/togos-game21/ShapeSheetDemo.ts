@@ -42,6 +42,8 @@ class ShapeSheetDemo {
 	public grainSize:number=10;
 	public simplexScale:number=1;
 	public simplexOctaves:number=1;
+	public densityFunctionIterations:number=20;
+	protected _densityFunctionStartZ:number=null;
 	
 	// Animation parameters
 	public lightRotationEnabled:boolean = true;
@@ -65,7 +67,10 @@ class ShapeSheetDemo {
 	set shadowDistanceOverride(sdo) {
 		this.renderer.shadowDistanceOverride = betterParseNumber(sdo, 0);
 	}
-
+	
+	get densityFunctionStartZ() { return this._densityFunctionStartZ; }
+	set densityFunctionStartZ(z) { this._densityFunctionStartZ = betterParseNumber(z, null); }
+	
 	public buildStandardDemoShapes() {
 		var util = this.shapeSheetUtil;
 
@@ -126,12 +131,12 @@ class ShapeSheetDemo {
 		const plotX = w/2, plotY = h/2, plotZ = 0, rad = nsize/4;
 		
 		const simplex = new SimplexNoise(Math.random);
-		const simplexOctaves = this.simplexOctaves;
+		const simplexOctaves = +this.simplexOctaves;
 		
 		const df:DensityFunction3D = makeDensityFunction( (x,y,z) => {
 			const dx = x-plotX, dy = y-plotY, dz = z-plotZ;
 			//return simplex.noise3d(x/rad,y/rad,z/rad) * 1;
-			const sr = this.simplexScale * rad;
+			const sr = +this.simplexScale * rad;
 			let noise = 0;
 			for( let o=0; o < simplexOctaves; ++o ) {
 				let oScale = 1<<o;
@@ -153,9 +158,10 @@ class ShapeSheetDemo {
 			const grainIdx = (grain(x,y,z) * 4)|0;
 			return z + ((grainIdx) == 0 ? +0.3 : 0);
 		};
+		const frontCutoff = this._densityFunctionStartZ == null ? plotZ-rad*4 : this._densityFunctionStartZ;
 		const smallBounds = new Cuboid(plotX-rad*2, plotY-rad*2, plotZ-rad*2, plotX+rad*2, plotY+rad*2, plotZ+rad*2);
-		const fullBounds = new Cuboid(0, 0, plotZ-rad*4, w, h, +plotZ+rad*4);
-		this.shapeSheetUtil.plotDensityFunction(df, fullBounds, 20);
+		const fullBounds = new Cuboid(0, 0, frontCutoff, w, h, +plotZ+rad*4);
+		this.shapeSheetUtil.plotDensityFunction(df, fullBounds, +this.densityFunctionIterations);
 	}	
 	
 	public buildPolygonDemoShapes() {

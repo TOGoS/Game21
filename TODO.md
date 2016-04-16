@@ -1,3 +1,7 @@
+ShapeDemo:
+- Indicate regenerating with icon, maybe use web worker?
+- Button to randomize lights
+
 Boring code stuff:
 - noImplicitAny: true
 - noImplicitReturns: true

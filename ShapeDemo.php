@@ -72,6 +72,20 @@ $configProperties = [
 		'comment' => 'Number of levels of simplex noise (higher = more detail).',
 		'affects' => 'shapeGeneration',
 	],
+	'densityFunctionIterations' => [
+		'valueType' => 'number',
+		'defaultValue' => 20,
+		'title' => 'density function iterations',
+		'comment' => 'Number of iterations to do while solving density functions.',
+		'affects' => 'shapeGeneration',
+	],
+	'densityFunctionStartZ' => [
+		'valueType' => 'number',
+		'defaultValue' => '',
+		'title' => 'density function start Z',
+		'comment' => 'Z position from which to start tracing density functions (leave empty to guess based on size of thing).',
+		'affects' => 'shapeGeneration',
+	],
 	
 	# Rendering
 	'shadowDistanceOverride' => [
