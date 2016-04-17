@@ -81,7 +81,7 @@ $configProperties = [
 	],
 	'densityFunctionStartZ' => [
 		'valueType' => 'number',
-		'defaultValue' => '',
+		'defaultValue' => null,
 		'title' => 'density function start Z',
 		'comment' => 'Z position from which to start tracing density functions (leave empty to guess based on size of thing).',
 		'affects' => 'shapeGeneration',
@@ -125,30 +125,10 @@ $configProperties = [
 	],
 ];
 
-/*
-$configDefaults = [
-	'title' => 'Blobs!',
-	'grainSize' => 2,
-	'simplexScale' => 1,
-	'inlineResources' => false,
-	'width' => 192,
-	'height' => 96,
-	'shapeViewMaxWidth' => 768,
-	'shapeViewMaxHeight' => 384,
-	'updateRectanglesVisible' => false,
-	'shadowDistanceOverride' => 30,
-	'zShiftingEnabled' => true,
-	'lavaLampEnabled' => true,
-	'lightningEnabled' => true,
-	'lightRotationEnabled' => true,
-];
-*/
-
 $config = config_from_env($configProperties, $config);
 extract($config, EXTR_SKIP|EXTR_REFS);
 
 list($shapeViewWidth, $shapeViewHeight) = fitpar($shapeViewMaxWidth, $shapeViewMaxHeight, $width, $height);
-
 
 $outputParamField = function($paramInfo) use ($config) {
 	$name = $paramInfo['name'];
@@ -240,7 +220,7 @@ canvas.shape-view {
 </head>
 <body>
 
-<!-- Demo config: <?php echo json_encode($config, JSON_PRETTY_PRINT); ?> -->
+<!-- Config: <?php echo json_encode($config, JSON_PRETTY_PRINT); ?> -->
 
 <p style="position:fixed; color:white">FPS: <span id="fps-counter">&nbsp;</span></p>
 
@@ -288,19 +268,37 @@ canvas.shape-view {
 		var shapeSheetDemo = _ShapeSheetDemo.buildShapeDemo(canv);
 		var regenForm = document.getElementById('regeneration-form');
 		
-		var regenerate = function() {
-<?php
-foreach($configProperties as $name=>$paramInfo)
-	if($paramInfo['affects'] == 'shapeGeneration') {
-		echo "\t\t", "shapeSheetDemo.{$name} = ";
-		if( $paramInfo['valueType'] == 'boolean' ) {
-			echo "regenForm.{$name}.checked";
-		} else {
-			echo "parseFloat(regenForm.{$name}.value)";
+		var configProperties = <?php echo str_replace("\n","\n\t\t", json_encode($configProperties, JSON_PRETTY_PRINT)); ?>;
+		
+		var parseConfigProp = function(value, name) {
+			var prop = configProperties[name];
+			if( prop == null ) {
+				throw new Error("No such config property: "+name);
+				return value; // whatever!
+			} else if( prop.valueType == 'number' ) {
+				return _ShapeSheetDemo.betterParseNumber(value, prop.defaulValue);
+			} else if( prop.valueType == 'boolean' ) {
+				return _ShapeSheetDemo.betterParseBoolean(value, prop.defaulValue);
+			} else if( prop.valueType == 'string' ) {
+				return ""+value;
+			} else {
+				throw new Error("Unrecognized config property value type: "+prop.valueType);
+			}
 		}
-		echo ";\n";
-}
-?>
+		
+		var updateValueFromFormElement = function(input) {
+			var newValue = input.type == 'checkbox' ? input.checked : input.value;
+			shapeSheetDemo[input.name] = parseConfigProp(newValue, input.name);
+		};
+		
+		var regenerate = function() {
+			for( var name in configProperties ) {
+				var propInfo = configProperties[name];
+				if( propInfo.affects === 'shapeGeneration' ) {
+					var input = regenForm[name];
+					if( input != null ) updateValueFromFormElement(input);
+				}
+			}
 			shapeSheetDemo.shapeSheet.initBuffer();
 			shapeSheetDemo.buildDensityFunctionDemoShapes();
 		};
@@ -316,28 +314,12 @@ foreach($configProperties as $name=>$paramInfo)
 		});
 		for( var e=0; e < renderForm.elements.length; ++e ) (function(){
 			var input = renderForm.elements.item(e);
-			var setVal = function(newValue) {
-				var oldValue = shapeSheetDemo[input.name];
-				if( typeof(oldValue) == 'number' ) {
-					// Otherwise things that should be numbers go in as strings
-					// and cause all sorts of chaos and it's awful.
-					if( typeof(newValue) === 'string' ) {
-						newValue = newValue.trim();
-						if( newValue === '' ) newValue = 0;
-					}
-					newValue = parseFloat(newValue);
-				}
-				shapeSheetDemo[input.name] = newValue;
-			};
-			var updateVal = function() {
-				var newValue = input.type == 'checkbox' ? input.checked : input.value;
-				setVal(newValue);
-			};
+			if( !input.name ) return;
 			input.addEventListener('change', function(evt) {
-				updateVal();
+				updateValueFromFormElement(input);
 			});
 			// Do it now, too.
-			updateVal();
+			updateValueFromFormElement(input);
 		})();
 		
 		shapeSheetDemo.shifting = <?php ejsv($zShiftingEnabled); ?>;

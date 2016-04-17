@@ -10,7 +10,7 @@ import ShapeSheetUtil, {NOOP_PLOTTED_DEPTH_FUNCTION} from './ShapeSheetUtil';
 import SimplexNoise from '../SimplexNoise';
 import DensityFunction3D, {makeDensityFunction} from './DensityFunction3D';
 
-function betterParseNumber(n, emptyValue=0) {
+export function betterParseNumber(n, emptyValue=0) {
 	if( n == null ) return null;
 	if( typeof(n) == 'number' ) return n;
 	if( typeof(n) == 'string' ) {
@@ -21,7 +21,7 @@ function betterParseNumber(n, emptyValue=0) {
 	throw new Error("Don't know how to parse "+typeof(n)+" as number");
 }
 
-function betterParseBoolean(n, emptyValue=false) {
+export function betterParseBoolean(n, emptyValue=false) {
 	if( n == null ) return null;
 	if( typeof(n) == 'boolean' ) return n;
 	if( typeof(n) == 'number' ) return n > 0;
@@ -43,7 +43,7 @@ class ShapeSheetDemo {
 	public simplexScale:number=1;
 	public simplexOctaves:number=1;
 	public densityFunctionIterations:number=20;
-	protected _densityFunctionStartZ:number=null;
+	protected densityFunctionStartZ:number=null;
 	
 	// Animation parameters
 	public lightRotationEnabled:boolean = true;
@@ -60,16 +60,14 @@ class ShapeSheetDemo {
 	get renderer() { return this.shapeSheetUtil.renderer; }
 	
 	get updateRectanglesVisible() { return this.renderer.updateRectanglesVisible; }
-	set updateRectanglesVisible(d) {
-		this.renderer.updateRectanglesVisible = betterParseBoolean(d);
-	}
+	set updateRectanglesVisible(d:boolean) { this.renderer.updateRectanglesVisible = d; }
 	get shadowDistanceOverride() { return this.renderer.shadowDistanceOverride; }
-	set shadowDistanceOverride(sdo) {
-		this.renderer.shadowDistanceOverride = betterParseNumber(sdo, 0);
-	}
+	set shadowDistanceOverride(sdo:number) { this.renderer.shadowDistanceOverride = sdo; }
 	
+	/*
 	get densityFunctionStartZ() { return this._densityFunctionStartZ; }
 	set densityFunctionStartZ(z) { this._densityFunctionStartZ = betterParseNumber(z, null); }
+	*/
 	
 	public buildStandardDemoShapes() {
 		var util = this.shapeSheetUtil;
@@ -158,7 +156,7 @@ class ShapeSheetDemo {
 			const grainIdx = (grain(x,y,z) * 4)|0;
 			return z + ((grainIdx) == 0 ? +0.3 : 0);
 		};
-		const frontCutoff = this._densityFunctionStartZ == null ? plotZ-rad*4 : this._densityFunctionStartZ;
+		const frontCutoff:number = this.densityFunctionStartZ == null ? plotZ-rad*4 : this.densityFunctionStartZ;
 		const smallBounds = new Cuboid(plotX-rad*2, plotY-rad*2, plotZ-rad*2, plotX+rad*2, plotY+rad*2, plotZ+rad*2);
 		const fullBounds = new Cuboid(0, 0, frontCutoff, w, h, +plotZ+rad*4);
 		this.shapeSheetUtil.plotDensityFunction(df, fullBounds, +this.densityFunctionIterations);
@@ -354,22 +352,6 @@ class ShapeSheetDemo {
 
 import SurfaceColor from './SurfaceColor';
 import FPSUpdater from './FPSUpdater';
-declare var window:any;
-
-function parseBool(s:string, defaultVal:boolean=null) {
-	if( s == '' || s == null ) return defaultVal;
-	s = s.toLowerCase();
-	switch( s ) {
-	case '1': case 'yes': case 'y': case 't': case 'true': case 'on' : return true;
-	case '0': case 'no': case 'n': case 'f': case 'false': case 'off': return false;
-	}
-	throw new Error("Failed to parse '"+s+"' as boolean");
-}
-
-function parseNumber(s:string, defaultVal:number=null) {
-	if( s == '' || s == null ) return defaultVal;
-	return parseFloat(s);
-}
 
 export function buildShapeDemo(canv:HTMLCanvasElement) {
 	const shapeSheet = new ShapeSheet(canv.width, canv.height);
