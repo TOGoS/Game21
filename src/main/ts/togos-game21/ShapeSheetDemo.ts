@@ -216,6 +216,22 @@ class ShapeSheetDemo {
 		}
 	}
 	
+	public randomizeLights() {
+		var lights = DeepFreezer.thaw(this.renderer.lights);
+		lights["primary"] = new DirectionalLight(
+			new Vector3D(Math.random()-0.5, Math.random()-0.5, Math.random()-0.5),
+			new LightColor(Math.random()*1.5, Math.random()*1.5, Math.random()*1.5),
+			lights["glow"]
+		);
+		lights["glow"] = new DirectionalLight(
+			new Vector3D(Math.random()-0.5, Math.random()-0.5, Math.random()-0.5),
+			new LightColor(Math.random(), Math.random(), Math.random()),
+			lights["glow"]
+		);
+		this.renderer.lights = lights;
+		this.renderer.requestCanvasUpdate();
+	}
+	
 	public startLightAnimation() {
 		var renderer = this.renderer;
 		var bolts = {lightning0:-Infinity, lightning1:-Infinity, lightning2:-Infinity};

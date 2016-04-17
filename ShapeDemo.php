@@ -194,7 +194,7 @@ canvas.shape-view {
 	background: rgb(64,0,0);
 	color: white;
 }
-.adjustment-form input[type="submit"] {
+.adjustment-form input[type="submit"], .adjustment-form button {
 	border: 1px outset darkgray;
 	background: darkgray;
 	color: rgb(64,0,0);
@@ -248,6 +248,7 @@ canvas.shape-view {
 <div class="parameters">
 <?php $outputParamFieldsAffecting( $configProperties, 'rendering' ); ?>
 </div>
+<button id="randomize-lights-button" type="button">Randomize lights</button>
 </fieldset>
 <fieldset>
 <legend>Animation Parameters</legend>
@@ -321,7 +322,9 @@ canvas.shape-view {
 			updateValueFromFormElement(input);
 		})();
 		
-		shapeSheetDemo.shifting = <?php ejsv($zShiftingEnabled); ?>;
+		document.getElementById('randomize-lights-button').addEventListener('click', function() {
+			shapeSheetDemo.randomizeLights();
+		});
 		
 		regenerate();
 		shapeSheetDemo.startLightAnimation();
