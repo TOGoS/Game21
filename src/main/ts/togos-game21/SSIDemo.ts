@@ -51,7 +51,7 @@ export default class SSIDemo {
 		};
 		const r = Math.random();
 		if( r < 0.1 ) {
-			const size = 2+Math.random()*30;
+			const size = Math.max(1, 2+Math.random()*30);
 			this.ssu.plotSphere( this.centerX, this.centerY, 0, size );
 		} else if( r < 0.5 ) {
 			const bevel = Math.random() * 8;
