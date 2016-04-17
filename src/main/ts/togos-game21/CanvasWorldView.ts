@@ -16,6 +16,13 @@ import Rectangle from './Rectangle';
 // It needs rewriting or just straight up deleting.
 // But I wanted to make it work again because it seemed easier that starting over.
 
+
+/*
+class ImageManager {
+	public getImage(sss:ImageSlice<ShapeSheet> )
+}
+*/
+
 class Slicer {
 	public lights:KeyedList<DirectionalLight> = DEFAULT_LIGHTS;
 	public materials:Array<Material> = DEFAULT_MATERIALS;

@@ -568,14 +568,14 @@ class ShapeSheetUtil {
 	}
 	
 	public static proceduralShapeToShapeSheet( ps:ProceduralShape, xf:TransformationMatrix3D ):ImageSlice<ShapeSheet> {
-		const bounds = ps.estimateOuterBounds(xf).growToIntegerBoundaries();
+		const bounds = ps.estimateOuterBounds(0.5, xf).growToIntegerBoundaries();
 		const origin:Vector3D = new Vector3D(
 			-bounds.minX
 			-bounds.minY,
 			0);
 		const ss = new ShapeSheet(bounds.width, bounds.height);
 		const ssu = new ShapeSheetUtil(ss);
-		ps.draw( ssu, TransformationMatrix3D.multiply(TransformationMatrix3D.translation(origin), xf) );
+		ps.draw( ssu, 0.5, TransformationMatrix3D.translation(origin).multiply(xf) );
 		return this.autocrop(new ImageSlice<ShapeSheet>(ss, origin, xf.scale, bounds));
 	}
 };

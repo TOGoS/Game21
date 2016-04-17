@@ -28,6 +28,7 @@ class 'material' {
 }
 
 class 'material map' : extends(map(uint8, UUID reference(material)))
+class 'material remap' : extends(map(uint8, unint8))
 
 class 'shape sheet' {
 	width : uint
@@ -52,14 +53,6 @@ class 'shape sheet shape' {
 	bounds : pixel rectangle
 }
 
-abstract class 'object visual' : comment @ unindent @ «
-	An 'object visual' is a somewhat abstract notion of 'the way this thing looks'.
-	A single visual can be used to visualize the same object in multiple states.
-	e.g. a character walking might reference a single visual, but look
-	slightly different in different positions and in different walking frames.
-	Visual is also ind
-»
-
 class 'shape sheet slice' {
 	shape sheet : shape sheet
 	origin : 3D vector
@@ -67,24 +60,39 @@ class 'shape sheet slice' {
 	bounds : pixel rectangle
 }
 
-class 'shape sheet animation' {
+class 'object visual frame' {
+	visual basis type @ ("shape sheet"|"procedural")
+	material remap : material remap
+	shape : (procedural shape | shape sheet slice) 
+}
+
+class 'animation' : type parameter @ "frame type" {
 	speed : number : comment @ "frames per second"
 	on end : ('stop'|'loop')
-	frames : list(shape sheet slice)
+	frames : list(frame type)
 }
 
 class 'state applicability flag' : extends(symbol)
 
-class 'shape sheet object visual state' {
+class 'object visual state' {
 	shape sheet shape : UUID reference(shape sheet shape)
 	# Map of flags to their preferred values;
 	# the state with the most matching flags is the one used
 	applicability flags : map(state applicability flag, scalar)
 	
-	animation : shape sheet animation
+	animation : animation(frame type @ object visual frame)
 }
 
-class 'shape object object visual' : extends(object visual) {
+class 'object visual' : comment @ unindent @ «
+	An 'object visual' is a somewhat abstract notion of 'the way this thing looks'.
+	A single visual can be used to visualize the same object in multiple states.
+	e.g. a character walking might reference a single visual, but look
+	slightly different in different positions and in different walking frames.
+	Each 'state' is itself an animation with multiple frames,
+	and a single animation frame may itself be an animated procedural shape
+	that can render itself at multiple time points within that animation
+	frame.
+» {
 	material map : UUID reference(material map)
 	states : set(shape sheet object visual state)
 }

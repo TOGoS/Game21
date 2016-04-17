@@ -1,3 +1,4 @@
+import DeepFreezer from './DeepFreezer';
 import SurfaceColor from './SurfaceColor';
 import Material from './Material';
 
@@ -89,3 +90,14 @@ export const DEFAULT_MATERIALS:Array<Material> = [
 	}
 ];
 fillOutMaterialMap(DEFAULT_MATERIALS);
+
+export const IDENTITY_MATERIAL_REMAP:Uint8Array = new Uint8Array(256);
+for( let i=0; i<256; ++i ) IDENTITY_MATERIAL_REMAP[i] = i;
+DeepFreezer.deepFreeze(IDENTITY_MATERIAL_REMAP);
+
+export function remap(map:Array<Material>, remap:Uint8Array, dest:Array<Material>=new Array<Material>(MATERIAL_MAP_SIZE)):Array<Material> {
+	for( let i=0; i<MATERIAL_MAP_SIZE; ++i ) {
+		map[i] = map[remap[i]];
+	}
+	return dest;
+}
