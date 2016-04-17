@@ -1,7 +1,7 @@
 <?php
 
 // If rp's not set, assume we're in the demos/ directory.
-if( !isset($rp) ) $rp = '../';
+if( !isset($rp) ) $rp = '..';
 
 function config_from_env(array $properties, array $input=array()) {
 	$config = array();

@@ -149,7 +149,7 @@ I use a drop-in replacement for RequireJS to load the compiled JavaScript.</p>
 		setTimeout(generateRowTimeout);
 	}
 	
-	require(['SSIDemo', 'Materials'], function(_SSIDemo, _Materials) {
+	require(['togos-game21/SSIDemo', 'togos-game21/Materials'], function(_SSIDemo, _Materials) {
 		SSIDemo = _SSIDemo.default;
 		ssiDemo = new SSIDemo();
 		materialsPackage = _Materials;
