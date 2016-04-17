@@ -1,5 +1,8 @@
 <?php
 
+// If rp's not set, assume we're in the demos/ directory.
+if( !isset($rp) ) $rp = '../';
+
 function config_from_env(array $properties, array $input=array()) {
 	$config = array();
 	foreach( $properties as $k=>$prop ) {
@@ -69,7 +72,8 @@ function require_js($files, $inline=false, $extraProps=array()) {
 };
 
 function require_game21_js_libs( $inline=false ) {
-	require_js(['fakerequire.js', 'target/game21libs.amd.es5.js'], $inline);
+	global $rp;
+	require_js([$rp.'/fakerequire.js', $rp.'/target/game21libs.amd.es5.js'], $inline);
 }
 
 function parse_bool($b, $emptyValue=false) {

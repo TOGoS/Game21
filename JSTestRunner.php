@@ -1,5 +1,5 @@
 <?php
-	require_once 'lib.php';
+	require_once ($rp = '.').'/demos/lib.php';
 	
 	if( !isset($title) ) $title = "JS Tests";
 	if( !isset($inlineResources) ) $inlineResources = false;

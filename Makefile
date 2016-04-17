@@ -8,10 +8,10 @@ all_js_files = $(shell find -name '*.js') ${generated_js_files}
 node := node
 tsc := ${node} node_modules/typescript/bin/tsc
 
-default: ShapeDemo.html target/cjs
+default: demos/ShapeDemo.html target/cjs
 
 sortaclean:
-	rm -rf ${generated_js_files} ShapeDemo.html ShapeDemo.html.urn
+	rm -rf ${generated_js_files} demos/ShapeDemo.html demos/ShapeDemo.html.urn
 
 clean: sortaclean
 	rm -rf node_modules
@@ -24,19 +24,18 @@ clean: sortaclean
 	default \
 	publish-demo
 
-ShapeDemo.html: $(shell find -name '*.php') target/game21libs.amd.es5.js
+demos/ShapeDemo.html: $(shell find -name '*.php') target/game21libs.amd.es5.js
 	php ShapeDemo.php --inline-resources shadowDistanceOverride=Infinity >"$@"
 
-ShapeDemo.html.urn: ShapeDemo.html
+%.urn: %
 	ccouch id "$<" >"$@"
-	echo $$(cat "$@")' # '$$(date) >> ShapeDemo.html.urn.log
+	echo $$(cat "$@")' # '$$(date) >> "$<".urn.log
 
-ShapeDemo.html.url: ShapeDemo.html.urn
-	echo "http://picture-files.nuke24.net/uri-res/raw/$$(cat "$<")/ShapeDemo.html" > "$@"
+%.url: % %.urn
+	echo "http://picture-files.nuke24.net/uri-res/raw/$$(cat "$<".urn)/$<.html" > "$@"
+	publish -sector pictures "$<"
 
-publish-demo: ShapeDemo.html ShapeDemo.html.urn ShapeDemo.html.url
-	cat ShapeDemo.html.url
-	publish -sector build "$<"
+publish-demo: demos/ShapeDemo.html.url
 
 node_modules: package.json
 	npm install

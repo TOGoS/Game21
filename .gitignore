@@ -1,10 +1,8 @@
 /node_modules
-/RailDemo.html
 /JSTestRunner.html
-/ShapeDemo.html
-/ShapeDemo.html.urn
-/ShapeDemo.html.url
-/SSIDemo.html
+/demos/*.html
+/demos/*.html.urn
+/demos/*.html.url
 /target
 /game21libs.amd.es5.js
 /game21libs.amd.es5.js.map
