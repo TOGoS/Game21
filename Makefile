@@ -11,7 +11,7 @@ tsc := ${node} node_modules/typescript/bin/tsc
 default: demos/ShapeDemo.html target/cjs
 
 sortaclean:
-	rm -rf ${generated_js_files} demos/ShapeDemo.html demos/ShapeDemo.html.urn
+	rm -rf ${generated_js_files} demos/*.html demos/*.html.urn demos/*.url
 
 clean: sortaclean
 	rm -rf node_modules
@@ -24,15 +24,15 @@ clean: sortaclean
 	default \
 	publish-demo
 
-demos/ShapeDemo.html: $(shell find -name '*.php') target/game21libs.amd.es5.js
-	php ShapeDemo.php --inline-resources shadowDistanceOverride=Infinity >"$@"
+demos/%.html: demos/%.php $(shell find -name '*.php') target/game21libs.amd.es5.js
+	cd demos && php "../$<" --inline-resources >"../$@"
 
-%.urn: %
-	ccouch id "$<" >"$@"
+%.urn: % Makefile
+	ccouch3 id "$<" >"$@"
 	echo $$(cat "$@")' # '$$(date) >> "$<".urn.log
 
-%.url: % %.urn
-	echo "http://picture-files.nuke24.net/uri-res/raw/$$(cat "$<".urn)/$<.html" > "$@"
+%.url: % %.urn Makefile
+	echo "http://picture-files.nuke24.net/uri-res/raw/$$(cat "$<".urn)/$(notdir $<)" > "$@"
 	publish -sector pictures "$<"
 
 publish-demo: demos/ShapeDemo.html.url

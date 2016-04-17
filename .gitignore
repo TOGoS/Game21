@@ -3,6 +3,7 @@
 /demos/*.html
 /demos/*.html.urn
 /demos/*.html.url
+!/demos/*.urn.log
 /target
 /game21libs.amd.es5.js
 /game21libs.amd.es5.js.map
