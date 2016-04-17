@@ -275,9 +275,9 @@ canvas.shape-view {
 			if( prop == null ) {
 				throw new Error("No such config property: "+name);
 			} else if( prop.valueType == 'number' ) {
-				return _ShapeSheetDemo.betterParseNumber(value, prop.defaulValue);
+				return _ShapeSheetDemo.betterParseNumber(value, prop.defaultValue);
 			} else if( prop.valueType == 'boolean' ) {
-				return _ShapeSheetDemo.betterParseBoolean(value, prop.defaulValue);
+				return _ShapeSheetDemo.betterParseBoolean(value, prop.defaultValue);
 			} else if( prop.valueType == 'string' ) {
 				return ""+value;
 			} else {
