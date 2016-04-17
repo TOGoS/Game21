@@ -1,12 +1,12 @@
 <?php
 
-$demoConfig = [];
+$config = [];
 
 if( isset($argv) ) for( $i=1; $i<count($argv); ++$i ) {
 	if( $argv[$i] == '--inline-resources' ) {
-		$demoConfig['inlineResources'] = true;
+		$config['inlineResources'] = true;
 	} else if( preg_match('/^(.*?)=(.*)$/', $argv[$i], $bif) ) {
-		$demoConfig[$bif[1]] = $bif[2];
+		$config[$bif[1]] = $bif[2];
 	} else {
 		fwrite(STDERR, "Unrecognized argument: {$argv[$i]}\n");
 		exit(1);
@@ -15,36 +15,16 @@ if( isset($argv) ) for( $i=1; $i<count($argv); ++$i ) {
 
 require_once 'lib.php';
 
-$demoConfigDefaults = [
-	'mode' => 'editor',
-	'title' => 'Shape Sheet Images!',
-	'inlineResources' => false,
-	'width' => 128,
-	'height' => 64,
-	'shapeViewMaxWidth' => 768,
-	'shapeViewMaxHeight' => 384,
-	'showUpdateRectangles' => false,
-	'shadowDistanceOverride' => '',
-	'demoMode' => 'shiftingLavaLamp',
-	'lightningEnabled' => true,
-	'lightRotationEnabled' => true,
+$configProperties = [
+	'inlineResources' => [
+		'valueType' => 'boolean',
+		'defaultValue' => false,
+		'affects' => 'pageGeneration',
+	],
 ];
 
-foreach( $demoConfigDefaults as $k=>$default ) {
-	if( isset($_REQUEST[$k]) ) $demoConfig[$k] = $_REQUEST[$k];
-	else if( isset($demoConfig[$k]) ) continue;
-	else if( is_callable($default) ) $demoConfig[$k] = call_user_func($default, $demoConfig);
-	else $demoConfig[$k] = $default;
-}
-
-foreach( $demoConfigDefaults as $k=>$_ ) {
-	$$k = $demoConfig[$k];
-}
-
-$showUpdateRectangles = parse_bool($showUpdateRectangles);
-$inlineResources = parse_bool($inlineResources);
-
-list($shapeViewWidth, $shapeViewHeight) = fitpar($shapeViewMaxWidth, $shapeViewMaxHeight, $width, $height);
+$config = config_from_env($configProperties, $config);
+extract($config, EXTR_SKIP|EXTR_REFS);
 
 ?>
 <!DOCTYPE html>
@@ -62,6 +42,7 @@ html, body {
 }
 /* Since { display: inline-flex; margin: auto } doesn't work like I expect, have a container. :P */
 .image-gallery-container {
+	min-height: 100%;
 	display: flex;
 	flex-direction: row;
 	justify-content: center;
@@ -84,42 +65,13 @@ html, body {
 	align-items: center;
 }
 </style>
-<title><?php eht($title); ?></title>
+<title>SSIDemo</title>
 </head>
 <body>
-
-<p>I've always wanted to be able to store generic 'shapes' and
-re-render them with different materials and different lighting
-conditions rather than have to decide on those things up front when
-hand-crafting graphics for a game.  None of my games so far have got
-to the point where graphics really matter all that much, but
-nonetheless the lack of such a system has bothered me to the point
-that I decided I needed to finally write it.</p>
-
-<p>If my JavaScript runs in your browser, this box should soon be filled with some randomly generated shapes:</p>
 
 <div class="image-gallery-container">
 <div class="image-gallery" id="image-gallery"></div>
 </div>
-
-<p>Reload the page to generate new ones.</p>
-
-<p>This system is based around objects called ShapeSheets, which are defined by
-a width*height array of material indexes,
-and a width*height*4 array of cell corner depths (a number for the depth of each corner).</p>
-
-<p>Material indexes are an integer 0-255.
-A mapping of material information is provided separately to the renderer
-so that a single shape can be rendered multiple different ways
-(a good example use case would be an object with indicator lights on it;
-you'll be able to re-use the same shape with the lights in different states
-or different colors).
-For now a material is only defined by a single diffuse color + opactity,
-but I intend to add support for multiple surface layers
-each with various other properties such as roughness and inherent brightness.</p>
-
-<p>This project's written in TypeScript, which is pretty nice.
-I use a drop-in replacement for RequireJS to load the compiled JavaScript.</p>
 
 <?php require_game21_js_libs($inlineResources); ?>
 <script type="text/javascript">
