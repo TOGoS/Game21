@@ -274,7 +274,6 @@ canvas.shape-view {
 			var prop = configProperties[name];
 			if( prop == null ) {
 				throw new Error("No such config property: "+name);
-				return value; // whatever!
 			} else if( prop.valueType == 'number' ) {
 				return _ShapeSheetDemo.betterParseNumber(value, prop.defaulValue);
 			} else if( prop.valueType == 'boolean' ) {
