@@ -39,6 +39,24 @@ const flagDiff = function(minFlags:number, num:number, maxFlags:number):number {
 	return diff;
 }
 
+declare function Symbol(name:string):symbol;
+
+const LAST_REQUESTED:symbol = Symbol("LAST_REQUESTED");
+
+interface LastRequestedCache {
+	flags : number;
+	animationLength : number;
+	animationPhase : number;
+	orientation : Quaternion;
+	resolution : number;
+	imageSlice : ImageSlice<HTMLImageElement>;
+}
+
+function phase( time:number, length:number ) {
+	const count = time/length;
+	return count - Math.floor(count);
+}
+
 export default class ObjectImageManager {
 	public resolution:number = 16;
 	protected lights = DEFAULT_LIGHTS;	
@@ -116,9 +134,7 @@ export default class ObjectImageManager {
 	 */
 	protected animationPhase<T>(animation:Animation<T>, time:number):number {
 		if( animation.length === Infinity ) return 0.5;
-		
-		const count = time / animation.length;
-		return count - Math.floor(count);
+		return phase(time, animation.length);
 	}
 	
 	protected frame<T>(animation:Animation<T>, t:number ):T {
@@ -132,9 +148,32 @@ export default class ObjectImageManager {
 		// TODO: Caching up the wazoo, at least for common cases (single state, identity orientation).
 		// this function's going to be called for each object for each frame, so it's gotta be fast
 		// and not do any real work or allocations 99% of the time.
+		
+		const lastRequested = <LastRequestedCache>visual[LAST_REQUESTED];
+		if(
+			lastRequested &&
+			(lastRequested.flags == null || lastRequested.flags == flags) &&
+			(lastRequested.animationPhase == null || lastRequested.animationPhase == phase(time, lastRequested.animationLength)) &&
+			Quaternion.areEqual(lastRequested.orientation, orientation) &&
+			lastRequested.resolution == preferredResolution
+		) {
+			return lastRequested.imageSlice
+		}
+		
+		// Still might check some other cache...
+		
 		const state = this.objectVisualState(visual, flags, orientation);
 		const frame = this.frame(state.animation, time);
 		const t = this.animationPhase(state.animation, time);
-		return this.frameToImageSlice(frame, remap(visual.materialMap, state.materialRemap), t, orientation, preferredResolution);
+		const imageSlice = this.frameToImageSlice(frame, remap(visual.materialMap, state.materialRemap), t, orientation, preferredResolution);
+		visual[LAST_REQUESTED] = <LastRequestedCache>{
+			flags: visual.states.length == 0 ? null : flags,
+			animationLength: state.animation.length,
+			animationPhase: state.animation.length == Infinity ? null : t,
+			orientation: orientation,
+			resolution: preferredResolution,
+			imageSlice: imageSlice
+		};
+		return imageSlice;
 	}
 }
