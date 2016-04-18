@@ -34,39 +34,26 @@ enum ObjectType {
 }
 
 interface PhysicalObject {
-	position:Vector3D; // Ignored for tiles
+	position:Vector3D; // Ignored (and should be null) for tiles/prototypes
 	
-	type:ObjectType,
+	type:ObjectType;
 	orientation:Quaternion;
 	visualRef:string;
-	boundingBox:Cuboid; // Relative to whatever position is
+	// Bounding boxes are relative to the object's position (whether indicated externally or internally)
+	physicalBoundingBox:Cuboid;
+	visualBoundingBox:Cuboid;
 	isAffectedByGravity:boolean;
 	isRigid:boolean;
 	stateFlags:number;
 }
 
-enum TileTreeNodeType {
-	BRANCH, // Children are more tree nodes
-	LEAF    // Children are physical objects
-}
-
-interface TileTreeNode {
-	isLeaf:boolean;
+interface TileTree extends PhysicalObject {
+	divisionBox:Cuboid; // The box that's divided; may be larger or smaller than the physical bounding box
 	xDivisions:number;
 	yDivisions:number;
 	zDivisions:number;
-	
-	/** Hash URNS of child nodes */
-	childNodeRefs:string[];
-	
-	/** Hash URN of object palette */
-	objectPaletteRef:string;
-	/** Indexes into object palette */
-	objectIndexes:Uint8Array;
-}
-
-interface TileTree extends PhysicalObject {
-	rootNodeRef:string;
+	childObjectPaletteRef:string;
+	childObjectIndexes:Uint8Array;
 }
 
 interface Room {
@@ -246,7 +233,8 @@ export default class CanvasWorldView {
 				isAffectedByGravity: false,
 				stateFlags: 0,
 				visualRef: crappyBlockVisualId,
-				boundingBox: new Cuboid(-0.5, -0.5, -0.5, 0.5, 0.5, 0.5)
+				physicalBoundingBox: new Cuboid(-0.5, -0.5, -0.5, 0.5, 0.5, 0.5),
+				visualBoundingBox: new Cuboid(-0.5, -0.5, -0.5, 0.5, 0.5, 0.5)
 			};
 		}
 		
