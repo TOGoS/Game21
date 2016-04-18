@@ -1,3 +1,7 @@
+Density function tracer:
+- Quit when exiting bounding rectangle
+- Only return 'hole' if value at the last point is more negative than any other encountered
+
 Boring code stuff:
 - noImplicitAny: true
 - noImplicitReturns: true

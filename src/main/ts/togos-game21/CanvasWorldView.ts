@@ -6,49 +6,134 @@ import DirectionalLight from './DirectionalLight';
 import KeyedList from './KeyedList';
 import Material from './Material';
 import Vector3D from './Vector3D';
+import Quaternion from './Quaternion';
+import TransformationMatrix3D from './TransformationMatrix3D';
+import Cuboid from './Cuboid';
+import ObjectVisual, {VisualBasisType} from './ObjectVisual';
+import Animation, {OnAnimationEnd} from './Animation';
+import ProceduralShape from './ProceduralShape';
 import ImageSlice from './ImageSlice';
+import ObjectImageManager from './ObjectImageManager';
 import {DEFAULT_LIGHTS} from './Lights';
-import {DEFAULT_MATERIALS} from './Materials';
+import {DEFAULT_MATERIALS, IDENTITY_MATERIAL_REMAP} from './Materials';
 import Rectangle from './Rectangle';
 
-// This is old code from before
-// a lof of things had been figured out.
-// It needs rewriting or just straight up deleting.
-// But I wanted to make it work again because it seemed easier that starting over.
-
-
-/*
-class ImageManager {
-	public getImage(sss:ImageSlice<ShapeSheet> )
+interface RoomNeighbor {
+	offset:Vector3D;
+	/**
+	 * The room's bounding box, relative to its offset.
+	 * This is duplicated from the room's own data.
+	 */
+	bounds:Cuboid;
+	roomId:string;
 }
-*/
 
-class Slicer {
-	public lights:KeyedList<DirectionalLight> = DEFAULT_LIGHTS;
-	public materials:Array<Material> = DEFAULT_MATERIALS;
+enum ObjectType {
+	TILE_TREE,
+	INDIVIDUAL
+}
+
+interface PhysicalObject {
+	position:Vector3D; // Ignored for tiles
 	
-	public slice( ss:ShapeSheet, x:number, y:number, w:number, h:number, flipX:boolean, rot:number ):ImageSlice<HTMLImageElement> {
-		const transformed:ShapeSheet = ShapeSheetTransforms.clone(ss, x, y, w, h, flipX, rot);
-		const image:HTMLImageElement = ShapeSheetRenderer.shapeSheetToImage( transformed, this.materials, this.lights );
-		return new ImageSlice<HTMLImageElement>( image, new Vector3D(w/2, h/2, w/2), 1, new Rectangle(0,0,w,h) );
+	type:ObjectType,
+	orientation:Quaternion;
+	visualRef:string;
+	boundingBox:Cuboid; // Relative to whatever position is
+	isAffectedByGravity:boolean;
+	isRigid:boolean;
+	stateFlags:number;
+}
+
+enum TileTreeNodeType {
+	BRANCH, // Children are more tree nodes
+	LEAF    // Children are physical objects
+}
+
+interface TileTreeNode {
+	isLeaf:boolean;
+	xDivisions:number;
+	yDivisions:number;
+	zDivisions:number;
+	
+	/** Hash URNS of child nodes */
+	childNodeRefs:string[];
+	
+	/** Hash URN of object palette */
+	objectPaletteRef:string;
+	/** Indexes into object palette */
+	objectIndexes:Uint8Array;
+}
+
+interface TileTree extends PhysicalObject {
+	rootNodeRef:string;
+}
+
+interface Room {
+	objects:KeyedList<PhysicalObject>;
+	neighbors:KeyedList<RoomNeighbor>;
+}
+
+interface Game {
+	objectVisuals: KeyedList<ObjectVisual>;
+	objectPrototypes: KeyedList<PhysicalObject>;
+	rooms: KeyedList<Room>;
+}
+
+const objectPosBuffer = new Vector3D;
+
+let lastNumber = 0;
+function newUuid() {
+	return "uuid:sux"+(++lastNumber);
+}
+
+function simpleObjectVisual( drawFunction:(ssu:ShapeSheetUtil, t:number, xf:TransformationMatrix3D )=>void ):ObjectVisual {
+	const shape:ProceduralShape = {
+		isAnimated: false,
+		estimateOuterBounds: (t:number, xf:TransformationMatrix3D) => {
+			let s = xf.scale;
+			return new Rectangle(-s*16, -s*16, s*16, s*16)
+		},
+		draw: drawFunction
+	}
+	
+	// TODO: Also use drawn bounds to generate object bounding box, etc
+	return {
+		materialMap: DEFAULT_MATERIALS,
+		states: [
+			{
+				orientation: Quaternion.IDENTITY,
+				applicabilityFlagsMax: 0xFFFFFFFF,
+				applicabilityFlagsMin: 0x00000000,
+				materialRemap: IDENTITY_MATERIAL_REMAP,
+				animation: {
+					length: Infinity,
+					onEnd: OnAnimationEnd.LOOP,
+					frames: [
+						{
+							visualBasisType: VisualBasisType.PROCEDURAL,
+							materialRemap: IDENTITY_MATERIAL_REMAP,
+							shape: shape
+						}
+					],
+				}
+			}
+		]
 	}
 }
 
-class Sprite {
-	public imageSlice:ImageSlice<HTMLImageElement>;
-	public x:number;
-	public y:number;
-	public z:number;
-}
-
-class CanvasWorldView {
+export default class CanvasWorldView {
 	protected canvas:HTMLCanvasElement;
-	protected sprites:Array<Sprite> = [];
+	protected objectImageManager:ObjectImageManager = new ObjectImageManager;
+	protected game:Game;
 	
-	public initUi(canvas) {
+	public initUi(canvas:HTMLCanvasElement) {
 		this.canvas = canvas;
+		this.canvasContext = canvas.getContext('2d');
 	};
-
+	
+	protected canvasContext:CanvasRenderingContext2D;
+	
 	protected drawSlice(slice:ImageSlice<HTMLImageElement>, ctx:CanvasRenderingContext2D, x:number, y:number, w:number, h:number) {
 		if( w == null ) w = slice.bounds.width;
 		if( h == null ) h = slice.bounds.height;
@@ -57,120 +142,112 @@ class CanvasWorldView {
 		
 		ctx.drawImage(slice.sheet, slice.bounds.minX, slice.bounds.minY, slice.bounds.width, slice.bounds.height, x, y, w, h);
 	};
-
-	protected drawFrame(time) {
-		var ctx = this.canvas.getContext("2d");
-		var focusScreenX = this.canvas.width / 2;
-		var focusScreenY = this.canvas.height / 2;
+	
+	protected drawObject( obj:PhysicalObject, pos:Vector3D, time:number ):void {
+		let visual = this.game.objectVisuals[obj.visualRef];
+		if( visual == null ) {
+			console.log("Object visual "+obj.visualRef+" not loaded; can't draw");
+			return;
+		}
 		
-		var x = 16*10 + Math.cos( time * 0.01 ) * 64;
-		var y = 16*10 + Math.sin( time * 0.01 ) * 64;
+		if( this.canvasContext == null ) return;
 		
-		var fogColor = [64,96,128,0.5]; // Last component is alpha per distance unit
-		ctx.fillStyle = 'rgb('+fogColor[0]+','+fogColor[1]+','+fogColor[2]+')';
-		ctx.fillRect(0,0,this.canvas.width, this.canvas.height);
+		const unitPpm = Math.min(this.canvas.width, this.canvas.height)/2; // Pixels per meter of a thing 1 meter away
+		if( pos.z <= 1 ) return;
+		const scale = unitPpm / pos.z;
+		const screenX = this.canvas.width/2 + scale * pos.x;
+		const screenY = this.canvas.height/2 + scale * pos.y;
+		const reso = 16; // TODO: Should depend on scale, but not just be scale; maybe largest **2 <= scale and <= 32?
 		
-		var i, d;
-		var dists = [10.0, 8.0, 6.0, 4.0, 3.0, 2.5, 2.0, 1.6, 1.3, 1.1, 1.0];
-		var dist, prevDist = null;
-		for( d=0; d < dists.length; ++d ) {
-			dist = dists[d];// + Math.sin(time * 0.015 );
-			
-			for( i=0; i < this.sprites.length; ++i ) {
-				var sprite = this.sprites[i];
-				var slice = sprite.imageSlice;
-				var screenX = focusScreenX + (sprite.x - x)/dist;
-				var screenY = focusScreenY + (sprite.y - y)/dist;
-				var sliceW = slice.bounds.width/dist;
-				var sliceH = slice.bounds.height/dist;
-				
-				this.drawSlice(slice, ctx, screenX|0, screenY|0, Math.ceil(sliceW)|0, Math.ceil(sliceH)|0);
-				//drawSlice(slice, ctx, screenX|0, screenY|0, sliceW, sliceH);
-				//drawSlice(slice, ctx, screenX, screenY, sliceW, sliceH);
+		const imgSlice = this.objectImageManager.objectVisualImage(visual, obj.stateFlags, time, obj.orientation, reso);
+		const pixScale = scale/imgSlice.resolution;
+		this.canvasContext.drawImage(
+			imgSlice.sheet,
+			imgSlice.bounds.minX, imgSlice.bounds.minY, imgSlice.bounds.width, imgSlice.bounds.height,
+			screenX - imgSlice.origin.x*pixScale, screenY - imgSlice.origin.y*pixScale, imgSlice.bounds.width*pixScale, imgSlice.bounds.height*pixScale
+		);
+	}
+	
+	protected drawRoom( room:Room, pos:Vector3D, time:number ):void {
+		for( let o in room.objects ) {
+			const obj = room.objects[o];
+			if( obj.type == ObjectType.INDIVIDUAL ) {
+				this.drawObject(obj, Vector3D.add(pos, obj.position, objectPosBuffer), time);
 			}
-			
-			if( prevDist !== null && dist > 1 ) {
-				// TODO: Better fog calculation
-				var fogLayerAlpha = Math.pow(fogColor[3], 1.0/(prevDist-dist));
-				ctx.fillStyle = 'rgba('+fogColor[0]+','+fogColor[1]+','+fogColor[2]+','+fogLayerAlpha+')';
-				ctx.fillRect(0,0,this.canvas.width,this.canvas.height);
-				//ctx.fillStyle = 'rgba(0,0,0,1)';
-			}
-			prevDist = dist;
 		}
 	}
-
-	protected animate() {
-		var requestAnimationCallback = (function() {
-			window.requestAnimationFrame(animationCallback);
-		});
-		var i = 0;
-		var fps = 0;
-		var animationCallback = (function() {
-			this.drawFrame(i++);
-			setTimeout(requestAnimationCallback, 1000 / 100);
-			++fps;
-		}).bind(this);
-		//setInterval(function() { console.log("FPS: "+fps); fps = 0; }, 1000);
-		
-		window.requestAnimationFrame(animationCallback);
-	};
-
-	protected runDemo() {
-		this.animate();
-	};
-	public runDemo2() {
-		var ss = new ShapeSheet(16,16);
-		var util = new ShapeSheetUtil(ss);
-		var slicer = new Slicer();
-		util.plotAABeveledCuboid( 0, 0, 0, 16, 16, 2 );
-		util.plotSphere(  4, 4, 0.5, 1.5 );
-		util.plotSphere(  8, 4, 0.5, 1.5 );
-		slicer.lights = {
-			"primary": DirectionalLight.createFrom({
-				direction: [1,2,1],
-				color: [0.3, 0.5, 0.5],
-				shadowFuzz: 0.3,
-				shadowDistance: 16
-			}),
-			"ambient": DirectionalLight.createFrom({
-				direction: [0,0,1],
-				color: [0.01, 0.01, 0.01],
-				shadowFuzz: 0.3,
-				shadowDistance: 16,
-			}),
-			"back": DirectionalLight.createFrom({
-				direction: [-2,-1,-1],
-				color: [0.06, 0.1, 0.08],
-				shadowFuzz: 0.3,
-				shadowDistance: 16,
-			})
+	
+	protected drawScene( roomId:string, pos:Vector3D, time:number ):void {
+		const room = this.game.rooms[roomId];
+		if( room == null ) {
+			console.log("Failed to load room "+roomId+"; can't draw it.")
+			return;
 		};
-		
-		var blockImages:Array<ImageSlice<HTMLImageElement>> = [];
-		var flipX, rot;
-		for( flipX=0; flipX < 2; ++flipX ) {
-			for( rot=0; rot < 360; rot+=90 ) {
-				blockImages.push(slicer.slice( ss, 0, 0, 16, 16, flipX == 1, rot ));
+		this.drawRoom(room, pos, time);
+		const neighborPos = new Vector3D;
+		for( let n in room.neighbors ) {
+			let neighbor = room.neighbors[n];
+			let neighborRoom = this.game.rooms[neighbor.roomId];
+			if( neighborRoom == null ) {
+				console.log("Failed to load neighbor room "+neighbor.roomId+"; can't draw it.");
+				continue;
 			}
+			this.drawRoom(neighborRoom, Vector3D.add(pos, neighbor.offset, neighborPos), time);
+		}
+	}
+	
+	protected makeCrappyGame():Game {
+		const crappyBlockVisualId = newUuid();
+		const crappyRoomId = newUuid();
+		const theMaterialMap = DEFAULT_MATERIALS;
+		const roomObjects:KeyedList<PhysicalObject> = {};
+		for( let i=0; i<10; ++i ) {
+			const objectId = newUuid();
+			roomObjects[objectId] = {
+				position: new Vector3D((Math.random()-0.5)*10, (Math.random()-0.5)*10, (Math.random()-0.5)*10),
+				orientation: Quaternion.IDENTITY,
+				type: ObjectType.INDIVIDUAL,
+				isRigid: true,
+				isAffectedByGravity: false,
+				stateFlags: 0,
+				visualRef: crappyBlockVisualId,
+				boundingBox: new Cuboid(-0.5, -0.5, -0.5, 0.5, 0.5, 0.5)
+			};
 		}
 		
-		var x, y;
-		for( y=0; y < 20; ++y ) {
-			for( x=0; x < 20; ++x ) {
-				if( Math.random() < 0.5 ) {
-					this.sprites.push({
-						imageSlice: blockImages[(Math.random()*blockImages.length)|0],
-						x: x * 16,
-						y: y * 16,
-						z: 0
-					});
+		return {
+			objectVisuals: {
+				[crappyBlockVisualId]: simpleObjectVisual( (ssu:ShapeSheetUtil, t:number, xf:TransformationMatrix3D) => {
+					const center = xf.multiplyVector(Vector3D.ZERO);
+					const size = xf.scale;
+					ssu.plottedDepthFunction = (x:number, y:number, z:number) => z;
+					ssu.plottedMaterialIndexFunction = (x:number, y:number, z:number) => 8;
+					ssu.plotAASharpBeveledCuboid( center.x-size/2, center.y-size/2, center.z-size/2, size, size, size/6);
+				})
+			},
+			rooms: {
+				[crappyRoomId]: {
+					objects: roomObjects,
+					neighbors: {}
 				}
+			},
+			objectPrototypes: {
+				
 			}
-		}
+		};
+	}
+	
+	public runDemo() {
+		this.game = this.makeCrappyGame();
+		let roomId;
+		for( roomId in this.game.rooms ); // Just find one; whatever.
 		
-		this.runDemo();
+		const animCallback = () => {
+			let t = Date.now()/1000;
+			this.canvasContext.clearRect(0,0,this.canvas.width,this.canvas.height);
+			this.drawScene(roomId, new Vector3D(Math.cos(t)*4, Math.sin(t*0.3)*4, 16), 0);
+			window.requestAnimationFrame(animCallback);
+		};
+		window.requestAnimationFrame(animCallback);
 	}
 }
-
-export default CanvasWorldView;
