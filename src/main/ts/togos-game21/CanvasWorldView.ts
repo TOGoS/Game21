@@ -122,26 +122,61 @@ function simpleObjectVisual( drawFunction:(ssu:ShapeSheetUtil, t:number, xf:Tran
 	}
 }
 
+class DrawCommand {
+	public image:HTMLImageElement;
+	public sx:number;
+	public sy:number;
+	public sw:number;
+	public sh:number;
+	public dx:number;
+	public dy:number;
+	public dw:number;
+	public dh:number;
+	public depth:number;
+	
+	public set(image:HTMLImageElement, sx:number, sy:number, sw:number, sh:number, dx:number, dy:number, dw:number, dh:number, depth:number) {
+		this.image = image;
+		this.sx = sx; this.sy = sy; this.sw = sw; this.sh = sh;
+		this.dx = dx; this.dy = dy; this.dw = dw; this.dh = dh;
+		this.depth = depth;
+	}
+}
+
 export default class CanvasWorldView {
 	protected canvas:HTMLCanvasElement;
+	protected canvasContext:CanvasRenderingContext2D;
 	protected objectImageManager:ObjectImageManager = new ObjectImageManager;
 	protected game:Game;
+	protected drawCommandBuffer:Array<DrawCommand> = [];
+	protected drawCommandCount = 0;
 	
 	public initUi(canvas:HTMLCanvasElement) {
 		this.canvas = canvas;
 		this.canvasContext = canvas.getContext('2d');
 	};
 	
-	protected canvasContext:CanvasRenderingContext2D;
+	protected addDrawCommand(img:HTMLImageElement, sx:number, sy:number, sw:number, sh:number, dx:number, dy:number, dw:number, dh:number, depth:number) {
+		const dcb = this.drawCommandBuffer;
+		let dc:DrawCommand;
+		if( dcb.length == this.drawCommandCount ) {
+			dcb.push(dc = new DrawCommand);
+		} else {
+			dc = dcb[this.drawCommandCount];
+		}
+		dc.set(img, sx, sy, sw, sh, dx, dy, dw, dh, depth);
+		++this.drawCommandCount;
+	}
 	
-	protected drawSlice(slice:ImageSlice<HTMLImageElement>, ctx:CanvasRenderingContext2D, x:number, y:number, w:number, h:number) {
-		if( w == null ) w = slice.bounds.width;
-		if( h == null ) h = slice.bounds.height;
-		// Only do smoothing to downscale, not to upscale:
-		ctx['imageSmoothingEnabled'] = w < slice.bounds.width;
-		
-		ctx.drawImage(slice.sheet, slice.bounds.minX, slice.bounds.minY, slice.bounds.width, slice.bounds.height, x, y, w, h);
-	};
+	protected flushDrawCommands():void {
+		const dcb = this.drawCommandBuffer.slice(0, this.drawCommandCount);
+		dcb.sort( (a:DrawCommand, b:DrawCommand) => b.depth - a.depth);
+		const ctx = this.canvasContext;
+		if( ctx != null ) for( let i in dcb ) {
+			const dc = dcb[i];
+			ctx.drawImage(dc.image, dc.sx, dc.sy, dc.sw, dc.sh, dc.dx, dc.dy, dc.dw, dc.dh);
+		}
+		this.drawCommandCount = 0;
+	}
 	
 	protected drawObject( obj:PhysicalObject, pos:Vector3D, time:number ):void {
 		let visual = this.game.objectVisuals[obj.visualRef];
@@ -149,8 +184,6 @@ export default class CanvasWorldView {
 			console.log("Object visual "+obj.visualRef+" not loaded; can't draw");
 			return;
 		}
-		
-		if( this.canvasContext == null ) return;
 		
 		const unitPpm = Math.min(this.canvas.width, this.canvas.height)/2; // Pixels per meter of a thing 1 meter away
 		if( pos.z <= 1 ) return;
@@ -161,10 +194,11 @@ export default class CanvasWorldView {
 		
 		const imgSlice = this.objectImageManager.objectVisualImage(visual, obj.stateFlags, time, obj.orientation, reso);
 		const pixScale = scale/imgSlice.resolution;
-		this.canvasContext.drawImage(
+		this.addDrawCommand(
 			imgSlice.sheet,
 			imgSlice.bounds.minX, imgSlice.bounds.minY, imgSlice.bounds.width, imgSlice.bounds.height,
-			screenX - imgSlice.origin.x*pixScale, screenY - imgSlice.origin.y*pixScale, imgSlice.bounds.width*pixScale, imgSlice.bounds.height*pixScale
+			screenX - imgSlice.origin.x*pixScale, screenY - imgSlice.origin.y*pixScale, imgSlice.bounds.width*pixScale, imgSlice.bounds.height*pixScale,
+			pos.z // TODO: subtract visual's stickey-outeyness
 		);
 	}
 	
@@ -194,6 +228,7 @@ export default class CanvasWorldView {
 			}
 			this.drawRoom(neighborRoom, Vector3D.add(pos, neighbor.offset, neighborPos), time);
 		}
+		this.flushDrawCommands();
 	}
 	
 	protected makeCrappyGame():Game {
@@ -201,7 +236,7 @@ export default class CanvasWorldView {
 		const crappyRoomId = newUuid();
 		const theMaterialMap = DEFAULT_MATERIALS;
 		const roomObjects:KeyedList<PhysicalObject> = {};
-		for( let i=0; i<10; ++i ) {
+		for( let i=0; i<100; ++i ) {
 			const objectId = newUuid();
 			roomObjects[objectId] = {
 				position: new Vector3D((Math.random()-0.5)*10, (Math.random()-0.5)*10, (Math.random()-0.5)*10),
