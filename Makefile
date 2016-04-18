@@ -49,7 +49,7 @@ target/cjs: src/main/ts/game21libs.cjs.es5.tsconfig.json ${tsc_inputs} node_modu
 	touch "$@"
 
 run-unit-tests: target/cjs
-	cd target/cjs && (find -name '*Test.js' | xargs ${node})
+	cd target/cjs && (find -name '*Test.js' | xargs --no-run-if-empty -n 1 ${node})
 
 run-router: target/cjs
 	node target/cjs/togos-game21/Router.js
