@@ -1,7 +1,11 @@
+import DeepFreezer from './DeepFreezer';
 import SurfaceColor from './SurfaceColor';
 import Material from './Material';
 
 export const MATERIAL_MAP_SIZE = 256;
+
+type MaterialMap = Array<Material>;
+type MaterialRemap = Uint8Array;
 
 export function randomMaterials(count:number):Array<Material> {
 	let r = Math.random();
@@ -51,7 +55,7 @@ export function randomMaterialMap():Array<Material> {
 	return map;
 };
 
-export const DEFAULT_MATERIALS:Array<Material> = [
+export const DEFAULT_MATERIALS:MaterialMap = [
 	// 0-3 (reserved)
 	Material.NONE,
 	Material.NONE,
@@ -89,3 +93,24 @@ export const DEFAULT_MATERIALS:Array<Material> = [
 	}
 ];
 fillOutMaterialMap(DEFAULT_MATERIALS);
+
+export const IDENTITY_MATERIAL_REMAP:MaterialRemap = new Uint8Array(256);
+for( let i=0; i<256; ++i ) IDENTITY_MATERIAL_REMAP[i] = i;
+DeepFreezer.deepFreeze(IDENTITY_MATERIAL_REMAP);
+
+/**
+ * Think of this kind of like matrix multiplcation.
+ * material map * material remap = material map with additional transformations
+ */
+export function remap(map:Array<Material>, remap:MaterialRemap, dest:Array<Material>=null):Array<Material> {
+	if( dest == null ) {
+		// Then we can shortcut if there's nothing to do.
+		if( remap == IDENTITY_MATERIAL_REMAP ) return map;
+		// Otherwise make it so we can fill it in.
+		dest = new Uint8Array(MATERIAL_MAP_SIZE);
+	}
+	for( let i=0; i<MATERIAL_MAP_SIZE; ++i ) {
+		map[i] = map[remap[i]];
+	}
+	return dest;
+}

@@ -2,6 +2,9 @@ import Vector3D from './Vector3D';
 import Rectangle from './Rectangle';
 
 export default class ImageSlice<ImageType> {
+	// TODO: I think a minimumZ would be appropriate!
+	// or make bounds a cuboid.
+	
 	// When serialized, sheet will be replaced with a hash-based sheetRef
 	public sheetRef:string;
 	/**

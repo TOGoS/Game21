@@ -12,6 +12,7 @@ import PlotMode from './PlotMode';
 // For slicing stuff, which maybe doesn't really belong here
 import ProceduralShape from './ProceduralShape';
 import TransformationMatrix3D from './TransformationMatrix3D';
+import Quaternion from './Quaternion';
 import ImageSlice from './ImageSlice';
 
 export type PlottedMaterialIndexFunction = (x:number, y:number, z:number, z0:number, z1:number, z2:number, z3:number)=>number;
@@ -567,16 +568,17 @@ class ShapeSheetUtil {
 		return this.crop(sss, cropRect, newSheet);
 	}
 	
-	public static proceduralShapeToShapeSheet( ps:ProceduralShape, xf:TransformationMatrix3D ):ImageSlice<ShapeSheet> {
-		const bounds = ps.estimateOuterBounds(xf).growToIntegerBoundaries();
+	public static proceduralShapeToShapeSheet( ps:ProceduralShape, orientation:Quaternion, resolution:number ):ImageSlice<ShapeSheet> {
+		const xf = TransformationMatrix3D.fromQuaternion(orientation).multiply(TransformationMatrix3D.scale(resolution));
+		const bounds = ps.estimateOuterBounds(0.5, xf).growToIntegerBoundaries();
 		const origin:Vector3D = new Vector3D(
-			-bounds.minX
+			-bounds.minX,
 			-bounds.minY,
 			0);
 		const ss = new ShapeSheet(bounds.width, bounds.height);
 		const ssu = new ShapeSheetUtil(ss);
-		ps.draw( ssu, TransformationMatrix3D.multiply(TransformationMatrix3D.translation(origin), xf) );
-		return this.autocrop(new ImageSlice<ShapeSheet>(ss, origin, xf.scale, bounds));
+		ps.draw( ssu, 0.5, TransformationMatrix3D.translation(origin).multiply(xf) );
+		return this.autocrop(new ImageSlice<ShapeSheet>(ss, origin, resolution, ss.bounds), true);
 	}
 };
 

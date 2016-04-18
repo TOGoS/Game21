@@ -4,24 +4,56 @@ import TransformationMatrix3D from './TransformationMatrix3D';
 import Quaternion from './Quaternion';
 import ShapeSheet from './ShapeSheet';
 import ShapeSheetRenderer from './ShapeSheetRenderer';
-import ShapeSheetUtil from './ShapeSheetUtil';
+import ShapeSheetUtil, {constantMaterialIndexFunction, NOOP_PLOTTED_DEPTH_FUNCTION} from './ShapeSheetUtil';
 import ImageSlice from './ImageSlice';
-import {DEFAULT_LIGHTS} from './Lights';
-import {DEFAULT_MATERIALS} from './Materials';
+import ProceduralShape from './ProceduralShape';
+import Animation, {OnAnimationEnd} from './Animation';
+import ObjectVisual, {ObjectVisualState, ObjectVisualFrame, VisualBasisType} from './ObjectVisual';
+//import {DEFAULT_LIGHTS} from './Lights';
+import {DEFAULT_MATERIALS, IDENTITY_MATERIAL_REMAP} from './Materials';
+import ObjectImageManager from './ObjectImageManager';
 
-export default class SSIDemo {
-	protected ssu : ShapeSheetUtil;
-	protected scale = 16;
-	protected materials = DEFAULT_MATERIALS;
-	protected lights = DEFAULT_LIGHTS;
+class CoilShape implements ProceduralShape {
+	public matCount:number = 3;
+	public matSpan:number = 4;
+	public scale:number = 1;
+	public minS:number = 0.7;
+	public maxS:number = 1.5;
 	
-	protected get centerX() { return this.ssu.shapeSheet.width/2; }
-	protected get centerY() { return this.ssu.shapeSheet.height/2; }
-	
-	public constructor() {
-		this.ssu = new ShapeSheetUtil(new ShapeSheet(this.scale*20, this.scale*20));
+	public get isAnimated() {
+		return this.minS != this.maxS;
 	}
 	
+	estimateOuterBounds( t:number, xf:TransformationMatrix3D ):Rectangle {
+		const scale = xf.scale;
+		return new Rectangle(-16*scale,-16*scale,16*scale,16*scale);
+	}
+	draw( ssu:ShapeSheetUtil, t:number, xf:TransformationMatrix3D ) {
+		const mts = xf.multiply(TransformationMatrix3D.scale(this.scale));
+		const scale = mts.scale;
+		
+		const s = 0.01+Math.random()*0.03;
+		const matCount = (1+Math.round(Math.random()*3))|0;
+		const matSpan = Math.random() * 6;
+		let u;
+		ssu.plottedDepthFunction = NOOP_PLOTTED_DEPTH_FUNCTION;
+		ssu.plottedMaterialIndexFunction = () => {
+			return 4+(u/matSpan+Math.random()) % (matCount*4);
+		};
+		const v = new Vector3D;
+		for( u=0; u < 200; ++u ) {
+			v.set( u*s, Math.sin(u*0.1), Math.cos(u*0.1));
+			mts.multiplyVector(v, v);
+			ssu.plotSphere(v.x, v.y, v.z, scale*0.2);
+		}
+
+	}
+}
+
+export default class SSIDemo {
+	protected objectImageManager:ObjectImageManager = new ObjectImageManager();
+		
+	/*
 	protected plotCoil() {
 		const dir = Quaternion.random();
 		const scale = Math.random()*this.scale*2;
@@ -44,11 +76,16 @@ export default class SSIDemo {
 			this.ssu.plotSphere(v.x, v.y, v.z, scale*0.2);
 		}
 	}
+	*/
 	
-	protected plotSomething() {
-		this.ssu.plottedMaterialIndexFunction = () => {
-			return 4+Math.random()*4;
+	public randomObjectVisualFrame():ObjectVisualFrame {
+		const shape:CoilShape = new CoilShape();
+		return {
+			visualBasisType: VisualBasisType.PROCEDURAL,
+			materialRemap: IDENTITY_MATERIAL_REMAP,
+			shape: shape
 		};
+		/*
 		const r = Math.random();
 		if( r < 0.1 ) {
 			const size = Math.max(1, 2+Math.random()*30);
@@ -63,18 +100,30 @@ export default class SSIDemo {
 		} else {
 			this.plotCoil();
 		}
+		*/
 	}
-	
-	public randomShapeImage():HTMLImageElement {
+
+	public randomObjectVisual():ObjectVisual {
+		const frame:ObjectVisualFrame = this.randomObjectVisualFrame();
 		
-		//let materials = DEFAULT_MATERIALS;
-		//let lights = DEFAULT_LIGHTS;
-		
-		this.ssu.clear();
-		this.plotSomething();
-		
-		const sss = new ImageSlice(this.ssu.shapeSheet, new Vector3D(80,80,0), 16, this.ssu.shapeSheet.bounds);
-		const croppedSss:ImageSlice<ShapeSheet> = ShapeSheetUtil.autocrop(sss, true);
-		return ShapeSheetRenderer.shapeSheetToImage(croppedSss.sheet, this.materials, this.lights);
+		return {
+			materialMap: DEFAULT_MATERIALS,
+			states: [
+				{
+					orientation: Quaternion.IDENTITY,
+					materialRemap: IDENTITY_MATERIAL_REMAP,
+					applicabilityFlagsMin: 0,
+					applicabilityFlagsMax: 0,
+					animation: {
+						length: Infinity,
+						onEnd: OnAnimationEnd.LOOP,
+						frames: [this.randomObjectVisualFrame()]
+					}
+				}
+			]
+		};
+	}	
+	public randomShapeImageSlice():ImageSlice<HTMLImageElement> {
+		return this.objectImageManager.objectVisualImage(this.randomObjectVisual(), 0, 0, Quaternion.random());
 	};
 }

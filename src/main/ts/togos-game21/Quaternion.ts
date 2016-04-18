@@ -87,4 +87,8 @@ export default class Quaternion {
 		
 		return dest;
 	}
+	
+	public static areEqual(q0:Quaternion, q1:Quaternion):boolean {
+		return q0.a === q1.a && q0.b === q1.b && q0.c === q1.c && q0.d === q1.d;
+	}
 }
