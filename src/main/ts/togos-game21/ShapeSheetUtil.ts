@@ -570,7 +570,7 @@ class ShapeSheetUtil {
 	public static proceduralShapeToShapeSheet( ps:ProceduralShape, xf:TransformationMatrix3D ):ImageSlice<ShapeSheet> {
 		const bounds = ps.estimateOuterBounds(0.5, xf).growToIntegerBoundaries();
 		const origin:Vector3D = new Vector3D(
-			-bounds.minX
+			-bounds.minX,
 			-bounds.minY,
 			0);
 		const ss = new ShapeSheet(bounds.width, bounds.height);
