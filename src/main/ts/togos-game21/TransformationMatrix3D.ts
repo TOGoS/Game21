@@ -26,6 +26,13 @@ export default class TransformationMatrix3D {
 		return (xScale + yScale + zScale) / 3;
 	}
 	
+	public get hasRotation():boolean {
+		return this.xy != 0 || this.xz != 0 || this.yx != 0 || this.yz != 0 || this.zx != 0 || this.zy != 0;
+	}
+	public get hasTranslation():boolean {
+		return this.x1 != 0 || this.y1 != 0 || this.z1 != 0;
+	}
+	
 	public set(
 		xx:number, xy:number, xz:number, x1:number,
 		yx:number, yy:number, yz:number, y1:number,

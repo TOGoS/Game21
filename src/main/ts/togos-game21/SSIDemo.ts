@@ -9,8 +9,9 @@ import ImageSlice from './ImageSlice';
 import ProceduralShape from './ProceduralShape';
 import Animation, {OnAnimationEnd} from './Animation';
 import ObjectVisual, {ObjectVisualState, ObjectVisualFrame, VisualBasisType} from './ObjectVisual';
-import {DEFAULT_LIGHTS} from './Lights';
+//import {DEFAULT_LIGHTS} from './Lights';
 import {DEFAULT_MATERIALS, IDENTITY_MATERIAL_REMAP} from './Materials';
+import ObjectImageManager from './ObjectImageManager';
 
 class CoilShape implements ProceduralShape {
 	public matCount:number = 3;
@@ -25,7 +26,7 @@ class CoilShape implements ProceduralShape {
 	
 	estimateOuterBounds( t:number, xf:TransformationMatrix3D ):Rectangle {
 		const scale = xf.scale;
-		return new Rectangle(-16*scale,-256*scale,256*scale,256*scale);
+		return new Rectangle(-16*scale,-16*scale,16*scale,16*scale);
 	}
 	draw( ssu:ShapeSheetUtil, t:number, xf:TransformationMatrix3D ) {
 		const mts = xf.multiply(TransformationMatrix3D.scale(this.scale));
@@ -50,19 +51,8 @@ class CoilShape implements ProceduralShape {
 }
 
 export default class SSIDemo {
-	protected ssu : ShapeSheetUtil;
-	protected scale = 16;
-	protected materials = DEFAULT_MATERIALS;
-	protected lights = DEFAULT_LIGHTS;
-	public resolution = 16;
-	
-	protected get centerX():number { return this.ssu.shapeSheet.width/2; }
-	protected get centerY():number { return this.ssu.shapeSheet.height/2; }
-	
-	public constructor() {
-		this.ssu = new ShapeSheetUtil(new ShapeSheet(this.scale*20, this.scale*20));
-	}
-	
+	protected objectImageManager:ObjectImageManager = new ObjectImageManager();
+		
 	/*
 	protected plotCoil() {
 		const dir = Quaternion.random();
@@ -118,87 +108,22 @@ export default class SSIDemo {
 		
 		return {
 			materialMap: DEFAULT_MATERIALS,
-			states: <Array<ObjectVisualState>>[
+			states: [
 				{
 					orientation: Quaternion.IDENTITY,
+					materialRemap: IDENTITY_MATERIAL_REMAP,
 					applicabilityFlagsMin: 0,
 					applicabilityFlagsMax: 0,
 					animation: {
-						speed: 0,
+						length: Infinity,
 						onEnd: OnAnimationEnd.LOOP,
 						frames: [this.randomObjectVisualFrame()]
 					}
 				}
 			]
 		};
-	}
-	
-	protected plotObjectVisualFrame(ov:ObjectVisualFrame, t:number, xf:TransformationMatrix3D):void {
-		switch( ov.visualBasisType ) {
-		case VisualBasisType.PROCEDURAL:
-			const shape:ProceduralShape = <ProceduralShape>ov.shape;
-			shape.draw(this.ssu, t, xf);
-			break;
-		case VisualBasisType.SHAPESHEET:
-			const slice:ImageSlice<ShapeSheet> = <ImageSlice<ShapeSheet>>ov.shape;
-			const center = xf.multiplyVector(new Vector3D);
-			this.ssu.blit(
-				slice.sheet,
-				slice.bounds.minX, slice.bounds.minY, slice.bounds.width, slice.bounds.height,
-				center.x - slice.origin.x, center.y - slice.origin.y, center.z - slice.origin.z
-			);
-			break;
-		default:
-			throw new Error("Unsupported visual basis type: "+ov.visualBasisType);
-		}
-	}
-	
-	protected plotObjectVisual(ov:ObjectVisual, t:number, xf:TransformationMatrix3D):void {
-		// Whatever there's only one frame jeez.
-		this.plotObjectVisualFrame( ov.states[0].animation.frames[0], t, xf );
-	}
-	
-	protected randomTransformation():TransformationMatrix3D {
-		const centerVect = new Vector3D(this.centerX, this.centerY, 0);
-		return TransformationMatrix3D.IDENTITY.
-			multiply(TransformationMatrix3D.translation(centerVect)).
-			multiply(TransformationMatrix3D.fromQuaternion(Quaternion.random())).
-			multiply(TransformationMatrix3D.scale(this.resolution * Math.random()*2));
-	}
-	
-	protected plotSomething() {
-		this.plotObjectVisual(this.randomObjectVisual(), Math.random(), this.randomTransformation());
-		/*
-		this.ssu.plottedMaterialIndexFunction = () => {
-			return 4+Math.random()*4;
-		};
-		const r = Math.random();
-		if( r < 0.1 ) {
-			const size = Math.max(1, 2+Math.random()*30);
-			this.ssu.plotSphere( this.centerX, this.centerY, 0, size );
-		} else if( r < 0.5 ) {
-			const bevel = Math.random() * 8;
-			if( Math.random() < 0.5 ) {
-				this.ssu.plotAASharpBeveledCuboid( 0, 0, 0, bevel*2+Math.random()*32, bevel*2+Math.random()*32, bevel );
-			} else {
-				this.ssu.plotAABeveledCuboid( 0, 0, 0, bevel*2+Math.random()*32, bevel*2+Math.random()*32, bevel );
-			}
-		} else {
-			this.plotCoil();
-		}
-		*/
-	}
-	
-	public randomShapeImage():HTMLImageElement {
-		
-		//let materials = DEFAULT_MATERIALS;
-		//let lights = DEFAULT_LIGHTS;
-		
-		this.ssu.clear();
-		this.plotSomething();
-		
-		const sss = new ImageSlice(this.ssu.shapeSheet, new Vector3D(80,80,0), 16, this.ssu.shapeSheet.bounds);
-		const croppedSss:ImageSlice<ShapeSheet> = ShapeSheetUtil.autocrop(sss, true);
-		return ShapeSheetRenderer.shapeSheetToImage(croppedSss.sheet, this.materials, this.lights);
+	}	
+	public randomShapeImageSlice():ImageSlice<HTMLImageElement> {
+		return this.objectImageManager.objectVisualImage(this.randomObjectVisual(), 0, 0, Quaternion.random());
 	};
 }

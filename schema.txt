@@ -67,7 +67,7 @@ class 'object visual frame' {
 }
 
 class 'animation' : type parameter @ "frame type" {
-	speed : number : comment @ "frames per second"
+	length : number : comment @ "length of entire animation in seconds (or some other abritrary unit)"
 	on end : ('stop'|'loop')
 	frames : list(frame type)
 }

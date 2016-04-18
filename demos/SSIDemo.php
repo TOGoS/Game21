@@ -82,8 +82,8 @@ html, body {
 	function generateRow() {
 		var row = document.createElement('div');
 		for( var i=0; i < 10; ++i ) {
-			ssiDemo.randomShapeImage();
-			row.appendChild(ssiDemo.randomShapeImage());
+			console.log("Generating shape image #"+i+"...")
+			row.appendChild(ssiDemo.randomShapeImageSlice().sheet);
 		}
 		galleryDiv.appendChild(row);
 		ssiDemo.materials = materialsPackage.randomMaterialMap();

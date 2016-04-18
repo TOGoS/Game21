@@ -35,11 +35,13 @@ export class ObjectVisualFrame {
 export class ObjectVisualState {
 	/** Orientation depicted by this state */
 	public orientation:Quaternion;
+	
 	// Not sure how flags will work; here's a guess.
 	// Need to define flags
 	public applicabilityFlagsMin:number;
 	public applicabilityFlagsMax:number;
 	
+	public materialRemap:Uint8Array = IDENTITY_MATERIAL_REMAP;
 	// The animation to show for this state
 	public animation:Animation<ObjectVisualFrame>;
 }

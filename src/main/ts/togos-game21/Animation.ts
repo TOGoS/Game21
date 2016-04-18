@@ -8,10 +8,10 @@ export default class Animation<FrameType> {
 	static ONEND_LOOP = 1;
 	
 	/**
-	 * Number of times the entire animation loops (t from 0 to 1) per second.
-	 * For non-animated things, this should be 0.
+	 * Number of time units (usually seconds) the animation should last.
+	 * Should be Infinity for non-animations.
 	 */
-	public speed:number;
+	public length:number;
 	/**
 	 * Should the animation loop or stop when finished? 
 	 **/ 
