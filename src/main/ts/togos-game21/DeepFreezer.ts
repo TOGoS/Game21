@@ -4,39 +4,57 @@ declare function Symbol(x:string);
 
 var identity = function(x) { return x; };
 
-var _map = function<T>(from:T, to:T, mapFunc:(any)=>any) {
+var _map = function<T,P>(from:T, to:T, mapFunc:(any,P)=>any, mapFuncParam:P) {
 	Object.getOwnPropertyNames(from).forEach(function(k) {
-		to[k] = mapFunc(from[k]);
+		to[k] = mapFunc(from[k], mapFuncParam);
 	});
 };
 
-var map = function<T>(obj:T, mapFunc:(any)=>any) {
+var map = function<T,P>(obj:T, mapFunc:(any,P)=>any, mapFuncParam:P) {
 	//var clone = {}; // Loses too much information!
 	//var clone = Object.create(Object.getPrototypeOf(obj)); // Fails to construct arrays right, so length becomes enumerable
 	var prototype = Object.getPrototypeOf(obj);
 	var constructor = prototype.constructor;
 	if( constructor.createFrom ) {
 		var props = {};
-		_map(obj, props, mapFunc);
+		_map(obj, props, mapFunc, mapFuncParam);
 		return constructor.createFrom(props);
 	} else {
 		var clone = new (prototype.constructor)();
-		_map(obj, clone, mapFunc);
+		_map(obj, clone, mapFunc, mapFuncParam);
 		return clone;
 	}
 };
 
 var clone = function<T>(obj:T):T {
-	return map(obj, identity);
+	return map(obj, identity, null);
 };
 
 ////
 
-var deepFrozen = Symbol("deeply frozen");
+const deepFrozen = Symbol("deep freeze ID");
 
-var isDeepFrozen = function(val) {
+function isFrozen(obj:any) {
+	if( Object.isFrozen(obj) ) return true;
+	// But!  Some objects we want to treat as frozen even though we can't Object.freeze them.
+	// Like array buffer arrays.
+	if( obj[deepFrozen] ) return true;
+	return false;
+}
+
+export function isDeepFrozen(val) {
 	return !!((typeof val !== 'function' && typeof val !== 'object') || val === null || val[deepFrozen]);
 };
+
+export function deepFreezeIdUnchecked(val) {
+	return val[deepFrozen];
+}
+
+export function deepFreezeId(val) {
+	if( (typeof val !== 'function' && typeof val !== 'object') ) throw new Error("Only objects and functions can have a deepFreezeId.  Given a "+typeof(val));
+	if( val[deepFrozen] == null ) throw new Error("Object lacks a deep freeze ID");
+	return deepFreezeIdUnchecked(val);
+}
 
 /**
  * Differs from object.feeze only in that this will add the deepFrozen
@@ -45,8 +63,8 @@ var isDeepFrozen = function(val) {
  * Why would you use this instead of deepFreeze?
  * Probably shouldn't.
  */
-var freeze = function<T>(obj:T, inPlace:boolean=false):T {
-	if( Object.isFrozen(obj) ) return obj;
+export function freeze<T>(obj:T, inPlace:boolean=false):T {
+	if( isFrozen(obj) ) return obj;
 	
 	var hasAnyMutableProperties = false;
 	Object.getOwnPropertyNames(obj).forEach(function(k) {
@@ -58,6 +76,13 @@ var freeze = function<T>(obj:T, inPlace:boolean=false):T {
 	if( !hasAnyMutableProperties ) frozenObj[deepFrozen] = true;
 	return Object.freeze(frozenObj);
 };
+
+let lastFreezeId = 0;
+
+function isObjectFreezable(obj:any):boolean {
+	if( obj.buffer instanceof ArrayBuffer ) return false; // "Cannot freeze array buffer views" says Chrome.
+	return true;
+}
 
 /**
  * Return either the object or a clone of it that is deep frozen.
@@ -72,45 +97,30 @@ var freeze = function<T>(obj:T, inPlace:boolean=false):T {
  *   Also note that passing false does not guarantee a new instance;
  *   If the object is already deep-frozen, that same object will be returned.
  */
-var deepFreeze = function<T>(obj:T, inPlace:boolean=false):T {
+export function deepFreeze<T>(obj:T, allowInPlace:boolean=false):T {
 	if( isDeepFrozen(obj) ) return obj;
 	
 	// If it ain't /deep frozen/ we're going to have
 	// to thaw it at least to add the deepFrozen property.
-	obj = thaw(inPlace ? obj : clone(obj));
-	_map( obj, obj, deepFreeze );
-	obj[deepFrozen] = true;
-	Object.freeze(obj);
+	obj = thaw(allowInPlace ? obj : clone(obj));
+	_map( obj, obj, deepFreeze, allowInPlace );
+	obj[deepFrozen] = Symbol("deep frozen #"+(++lastFreezeId));
+	if( isObjectFreezable(obj) ) Object.freeze(obj);
 	return obj;
 };
 
-var thaw = function<T>(obj:T):T {
-	if( !Object.isFrozen(obj) ) return obj;
+export function thaw<T>(obj:T):T {
+	if( !isFrozen(obj) ) return obj;
 	if( typeof obj !== 'object' && typeof obj !== 'function' ) return obj;
-	return map(obj, identity);
+	return map(obj, identity, null);
 };
 
-var deepThaw = function<T>(obj:T):T {
+export function deepThaw<T>(obj:T):T {
 	obj = thaw(obj);
-	_map(obj, obj, thaw);
+	_map(obj, obj, thaw, null);
 	return obj;
 };
 
-var myOwnCopyOf = function<T>(obj:T):T {
+export function myOwnCopyOf<T>(obj:T):T {
 	return deepThaw(deepFreeze(obj,false));
-};
-
-export default {
-	// Stuff I'm making public because it's handy for my other
-	// libraries, especially when dealing with deep frozen stuff
-	map: map,
-	clone: clone,
-	
-	// Our API
-	freeze: freeze,
-	deepFreeze: deepFreeze,
-	isDeepFrozen: isDeepFrozen,
-	thaw: thaw,
-	deepThaw: deepThaw,
-	myOwnCopyOf: myOwnCopyOf
 };

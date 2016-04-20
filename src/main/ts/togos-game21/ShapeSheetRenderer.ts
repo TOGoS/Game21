@@ -1,4 +1,4 @@
-import DeepFreezer from './DeepFreezer';
+import { thaw, deepFreeze } from './DeepFreezer';
 import Rectangle from './Rectangle';
 import ShapeSheet from './ShapeSheet';
 import SurfaceColor from './SurfaceColor';
@@ -178,7 +178,7 @@ export default class ShapeSheetRenderer {
 		return this._materials;
 	}
 	set materials(materials:Array<Material>) {
-		this._materials = DeepFreezer.deepFreeze(materials);
+		this._materials = deepFreeze(materials);
 		this.materialsUpdated();
 	};
 	
@@ -186,7 +186,7 @@ export default class ShapeSheetRenderer {
 	set lights(lights:KeyedList<DirectionalLight>) {
 		if( Object.is(lights, this._lights) ) return;
 		
-		this._lights = DeepFreezer.deepFreeze(lights);
+		this._lights = deepFreeze(lights);
 		this.lightsUpdated();
 	};
 	
@@ -206,11 +206,11 @@ export default class ShapeSheetRenderer {
 	 * (since unchanged ones don't need to be re-normalized) 
 	 */
 	putLights(updatedLights:KeyedList<DirectionalLight>):void {
-		let lights = DeepFreezer.thaw(this._lights);
+		let lights = thaw(this._lights);
 		for( let i in updatedLights ) {
-			lights[i] = DeepFreezer.deepFreeze(updatedLights[i]);
+			lights[i] = deepFreeze(updatedLights[i]);
 		}
-		this.lights = DeepFreezer.deepFreeze(lights, true);
+		this.lights = deepFreeze(lights, true);
 		this.lightsUpdated();
 	};
 	

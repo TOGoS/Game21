@@ -1,5 +1,5 @@
 import KeyedList from './KeyedList';
-import DeepFreezer from './DeepFreezer';
+import { thaw } from './DeepFreezer';
 import Vector3D from './Vector3D';
 import Cuboid from './Cuboid';
 import LightColor from './LightColor';
@@ -217,7 +217,7 @@ class ShapeSheetDemo {
 	}
 	
 	public randomizeLights() {
-		var lights = DeepFreezer.thaw(this.renderer.lights);
+		var lights = thaw(this.renderer.lights);
 		lights["primary"] = new DirectionalLight(
 			new Vector3D(Math.random()-0.5, Math.random()-0.5, Math.random()-0.5),
 			new LightColor(Math.random()*1.5, Math.random()*1.5, Math.random()*1.5),
@@ -241,7 +241,7 @@ class ShapeSheetDemo {
 			let lights = this.renderer.lights;
 			
 			if( this.lightRotationEnabled ) {
-				lights = DeepFreezer.thaw(lights);
+				lights = thaw(lights);
 				if( lights["primary"] != null ) {
 					lights["primary"] = new DirectionalLight(
 						new Vector3D(+Math.sin(f*0.01), 0.8, +Math.cos(f*0.01)),
@@ -264,7 +264,7 @@ class ShapeSheetDemo {
 						if( Math.random() < 0.01 ) {
 							level = 1;
 							bolts[i] = Math.random();
-							lights = DeepFreezer.thaw(lights);
+							lights = thaw(lights);
 							lights[i] = DirectionalLight.createFrom({
 								direction: new Vector3D(Math.random()-0.5, Math.random()-0.5, Math.random()-0.5),
 								color: new LightColor(level,level,level),
@@ -280,14 +280,14 @@ class ShapeSheetDemo {
 						}
 						if( level < 0.001 ) {
 							bolts[i] = -Infinity;
-							lights = DeepFreezer.thaw(lights);
+							lights = thaw(lights);
 							delete lights[i];
 						} else {
 							if( lights[i] == null ) {
 								console.log("Somehow lights["+i+"] doesn't exist; can't update lightning.", lights);
 								continue;
 							}
-							lights = DeepFreezer.thaw(lights);
+							lights = thaw(lights);
 							lights[i] = new DirectionalLight( lights[i].direction, new LightColor(level,level,level), lights[i] );
 							bolts[i] = level;
 						}

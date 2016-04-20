@@ -1,8 +1,8 @@
-import DeepFreezer from './DeepFreezer';
+import { deepFreeze } from './DeepFreezer';
 
 export default class Rectangle {
 	constructor(public minX:number, public minY:number, public maxX:number, public maxY:number) {
-		DeepFreezer.deepFreeze(this, true);
+		deepFreeze(this, true);
 	}
 	
 	get width():number { return this.maxX-this.minX; }

@@ -38,19 +38,20 @@ var fakerequire = (function() {
 	};
 	var require = function(depNames, callback, errback) {
 		var exports = {};
-		try {
-			var args = resolveDeps(depNames, { exports: exports, require: null });
-		} catch( e ) {
-			if( errback == null ) {
-				throw e;
-			} else {
+		var args;
+		if( errback ) {
+			try {
+				args = resolveDeps(depNames, { exports: exports, require: null });
+			} catch( e ) {
 				errback(e);
-				return;
 			}
+		} else {
+			args = resolveDeps(depNames, { exports: exports, require: null });
 		}
+		
 		callback.apply(callback, args);
 	};
-
+	
 	return {
 		define: define,
 		require: require

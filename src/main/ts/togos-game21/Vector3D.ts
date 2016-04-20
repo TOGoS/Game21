@@ -1,4 +1,4 @@
-import DeepFreezer from './DeepFreezer';
+import { deepFreeze } from './DeepFreezer';
 
 const roundToNearestMultiple = function(n:number, gridSize:number):number {
 	return Math.round(n/gridSize) * gridSize;
@@ -9,10 +9,10 @@ export default class Vector3D {
 	
 	get length():number { return Math.sqrt(this.x*this.x + this.y*this.y + this.z*this.z); }
 	
-	public static ZERO = DeepFreezer.deepFreeze(new Vector3D(0,0,0));
-	public static I    = DeepFreezer.deepFreeze(new Vector3D(1,0,0));
-	public static J    = DeepFreezer.deepFreeze(new Vector3D(0,1,0));
-	public static K    = DeepFreezer.deepFreeze(new Vector3D(0,0,1));
+	public static ZERO = deepFreeze(new Vector3D(0,0,0));
+	public static I    = deepFreeze(new Vector3D(1,0,0));
+	public static J    = deepFreeze(new Vector3D(0,1,0));
+	public static K    = deepFreeze(new Vector3D(0,0,1));
 	
 	// Can be used as a temporary vector in innermost functions
 	// when you know nobody else will be messing with it between

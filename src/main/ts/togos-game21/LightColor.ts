@@ -1,9 +1,7 @@
-import DeepFreezer from './DeepFreezer';
+import { freeze } from './DeepFreezer';
 
 class LightColor {
-	constructor(public r:number, public g:number, public b:number) {
-		DeepFreezer.freeze(this, true); // We're immutable yeahh!
-	}
+	constructor(public r:number, public g:number, public b:number) { }
 	
 	scale(scale:number):LightColor {
 		if( scale == 1 ) return this;

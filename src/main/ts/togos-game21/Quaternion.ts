@@ -1,5 +1,5 @@
 import Vector3D from './Vector3D'
-import DeepFreezer from './DeepFreezer';
+import { deepFreeze } from './DeepFreezer';
 
 export default class Quaternion {
 	public constructor(public a:number=1, public b:number=0, public c:number=0, public d:number=0) { }
@@ -9,7 +9,7 @@ export default class Quaternion {
 		return this;
 	}
 	
-	public static IDENTITY = DeepFreezer.deepFreeze(new Quaternion(1,0,0,0));
+	public static IDENTITY = deepFreeze(new Quaternion(1,0,0,0));
 	
 	public normalize():Quaternion {
 		return Quaternion.normalize(this);

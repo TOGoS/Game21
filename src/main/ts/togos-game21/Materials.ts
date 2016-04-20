@@ -1,4 +1,4 @@
-import DeepFreezer from './DeepFreezer';
+import { deepFreeze } from './DeepFreezer';
 import SurfaceColor from './SurfaceColor';
 import Material from './Material';
 
@@ -96,7 +96,7 @@ fillOutMaterialMap(DEFAULT_MATERIALS);
 
 export const IDENTITY_MATERIAL_REMAP:MaterialRemap = new Uint8Array(256);
 for( let i=0; i<256; ++i ) IDENTITY_MATERIAL_REMAP[i] = i;
-DeepFreezer.deepFreeze(IDENTITY_MATERIAL_REMAP);
+deepFreeze(IDENTITY_MATERIAL_REMAP, true);
 
 /**
  * Think of this kind of like matrix multiplcation.

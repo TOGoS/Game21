@@ -2,6 +2,7 @@ import KeyedList from './KeyedList';
 import Vector3D from './Vector3D';
 import LightColor from './LightColor';
 import DirectionalLight from './DirectionalLight';
+import { deepFreeze } from './DeepFreezer';
 
 export const DEFAULT_LIGHTS:KeyedList<DirectionalLight> = {
 	"primary": new DirectionalLight(
@@ -19,3 +20,4 @@ export const DEFAULT_LIGHTS:KeyedList<DirectionalLight> = {
 			minimumShadowLight: 0.1
 		})
 };
+deepFreeze(DEFAULT_LIGHTS, true);

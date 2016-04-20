@@ -1,4 +1,4 @@
-import DeepFreezer from './DeepFreezer';
+import { deepFreeze } from './DeepFreezer';
 import Vector3D from './Vector3D';
 import Quaternion from './Quaternion';
 
@@ -49,7 +49,7 @@ export default class TransformationMatrix3D {
 	public get "1z"() { return 0; }
 	public get "11"() { return 1; }
 		
-	public static IDENTITY = DeepFreezer.deepFreeze(new TransformationMatrix3D(1,0,0,0,0,1,0,0,0,0,1,0));
+	public static IDENTITY = deepFreeze(new TransformationMatrix3D(1,0,0,0,0,1,0,0,0,0,1,0));
 	
 	public multiplyVector( v:Vector3D, dest:Vector3D=new Vector3D ) : Vector3D {
 		return dest.set(

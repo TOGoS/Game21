@@ -1,7 +1,7 @@
-import DeepFreezer from './DeepFreezer';
+import { deepFreeze } from './DeepFreezer';
 
 var obj = {hello: true};
-DeepFreezer.deepFreeze(obj, true);
+deepFreeze(obj, true);
 console.log(obj);
 obj.hello = false;
 console.log(obj);
