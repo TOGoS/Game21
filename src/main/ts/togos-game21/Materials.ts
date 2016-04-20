@@ -107,7 +107,7 @@ export function remap(map:Array<Material>, remap:MaterialRemap, dest:Array<Mater
 		// Then we can shortcut if there's nothing to do.
 		if( remap == IDENTITY_MATERIAL_REMAP ) return map;
 		// Otherwise make it so we can fill it in.
-		dest = new Uint8Array(MATERIAL_MAP_SIZE);
+		dest = new Array(MATERIAL_MAP_SIZE);
 	}
 	for( let i=0; i<MATERIAL_MAP_SIZE; ++i ) {
 		map[i] = map[remap[i]];
