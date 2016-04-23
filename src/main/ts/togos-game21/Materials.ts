@@ -114,3 +114,17 @@ export function remap(map:Array<Material>, remap:MaterialRemap, dest:Array<Mater
 	}
 	return dest;
 }
+
+export function makeRemap(...stuff:number[]) {
+	const remap = new Uint8Array(256);
+	for( let i=0; i < 256; ++i ) remap[i] = i;
+	for( let i=0; i < stuff.length; i += 3 ) {
+		const dest0 = stuff[i];
+		const source0 = stuff[i+1];
+		const count = stuff[i+2];
+		for( let j=0; j < count; ++j ) {
+			remap[dest0+j] = source0+j;
+		}
+	}
+	return remap;
+}
