@@ -1,3 +1,14 @@
+## Roadmap
+
+- Simple single-player maze game
+- Single-player game with use of IP packets
+- Client-server game
+
+- Trains
+- Shmoons
+
+## Misc to-do items
+
 Density function tracer:
 - Quit when exiting bounding rectangle
 - Only return 'hole' if value at the last point is more negative than any other encountered
