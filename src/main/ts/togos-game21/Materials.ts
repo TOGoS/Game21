@@ -110,7 +110,7 @@ export function remap(map:Array<Material>, remap:MaterialRemap, dest:Array<Mater
 		dest = new Array(MATERIAL_MAP_SIZE);
 	}
 	for( let i=0; i<MATERIAL_MAP_SIZE; ++i ) {
-		map[i] = map[remap[i]];
+		dest[i] = map[remap[i]];
 	}
 	return dest;
 }
