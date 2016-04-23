@@ -42,6 +42,7 @@ publish-demo: demos/ShapeDemo.html.url
 node_modules: package.json
 	npm install
 	touch "$@"
+	touch node_modules/tshash/src/main/ts/tshash
 
 node_modules/tshash/src/main/ts/tshash: node_modules
 
