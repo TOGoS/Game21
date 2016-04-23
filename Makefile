@@ -41,6 +41,8 @@ node_modules: package.json
 	npm install
 	touch "$@"
 
+node_modules/tshash/src/main/ts/tshash: node_modules
+
 # TypeScript libraries that need to be copied in because tsc can only handle one source folder...
 src/main/ts/tshash: node_modules/tshash/src/main/ts/tshash
 	rm -rf "$@"
