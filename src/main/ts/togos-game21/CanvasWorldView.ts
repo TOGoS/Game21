@@ -5,6 +5,7 @@ import ShapeSheetUtil from './ShapeSheetUtil';
 import DirectionalLight from './DirectionalLight';
 import KeyedList from './KeyedList';
 import Material from './Material';
+import SurfaceColor from './SurfaceColor';
 import Vector3D from './Vector3D';
 import Quaternion from './Quaternion';
 import TransformationMatrix3D from './TransformationMatrix3D';
@@ -110,6 +111,7 @@ function simpleObjectVisual( drawFunction:(ssu:ShapeSheetUtil, t:number, xf:Tran
 
 class DrawCommand {
 	public image:HTMLImageElement;
+	public special:(ctx:CanvasRenderingContext2D)=>void;
 	public sx:number;
 	public sy:number;
 	public sw:number;
@@ -120,10 +122,17 @@ class DrawCommand {
 	public dh:number;
 	public depth:number;
 	
-	public set(image:HTMLImageElement, sx:number, sy:number, sw:number, sh:number, dx:number, dy:number, dw:number, dh:number, depth:number) {
+	public setImage(image:HTMLImageElement, sx:number, sy:number, sw:number, sh:number, dx:number, dy:number, dw:number, dh:number, depth:number) {
 		this.image = image;
+		this.special = null;
 		this.sx = sx; this.sy = sy; this.sw = sw; this.sh = sh;
 		this.dx = dx; this.dy = dy; this.dw = dw; this.dh = dh;
+		this.depth = depth;
+	}
+	
+	public setSpecial(f:(ctx:CanvasRenderingContext2D)=>void, depth:number) {
+		this.image = null;
+		this.special = f;
 		this.depth = depth;
 	}
 }
@@ -135,13 +144,15 @@ export default class CanvasWorldView {
 	protected game:Game;
 	protected drawCommandBuffer:Array<DrawCommand> = [];
 	protected drawCommandCount = 0;
+	protected focusDistance = 10; // Distance at which we draw the foreground.  Fog is applied only behind this.
+	protected fogColor = new SurfaceColor(0.2, 0.2, 0.2, 0.1); 
 	
 	public initUi(canvas:HTMLCanvasElement) {
 		this.canvas = canvas;
 		this.canvasContext = canvas.getContext('2d');
 	};
 	
-	protected addDrawCommand(img:HTMLImageElement, sx:number, sy:number, sw:number, sh:number, dx:number, dy:number, dw:number, dh:number, depth:number) {
+	protected nextDrawCommand():DrawCommand {
 		const dcb = this.drawCommandBuffer;
 		let dc:DrawCommand;
 		if( dcb.length == this.drawCommandCount ) {
@@ -149,8 +160,16 @@ export default class CanvasWorldView {
 		} else {
 			dc = dcb[this.drawCommandCount];
 		}
-		dc.set(img, sx, sy, sw, sh, dx, dy, dw, dh, depth);
 		++this.drawCommandCount;
+		return dc;
+	}
+	
+	protected addImageDrawCommand(img:HTMLImageElement, sx:number, sy:number, sw:number, sh:number, dx:number, dy:number, dw:number, dh:number, depth:number):void {
+		this.nextDrawCommand().setImage(img, sx, sy, sw, sh, dx, dy, dw, dh, depth);
+	}
+	
+	protected addSpecialDrawCommand(f:(ctx:CanvasRenderingContext2D)=>void, depth:number):void {
+		this.nextDrawCommand().setSpecial(f, depth);
 	}
 	
 	protected flushDrawCommands():void {
@@ -159,7 +178,13 @@ export default class CanvasWorldView {
 		const ctx = this.canvasContext;
 		if( ctx != null ) for( let i in dcb ) {
 			const dc = dcb[i];
-			ctx.drawImage(dc.image, dc.sx, dc.sy, dc.sw, dc.sh, dc.dx, dc.dy, dc.dw, dc.dh);
+			if( dc.image != null ) {
+				ctx.drawImage(dc.image, dc.sx, dc.sy, dc.sw, dc.sh, dc.dx, dc.dy, dc.dw, dc.dh);
+			} else if( dc.special != null ) {
+				dc.special(ctx);
+			} else {
+				// Uhhh what's that idk
+			}
 		}
 		this.drawCommandCount = 0;
 	}
@@ -180,7 +205,7 @@ export default class CanvasWorldView {
 		
 		const imgSlice = this.objectImageManager.objectVisualImage(visual, obj.stateFlags, time, obj.orientation, reso);
 		const pixScale = scale/imgSlice.resolution;
-		this.addDrawCommand(
+		this.addImageDrawCommand(
 			imgSlice.sheet,
 			imgSlice.bounds.minX, imgSlice.bounds.minY, imgSlice.bounds.width, imgSlice.bounds.height,
 			screenX - imgSlice.origin.x*pixScale, screenY - imgSlice.origin.y*pixScale, imgSlice.bounds.width*pixScale, imgSlice.bounds.height*pixScale,
@@ -214,6 +239,18 @@ export default class CanvasWorldView {
 			}
 			this.drawRoom(neighborRoom, Vector3D.add(pos, neighbor.offset, neighborPos), time);
 		}
+		
+		const fogColorStr = this.fogColor.toRgbaString();
+		for( let i=0; i<100; ++i ) {
+			this.addSpecialDrawCommand(
+				(ctx:CanvasRenderingContext2D) => {
+					ctx.fillStyle = fogColorStr; // Fawg
+					ctx.fillRect(0, 0, this.canvas.width, this.canvas.height)
+				},
+				this.focusDistance + i+0.5
+			);
+		}
+		
 		this.flushDrawCommands();
 	}
 	
@@ -267,7 +304,8 @@ export default class CanvasWorldView {
 		const animCallback = () => {
 			let t = Date.now()/1000;
 			this.canvasContext.clearRect(0,0,this.canvas.width,this.canvas.height);
-			this.drawScene(roomId, new Vector3D(Math.cos(t)*4, Math.sin(t*0.3)*4, 16), 0);
+			this.focusDistance = 16;
+			this.drawScene(roomId, new Vector3D(Math.cos(t)*4, Math.sin(t*0.3)*4, this.focusDistance), 0);
 			window.requestAnimationFrame(animCallback);
 		};
 		window.requestAnimationFrame(animCallback);
