@@ -18,6 +18,8 @@ clean: sortaclean
 
 .DELETE_ON_ERROR: # yes plz
 
+.SECONDARY: # Don't delete intermediate files.
+
 .PHONY: \
 	clean \
 	sortaclean \
