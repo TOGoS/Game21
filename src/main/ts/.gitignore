@@ -1,0 +1,2 @@
+# Ignore libraries that are copied in at build time:
+/tshash
