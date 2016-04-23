@@ -189,6 +189,9 @@ export default class CanvasWorldView {
 		this.drawCommandCount = 0;
 	}
 	
+	protected screenCenterX:number;
+	protected screenCenterY:number;
+	
 	protected drawObject( obj:PhysicalObject, pos:Vector3D, time:number ):void {
 		let visual = this.game.objectVisuals[obj.visualRef];
 		if( visual == null ) {
@@ -199,8 +202,8 @@ export default class CanvasWorldView {
 		const unitPpm = Math.min(this.canvas.width, this.canvas.height)/2; // Pixels per meter of a thing 1 meter away
 		if( pos.z <= 1 ) return;
 		const scale = unitPpm / pos.z;
-		const screenX = this.canvas.width/2 + scale * pos.x;
-		const screenY = this.canvas.height/2 + scale * pos.y;
+		const screenX = this.screenCenterX + scale * pos.x;
+		const screenY = this.screenCenterY + scale * pos.y;
 		const reso = 16; // TODO: Should depend on scale, but not just be scale; maybe largest **2 <= scale and <= 32?
 		
 		const imgSlice = this.objectImageManager.objectVisualImage(visual, obj.stateFlags, time, obj.orientation, reso);
@@ -223,6 +226,9 @@ export default class CanvasWorldView {
 	}
 	
 	protected drawScene( roomId:string, pos:Vector3D, time:number ):void {
+		this.screenCenterX = this.canvas.width/2;
+		this.screenCenterY = this.canvas.height/2;
+		
 		const room = this.game.rooms[roomId];
 		if( room == null ) {
 			console.log("Failed to load room "+roomId+"; can't draw it.")
@@ -245,7 +251,7 @@ export default class CanvasWorldView {
 			this.addSpecialDrawCommand(
 				(ctx:CanvasRenderingContext2D) => {
 					ctx.fillStyle = fogColorStr; // Fawg
-					ctx.fillRect(0, 0, this.canvas.width, this.canvas.height)
+					ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height)
 				},
 				this.focusDistance + i+0.5
 			);
