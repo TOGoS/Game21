@@ -16,10 +16,10 @@ import ProceduralShape from './ProceduralShape';
 import ImageSlice from './ImageSlice';
 import ObjectImageManager from './ObjectImageManager';
 import {DEFAULT_LIGHTS} from './Lights';
-import {DEFAULT_MATERIALS, IDENTITY_MATERIAL_REMAP} from './Materials';
+import {DEFAULT_MATERIALS, IDENTITY_MATERIAL_REMAP, makeRemap, remap} from './Materials';
 import Rectangle from './Rectangle';
 import { newType4Uuid, uuidUrn } from '../tshash/uuids';
-import { Game, Room, PhysicalObject, PhysicalObjectType } from './world';
+import { Game, Room, PhysicalObject, PhysicalObjectType, TileTree } from './world';
 
 const objectPosBuffer = new Vector3D;
 
@@ -89,6 +89,14 @@ class DrawCommand {
 	}
 }
 
+function toArray<T,D extends ArrayLike<T>>(src:ArrayLike<T>, dest:D):D {
+	for( let i=0; i<src.length; ++i ) dest[i] = src[i];
+	return dest;
+}
+function toUint8Array(src:ArrayLike<number>):Uint8Array {
+	return toArray(src, new Uint8Array(src.length));
+}
+
 export default class CanvasWorldView {
 	protected canvas:HTMLCanvasElement;
 	protected canvasContext:CanvasRenderingContext2D;
@@ -144,7 +152,7 @@ export default class CanvasWorldView {
 	protected screenCenterX:number;
 	protected screenCenterY:number;
 	
-	protected drawObject( obj:PhysicalObject, pos:Vector3D, time:number ):void {
+	protected drawIndividualObject( obj:PhysicalObject, pos:Vector3D, time:number ):void {
 		let visual = this.game.objectVisuals[obj.visualRef];
 		if( visual == null ) {
 			console.log("Object visual "+obj.visualRef+" not loaded; can't draw");
@@ -168,12 +176,37 @@ export default class CanvasWorldView {
 		);
 	}
 	
+	protected drawObject( obj:PhysicalObject, pos:Vector3D, time:number ):void {
+		switch( obj.type ) {
+		case PhysicalObjectType.INDIVIDUAL:
+			this.drawIndividualObject(obj, obj.position ? Vector3D.add(pos, obj.position, objectPosBuffer) : pos, time);
+			break;
+		case PhysicalObjectType.TILE_TREE:
+			const tt = <TileTree>obj;
+			const tilePaletteIndexes = tt.childObjectIndexes;
+			const tilePalette = this.game.tilePalettes[tt.childObjectPaletteRef];
+			const objectPrototypes = this.game.objectPrototypes;
+			const childPosBuf = new Vector3D;
+			const xd = tt.divisionBox.width/tt.xDivisions;
+			const yd = tt.divisionBox.height/tt.yDivisions;
+			const zd = tt.divisionBox.depth/tt.zDivisions;
+			const x0 = pos.x - tt.divisionBox.width/2  + xd/2;
+			const y0 = pos.y - tt.divisionBox.height/2 + yd/2;
+			const z0 = pos.z - tt.divisionBox.depth/2  + zd/2;
+			for( let i=0, z=0; z < tt.zDivisions; ++z ) for( let y=0; y < tt.yDivisions; ++y ) for( let x=0; x < tt.xDivisions; ++x, ++i ) {
+				const childId = tilePalette[tilePaletteIndexes[i]];
+				if( childId != null ) {
+					const child = objectPrototypes[childId];
+					this.drawObject( child, childPosBuf.set(x0+x*xd, y0+y*yd, z0+z*zd), time );
+				}
+			}
+		}
+	}
+	
 	protected drawRoom( room:Room, pos:Vector3D, time:number ):void {
 		for( let o in room.objects ) {
 			const obj = room.objects[o];
-			if( obj.type == PhysicalObjectType.INDIVIDUAL ) {
-				this.drawObject(obj, Vector3D.add(pos, obj.position, objectPosBuffer), time);
-			}
+			this.drawObject(obj, Vector3D.add(pos, obj.position, objectPosBuffer), time);
 		}
 	}
 	
@@ -214,6 +247,7 @@ export default class CanvasWorldView {
 	
 	protected makeCrappyGame():Game {
 		const crappyBlockVisualId = newUuid();
+		const crappyBrickVisualId = newUuid();
 		const crappyRoomId = newUuid();
 		const theMaterialMap = DEFAULT_MATERIALS;
 		const roomObjects:KeyedList<PhysicalObject> = {};
@@ -232,15 +266,69 @@ export default class CanvasWorldView {
 			};
 		}
 		
+		const blockVisual:ObjectVisual = simpleObjectVisual( (ssu:ShapeSheetUtil, t:number, xf:TransformationMatrix3D) => {
+			const center = xf.multiplyVector(Vector3D.ZERO);
+			const size = xf.scale;
+			ssu.plottedDepthFunction = (x:number, y:number, z:number) => z;
+			ssu.plottedMaterialIndexFunction = (x:number, y:number, z:number) => 8;
+			ssu.plotAASharpBeveledCuboid( center.x-size/2, center.y-size/2, center.z-size/2, size, size, size/6);
+		});
+		const brickRemap = makeRemap(8,4,4);
+		const brickVisual:ObjectVisual = {
+			materialMap: remap(blockVisual.materialMap, brickRemap),
+			states: blockVisual.states
+		}
+		
+		const brickPrototypeId = newUuid();
+		const brick:PhysicalObject = {
+			position: null,
+			orientation: Quaternion.IDENTITY,
+			type: PhysicalObjectType.INDIVIDUAL,
+			isRigid: true,
+			isAffectedByGravity: false,
+			stateFlags: 0,
+			visualRef: crappyBrickVisualId,
+			physicalBoundingBox: new Cuboid(-0.5, -0.5, -0.5, 0.5, 0.5, 0.5),
+			visualBoundingBox: new Cuboid(-0.5, -0.5, -0.5, 0.5, 0.5, 0.5)
+		}
+		
+		const tilePaletteRef = newUuid();
+		const tilePalette = [
+			null,
+			brickPrototypeId
+		];
+		
+		const tileTree:TileTree = {
+			position: new Vector3D(0,0,0),
+			orientation: Quaternion.IDENTITY,
+			visualBoundingBox: new Cuboid(-2,-2,-0.5,+2,+2,+0.5),
+			physicalBoundingBox: new Cuboid(-2,-2,-0.5,+2,+2,+0.5),
+			type: PhysicalObjectType.TILE_TREE,
+			divisionBox: new Cuboid(-2,-2,-0.5,+2,+2,+0.5),
+			xDivisions: 4,
+			yDivisions: 4,
+			zDivisions: 1,
+			childObjectPaletteRef: tilePaletteRef,
+			childObjectIndexes: toUint8Array([
+				1,1,1,1,
+				1,0,0,1,
+				1,0,0,1,
+				1,1,1,1,
+			]),
+			// These don't really make sense to have to have on a tile tree
+			isAffectedByGravity: false,
+			isRigid: false,
+			stateFlags: 0,
+			visualRef: null
+		}
+		
+		const tileTreeUuid = newUuid();
+		roomObjects[tileTreeUuid] = tileTree;
+		
 		return {
 			objectVisuals: {
-				[crappyBlockVisualId]: simpleObjectVisual( (ssu:ShapeSheetUtil, t:number, xf:TransformationMatrix3D) => {
-					const center = xf.multiplyVector(Vector3D.ZERO);
-					const size = xf.scale;
-					ssu.plottedDepthFunction = (x:number, y:number, z:number) => z;
-					ssu.plottedMaterialIndexFunction = (x:number, y:number, z:number) => 8;
-					ssu.plotAASharpBeveledCuboid( center.x-size/2, center.y-size/2, center.z-size/2, size, size, size/6);
-				})
+				[crappyBlockVisualId]: blockVisual,
+				[crappyBrickVisualId]: brickVisual,
 			},
 			rooms: {
 				[crappyRoomId]: {
@@ -248,8 +336,11 @@ export default class CanvasWorldView {
 					neighbors: {}
 				}
 			},
+			tilePalettes: {
+				[tilePaletteRef]: tilePalette
+			},
 			objectPrototypes: {
-				
+				[brickPrototypeId]: brick
 			}
 		};
 	}

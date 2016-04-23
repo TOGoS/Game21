@@ -35,6 +35,7 @@ export interface PhysicalObject {
 
 export interface Game {
 	objectVisuals: KeyedList<ObjectVisual>;
+	tilePalettes: KeyedList<Array<string>>;
 	objectPrototypes: KeyedList<PhysicalObject>;
 	rooms: KeyedList<Room>;
 }
