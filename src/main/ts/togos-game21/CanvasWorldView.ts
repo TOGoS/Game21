@@ -19,55 +19,7 @@ import {DEFAULT_LIGHTS} from './Lights';
 import {DEFAULT_MATERIALS, IDENTITY_MATERIAL_REMAP} from './Materials';
 import Rectangle from './Rectangle';
 import { newType4Uuid, uuidUrn } from '../tshash/uuids';
-
-interface RoomNeighbor {
-	offset:Vector3D;
-	/**
-	 * The room's bounding box, relative to its offset.
-	 * This is duplicated from the room's own data.
-	 */
-	bounds:Cuboid;
-	roomId:string;
-}
-
-enum ObjectType {
-	TILE_TREE,
-	INDIVIDUAL
-}
-
-interface PhysicalObject {
-	position:Vector3D; // Ignored (and should be null) for tiles/prototypes
-	
-	type:ObjectType;
-	orientation:Quaternion;
-	visualRef:string;
-	// Bounding boxes are relative to the object's position (whether indicated externally or internally)
-	physicalBoundingBox:Cuboid;
-	visualBoundingBox:Cuboid;
-	isAffectedByGravity:boolean;
-	isRigid:boolean;
-	stateFlags:number;
-}
-
-interface TileTree extends PhysicalObject {
-	divisionBox:Cuboid; // The box that's divided; may be larger or smaller than the physical bounding box
-	xDivisions:number;
-	yDivisions:number;
-	zDivisions:number;
-	childObjectPaletteRef:string;
-	childObjectIndexes:Uint8Array;
-}
-
-interface Room {
-	objects:KeyedList<PhysicalObject>;
-	neighbors:KeyedList<RoomNeighbor>;
-}
-
-interface Game {
-	objectVisuals: KeyedList<ObjectVisual>;
-	objectPrototypes: KeyedList<PhysicalObject>;
-	rooms: KeyedList<Room>;
-}
+import { Game, Room, PhysicalObject, PhysicalObjectType } from './world';
 
 const objectPosBuffer = new Vector3D;
 
@@ -219,7 +171,7 @@ export default class CanvasWorldView {
 	protected drawRoom( room:Room, pos:Vector3D, time:number ):void {
 		for( let o in room.objects ) {
 			const obj = room.objects[o];
-			if( obj.type == ObjectType.INDIVIDUAL ) {
+			if( obj.type == PhysicalObjectType.INDIVIDUAL ) {
 				this.drawObject(obj, Vector3D.add(pos, obj.position, objectPosBuffer), time);
 			}
 		}
@@ -270,7 +222,7 @@ export default class CanvasWorldView {
 			roomObjects[objectId] = {
 				position: new Vector3D((Math.random()-0.5)*10, (Math.random()-0.5)*10, (Math.random()-0.5)*10),
 				orientation: Quaternion.IDENTITY,
-				type: ObjectType.INDIVIDUAL,
+				type: PhysicalObjectType.INDIVIDUAL,
 				isRigid: true,
 				isAffectedByGravity: false,
 				stateFlags: 0,
