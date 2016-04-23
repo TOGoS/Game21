@@ -71,14 +71,14 @@ export default class Vector3D {
 	}
 	
 	public static createFrom(thing:any):Vector3D {
-		let x=null, y=null, z=null;
+		let x:any=null, y:any=null, z:any=null;
 		if( thing instanceof Array ) {
 			x = thing[0]; y = thing[1]; z = thing[2];
 		} else {
 			x = thing.x; y = thing.y; z = thing.z;
 		}
 		
-		let errors = [];
+		let errors:string[] = [];
 		if( typeof x != 'number' ) errors.push("'x' must be a number; got "+JSON.stringify(x));
 		if( typeof y != 'number' ) errors.push("'y' must be a number; got "+JSON.stringify(y));
 		if( typeof z != 'number' ) errors.push("'z' must be a number; got "+JSON.stringify(z));

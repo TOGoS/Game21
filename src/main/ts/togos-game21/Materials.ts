@@ -12,7 +12,7 @@ export function randomMaterials(count:number):Array<Material> {
 	let g = Math.random();
 	let b = Math.random();
 	const vari = Math.random()*0.5;
-	const materials = [];
+	const materials:Material[] = [];
 	for( let i=0; i < count; ++i ) {
 		materials.push({
 			diffuse: new SurfaceColor(

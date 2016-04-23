@@ -202,6 +202,7 @@ export default class CanvasWorldView {
 			break;
 		default:
 			console.log("Unrecognized objec type! "+obj.type)
+			break;
 		}
 	}
 	
@@ -354,7 +355,7 @@ export default class CanvasWorldView {
 	
 	public runDemo() {
 		this.game = this.makeCrappyGame();
-		let roomId;
+		let roomId:string;
 		for( roomId in this.game.rooms ); // Just find one; whatever.
 		
 		const animCallback = () => {

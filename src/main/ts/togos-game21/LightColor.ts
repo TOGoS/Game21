@@ -9,14 +9,14 @@ class LightColor {
 	}
 	
 	public static createFrom(thing:any):LightColor {
-		let r=null, g=null, b=null;
+		let r:any=null, g:any=null, b:any=null;
 		if( thing instanceof Array ) {
 			r = thing[0]; g = thing[1]; b = thing[2];
 		} else {
 			r = thing.r; g = thing.r; b = thing.b;
 		}
 		
-		let errors = [];
+		let errors:string[] = [];
 		if( typeof r != 'number' ) errors.push("'r' must be a number; got "+JSON.stringify(r));
 		if( typeof g != 'number' ) errors.push("'g' must be a number; got "+JSON.stringify(g));
 		if( typeof b != 'number' ) errors.push("'b' must be a number; got "+JSON.stringify(b));

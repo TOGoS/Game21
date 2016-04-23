@@ -10,7 +10,7 @@ import ShapeSheetUtil, {NOOP_PLOTTED_DEPTH_FUNCTION} from './ShapeSheetUtil';
 import SimplexNoise from '../SimplexNoise';
 import DensityFunction3D, {makeDensityFunction} from './DensityFunction3D';
 
-export function betterParseNumber(n, emptyValue=0) {
+export function betterParseNumber(n:any, emptyValue:number=0):number {
 	if( n == null ) return null;
 	if( typeof(n) == 'number' ) return n;
 	if( typeof(n) == 'string' ) {
@@ -21,7 +21,7 @@ export function betterParseNumber(n, emptyValue=0) {
 	throw new Error("Don't know how to parse "+typeof(n)+" as number");
 }
 
-export function betterParseBoolean(n, emptyValue=false) {
+export function betterParseBoolean(n:any, emptyValue:boolean=false):boolean {
 	if( n == null ) return null;
 	if( typeof(n) == 'boolean' ) return n;
 	if( typeof(n) == 'number' ) return n > 0;
@@ -77,30 +77,30 @@ class ShapeSheetDemo {
 		var minwh = Math.min(width,height);
 		
 		const simplex = new SimplexNoise(Math.random);
-		const clamp = (min,num,max) => Math.max(min,Math.min(num,max));
+		const clamp = (min:number,num:number,max:number) => Math.max(min,Math.min(num,max));
 		const sxs = this.simplexScale;
 		
-		const layeredSimplex4 = (x,y,z) =>
+		const layeredSimplex4 = (x:number,y:number,z:number):number =>
 			simplex.noise3d(x/2, y/2, z/2) * 0.25 +
 			simplex.noise3d(x/5, y/5, z/5) * 0.5 +
 			simplex.noise3d(x/25, y/25, z/25) * 5 + 
 			simplex.noise3d(x/50, y/50, z/50) * 15;
 		util.plottedDepthFunction = sxs == 0 ?
-			NOOP_PLOTTED_DEPTH_FUNCTION : (x,y,z) => (z == Infinity ? z : (z + layeredSimplex4(x/sxs, y/sxs, z/sxs) * sxs));
-		util.plottedMaterialIndexFunction = (x,y,z) => clamp(8, 10+2*simplex.noise3d(x, y, z), 12)|0;
+			NOOP_PLOTTED_DEPTH_FUNCTION : (x:number,y:number,z:number):number => (z == Infinity ? z : (z + layeredSimplex4(x/sxs, y/sxs, z/sxs) * sxs));
+		util.plottedMaterialIndexFunction = (x:number,y:number,z:number):number => clamp(8, 10+2*simplex.noise3d(x, y, z), 12)|0;
 		util.plotAABeveledCuboid(0,0,minwh,width,height,0);
 		
-		const layeredSimplex2 = (x,y,z) =>
+		const layeredSimplex2 = (x:number,y:number,z:number):number =>
 			simplex.noise3d(x/2, y/2, z/2) * 0.25 +
 			simplex.noise3d(x/5, y/5, z/5) * 0.5;		
 		util.plottedDepthFunction = sxs == 0 ?
-			NOOP_PLOTTED_DEPTH_FUNCTION : (x,y,z) => (z == Infinity ? z : (z + layeredSimplex2(x/sxs, y/sxs, z/sxs) * sxs));
-		util.plottedMaterialIndexFunction = (x,y,z) => clamp(4, 6+2*simplex.noise3d(x/4, y/4, z/4), 8)|0;
+			NOOP_PLOTTED_DEPTH_FUNCTION : (x:number,y:number,z:number):number => (z == Infinity ? z : (z + layeredSimplex2(x/sxs, y/sxs, z/sxs) * sxs));
+		util.plottedMaterialIndexFunction = (x:number,y:number,z:number):number => clamp(4, 6+2*simplex.noise3d(x/4, y/4, z/4), 8)|0;
 		
 		util.plotSphere(width/2, height/2, minwh*2, minwh/4);
 		util.plotSphere(width/2, height/2, minwh*1, minwh/8);
 		util.plotSphere(width/2, height/2, minwh*0.5, minwh/16);
-		var i;
+		var i:number;
 		for( i=0; i < 200; ++i ) {
 			var r = 2 * Math.PI * i / 200;
 			util.plotSphere(
@@ -110,7 +110,7 @@ class ShapeSheetDemo {
 				minwh/8);
 		}
 		
-		for( i=0; i<200; ++i ) {
+		for( i=0; i < 200; ++i ) {
 			util.plotSphere(Math.random()*width, Math.random()*height, Math.random()*8 + 128, 8);
 		}
 		
@@ -143,7 +143,7 @@ class ShapeSheetDemo {
 			return rad - Math.sqrt(dx*dx+dy*dy+dz*dz) + ((sr == 0) ? 0 : noise * sr);
 		});
 		
-		const grain = (x,y,z) => {
+		const grain = (x:number,y:number,z:number):number => {
 			const xDiv = this.grainSize * 40;
 			const v = simplex.noise3d(40 + x/xDiv, y/xDiv, z/xDiv)*10;
 			return v - Math.floor(v);
@@ -234,7 +234,7 @@ class ShapeSheetDemo {
 	
 	public startLightAnimation() {
 		var renderer = this.renderer;
-		var bolts = {lightning0:-Infinity, lightning1:-Infinity, lightning2:-Infinity};
+		var bolts:KeyedList<number> = {lightning0:-Infinity, lightning1:-Infinity, lightning2:-Infinity};
 		
 		var f = 0;
 		return setInterval( () => {
@@ -257,7 +257,7 @@ class ShapeSheetDemo {
 			}
 			
 			if( this.lightningEnabled ) {
-				var i, level;
+				var i:string, level:number;
 				for( i in bolts ) {
 					level = bolts[i];
 					if( level === -Infinity ) {
@@ -319,7 +319,7 @@ class ShapeSheetDemo {
 			
 			rad = Math.abs(rad + vrad);
 			if( rad <  4 ) { rad = 4; vrad = +1; }
-			var maxRad = Math.min(width/4, 16);
+			const maxRad = Math.min(width/4, 16);
 			if( rad > maxRad ) { rad = maxRad; vrad = -1; }
 			
 			x += vx;
@@ -338,15 +338,15 @@ class ShapeSheetDemo {
 			if( Math.abs(vrad) > 1 ) vrad *= 0.5;
 
 			if( this.zShiftingEnabled ) util.shiftZ(1);
-			var vMag = Math.sqrt(vx*vx + vy*vy);
-			var aheadX = vx / vMag, aheadY = vy / vMag;
-			var sideX  = aheadY   , sideY = -aheadX;
-			var loopRad = width/8;
-			var sin = Math.sin(ang);
-			var cos = Math.cos(ang);
-			var plotX = x + sin * sideX * loopRad;
-			var plotY = plotY = y + sin * sideY * loopRad;
-			var plotZ = 0 + cos * loopRad - (this.zShiftingEnabled ? 0 : i);
+			const vMag = Math.sqrt(vx*vx + vy*vy);
+			const aheadX = vx / vMag, aheadY = vy / vMag;
+			const sideX  = aheadY   , sideY = -aheadX;
+			const loopRad = width/8;
+			const sin = Math.sin(ang);
+			const cos = Math.cos(ang);
+			const plotX = x + sin * sideX * loopRad;
+			const plotY = y + sin * sideY * loopRad;
+			const plotZ = 0 + cos * loopRad - (this.zShiftingEnabled ? 0 : i);
 			
 			util.plotSphere(plotX, plotY, plotZ, rad);
 			/*

@@ -4,9 +4,17 @@ import KeyedList from './KeyedList';
 import IP6Address, {parseIp6Address, stringifyIp6Address} from './IP6Address';
 import WebSocketLike from './WebSocketLike';
 import WSWebSocket from './WSWebSocket';
-import {Request as ExpressRequest} from './express';
+import {Request as ExpressRequest, Response as ExpressResponse} from './express';
 
 type LinkID = string;
+
+interface IPPacketInfo<T> {
+	ipVersion:number;
+	sourceAddressString:string;
+	destAddressString:string;
+	subProtocolNumber:number;
+	payloadObject:T
+}
 
 class IP6Prefix {
 	public address:IP6Address;
@@ -70,13 +78,13 @@ class RouteList {
 
 abstract class Link {
 	// public prefixes:KeyedList<IP6Prefix> = {};
-	abstract attached(router:Router, name:LinkID);
-	abstract detached(router:Router, name:LinkID);
-	abstract send(packetInfo:any);
+	abstract attached(router:Router, name:LinkID):void;
+	abstract detached(router:Router, name:LinkID):void;
+	abstract send<T>(packetInfo:IPPacketInfo<T>):void;
 }
 
 interface WebSocketServer {
-	on<EventType>(eventName:string, callback:(event:EventType)=>void );
+	on<EventType>(eventName:string, callback:(event:EventType)=>void ):void;
 }
 
 class WebSocketLink extends Link {
@@ -85,7 +93,7 @@ class WebSocketLink extends Link {
 	}
 	public attached(router:Router, name:LinkID) { }
 	public detached(router:Router, name:LinkID) { }
-	public send(packetInfo:any) {
+	public send<T>(packetInfo:IPPacketInfo<T>) {
 		this.conn.send(JSON.stringify(packetInfo));
 	}
 }
@@ -97,7 +105,7 @@ function getRequestClientAddress(req:ExpressRequest) {
 class Router {
 	public routes:RouteList = new RouteList;
 	public links:KeyedList<Link> = {};
-	public nextClientAddress
+	//public nextClientAddress:
 	public networkPrefix:IP6Prefix = new IP6Prefix(parseIp6Address("1234:0:0:1::"),64);
 	public routerAddress:IP6Address = parseIp6Address("1234:0:0:1::1");
 	protected nextLinkId = 1;
@@ -117,8 +125,8 @@ class Router {
 		delete this.links[linkId];
 	}
 	
-	public messageReceived(packetInfo:any, sourceLinkId:LinkID) {
-		let destAddress;
+	public messageReceived<T>(packetInfo:IPPacketInfo<T>, sourceLinkId:LinkID) {
+		let destAddress:Uint8Array;
 		if( typeof(packetInfo.destAddressString) === 'string' ) {
 			destAddress = parseIp6Address(packetInfo.destAddressString);
 		} else {
@@ -164,7 +172,7 @@ class Router {
 			ws.on('message', data => {
 				console.log("Received WebSocket message from "+linkId);
 				
-				let packetInfo;
+				let packetInfo:IPPacketInfo<any>;
 				if( typeof data == "string" ) {
 					try {
 						packetInfo = JSON.parse(data);
@@ -201,7 +209,7 @@ class Router {
 		});
 		
 		const exrpessApp = Express();
-		exrpessApp.use(function (req, res) {
+		exrpessApp.use(function (req:ExpressRequest, res:ExpressResponse) {
 			res.send("Hi.  Maybe you want to Upgrade: websocket?");
 		});
 		httpServer.on('request', exrpessApp);

@@ -64,7 +64,7 @@ export default class Quaternion {
 		// Warning: this method should not normalize the Quaternion
 		const cosAngle:number = this.dotProduct(q0, q1);
     	
-		let c1, c2;
+		let c1:number, c2:number;
 		// Linear interpolation for close orientations
 		if( (1.0 - Math.abs(cosAngle)) < 0.01 ) {
 			c1 = 1.0 - t;

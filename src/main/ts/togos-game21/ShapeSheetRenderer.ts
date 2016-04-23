@@ -74,7 +74,7 @@ function calcSlope4(z0:number,z1:number,z2:number,z3:number):number {
 };
 
 function processRectangleUpdates(rectangleList:Array<Rectangle>, updater:(rect:Rectangle)=>void) {
-	var i, r;
+	var i:any;
 	var anythingUpdated = false;
 	for( i in rectangleList ) {
 		updater(rectangleList[i]);
@@ -243,7 +243,7 @@ export default class ShapeSheetRenderer {
 		
 		const isFullRerender = (minX == 0 && minY == 0 && maxX == ss.width && maxY == ss.height);
 		
-		var i, x, y;
+		let i:number, x:number, y:number;
 		const cornerDepths = ss.cellCornerDepths;
 		const averageDepths = this.cellAverageDepths;
 		let minimumAverageDepth = isFullRerender ? Infinity : this.minimumAverageDepth;
@@ -319,8 +319,8 @@ export default class ShapeSheetRenderer {
 		region = Rectangle.intersection( region, ss.bounds );
 		const {minX, minY, maxX, maxY} = region.assertIntegerBoundaries();
 		
-		var i, l, x, y, d;
-		var stx, sty, stz, stdx, stdy, stdz; // shadow tracing
+		var i:number, l:string, x:number, y:number, d:number;
+		var stx:number, sty:number, stz:number, stdx:number, stdy:number, stdz:number; // shadow tracing
 		var cellColors = this.cellColors;
 		var cellCoverages = this.cellCoverages;
 		var cellNormals = this.cellNormals;
@@ -391,8 +391,8 @@ export default class ShapeSheetRenderer {
 			cellColors[i*4+2] = b;
 			cellColors[i*4+3] = a;
 		}
-		var s;
-		for( s in this.shaders ) {
+		var s:any;
+		for( let s in this.shaders ) {
 			this.shaders[s](this, region);
 		}
 		if( this.updateRectanglesVisible ) {
@@ -442,7 +442,7 @@ export default class ShapeSheetRenderer {
 		if( this.canvas === null ) return;
 		
 		var ctx = this.canvas.getContext('2d');
-		var encodeColorValue = function(i) {
+		var encodeColorValue = function(i:number):number {
 			var c = Math.pow(i, 0.45);
 			if( c > 1 ) return 255;
 			return (c*255)|0;
@@ -452,7 +452,7 @@ export default class ShapeSheetRenderer {
 		var imgData = ctx.getImageData(minX, minY, w, h);
 		var imgDataData = imgData.data;
 		
-		var bi, idi, x, y;
+		var bi:number, idi:number, x:number, y:number;
 		for( idi=0, y=minY; y<maxY; ++y ) {
 			for( x=minX, bi=width*y+x; x<maxX; ++x, ++bi, ++idi ) {
 				imgDataData[idi*4+0] = encodeColorValue(cellColors[bi*4+0]);
@@ -472,7 +472,6 @@ export default class ShapeSheetRenderer {
 	
 	updateCanvas():void {
 		this.canvasUpdateRequested = false;
-		var i, r;
 		this.updateCellColors();
 		processRectangleUpdates(this.updatingCanvasRectangles, this.copyToCanvas.bind(this));
 		++this.canvasUpdateCount;
@@ -538,7 +537,7 @@ export default class ShapeSheetRenderer {
 			var width = ss.width;
 			var cellAverageDepths = ssr.cellAverageDepths;
 			var cellColors = ssr.cellColors;
-			var x, y, i, d, r, g, b, a, oMix, fMix;
+			var x:number, y:number, i:number, d:number, r:number, g:number, b:number, a:number, oMix:number, fMix:number;
 			var fogT = (1-fogA); // Fog transparency; how much of original color to keep at depth = 1 pixel
 			for( y=minY; y < maxY; ++y ) for( x=minX, i=y*width+x; x < maxX; ++x, ++i ) {
 				d = cellAverageDepths[i];

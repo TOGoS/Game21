@@ -35,7 +35,7 @@ class CoilShape implements ProceduralShape {
 		const s = 0.01+Math.random()*0.03;
 		const matCount = (1+Math.round(Math.random()*3))|0;
 		const matSpan = Math.random() * 6;
-		let u;
+		let u:number;
 		ssu.plottedDepthFunction = NOOP_PLOTTED_DEPTH_FUNCTION;
 		ssu.plottedMaterialIndexFunction = () => {
 			return 4+(u/matSpan+Math.random()) % (matCount*4);

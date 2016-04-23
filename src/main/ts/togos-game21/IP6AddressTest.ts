@@ -1,6 +1,6 @@
 import IP6Address, {parseIp6Address, stringifyIp6Address} from './IP6Address';
 
-function assertEquals( expected, actual ) {
+function assertEquals( expected:any, actual:any ):void {
 	if( expected !== actual ) throw new Error("Assertion failed; "+expected+" != "+actual);
 }
 

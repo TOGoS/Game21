@@ -1,10 +1,14 @@
 import WebSocketLike from './WebSocketLike';
 
+interface ConsoleLike {
+	log(...stuff:string[]):void;
+}
+
 declare class WebSocket implements WebSocketLike {
 	constructor(wsUrl:string);
 	readyState : number;
 	binaryType : string;
-	send(data:string|ArrayBuffer);
+	send(data:string|ArrayBuffer):void;
 	onopen : (event:any)=>void;
 	onerror : (event:any)=>void;
 	onclose : (event:any)=>void;
@@ -18,7 +22,7 @@ export default class WebSocketClient {
 	public localAddress:string;
 	public peerAddress:string;
 	public nextPingSequenceNumber:number=0;
-	public console;
+	public console:ConsoleLike;
 	
 	constructor() {
 		this.connection = null;
@@ -29,7 +33,7 @@ export default class WebSocketClient {
 		this.peerAddress = "fe80::2";
 		this.console = window.console;
 	}
-	public connectIfNotConnected(wsUrl) {
+	public connectIfNotConnected(wsUrl:string):WebSocketClient {
 		if( this.connection == null ) {
 			this.connection = new WebSocket(wsUrl);
 			this.connection.binaryType = 'arraybuffer';
@@ -48,8 +52,8 @@ export default class WebSocketClient {
 			this.connection.send(this.enqueuedMessages[i]);
 		}
 	};
-	protected onMessage(messageEvent) {
-		var encoding;
+	protected onMessage(messageEvent:any):void {
+		var encoding:string;
 		var data = messageEvent.data;
 		if( typeof data == 'string' ) {
 			encoding = "JSON";
@@ -60,21 +64,21 @@ export default class WebSocketClient {
 		}
 		this.console.log("Received "+encoding+"-encoded message: "+data);
 	};
-	protected enqueueMessage(data) {
+	protected enqueueMessage(data:any):void {
 		if( this.connection != null && this.connection.readyState == 1 ) {
 			this.connection.send(data);
 		} else {
 			this.enqueuedMessages.push(data);
 		}
 	};
-	protected enqueuePacket(packet) {
+	protected enqueuePacket(packet:any):void {
 		if( this.packetEncodingMode == "JSON" ) {
 			this.enqueueMessage(JSON.stringify(packet));
 		} else {
 			throw new Error("Unsupported packet encoding: "+this.packetEncodingMode);
 		}
 	}
-	protected ping(peerAddress) {
+	protected ping(peerAddress:string) {
 		if( peerAddress == null ) peerAddress = this.peerAddress;
 		
 		this.enqueuePacket({

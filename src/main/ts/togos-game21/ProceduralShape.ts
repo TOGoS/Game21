@@ -12,7 +12,7 @@ interface ProceduralShape {
 	 * @param {number} t a number between 0 and 1 indicating the point in the object's animation that we are drawing
 	 */
 	estimateOuterBounds( t:number, xf:TransformationMatrix3D ):Rectangle;
-	draw( ssu:ShapeSheetUtil, t:number, xf:TransformationMatrix3D );
+	draw( ssu:ShapeSheetUtil, t:number, xf:TransformationMatrix3D ):void;
 }
 
 export default ProceduralShape;

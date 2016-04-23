@@ -10,9 +10,9 @@ class ConsoleProcess {
 		line.appendChild(document.createTextNode(text));
 		this.outputDiv.appendChild(line);
 	}
-	public log(...stuff) {
+	public log(...stuff:any[]) {
 		const pre = this.document.createElement('pre');
-		const texts = [];
+		const texts:string[] = [];
 		for( let t in stuff ) {
 			texts.push(JSON.stringify(stuff[t]));
 		}

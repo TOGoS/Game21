@@ -99,7 +99,7 @@ class SimplexNoise {
 		var y0 = yin - Y0;
 		// For the 2D case, the simplex shape is an equilateral triangle.
 		// Determine which simplex we are in.
-		var i1, j1; // Offsets for second (middle) corner of simplex in (i,j) coords
+		var i1:number, j1:number; // Offsets for second (middle) corner of simplex in (i,j) coords
 		if (x0 > y0) {
 			i1 = 1;
 			j1 = 0;
@@ -146,7 +146,7 @@ class SimplexNoise {
 		var permMod12 = this.permMod12,
 			perm = this.perm,
 			grad3 = SimplexNoise.GRAD3;
-		var n0, n1, n2, n3; // Noise contributions from the four corners
+		var n0:number, n1:number, n2:number, n3:number; // Noise contributions from the four corners
 		// Skew the input space to determine which simplex cell we're in
 		var s = (xin + yin + zin) * F3; // Very nice and simple skew factor for 3D
 		var i = Math.floor(xin + s);
@@ -161,8 +161,8 @@ class SimplexNoise {
 		var z0 = zin - Z0;
 		// For the 3D case, the simplex shape is a slightly irregular tetrahedron.
 		// Determine which simplex we are in.
-		var i1, j1, k1; // Offsets for second corner of simplex in (i,j,k) coords
-		var i2, j2, k2; // Offsets for third corner of simplex in (i,j,k) coords
+		var i1:number, j1:number, k1:number; // Offsets for second corner of simplex in (i,j,k) coords
+		var i2:number, j2:number, k2:number; // Offsets for third corner of simplex in (i,j,k) coords
 		if (x0 >= y0) {
 			if (y0 >= z0) {
 				i1 = 1;
@@ -272,7 +272,7 @@ class SimplexNoise {
 			perm = this.perm,
 			grad4 = SimplexNoise.GRAD4;
 		
-		var n0, n1, n2, n3, n4; // Noise contributions from the five corners
+		var n0:number, n1:number, n2:number, n3:number, n4:number; // Noise contributions from the five corners
 		// Skew the (x,y,z,w) space to determine which cell of 24 simplices we're in
 		var s = (x + y + z + w) * F4; // Factor for 4D skewing
 		var i = Math.floor(x + s);
@@ -309,9 +309,9 @@ class SimplexNoise {
 		else rankw++;
 		if (z0 > w0) rankz++;
 		else rankw++;
-		var i1, j1, k1, l1; // The integer offsets for the second simplex corner
-		var i2, j2, k2, l2; // The integer offsets for the third simplex corner
-		var i3, j3, k3, l3; // The integer offsets for the fourth simplex corner
+		var i1:number, j1:number, k1:number, l1:number; // The integer offsets for the second simplex corner
+		var i2:number, j2:number, k2:number, l2:number; // The integer offsets for the third simplex corner
+		var i3:number, j3:number, k3:number, l3:number; // The integer offsets for the fourth simplex corner
 		// simplex[c] is a 4-vector with the numbers 0, 1, 2 and 3 in some order.
 		// Many values of c will never occur, since e.g. x>y>z>w makes x<z, y<w and x<w
 		// impossible. Only the 24 indices which have non-zero entries make any sense.

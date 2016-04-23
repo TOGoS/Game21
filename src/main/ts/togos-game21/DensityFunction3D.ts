@@ -56,14 +56,13 @@ export function makeDensityFunction( f:(x:number,y:number,z:number)=>number ):De
 	df.valueAtVector = function(v:Vector3D):number {
 		return f(v.x, v.y, v.z);
 	}
-	df.findValue = function(start:Vector3D, direction:Vector3D, targetValue:number, dest:Vector3D, maxIterations:number=10) {
+	df.findValue = function(start:Vector3D, direction:Vector3D, targetValue:number, dest:Vector3D, maxIterations:number=10):number {
 		direction.normalize(1, normalizedDirection);
 		const initialValue = f(start.x,start.y,start.z);
 		dest.set(start.x, start.y, start.z);
 		let iter = maxIterations;
 		let cv = initialValue;
 		const fwd = initialValue < 0 ? -1 : +1;
-		let nv0, nv1;
 		while( iter > 0 ) {
 			const go = 1.5 * fwd * (cv - targetValue) / maxGradient;
 			if( go == 0 ) break;

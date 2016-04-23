@@ -24,7 +24,7 @@ export function constantMaterialIndexFunction( v:number ) {
 	return function(x:number,y:number,z:number,z0:number,z1:number,z2:number,z3:number) { return v; };
 };
 
-var infiniMinus = function(a, b) {
+var infiniMinus = function(a:number, b:number):number {
 	if( a === b ) return 0;
 	if( a === +Infinity ) {
 		if( b === -Infinity ) return 0;
@@ -49,7 +49,7 @@ function disto( x0:number, y0:number, z0:number, x1:number, y1:number, z1:number
 	return Math.sqrt( dx*dx + dy*dy + dz*dz );
 };
 
-export const NOOP_PLOTTED_DEPTH_FUNCTION = (x,y,z) => z;
+export const NOOP_PLOTTED_DEPTH_FUNCTION = (x:number,y:number,z:number):number => z;
 
 const dfDestVectorBuffer = new Vector3D;
 const dfStartVectorBuffer = new Vector3D;
@@ -71,7 +71,7 @@ class ShapeSheetUtil {
 	public plottedDepthFunction:PlottedDepthFunction;
 	public plotMode:PlotMode;
 	
-	constructor(shapeSheet, renderer:ShapeSheetRenderer=null) {
+	constructor(shapeSheet:ShapeSheet, renderer:ShapeSheetRenderer=null) {
 		this._shapeSheet = shapeSheet;
 		this._renderer = renderer;
 		this.plottedMaterialIndexFunction = function(x, y, z, z0, z1, z2, z3) {
@@ -152,7 +152,7 @@ class ShapeSheetUtil {
 	/** Shift the Z of every cell by this amount. */
 	shiftZ(diff:number):void {
 		var ss = this.shapeSheet;
-		var i;
+		var i:number;
 		var cellCornerDepths = ss.cellCornerDepths;
 		var cellAverageDepths = this.renderer.cellAverageDepths;
 		
@@ -200,7 +200,7 @@ class ShapeSheetUtil {
 		
 		// TODO: Use clip bounds instead of 0,0,ss.width,ss.height
 		
-		var py;
+		var py:number;
 		// Do it in rows!
 		var startY = Math.max(        0, topY              )|0;
 		var endY   = Math.min(ss.height, Math.ceil(bottomY))|0;
@@ -212,10 +212,10 @@ class ShapeSheetUtil {
 			var rowBottomX0 = topX0+diffX0*bottomRatio, rowBottomX1 = topX1+diffX1*bottomRatio;
 			var rowTopZ0    = topZ0+diffZ0*topRatio   , rowTopZ1    = topZ1+diffZ1*topRatio   ;
 			var rowBottomZ0 = topZ0+diffZ0*bottomRatio, rowBottomZ1 = topZ1+diffZ1*bottomRatio;
-			var leftX;
+			var leftX:number;
 			var startX = Math.max(      0, Math.min(rowTopX0,rowBottomX0))|0;
 			var endX   = Math.min(ssWidth, Math.ceil(Math.max(rowTopX1,rowBottomX1)))|0; // right side of the last pixel of the row
-			var idx; // Index into sheet data
+			var idx:number; // Index into sheet data
 			for( leftX=startX, idx=leftX*ssWidth; leftX < endX; ++leftX, ++idx ) {
 				var rightX = leftX+1;
 				var rowTopDiffZ    = rowTopZ1   -rowTopZ0;
@@ -259,7 +259,7 @@ class ShapeSheetUtil {
 	 */
 	leftThumbZ = function( points:Array<number> ):number {
 		var normalX=0, normalY=0, normalZ=0;
-		var i, j;
+		var i:number, j:number;
 		var vertexCount = points.length/3;
 		for( i=0, j=1; i < vertexCount; ++i, ++j ) {
 			if( j == vertexCount ) j = 0;
@@ -306,8 +306,8 @@ class ShapeSheetUtil {
 		if( yFrac == null ) yFrac = 8;
 		if( zFrac == null ) zFrac = 16;
 		var vertexCount = points.length/3;
-		var i;
-		const snap = function(v, frac) {
+		var i:number;
+		const snap = function(v:number, frac:number):number {
 			return Math.round(v * frac) / frac;
 		};
 		for( i=0; i < vertexCount; ++i ) {
@@ -324,7 +324,7 @@ class ShapeSheetUtil {
 		var vertexCount = points.length/3;
 		var topY = Infinity, bottomY = -Infinity;
 		var topIndex = 0, bottomIndex = 0;
-		var i;
+		var i:number;
 		for( i=0; i<vertexCount; ++i ) {
 			var y = points[i*3+1];
 			if( y < topY    ) { topY    = y; topIndex    = i; }
@@ -335,14 +335,14 @@ class ShapeSheetUtil {
 		y = points[topIndex*3+1];
 		var rightX = points[topIndex*3+0], rightZ = points[topIndex*3+2];
 		var leftX = rightX, leftZ = rightZ;
-		var nextY, nextRightX, nextRightZ, nextLeftX, nextLeftZ;
+		var nextY:number, nextRightX:number, nextRightZ:number, nextLeftX:number, nextLeftZ:number;
 		while( leftIndex != bottomIndex ) {
 			var nextLeftIndex = leftIndex-1;
 			if( nextLeftIndex < 0 ) nextLeftIndex += vertexCount;
 			var nextRightIndex = rightIndex+1;
 			if( nextRightIndex >= vertexCount ) nextRightIndex -= vertexCount;
 			
-			var moveLeft, moveRight, moveRat;
+			var moveLeft:boolean, moveRight:boolean, moveRat:number;
 			
 			if( (nextY = points[nextRightIndex*3+1]) == points[nextLeftIndex*3+1] ) {
 				moveLeft = moveRight = true;
@@ -408,8 +408,8 @@ class ShapeSheetUtil {
 	};
 
 	plotSphere(centerX:number, centerY:number, centerZ:number, rad:number):void {
-		var i;
-		var sphereDepth = (function(x,y) {
+		var i:void;
+		var sphereDepth = function(x:number,y:number):number {
 			var sphereX = (x - centerX) / rad;
 			var sphereY = (y - centerY) / rad;
 			var d = sphereX*sphereX + sphereY*sphereY;
@@ -421,8 +421,7 @@ class ShapeSheetUtil {
 			// z = Math.sqrt(1 - (x*x+y*y))
 			
 			return centerZ - rad * Math.sqrt(1 - d);
-			
-		}).bind(this);
+		};
 		
 		const boundingRect:Rectangle = Rectangle.intersection(
 			new Rectangle(centerX-rad, centerY-rad, centerX+rad, centerY+rad),
@@ -461,8 +460,8 @@ class ShapeSheetUtil {
 		}
 	};
 	
-	protected _plotCurveSegment( curve:Curve, r0, r1, t0, t1, plotFunc, v:Vector3DBuffer ):void {
-		var x0, y0, z0, x1, y1, z1, x2, y2, z2;
+	protected _plotCurveSegment( curve:Curve, r0:number, r1:number, t0:number, t1:number, plotFunc:PlotFunction, v:Vector3DBuffer ):void {
+		var x0:number, y0:number, z0:number, x1:number, y1:number, z1:number, x2:number, y2:number, z2:number;
 		curve( t0          , v ); x0 = v.x; y0 = v.y; z0 = v.z;
 		curve( t0+(t1-t0)/2, v ); x1 = v.x; y1 = v.y; z1 = v.z;
 		curve( t1          , v ); x2 = v.x; y2 = v.y; z2 = v.z;

@@ -1,6 +1,6 @@
 type IP6Address = Uint8Array; 
 
-export function parseIp6Address(addrText):IP6Address {
+export function parseIp6Address(addrText:string):IP6Address {
 	var wordTexts:string[] = addrText.split(':');
 	if( wordTexts.length > 8 ) {
 		throw new Error("Too many digit groups in IPv6 address: "+addrText);
@@ -41,8 +41,8 @@ export function stringifyIp6Address(addr:Uint8Array, shorten:boolean=true):strin
 	let currentZeroSpanLength = 0;
 	let longestZeroSpanOffset = -1;
 	let longestZeroSpanLength = 0;
-	var words:DataView = new DataView(addr.buffer);
-	for( i=0; i < 8; ++i ) {
+	const words:DataView = new DataView(addr.buffer);
+	for( let i=0; i < 8; ++i ) {
 		if( shorten && words.getUint16(i << 1) == 0 ) {
 			if( i == currentZeroSpanOffset + currentZeroSpanLength ) {
 				++currentZeroSpanLength;
@@ -65,9 +65,8 @@ export function stringifyIp6Address(addr:Uint8Array, shorten:boolean=true):strin
 	}
 	const longestZeroSpanEnd = longestZeroSpanOffset + longestZeroSpanLength;
 	
-	var i;
-	var wordTexts = [];
-	for( i=0; i < 8; ++i ) {
+	var wordTexts:string[] = [];
+	for( let i=0; i < 8; ++i ) {
 		if( i == longestZeroSpanOffset ) {
 			if( i == 0 ) wordTexts.push('');
 			wordTexts.push('');

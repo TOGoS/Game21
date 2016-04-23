@@ -149,7 +149,7 @@ export default class ObjectImageManager {
 		// this function's going to be called for each object for each frame, so it's gotta be fast
 		// and not do any real work or allocations 99% of the time.
 		
-		const lastRequested = <LastRequestedCache>visual[LAST_REQUESTED];
+		const lastRequested = <LastRequestedCache>(<any>visual)[LAST_REQUESTED];
 		if(
 			lastRequested &&
 			(lastRequested.flags == null || lastRequested.flags == flags) &&
@@ -166,7 +166,7 @@ export default class ObjectImageManager {
 		const frame = this.frame(state.animation, time);
 		const t = this.animationPhase(state.animation, time);
 		const imageSlice = this.frameToImageSlice(frame, remap(visual.materialMap, state.materialRemap), t, orientation, preferredResolution);
-		visual[LAST_REQUESTED] = <LastRequestedCache>{
+		(<any>visual)[LAST_REQUESTED] = <LastRequestedCache>{
 			flags: visual.maVisual.states.length == 0 ? null : flags,
 			animationLength: state.animation.length,
 			animationPhase: state.animation.length == Infinity ? null : t,

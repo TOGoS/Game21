@@ -28,7 +28,7 @@ export default class DirectionalLight {
 		if( typeof this.minimumShadowLight != 'number' ) this.minimumShadowLight = 0;
 	}
 	
-	public static createFrom( props ):DirectionalLight {
+	public static createFrom( props:any ):DirectionalLight {
 		return new DirectionalLight( Vector3D.from(props.direction), LightColor.from(props.color), props );
 	};
 }

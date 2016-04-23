@@ -1,16 +1,16 @@
-declare function Symbol(x:string);
+declare function Symbol(x:string):symbol;
 
 //// Object cloning utilities
 
-var identity = function(x) { return x; };
+var identity = function<T>(x:T):T { return x; };
 
-var _map = function<T,P>(from:T, to:T, mapFunc:(any,P)=>any, mapFuncParam:P) {
+var _map = function<T,P>(from:T, to:T, mapFunc:(t:any,p:P)=>any, mapFuncParam:P):void {
 	Object.getOwnPropertyNames(from).forEach(function(k) {
-		to[k] = mapFunc(from[k], mapFuncParam);
+		(<any>to)[k] = mapFunc((<any>from)[k], mapFuncParam);
 	});
 };
 
-var map = function<T,P>(obj:T, mapFunc:(any,P)=>any, mapFuncParam:P) {
+var map = function<T,P>(obj:T, mapFunc:(t:any,p:P)=>any, mapFuncParam:P):T {
 	//var clone = {}; // Loses too much information!
 	//var clone = Object.create(Object.getPrototypeOf(obj)); // Fails to construct arrays right, so length becomes enumerable
 	var prototype = Object.getPrototypeOf(obj);
@@ -32,6 +32,8 @@ var clone = function<T>(obj:T):T {
 
 ////
 
+type DeepFreezeID = number;
+
 const deepFrozen = Symbol("deep freeze ID");
 
 function isFrozen(obj:any) {
@@ -42,15 +44,15 @@ function isFrozen(obj:any) {
 	return false;
 }
 
-export function isDeepFrozen(val) {
+export function isDeepFrozen(val:any):boolean {
 	return !!((typeof val !== 'function' && typeof val !== 'object') || val === null || val[deepFrozen]);
 };
 
-export function deepFreezeIdUnchecked(val) {
+export function deepFreezeIdUnchecked(val:any):DeepFreezeID {
 	return val[deepFrozen];
 }
 
-export function deepFreezeId(val) {
+export function deepFreezeId(val:any):DeepFreezeID {
 	if( (typeof val !== 'function' && typeof val !== 'object') ) throw new Error("Only objects and functions can have a deepFreezeId.  Given a "+typeof(val));
 	if( val[deepFrozen] == null ) throw new Error("Object lacks a deep freeze ID");
 	return deepFreezeIdUnchecked(val);
@@ -68,12 +70,12 @@ export function freeze<T>(obj:T, inPlace:boolean=false):T {
 	
 	var hasAnyMutableProperties = false;
 	Object.getOwnPropertyNames(obj).forEach(function(k) {
-		if( !isDeepFrozen(obj[k]) ) {
+		if( !isDeepFrozen((<any>obj)[k]) ) {
 			hasAnyMutableProperties = true;
 		}
 	});
 	var frozenObj = inPlace ? obj : clone(obj);
-	if( !hasAnyMutableProperties ) frozenObj[deepFrozen] = true;
+	if( !hasAnyMutableProperties ) (<any>frozenObj)[deepFrozen] = ++lastFreezeId;
 	return Object.freeze(frozenObj);
 };
 
@@ -104,7 +106,7 @@ export function deepFreeze<T>(obj:T, allowInPlace:boolean=false):T {
 	// to thaw it at least to add the deepFrozen property.
 	obj = thaw(allowInPlace ? obj : clone(obj));
 	_map( obj, obj, deepFreeze, allowInPlace );
-	obj[deepFrozen] = Symbol("deep frozen #"+(++lastFreezeId));
+	(<any>obj)[deepFrozen] = ++lastFreezeId;
 	if( isObjectFreezable(obj) ) Object.freeze(obj);
 	return obj;
 };

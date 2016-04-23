@@ -6,9 +6,9 @@ function assert(value:any, message?:string) {
 	}
 };
 
-var enumerableProps = function(obj) {
-	var i;
-	var props = [];
+var enumerableProps = function(obj:any):any[] {
+	var i:any;
+	var props:any[] = [];
 	for( i in obj ) props.push(i);
 	return props;
 };

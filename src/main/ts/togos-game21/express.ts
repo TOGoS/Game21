@@ -1,5 +1,9 @@
 export interface Request {
 	url:string;
 	ip:string;
-	connection;
+	connection:any; // TODO, what is that?  Or maybe any is okay.
+}
+
+export interface Response {
+	send(data:string|Buffer|Array<string|Buffer>):void;
 }

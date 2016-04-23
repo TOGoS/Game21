@@ -1,7 +1,7 @@
 import ShapeSheet from './ShapeSheet';
 
 export default class ShapeSheetTransforms {
-	public static clone(source, x, y, w, h, flipX, rot) {
+	public static clone(source:ShapeSheet, x:number, y:number, w:number, h:number, flipX:boolean, rot:number) {
 		if( x == null ) x = 0;
 		if( y == null ) y = 0;
 		if( w == null ) w = source.width  - x;
@@ -17,19 +17,19 @@ export default class ShapeSheetTransforms {
 		// Corner indexe and pixel coordinate transforms modeled as
 		// are f(index/coord within new image) = index/coord within source image
 		
-		var cornerRot; // 0 or 1; how many 90-degree rotations to apply
+		var cornerRot:number; // 0 or 1; how many 90-degree rotations to apply
 		var cornerXor = flipX ? 1 : 0; // what to xor corner indexes by after
 		// At a 90degree turn, corner N of our new image maps to corner cornerRotList[N] of the old one
 		var cornerRotList = [2, 0, 3, 1];
 		
 		// Transform matrix for new image x,y -> old image x,y
-		var transform;
+		var transform:number[];
 		// Before rotation, old pixel X = new pixel X * transXX + transX1
 		var transXX = flipX ? -1 : 1;
 		var transX1    = flipX ? x+w-1 : x;
 		var invTransX1 = flipX ? x : x+w-1;
 		
-		var cw, ch;
+		var cw:number, ch:number;
 		if( rot == 90 || rot == 270 ) {
 			cw = h; ch = w;
 		} else {
@@ -102,7 +102,7 @@ export default class ShapeSheetTransforms {
 		
 		var clone = new ShapeSheet(cw,ch);
 		
-		var ci, cx, cy, sx, sy, cc, sc, si;
+		var ci:number, cx:number, cy:number, sx:number, sy:number, cc:number, sc:number, si:number;
 		for( ci=0, cy=0; cy < ch; ++cy ) {
 			for( cx=0; cx < cw; ++cx, ++ci ) {
 				sx = cx*transform[0]+cy*transform[1]+transform[2];
