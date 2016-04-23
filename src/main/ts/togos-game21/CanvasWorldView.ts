@@ -199,6 +199,9 @@ export default class CanvasWorldView {
 					this.drawObject( child, childPosBuf.set(x0+x*xd, y0+y*yd, z0+z*zd), time );
 				}
 			}
+			break;
+		default:
+			console.log("Unrecognized objec type! "+obj.type)
 		}
 	}
 	

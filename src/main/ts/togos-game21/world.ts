@@ -40,7 +40,6 @@ export interface Game {
 	rooms: KeyedList<Room>;
 }
 
-
 export interface TileTree extends PhysicalObject {
 	divisionBox:Cuboid; // The box that's divided; may be larger or smaller than the physical bounding box
 	xDivisions:number;
