@@ -1,4 +1,4 @@
-tsc_inputs = $(shell find src/main/ts)
+tsc_inputs = $(shell find src/main/ts) src/main/ts/tshash
 
 generated_js_files = \
 	$(shell find -name '*.ts' | grep -v node_modules | sed 's/\.ts$$/\.js/') \
@@ -39,6 +39,12 @@ publish-demo: demos/ShapeDemo.html.url
 
 node_modules: package.json
 	npm install
+	touch "$@"
+
+# TypeScript libraries that need to be copied in because tsc can only handle one source folder...
+src/main/ts/tshash: node_modules/tshash/src/main/ts/tshash
+	rm -rf "$@"
+	cp -a "$<" "$@"
 	touch "$@"
 
 target/%.js: src/main/ts/%.tsconfig.json ${tsc_inputs} node_modules

@@ -17,6 +17,7 @@ import ObjectImageManager from './ObjectImageManager';
 import {DEFAULT_LIGHTS} from './Lights';
 import {DEFAULT_MATERIALS, IDENTITY_MATERIAL_REMAP} from './Materials';
 import Rectangle from './Rectangle';
+import { newType4Uuid, uuidUrn } from '../tshash/uuids';
 
 interface RoomNeighbor {
 	offset:Vector3D;
@@ -70,9 +71,7 @@ interface Game {
 const objectPosBuffer = new Vector3D;
 
 let lastNumber = 0;
-function newUuid() {
-	return "uuid:sux"+(++lastNumber);
-}
+function newUuid() { return uuidUrn(newType4Uuid()); }
 
 function simpleObjectVisual( drawFunction:(ssu:ShapeSheetUtil, t:number, xf:TransformationMatrix3D )=>void ):ObjectVisual {
 	const shape:ProceduralShape = {
