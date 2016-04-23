@@ -108,19 +108,21 @@ export default class SSIDemo {
 		
 		return {
 			materialMap: DEFAULT_MATERIALS,
-			states: [
-				{
-					orientation: Quaternion.IDENTITY,
-					materialRemap: IDENTITY_MATERIAL_REMAP,
-					applicabilityFlagsMin: 0,
-					applicabilityFlagsMax: 0,
-					animation: {
-						length: Infinity,
-						onEnd: OnAnimationEnd.LOOP,
-						frames: [this.randomObjectVisualFrame()]
+			maVisual: {
+				states: [
+					{
+						orientation: Quaternion.IDENTITY,
+						materialRemap: IDENTITY_MATERIAL_REMAP,
+						applicabilityFlagsMin: 0,
+						applicabilityFlagsMax: 0,
+						animation: {
+							length: Infinity,
+							onEnd: OnAnimationEnd.LOOP,
+							frames: [this.randomObjectVisualFrame()]
+						}
 					}
-				}
-			]
+				]
+			}
 		};
 	}	
 	public randomShapeImageSlice():ImageSlice<HTMLImageElement> {

@@ -2,7 +2,7 @@ import ImageSlice from './ImageSlice';
 import ShapeSheet from './ShapeSheet';
 import ProceduralShape from './ProceduralShape';
 import Animation from './Animation';
-import ObjectVisual, {ObjectVisualState, ObjectVisualFrame, VisualBasisType} from './ObjectVisual';
+import { ObjectVisual, MAObjectVisual, ObjectVisualState, ObjectVisualFrame, VisualBasisType } from './ObjectVisual';
 import TransformationMatrix3D from './TransformationMatrix3D';
 import Vector3D from './Vector3D';
 import Quaternion from './Quaternion';
@@ -94,7 +94,7 @@ export default class ObjectImageManager {
 		return new ImageSlice<HTMLImageElement>(image, croppedSheet.origin, croppedSheet.resolution, croppedSheet.bounds);
 	}
 	
-	public objectVisualState(visual:ObjectVisual, flags:number, orientation:Quaternion):ObjectVisualState {
+	public objectVisualState(visual:MAObjectVisual, flags:number, orientation:Quaternion):ObjectVisualState {
 		if( visual.states.length == 1 ) return visual.states[0];
 		
 		// Find the closest match flag-wise,
@@ -162,12 +162,12 @@ export default class ObjectImageManager {
 		
 		// Still might check some other cache...
 		
-		const state = this.objectVisualState(visual, flags, orientation);
+		const state = this.objectVisualState(visual.maVisual, flags, orientation);
 		const frame = this.frame(state.animation, time);
 		const t = this.animationPhase(state.animation, time);
 		const imageSlice = this.frameToImageSlice(frame, remap(visual.materialMap, state.materialRemap), t, orientation, preferredResolution);
 		visual[LAST_REQUESTED] = <LastRequestedCache>{
-			flags: visual.states.length == 0 ? null : flags,
+			flags: visual.maVisual.states.length == 0 ? null : flags,
 			animationLength: state.animation.length,
 			animationPhase: state.animation.length == Infinity ? null : t,
 			orientation: orientation,

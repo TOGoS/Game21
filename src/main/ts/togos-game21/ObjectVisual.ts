@@ -26,30 +26,44 @@ export enum VisualBasisType {
  * In theory, for procedural ones, animation could be defined
  * passing t into the procedural shape.
  */
-export class ObjectVisualFrame {
-	public visualBasisType:VisualBasisType;
-	public materialRemap:Uint8Array = IDENTITY_MATERIAL_REMAP;
-	public shape:ProceduralShape|ImageSlice<ShapeSheet>
+export interface ObjectVisualFrame {
+	visualBasisType : VisualBasisType;
+	materialRemap? : Uint8Array;
+	shapeRef? : string;
+	shape? : ProceduralShape|ImageSlice<ShapeSheet>
 }
 
-export class ObjectVisualState {
+export interface ObjectVisualState {
 	/** Orientation depicted by this state */
-	public orientation:Quaternion;
+	orientation:Quaternion;
 	
 	// Not sure how flags will work; here's a guess.
 	// Need to define flags
-	public applicabilityFlagsMin:number;
-	public applicabilityFlagsMax:number;
+	applicabilityFlagsMin:number;
+	applicabilityFlagsMax:number;
 	
-	public materialRemap:Uint8Array = IDENTITY_MATERIAL_REMAP;
+	materialRemap? : Uint8Array;
 	// The animation to show for this state
-	public animation:Animation<ObjectVisualFrame>;
+	animationRef? : string;
+	animation? : Animation<ObjectVisualFrame>;
 }
 
-export default class ShapeSheetObjectVisual {
-	public materialMap : Array<Material>;
-	public states : Array<ObjectVisualState>;
+/**
+ * Material Agnostic Object Visual; all the information except the material map
+ * (though states and animation frames may still remap materials)
+ */
+export interface MAObjectVisual {
+	states:Array<ObjectVisualState>;
 }
+
+export interface ObjectVisual {
+	materialMapRef? : string;
+	materialMap? : Array<Material>;
+	maObjectVisualRef? : string;
+	maVisual : MAObjectVisual;
+}
+
+export default ObjectVisual;
 
 // Alternatives to shape sheet visual:
 //   procedural visual: a function that's called with the object's orientation and other properties to generate a shape sheet

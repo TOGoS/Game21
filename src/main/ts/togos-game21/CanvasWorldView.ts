@@ -10,7 +10,7 @@ import Vector3D from './Vector3D';
 import Quaternion from './Quaternion';
 import TransformationMatrix3D from './TransformationMatrix3D';
 import Cuboid from './Cuboid';
-import ObjectVisual, {VisualBasisType} from './ObjectVisual';
+import { ObjectVisual, MAObjectVisual, VisualBasisType} from './ObjectVisual';
 import Animation, {OnAnimationEnd} from './Animation';
 import ProceduralShape from './ProceduralShape';
 import ImageSlice from './ImageSlice';
@@ -26,7 +26,7 @@ const objectPosBuffer = new Vector3D;
 let lastNumber = 0;
 function newUuid() { return uuidUrn(newType4Uuid()); }
 
-function simpleObjectVisual( drawFunction:(ssu:ShapeSheetUtil, t:number, xf:TransformationMatrix3D )=>void ):ObjectVisual {
+function simpleObjectVisualShape( drawFunction:(ssu:ShapeSheetUtil, t:number, xf:TransformationMatrix3D )=>void ):MAObjectVisual {
 	const shape:ProceduralShape = {
 		isAnimated: false,
 		estimateOuterBounds: (t:number, xf:TransformationMatrix3D) => {
@@ -38,7 +38,6 @@ function simpleObjectVisual( drawFunction:(ssu:ShapeSheetUtil, t:number, xf:Tran
 	
 	// TODO: Also use drawn bounds to generate object bounding box, etc
 	return {
-		materialMap: DEFAULT_MATERIALS,
 		states: [
 			{
 				orientation: Quaternion.IDENTITY,
@@ -266,17 +265,22 @@ export default class CanvasWorldView {
 			};
 		}
 		
-		const blockVisual:ObjectVisual = simpleObjectVisual( (ssu:ShapeSheetUtil, t:number, xf:TransformationMatrix3D) => {
+		const blockMaVisual:MAObjectVisual = simpleObjectVisualShape( (ssu:ShapeSheetUtil, t:number, xf:TransformationMatrix3D) => {
 			const center = xf.multiplyVector(Vector3D.ZERO);
 			const size = xf.scale;
 			ssu.plottedDepthFunction = (x:number, y:number, z:number) => z;
 			ssu.plottedMaterialIndexFunction = (x:number, y:number, z:number) => 8;
 			ssu.plotAASharpBeveledCuboid( center.x-size/2, center.y-size/2, center.z-size/2, size, size, size/6);
 		});
+		const blockMaterialMap = DEFAULT_MATERIALS; 
+		const blockVisual:ObjectVisual = {
+			materialMap: DEFAULT_MATERIALS,
+			maVisual: blockMaVisual
+		}
 		const brickRemap = makeRemap(8,4,4);
 		const brickVisual:ObjectVisual = {
-			materialMap: remap(blockVisual.materialMap, brickRemap),
-			states: blockVisual.states
+			materialMap: remap(DEFAULT_MATERIALS, brickRemap),
+			maVisual: blockMaVisual
 		}
 		
 		const brickPrototypeId = newUuid();
