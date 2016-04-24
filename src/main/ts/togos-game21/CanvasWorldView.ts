@@ -56,11 +56,12 @@ export default class CanvasWorldView {
 	protected canvas:HTMLCanvasElement;
 	protected canvasContext:CanvasRenderingContext2D;
 	protected objectImageManager:ObjectImageManager = new ObjectImageManager;
-	protected game:Game;
 	protected drawCommandBuffer:Array<DrawCommand> = [];
 	protected drawCommandCount = 0;
-	protected focusDistance = 10; // Distance at which we draw the foreground.  Fog is applied only behind this.
-	protected fogColor = new SurfaceColor(0.2, 0.2, 0.2, 0.1); 
+	
+	public game:Game;
+	public focusDistance = 10; // Distance at which we draw the foreground.  Fog is applied only behind this.
+	public fogColor = new SurfaceColor(0.2, 0.2, 0.2, 0.1); 
 	
 	public initUi(canvas:HTMLCanvasElement) {
 		this.canvas = canvas;
@@ -169,7 +170,7 @@ export default class CanvasWorldView {
 		}
 	}
 	
-	protected drawScene( roomId:string, pos:Vector3D, time:number ):void {
+	public drawScene( roomId:string, pos:Vector3D, time:number ):void {
 		this.screenCenterX = this.canvas.width/2;
 		this.screenCenterY = this.canvas.height/2;
 		
@@ -204,18 +205,7 @@ export default class CanvasWorldView {
 		this.flushDrawCommands();
 	}
 	
-	public runDemo() {
-		this.game = new DemoWorldGenerator().makeCrappyGame();
-		let roomId:string;
-		for( roomId in this.game.rooms ); // Just find one; whatever.
-		
-		const animCallback = () => {
-			let t = Date.now()/1000;
-			this.canvasContext.clearRect(0,0,this.canvas.width,this.canvas.height);
-			this.focusDistance = 16;
-			this.drawScene(roomId, new Vector3D(Math.cos(t)*4, Math.sin(t*0.3)*4, this.focusDistance), 0);
-			window.requestAnimationFrame(animCallback);
-		};
-		window.requestAnimationFrame(animCallback);
+	public clear() {
+		this.canvasContext.clearRect(0,0,this.canvas.width,this.canvas.height);
 	}
 }

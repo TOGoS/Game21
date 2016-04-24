@@ -36,11 +36,11 @@
 (function() {
 	var CanvasWorldView;
 	
-	require(['togos-game21/CanvasWorldView'], function(_CanvasWorldView) {
-		CanvasWorldView = _CanvasWorldView.default;
-		var wv = new CanvasWorldView();
-		wv.initUi(document.getElementById('world-view-canvas'));
-		wv.runDemo();
+	require(['togos-game21/MazeGame'], function(_MazeGame) {
+		MazeGame = _MazeGame.default;
+		var mg = new MazeGame();
+		mg.initUi(document.getElementById('world-view-canvas'));
+		mg.runDemo();
 	});
 })();
 //]]></script>
