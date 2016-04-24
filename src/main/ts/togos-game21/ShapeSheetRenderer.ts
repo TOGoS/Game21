@@ -7,8 +7,8 @@ import Material from './Material';
 import Vector3D from './Vector3D';
 import KeyedList from './KeyedList';
 import DirectionalLight from './DirectionalLight';
-import {DEFAULT_LIGHTS} from './Lights';
-import {DEFAULT_MATERIALS} from './Materials';
+import {DEFAULT_LIGHTS} from './lights';
+import {DEFAULT_MATERIALS} from './materials';
 
 const LARGE_NUMBER = 1000;
 

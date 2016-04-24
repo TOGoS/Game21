@@ -9,8 +9,7 @@ import ImageSlice from './ImageSlice';
 import ProceduralShape from './ProceduralShape';
 import Animation, {OnAnimationEnd} from './Animation';
 import ObjectVisual, {ObjectVisualState, ObjectVisualFrame, VisualBasisType} from './ObjectVisual';
-//import {DEFAULT_LIGHTS} from './Lights';
-import {DEFAULT_MATERIALS, IDENTITY_MATERIAL_REMAP} from './Materials';
+import {DEFAULT_MATERIALS, IDENTITY_MATERIAL_REMAP} from './materials';
 import ObjectImageManager from './ObjectImageManager';
 
 class CoilShape implements ProceduralShape {

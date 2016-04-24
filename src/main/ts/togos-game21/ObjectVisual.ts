@@ -3,7 +3,7 @@ import ShapeSheet from './ShapeSheet';
 import ImageSlice from './ImageSlice';
 import Animation from './Animation';
 import Material from './Material';
-import {IDENTITY_MATERIAL_REMAP} from './Materials';
+import {IDENTITY_MATERIAL_REMAP} from './materials';
 import Rectangle from './Rectangle';
 import Quaternion from './Quaternion';
 import Vector3D from './Vector3D';

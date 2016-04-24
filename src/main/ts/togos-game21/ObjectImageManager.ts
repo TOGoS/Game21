@@ -9,8 +9,8 @@ import Quaternion from './Quaternion';
 import ShapeSheetRenderer from './ShapeSheetRenderer';
 import ShapeSheetUtil from './ShapeSheetUtil';
 import Material from './Material';
-import {remap} from './Materials';
-import {DEFAULT_LIGHTS} from './Lights';
+import {remap} from './materials';
+import {DEFAULT_LIGHTS} from './lights';
 
 /*
 const oneCount = function(n:number):number {
