@@ -26,6 +26,8 @@ export default class MazeGame {
 		if( this.worldView ) this.worldView.game = g;
 	}
 	
+	
+	
 	public runDemo() {
 		this.game = new DemoWorldGenerator().makeCrappyGame();
 		let roomId:string;

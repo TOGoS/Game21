@@ -26,6 +26,7 @@ export interface PhysicalObject {
 	orientation:Quaternion;
 	visualRef:string;
 	// Bounding boxes are relative to the object's position (whether indicated externally or internally)
+	tilingBoundingBox:Cuboid; // Used by tile trees to determine division, etc
 	physicalBoundingBox:Cuboid;
 	visualBoundingBox:Cuboid;
 	isAffectedByGravity:boolean;
@@ -41,7 +42,6 @@ export interface Game {
 }
 
 export interface TileTree extends PhysicalObject {
-	divisionBox:Cuboid; // The box that's divided; may be larger or smaller than the physical bounding box
 	xDivisions:number;
 	yDivisions:number;
 	zDivisions:number;

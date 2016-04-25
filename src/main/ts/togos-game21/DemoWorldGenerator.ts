@@ -10,7 +10,7 @@ import { DEFAULT_MATERIALS, IDENTITY_MATERIAL_REMAP, makeRemap,remap } from './m
 import ObjectVisual, { MAObjectVisual, VisualBasisType } from './ObjectVisual';
 import { OnAnimationEnd } from './Animation';
 import { Game, PhysicalObject, PhysicalObjectType, TileTree, Room } from './world';
-// import { toUint8Array } from '../tshash/utils';
+import { sha1Urn } from '../tshash/index';
 import { uuidUrn, newType4Uuid } from '../tshash/uuids';
 
 function toArray<T,D extends ArrayLike<T>>(src:ArrayLike<T>, dest:D):D {
@@ -19,6 +19,84 @@ function toArray<T,D extends ArrayLike<T>>(src:ArrayLike<T>, dest:D):D {
 }
 function toUint8Array(src:ArrayLike<number>):Uint8Array {
 	return toArray(src, new Uint8Array(src.length));
+}
+
+function saveObject( obj:any ):string {
+	const json:string = JSON.stringify(obj, null, "\t") + "\t";
+	return sha1Urn(json)+"#";
+}
+
+function objectPrototypeRef( op:any, game?:Game ):string {
+	if( op == null ) return null;
+	if( typeof op == 'string' ) return op;
+	
+	if( game == null ) throw new Error("Can't generate object prototype ref without game object"); // Well, really we should be able to for hash URN things eventually
+	
+	const ref:string = saveObject(op);
+	game.objectPrototypes[ref] = op;
+	return ref;
+}
+
+function paletteRef( palette:any, game:Game ):string {
+	if( typeof palette == 'string' ) return palette;
+	
+	if( game == null ) throw new Error("Can't generate palette ref without game object"); // Well, really we should be able to for hash URN things eventually
+	
+	if( !Array.isArray(palette) ) throw new Error("Supposed tile palette is not an array; can't reference it: "+JSON.stringify(palette));
+	
+	palette = palette.map( (obj:any) => objectPrototypeRef(obj, game) );
+	
+	const ref:string = saveObject(palette);
+	game.tilePalettes[ref] = palette;
+	return ref;
+}
+
+export function makeTileTreeNode( palette:any, w:number, h:number, d:number, _indexes:any, game:Game ):TileTree {
+	if( _indexes.length != w*h*d ) {
+		throw new Error("Expected 'indexes' to be array of length "+(w*d*h)+"; but it had length "+_indexes.length);
+	}
+	const indexes:Uint8Array = toUint8Array(_indexes);
+	const _paletteRef = paletteRef(palette, game);
+	
+	const tilePalette = game.tilePalettes[_paletteRef]
+	let tileW = 0, tileH = 0, tileD = 0;
+	for( let t in tilePalette ) {
+		const tileRef = tilePalette[t];
+		if( tileRef == null ) continue;
+		const tile = game.objectPrototypes[tileRef];
+		if( tile == null ) throw new Error("Couldn't find tile "+tileRef+" while calculating size for tile tree; given palette: "+JSON.stringify(palette)+"; "+JSON.stringify(tilePalette));
+		tileW = Math.max(tile.tilingBoundingBox.width , tileW);
+		tileH = Math.max(tile.tilingBoundingBox.height, tileH);
+		tileD = Math.max(tile.tilingBoundingBox.depth , tileD);
+	}
+	
+	const tilingBoundingBox = new Cuboid(-tileW*w/2, -tileH*h/2, -tileD*d/2, +tileW*w/2, +tileH*h/2, +tileD*d/2);
+	
+	return {
+		position: new Vector3D(0,0,0),
+		orientation: Quaternion.IDENTITY,
+		visualBoundingBox: tilingBoundingBox, // TODO: potentially different!
+		physicalBoundingBox: tilingBoundingBox, // TODO: potentially different!
+		type: PhysicalObjectType.TILE_TREE,
+		tilingBoundingBox: tilingBoundingBox,
+		xDivisions: 4,
+		yDivisions: 4,
+		zDivisions: 1,
+		childObjectPaletteRef: _paletteRef,
+		childObjectIndexes: indexes,
+		// These don't really make sense to have to have on a tile tree
+		isAffectedByGravity: false,
+		isRigid: false,
+		stateFlags: 0,
+		visualRef: null
+	}
+}
+
+export function makeTileTreeRef( palette:any, w:number, h:number, d:number, indexes:any, game:Game ):string {
+	const tt:TileTree = makeTileTreeNode(palette, w, h, d, indexes, game);
+	const ref:string = saveObject(tt);
+	game.objectPrototypes[ref] = tt;
+	return ref;
 }
 
 export function simpleObjectVisualShape( drawFunction:(ssu:ShapeSheetUtil, t:number, xf:TransformationMatrix3D )=>void ):MAObjectVisual {
@@ -55,18 +133,25 @@ export function simpleObjectVisualShape( drawFunction:(ssu:ShapeSheetUtil, t:num
 	}
 }
 
-function newUuid() { return uuidUrn(newType4Uuid()); }
+function newUuidRef() { return uuidUrn(newType4Uuid()); }
 
-export const crappyBlockVisualId = "urn:uuid:00cd941d-0083-4084-ab7f-0f2de1911c3f";
-export const crappyBrickVisualId = "urn:uuid:b8a7c634-8caa-47a1-b8dd-0587dd303b13";
+export const crappyBlockVisualRef = "urn:uuid:00cd941d-0083-4084-ab7f-0f2de1911c3f";
+export const crappyBrickVisualRef = "urn:uuid:b8a7c634-8caa-47a1-b8dd-0587dd303b13";
 
 export default class DemoWorldGenerator {
 	public makeCrappyGame():Game {
-		const crappyRoomId = newUuid();
+		const game = <Game>{
+			objectVisuals: {},
+			rooms: {},
+			tilePalettes: {},
+			objectPrototypes: {}
+		}
+		
+		const crappyRoomId = newUuidRef();
 		const theMaterialMap = DEFAULT_MATERIALS;
 		const roomObjects:KeyedList<PhysicalObject> = {};
 		for( let i=0; i<100; ++i ) {
-			const objectId = newUuid();
+			const objectId = newUuidRef();
 			roomObjects[objectId] = {
 				position: new Vector3D((Math.random()-0.5)*10, (Math.random()-0.5)*10, (Math.random()-0.5)*10),
 				orientation: Quaternion.IDENTITY,
@@ -74,7 +159,8 @@ export default class DemoWorldGenerator {
 				isRigid: true,
 				isAffectedByGravity: false,
 				stateFlags: 0,
-				visualRef: crappyBlockVisualId,
+				visualRef: crappyBlockVisualRef,
+				tilingBoundingBox: new Cuboid(-0.5, -0.5, -0.5, 0.5, 0.5, 0.5),
 				physicalBoundingBox: new Cuboid(-0.5, -0.5, -0.5, 0.5, 0.5, 0.5),
 				visualBoundingBox: new Cuboid(-0.5, -0.5, -0.5, 0.5, 0.5, 0.5)
 			};
@@ -98,70 +184,96 @@ export default class DemoWorldGenerator {
 			maVisual: blockMaVisual
 		}
 		
-		const brickPrototypeId = newUuid();
-		const brick:PhysicalObject = {
+		game.objectVisuals[crappyBlockVisualRef] = blockVisual;
+		game.objectVisuals[crappyBrickVisualRef] = brickVisual;
+		
+		const blockCuboid = new Cuboid(-0.5, -0.5, -0.5, 0.5, 0.5, 0.5);
+		
+		const brickPrototypeId = newUuidRef();
+		game.objectPrototypes[brickPrototypeId] = {
 			position: null,
 			orientation: Quaternion.IDENTITY,
 			type: PhysicalObjectType.INDIVIDUAL,
 			isRigid: true,
 			isAffectedByGravity: false,
 			stateFlags: 0,
-			visualRef: crappyBrickVisualId,
-			physicalBoundingBox: new Cuboid(-0.5, -0.5, -0.5, 0.5, 0.5, 0.5),
-			visualBoundingBox: new Cuboid(-0.5, -0.5, -0.5, 0.5, 0.5, 0.5)
+			visualRef: crappyBrickVisualRef,
+			tilingBoundingBox: blockCuboid,
+			physicalBoundingBox: blockCuboid,
+			visualBoundingBox: blockCuboid
 		}
 		
-		const tilePaletteRef = newUuid();
-		const tilePalette = [
+		const blockPrototypeId = newUuidRef();
+		game.objectPrototypes[blockPrototypeId] = {
+			position: null,
+			orientation: Quaternion.IDENTITY,
+			type: PhysicalObjectType.INDIVIDUAL,
+			isRigid: true,
+			isAffectedByGravity: false,
+			stateFlags: 0,
+			visualRef: crappyBlockVisualRef,
+			tilingBoundingBox: blockCuboid,
+			physicalBoundingBox: blockCuboid,
+			visualBoundingBox: blockCuboid
+		}
+		
+		const tileTreeLeafPaletteRef = newUuidRef();
+		game.tilePalettes[tileTreeLeafPaletteRef] = [
 			null,
 			brickPrototypeId
 		];
 		
-		const tileTree:TileTree = {
-			position: new Vector3D(0,0,0),
-			orientation: Quaternion.IDENTITY,
-			visualBoundingBox: new Cuboid(-2,-2,-0.5,+2,+2,+0.5),
-			physicalBoundingBox: new Cuboid(-2,-2,-0.5,+2,+2,+0.5),
-			type: PhysicalObjectType.TILE_TREE,
-			divisionBox: new Cuboid(-2,-2,-0.5,+2,+2,+0.5),
-			xDivisions: 4,
-			yDivisions: 4,
-			zDivisions: 1,
-			childObjectPaletteRef: tilePaletteRef,
-			childObjectIndexes: toUint8Array([
-				1,1,1,1,
-				1,0,0,1,
-				1,0,0,1,
-				1,1,1,1,
-			]),
-			// These don't really make sense to have to have on a tile tree
-			isAffectedByGravity: false,
-			isRigid: false,
-			stateFlags: 0,
-			visualRef: null
+		const tileTree0Ref = makeTileTreeRef( [
+			null,
+			brickPrototypeId,
+			blockPrototypeId,
+		], 4, 4, 1, [
+			1,1,1,1,
+			1,0,0,1,
+			1,0,0,1,
+			1,1,1,1,
+		], game);
+		
+		const tileTree1Ref = makeTileTreeRef( [
+			null,
+			brickPrototypeId,
+			blockPrototypeId,
+		], 4, 4, 1, [
+			0,0,0,0,
+			0,0,0,0,
+			2,2,2,2,
+			1,1,1,1,
+		], game);
+
+		const tileTree2Ref = makeTileTreeRef( [
+			null,
+			tileTree0Ref,
+			tileTree1Ref,
+		], 4, 4, 1, [
+			1,1,1,1,
+			1,0,0,1,
+			1,2,2,1,
+			1,1,1,1,
+		], game);
+		
+		const tileTree3Ref = makeTileTreeRef( [
+			null,
+			tileTree2Ref,
+		], 4, 4, 1, [
+			1,1,1,1,
+			1,0,0,1,
+			1,0,0,1,
+			1,1,1,1,
+		], game);
+
+		roomObjects[newUuidRef()] = game.objectPrototypes[tileTree3Ref]; 
+		
+		game.rooms[crappyRoomId] = {
+			objects: roomObjects,
+			neighbors: {}
 		}
 		
-		const tileTreeUuid = newUuid();
-		roomObjects[tileTreeUuid] = tileTree;
-		
-		return {
-			objectVisuals: {
-				[crappyBlockVisualId]: blockVisual,
-				[crappyBrickVisualId]: brickVisual,
-			},
-			rooms: {
-				[crappyRoomId]: {
-					objects: roomObjects,
-					neighbors: {}
-				}
-			},
-			tilePalettes: {
-				[tilePaletteRef]: tilePalette
-			},
-			objectPrototypes: {
-				[brickPrototypeId]: brick
-			}
-		};
+		return game;
 	}
 }
 
