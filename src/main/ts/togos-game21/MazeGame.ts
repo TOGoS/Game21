@@ -235,7 +235,7 @@ class WorldSimulator {
 						//const deflect = new Vector3D;
 						//let deflectCount = 0;
 						
-						var bounceUp = false, bounceDown = false, bounceLeft = false, bounceRight = false;
+						var bounceUp = 0, bounceDown = 0, bounceLeft = 0, bounceRight = 0;
 						
 						for( let c in collisions ) {
 							//throw new Error("Collision! "+JSON.stringify(collisions[c]));
@@ -258,30 +258,35 @@ class WorldSimulator {
 							// Bouncing is based on object's center line(s) intersecting the other object							
 							if( otherBbRel.minX <= 0 && otherBbRel.maxX >= 0 ) {
 								if( otherBbRel.minY > 0 && obj.physicalBoundingBox.maxY > otherBbRel.minY ) {
-									bounceUp = true;
+									bounceUp = Math.max(obj.physicalBoundingBox.maxY - otherBbRel.minY);
 								}
 								if( otherBbRel.maxY < 0 && obj.physicalBoundingBox.minY < otherBbRel.maxY ) {
-									bounceDown = true;
+									bounceDown = Math.max(bounceDown, otherBbRel.maxY - obj.physicalBoundingBox.minY);
 								}
 							}
 							if( otherBbRel.minY <= 0 && otherBbRel.maxY >= 0 ) {
 								if( otherBbRel.minX > 0 && obj.physicalBoundingBox.maxX > otherBbRel.minX ) {
-									bounceLeft = true;
+									bounceLeft = Math.max(bounceLeft, obj.physicalBoundingBox.maxX - otherBbRel.minX);
 								}
 								if( otherBbRel.maxX < 0 && obj.physicalBoundingBox.minX < otherBbRel.maxX ) {
-									bounceRight = true;
+									bounceRight = Math.max(bounceRight, otherBbRel.maxX - obj.physicalBoundingBox.minX);
 								}
 							}
 						}
 						
-						if( bounceUp   && bounceDown  ) bounceUp   = bounceDown  = false;
-						if( bounceLeft && bounceRight ) bounceLeft = bounceRight = false;
+						if( bounceUp   && bounceDown  ) bounceUp   = bounceDown  = 0;
+						if( bounceLeft && bounceRight ) bounceLeft = bounceRight = 0;
 						
 						const absVelX = Math.abs(obj.velocity.x);
 						const absVelY = Math.abs(obj.velocity.y);
+						obj.position = new Vector3D(
+							obj.position.x + bounceRight - bounceLeft,
+							obj.position.y + bounceDown - bounceUp,
+							obj.position.z
+						);
 						obj.velocity = new Vector3D(
-							bounceLeft ? -absVelX : bounceRight ? +absVelX : obj.velocity.x,
-							bounceUp   ? -absVelY : bounceDown  ? +absVelY : obj.velocity.y,
+							bounceLeft ? -absVelX/2 : bounceRight ? +absVelX/2 : obj.velocity.x,
+							bounceUp   ? -absVelY/2 : bounceDown  ? +absVelY/2 : obj.velocity.y,
 							obj.velocity.z
 						)
 					}
@@ -348,7 +353,7 @@ export default class MazeGame {
 		if( this.worldView ) this.worldView.game = g;
 	}
 	
-	public playerRef;
+	public playerRef:string;
 	
 	protected findPlayer() {
 		for( let r in this._game.rooms ) {
@@ -396,6 +401,21 @@ export default class MazeGame {
 			brain: <PlayerBrain>{
 				desiredMoveDirection: 0,
 				desiredMoveSpeed: 0
+			}
+		}
+		for( let i=0; i<10; ++i ) {
+			game.rooms[roomId].objects[newUuidRef()] = <PhysicalObject>{
+				position: new Vector3D((Math.random()-0.5)*10, (Math.random()-0.5)*10, 0),
+				orientation: Quaternion.IDENTITY,
+				type: PhysicalObjectType.INDIVIDUAL,
+				tilingBoundingBox: playerBb,
+				physicalBoundingBox: playerBb,
+				visualBoundingBox: playerBb,
+				isAffectedByGravity: true,
+				isRigid: true,
+				stateFlags: 0,
+				visualRef: playerVisualRef,
+				velocity: new Vector3D(0,0,0),
 			}
 		}
 		
