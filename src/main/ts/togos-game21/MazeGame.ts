@@ -160,7 +160,7 @@ class WorldSimulator {
 			// Well there's your collision right there!
 			// (unless I add more detailed shapes in the future)
 			const relativePosition = deepFreeze(obj1RelativePosition);
-			const relativeVelocity = new Vector3D(vel1.x-vel0.x, vel1.y-vel0.y, vel1.z-vel0.z);
+			const relativeVelocity = deepFreeze(new Vector3D(vel1.x-vel0.x, vel1.y-vel0.y, vel1.z-vel0.z));
 			const collision = new Collision(room0Ref, rootObj0Ref, obj0, room1Ref, rootObj1Ref, obj1, relativePosition, relativeVelocity );
 			const key = collision.key;
 			dest[key] = collision;
@@ -237,7 +237,7 @@ class WorldSimulator {
 		return dest;
 	}
 	
-	protected handleCollisionSide(collision:Collision) {
+	protected handleCollisionSide(collision:Collision):void {
 		const obj0 = collision.obj0;
 		if( obj0.velocity == null ) return; // let's say for now that null velocity means immobile
 		
@@ -245,9 +245,9 @@ class WorldSimulator {
 		const otherBbRel = displacedCuboid(obj1.physicalBoundingBox, collision.relativePosition, new Cuboid);
 
 		// TODO: bouncing spheres?  Or other odd shapes?  Calculate different!
-				
+		
 		var bounceUp = 0, bounceDown = 0, bounceLeft = 0, bounceRight = 0;
-			
+		
 		// Bouncing is based on object's center line(s) intersecting the other object							
 		if( otherBbRel.minX <= 0 && otherBbRel.maxX >= 0 ) {
 			if( otherBbRel.minY > 0 && obj0.physicalBoundingBox.maxY > otherBbRel.minY ) {
@@ -266,8 +266,13 @@ class WorldSimulator {
 			}
 		}
 		
+		console.log("---------");
+		console.log("bounce (pre-cancel)", bounceUp, bounceDown, bounceLeft, bounceRight);
+		
 		if( bounceUp   && bounceDown  ) bounceUp   = bounceDown  = 0;
 		if( bounceLeft && bounceRight ) bounceLeft = bounceRight = 0;
+
+		console.log("bounce (post-cancel)", bounceUp, bounceDown, bounceLeft, bounceRight);
 		
 		obj0.position = new Vector3D(
 			obj0.position.x + bounceRight - bounceLeft,
@@ -275,38 +280,36 @@ class WorldSimulator {
 			obj0.position.z
 		);
 		
+		if( !bounceUp && !bounceDown && !bounceLeft && !bounceRight ) return; // Save ourselves some work
+
 		const obj1Mass = obj1.mass == null || obj1.mass == Infinity ? obj0.mass*1000 : obj1.mass;
 		const obj0Vel = obj0.velocity;
 		const relVel = collision.relativeVelocity;
 		const obj0Mass = obj0.mass; // assuming non-zero for moving stuffs!
 		if( obj0Mass == null || obj0Mass == Infinity ) throw new Error("Moving object has null/infinite velocity");
 		const totalMass = obj0Mass + obj1Mass;
+		
+		// Velocity of the center of mass = sum of velocities weighted by mass
 		const totalVx:number = ((obj0Vel.x*obj0Mass) + (obj0Vel.x + relVel.x)*obj1Mass)/totalMass;
 		const totalVy:number = ((obj0Vel.y*obj0Mass) + (obj0Vel.y + relVel.y)*obj1Mass)/totalMass;
 		const totalVz:number = ((obj0Vel.z*obj0Mass) + (obj0Vel.z + relVel.z)*obj1Mass)/totalMass;
 		
+		// Relative (to obj0's) velocity of the center of mass
 		const relTotalVx = totalVx - obj0Vel.x;
 		const relTotalVy = totalVy - obj0Vel.y;
 		const relTotalVz = totalVz - obj0Vel.z;
 		
-		/*
-		const obj1VelX = obj0Vel.x + relVel.x;
-		const obj1VelY = obj0Vel.y + relVel.y;
-		const obj1VelZ = obj0Vel.z + relVel.z;
-		const avgVelX = (obj0Vel.x + obj1VelX)/2;
-		const avgVelY = (obj0Vel.y + obj1VelY)/2;
-		const avgVelZ = (obj0Vel.z + obj1VelZ)/2;
-		*/
+		console.log("total v", totalVx, totalVy, totalVz);
+		console.log("relative total v", relTotalVx, relTotalVy, relTotalVz);
 		
-		const bounceFactor = obj1Mass / totalMass;
+		// const bounceFactor = obj1Mass / totalMass;
 		
-		const relTotalVelMagX = Math.abs(relTotalVx);
-		const relTotalVelMagY = Math.abs(relTotalVy);
+		//const relTotalVelMagX = Math.abs(relTotalVx);
+		//const relTotalVelMagY = Math.abs(relTotalVy);
 		// TODO: Fix object's room again here if necessary
 		obj0.velocity = new Vector3D(
-			// This isn't quite right
-			obj0Vel.x + 2*bounceFactor*(bounceLeft ? -relTotalVelMagX : bounceRight ? +relTotalVelMagX : 0),
-			obj0Vel.y + 2*bounceFactor*(bounceUp   ? -relTotalVelMagY : bounceDown  ? +relTotalVelMagY : 0),
+			(bounceLeft||bounceRight) ? totalVx + relTotalVx : obj0Vel.x,
+			(bounceUp  ||bounceDown ) ? totalVy + relTotalVy : obj0Vel.y,
 			obj0Vel.z
 		);
 	}
@@ -335,7 +338,6 @@ class WorldSimulator {
 					if( ov && !ov.isZero ) {
 						obj = defreezeItem<PhysicalObject>(room.objects, o, obj);
 						let op = obj.position;
-						// TODO: clamp velocity!
 						ov = obj.velocity = fitVectorToBoundingBox( ov, obj.physicalBoundingBox, 100 );
 						const invStepCount = vectorToBoundingBoxFitScale( ov, obj.physicalBoundingBox, 0.875 );
 						const stepCount = Math.ceil( 1 / invStepCount );
