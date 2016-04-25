@@ -111,6 +111,15 @@ export default class CanvasWorldView {
 	
 	protected screenCenterX:number;
 	protected screenCenterY:number;
+	protected get clipMinX():number { return 0; }
+	protected get clipMinY():number { return 0; }
+	protected get clipMaxX():number { return this.canvas.width; }
+	protected get clipMaxY():number { return this.canvas.height; }
+	
+	protected get unitPpm():number {
+		// TODO: configure somehow based on FoV
+		return Math.min(this.canvas.width, this.canvas.height)/2;
+	}
 	
 	protected drawIndividualObject( obj:PhysicalObject, pos:Vector3D, time:number ):void {
 		let visual = this.game.objectVisuals[obj.visualRef];
@@ -121,7 +130,7 @@ export default class CanvasWorldView {
 		
 		// unitPpm = pixels per meter of a thing 1 meter away;
 		// in the future this should be calculated differently, taking some FoV into account:
-		const unitPpm = Math.min(this.canvas.width, this.canvas.height)/2;
+		const unitPpm = this.unitPpm;
 		if( pos.z <= 1 ) return;
 		const scale = unitPpm / pos.z;
 		const screenX = this.screenCenterX + scale * pos.x;
@@ -140,6 +149,15 @@ export default class CanvasWorldView {
 	
 	/** Object's .position should already be taken into account in 'pos' */
 	protected drawObject( obj:PhysicalObject, pos:Vector3D, time:number ):void {
+		const vbb = obj.visualBoundingBox;
+		const backZ = vbb.maxZ + pos.z;
+		if( backZ <= 1 ) return;
+		const backScale = this.unitPpm / backZ;
+		if( this.screenCenterX + backScale * (vbb.maxX + pos.x) <= this.clipMinX ) return;
+		if( this.screenCenterX + backScale * (vbb.minX + pos.x) >= this.clipMaxX ) return;
+		if( this.screenCenterY + backScale * (vbb.maxY + pos.y) <= this.clipMinY ) return;
+		if( this.screenCenterY + backScale * (vbb.minY + pos.y) >= this.clipMaxY ) return;
+		
 		// TODO: Use the same recursion function as elsewhere
 		switch( obj.type ) {
 		case PhysicalObjectType.INDIVIDUAL:
