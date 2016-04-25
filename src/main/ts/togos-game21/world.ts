@@ -20,25 +20,21 @@ export enum PhysicalObjectType {
 }
 
 export interface PhysicalObject {
-	position:Vector3D; // Ignored (and should be null) for tiles/prototypes
-	
+	position? : Vector3D; // Ignored (and should be null) for tiles/prototypes
+	orientation? : Quaternion;
+
 	type:PhysicalObjectType;
-	orientation:Quaternion;
-	visualRef:string;
+	
 	// Bounding boxes are relative to the object's position (whether indicated externally or internally)
 	tilingBoundingBox:Cuboid; // Used by tile trees to determine division, etc
 	physicalBoundingBox:Cuboid;
 	visualBoundingBox:Cuboid;
+	
 	isAffectedByGravity:boolean;
 	isRigid:boolean;
 	stateFlags:number;
-}
-
-export interface Game {
-	objectVisuals: KeyedList<ObjectVisual>;
-	tilePalettes: KeyedList<Array<string>>;
-	objectPrototypes: KeyedList<PhysicalObject>;
-	rooms: KeyedList<Room>;
+	
+	visualRef? : string;
 }
 
 export interface TileTree extends PhysicalObject {
@@ -52,4 +48,11 @@ export interface TileTree extends PhysicalObject {
 export interface Room {
 	objects:KeyedList<PhysicalObject>;
 	neighbors:KeyedList<RoomNeighbor>;
+}
+
+export interface Game {
+	objectVisuals: KeyedList<ObjectVisual>;
+	tilePalettes: KeyedList<Array<string>>;
+	objectPrototypes: KeyedList<PhysicalObject>;
+	rooms: KeyedList<Room>;
 }

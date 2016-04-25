@@ -73,7 +73,7 @@ export function makeTileTreeNode( palette:any, w:number, h:number, d:number, _in
 	const tilingBoundingBox = new Cuboid(-tileW*w/2, -tileH*h/2, -tileD*d/2, +tileW*w/2, +tileH*h/2, +tileD*d/2);
 	
 	return {
-		position: new Vector3D(0,0,0),
+		position: Vector3D.ZERO,
 		orientation: Quaternion.IDENTITY,
 		visualBoundingBox: tilingBoundingBox, // TODO: potentially different!
 		physicalBoundingBox: tilingBoundingBox, // TODO: potentially different!
