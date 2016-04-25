@@ -223,11 +223,13 @@ class WorldSimulator {
 	
 	protected handleCollisionSide(collision:Collision) {
 		const obj0 = collision.obj0;
-		if( obj0.velocity == null ) return;
+		if( obj0.velocity == null ) return; // let's say for now that null velocity means immobile
 		
 		const obj1 = collision.obj1;
 		const otherBbRel = displacedCuboid(obj1.physicalBoundingBox, collision.relativePosition, new Cuboid);
-		
+
+		// TODO: bouncing spheres?  Or other odd shapes?  Calculate different!
+				
 		var bounceUp = 0, bounceDown = 0, bounceLeft = 0, bounceRight = 0;
 			
 		// Bouncing is based on object's center line(s) intersecting the other object							
@@ -257,28 +259,39 @@ class WorldSimulator {
 			obj0.position.z
 		);
 		
-		const obj1Mass = obj1.mass == null || obj1.mass == Infinity ? 900000 : obj1.mass;
-		
+		const obj1Mass = obj1.mass == null || obj1.mass == Infinity ? obj0.mass*1000 : obj1.mass;
+		const obj0Vel = obj0.velocity;
 		const relVel = collision.relativeVelocity;
+		const obj0Mass = obj0.mass; // assuming non-zero for moving stuffs!
+		if( obj0Mass == null || obj0Mass == Infinity ) throw new Error("Moving object has null/infinite velocity");
+		const totalMass = obj0Mass + obj1Mass;
+		const totalVx:number = ((obj0Vel.x*obj0Mass) + (obj0Vel.x + relVel.x)*obj1Mass)/totalMass;
+		const totalVy:number = ((obj0Vel.y*obj0Mass) + (obj0Vel.y + relVel.y)*obj1Mass)/totalMass;
+		const totalVz:number = ((obj0Vel.z*obj0Mass) + (obj0Vel.z + relVel.z)*obj1Mass)/totalMass;
+		
+		const relTotalVx = totalVx - obj0Vel.x;
+		const relTotalVy = totalVy - obj0Vel.y;
+		const relTotalVz = totalVz - obj0Vel.z;
+		
 		/*
-		const obj1VelX = obj0.velocity.x + relVel.x;
-		const obj1VelY = obj0.velocity.y + relVel.y;
-		const obj1VelZ = obj0.velocity.z + relVel.z;
-		const avgVelX = (obj0.velocity.x + obj1VelX)/2;
-		const avgVelY = (obj0.velocity.y + obj1VelY)/2;
-		const avgVelZ = (obj0.velocity.z + obj1VelZ)/2;
+		const obj1VelX = obj0Vel.x + relVel.x;
+		const obj1VelY = obj0Vel.y + relVel.y;
+		const obj1VelZ = obj0Vel.z + relVel.z;
+		const avgVelX = (obj0Vel.x + obj1VelX)/2;
+		const avgVelY = (obj0Vel.y + obj1VelY)/2;
+		const avgVelZ = (obj0Vel.z + obj1VelZ)/2;
 		*/
 		
-		const bounceFactor = obj1Mass / (obj0.mass + obj1Mass)
+		const bounceFactor = obj1Mass / totalMass;
 		
-		const absVelX = Math.abs(relVel.x);
-		const absVelY = Math.abs(relVel.y);
+		const relTotalVelMagX = Math.abs(relTotalVx);
+		const relTotalVelMagY = Math.abs(relTotalVy);
 		// TODO: Fix object's room again here if necessary
 		obj0.velocity = new Vector3D(
 			// This isn't quite right
-			obj0.velocity.x + 2*bounceFactor*(bounceLeft ? -absVelX : bounceRight ? +absVelX : 0),
-			obj0.velocity.y + 2*bounceFactor*(bounceUp   ? -absVelY : bounceDown  ? +absVelY : 0),
-			obj0.velocity.z
+			obj0Vel.x + 2*bounceFactor*(bounceLeft ? -relTotalVelMagX : bounceRight ? +relTotalVelMagX : 0),
+			obj0Vel.y + 2*bounceFactor*(bounceUp   ? -relTotalVelMagY : bounceDown  ? +relTotalVelMagY : 0),
+			obj0Vel.z
 		);
 	}
 	
@@ -446,7 +459,8 @@ export default class MazeGame {
 				desiredMoveSpeed: 0
 			}
 		}
-		for( let i=0; i<10; ++i ) {
+		const extraBallCount = 10;
+		for( let i=0; i < extraBallCount; ++i ) {
 			game.rooms[roomId].objects[newUuidRef()] = <PhysicalObject>{
 				position: new Vector3D((Math.random()-0.5)*10, (Math.random()-0.5)*10, 0),
 				orientation: Quaternion.IDENTITY,
@@ -476,7 +490,7 @@ export default class MazeGame {
 			
 			const newTs = Date.now();
 			if( newTs > ts ) {
-				const interval = Math.min( (newTs - ts)/1000, 0.5 );
+				const interval = Math.min( (newTs - ts)/1000, 0.1 );
 				sim.tick( interval );
 			} // Otherwise something went weird and we just skip
 			ts = newTs;
