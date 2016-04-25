@@ -107,7 +107,7 @@ const reverseCollision = new Collision(null,null,null,null,null,null,new Vector3
 
 class WorldSimulator {
 	public time = 0;
-	public gravityVector:Vector3D = new Vector3D(0, 9.8, 0);
+	public gravityVector:Vector3D = Vector3D.ZERO;
 	
 	constructor(public game:Game) { }
 	
@@ -522,6 +522,16 @@ export default class MazeGame {
 		
 		const kw = new KeyWatcher( (ev:KeyboardEvent,kw:KeyWatcher) => {
 			//if( ev.type == 'keydown' ) console.log(ev.keyCode+" "+ev.type+"!");
+			
+			if( ev.type == 'keydown' && ev.keyCode == 80 ) {
+				for( let r in sim.game.rooms ) {
+					const room:Room = sim.game.rooms[r];
+					for( let o in room.objects ) {
+						const obj:PhysicalObject = room.objects[o];
+						if( obj.velocity ) obj.velocity = Vector3D.ZERO;
+					}
+				}
+			}
 
 			const left  = kw.anyDown([37, 65]);
 			const down  = kw.anyDown([40, 83]);
