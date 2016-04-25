@@ -79,9 +79,9 @@ export function makeTileTreeNode( palette:any, w:number, h:number, d:number, _in
 		physicalBoundingBox: tilingBoundingBox, // TODO: potentially different!
 		type: PhysicalObjectType.TILE_TREE,
 		tilingBoundingBox: tilingBoundingBox,
-		xDivisions: 4,
-		yDivisions: 4,
-		zDivisions: 1,
+		xDivisions: w,
+		yDivisions: h,
+		zDivisions: d,
 		childObjectPaletteRef: _paletteRef,
 		childObjectIndexes: indexes,
 		// These don't really make sense to have to have on a tile tree
@@ -261,11 +261,15 @@ export default class DemoWorldGenerator {
 		const tileTree3Ref = makeTileTreeRef( [
 			null,
 			tileTree2Ref,
-		], 4, 4, 1, [
-			1,1,1,1,
-			1,0,0,1,
-			1,0,0,1,
-			1,1,1,1,
+		], 8, 8, 1, [
+			1,1,1,1,1,1,1,1,
+			1,0,0,0,0,0,0,1,
+			1,0,0,1,1,1,0,1,
+			1,0,1,0,0,1,0,1,
+			1,0,1,0,0,1,0,1,
+			1,0,0,0,0,1,0,1,
+			1,1,0,1,0,0,0,1,
+			1,1,1,1,1,1,1,1,
 		], game);
 
 		roomObjects[newUuidRef()] = game.objectPrototypes[tileTree3Ref]; 
