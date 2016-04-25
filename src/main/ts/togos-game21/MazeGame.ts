@@ -33,6 +33,22 @@ class Collision {
 			this.relativePosition.x + "," + this.relativePosition.y + "," + this.relativePosition.z
 	}
 	
+	public reverse(dest:Collision):Collision {
+		dest.room0Ref = this.room1Ref; dest.rootObj0Ref = this.rootObj1Ref; dest.obj0 = this.obj1;
+		dest.room1Ref = this.room0Ref; dest.rootObj1Ref = this.rootObj0Ref; dest.obj1 = this.obj0;
+		dest.relativePosition.set(
+			-this.relativePosition.x,
+			-this.relativePosition.y,
+			-this.relativePosition.z
+		);
+		dest.relativeVelocity.set(
+			-this.relativeVelocity.x,
+			-this.relativeVelocity.y,
+			-this.relativeVelocity.z
+		);
+		return dest;
+	}
+	
 	/*
 	public getAverageMomentum( dest:Vector3D ) {
 		if( this.obj0.velocity ) Vector3D.accumulate( this.obj0.velocity, dest, 1 );
@@ -71,6 +87,7 @@ const objBRelativePosition = new Vector3D;
 const obj1RelativeCuboid = new Cuboid;
 const posBuffer0 = new Vector3D;
 const momentumBuffer = new Vector3D;
+const reverseCollision = new Collision(null,null,null,null,null,null,new Vector3D,new Vector3D);
 
 class WorldSimulator {
 	public time = 0;
@@ -204,8 +221,71 @@ class WorldSimulator {
 		return dest;
 	}
 	
+	protected handleCollisionSide(collision:Collision) {
+		const obj0 = collision.obj0;
+		if( obj0.velocity == null ) return;
+		
+		const obj1 = collision.obj1;
+		const otherBbRel = displacedCuboid(obj1.physicalBoundingBox, collision.relativePosition, new Cuboid);
+		
+		var bounceUp = 0, bounceDown = 0, bounceLeft = 0, bounceRight = 0;
+			
+		// Bouncing is based on object's center line(s) intersecting the other object							
+		if( otherBbRel.minX <= 0 && otherBbRel.maxX >= 0 ) {
+			if( otherBbRel.minY > 0 && obj0.physicalBoundingBox.maxY > otherBbRel.minY ) {
+				bounceUp = Math.max(obj0.physicalBoundingBox.maxY - otherBbRel.minY);
+			}
+			if( otherBbRel.maxY < 0 && obj0.physicalBoundingBox.minY < otherBbRel.maxY ) {
+				bounceDown = Math.max(bounceDown, otherBbRel.maxY - obj0.physicalBoundingBox.minY);
+			}
+		}
+		if( otherBbRel.minY <= 0 && otherBbRel.maxY >= 0 ) {
+			if( otherBbRel.minX > 0 && obj0.physicalBoundingBox.maxX > otherBbRel.minX ) {
+				bounceLeft = Math.max(bounceLeft, obj0.physicalBoundingBox.maxX - otherBbRel.minX);
+			}
+			if( otherBbRel.maxX < 0 && obj0.physicalBoundingBox.minX < otherBbRel.maxX ) {
+				bounceRight = Math.max(bounceRight, otherBbRel.maxX - obj0.physicalBoundingBox.minX);
+			}
+		}
+		
+		if( bounceUp   && bounceDown  ) bounceUp   = bounceDown  = 0;
+		if( bounceLeft && bounceRight ) bounceLeft = bounceRight = 0;
+		
+		obj0.position = new Vector3D(
+			obj0.position.x + bounceRight - bounceLeft,
+			obj0.position.y + bounceDown - bounceUp,
+			obj0.position.z
+		);
+		
+		const obj1Mass = obj1.mass == null || obj1.mass == Infinity ? 900000 : obj1.mass;
+		
+		const relVel = collision.relativeVelocity;
+		/*
+		const obj1VelX = obj0.velocity.x + relVel.x;
+		const obj1VelY = obj0.velocity.y + relVel.y;
+		const obj1VelZ = obj0.velocity.z + relVel.z;
+		const avgVelX = (obj0.velocity.x + obj1VelX)/2;
+		const avgVelY = (obj0.velocity.y + obj1VelY)/2;
+		const avgVelZ = (obj0.velocity.z + obj1VelZ)/2;
+		*/
+		
+		const bounceFactor = obj1Mass / (obj0.mass + obj1Mass)
+		
+		const absVelX = Math.abs(relVel.x);
+		const absVelY = Math.abs(relVel.y);
+		// TODO: Fix object's room again here if necessary
+		obj0.velocity = new Vector3D(
+			// This isn't quite right
+			obj0.velocity.x + 2*bounceFactor*(bounceLeft ? -absVelX : bounceRight ? +absVelX : 0),
+			obj0.velocity.y + 2*bounceFactor*(bounceUp   ? -absVelY : bounceDown  ? +absVelY : 0),
+			obj0.velocity.z
+		);
+	}
+	
 	public tick(interval:number):void {
 		const rooms = this.game.rooms;
+		const allCollisions:KeyedList<Collision> = {};
+		
 		for( let r in rooms ) {
 			let room = defreezeItem<Room>(rooms, r);
 			
@@ -225,73 +305,35 @@ class WorldSimulator {
 					const ov = obj.velocity;
 					if( ov && !ov.isZero ) {
 						obj = defreezeItem<PhysicalObject>(room.objects, o, obj);
-						const op = obj.position;
-						// TODO: If v > object's width, move in steps
-						obj.position = new Vector3D( op.x + ov.x*interval, op.y+ov.y*interval, op.z+ov.z*interval );
+						let op = obj.position;
+						const stepCount = Math.min(10, Math.ceil(2 * interval * obj.velocity.length / obj.physicalBoundingBox.width));
+						const stepSize = interval/stepCount;
+						if(stepSize > 1) console.log("Oh things getting fast.  Using "+stepCount+" steps, now.  Step size: "+stepSize);
+						let foundCollisions:boolean = false;
+						// Step forward until we hit something
+						for( let s=0; s < stepCount && !foundCollisions; ++s ) {
+							obj.position = op = new Vector3D( op.x + ov.x*stepSize, op.y+ov.y*stepSize, op.z+ov.z*stepSize );
 						
-						const collisions:KeyedList<Collision> = {};
-						this.findCollisions(r, o, collisions);
-						// TODO: Add to list of all collisions and handle them separately
-						//const deflect = new Vector3D;
-						//let deflectCount = 0;
-						
-						var bounceUp = 0, bounceDown = 0, bounceLeft = 0, bounceRight = 0;
-						
-						for( let c in collisions ) {
-							//throw new Error("Collision! "+JSON.stringify(collisions[c]));
-							const collision = collisions[c];
-							/*
-							const dot = Vector3D.dotProduct(collision.relativePosition, collision.relativeVelocity);
-							if( dot > 0 ) {
-								// It's moving away already; ignore.
-								// ^ that's maybe not entirely correct but probably works okay for squareish objects
-							}
-							*/
-							
-							const wf = (collision.rootObj0Ref == o ? +1 : -1);
-							const rp = (collision.rootObj0Ref == o ? collision.relativePosition : collision.relativePosition.scale(-1));
-							//const rv = collision.relativeVelocity;
-							
-							const otherObj = (collision.rootObj0Ref == o ? collision.obj1 : collision.obj1);
-							const otherBbRel = displacedCuboid(otherObj.physicalBoundingBox, rp, new Cuboid);
-							
-							// Bouncing is based on object's center line(s) intersecting the other object							
-							if( otherBbRel.minX <= 0 && otherBbRel.maxX >= 0 ) {
-								if( otherBbRel.minY > 0 && obj.physicalBoundingBox.maxY > otherBbRel.minY ) {
-									bounceUp = Math.max(obj.physicalBoundingBox.maxY - otherBbRel.minY);
-								}
-								if( otherBbRel.maxY < 0 && obj.physicalBoundingBox.minY < otherBbRel.maxY ) {
-									bounceDown = Math.max(bounceDown, otherBbRel.maxY - obj.physicalBoundingBox.minY);
-								}
-							}
-							if( otherBbRel.minY <= 0 && otherBbRel.maxY >= 0 ) {
-								if( otherBbRel.minX > 0 && obj.physicalBoundingBox.maxX > otherBbRel.minX ) {
-									bounceLeft = Math.max(bounceLeft, obj.physicalBoundingBox.maxX - otherBbRel.minX);
-								}
-								if( otherBbRel.maxX < 0 && obj.physicalBoundingBox.minX < otherBbRel.maxX ) {
-									bounceRight = Math.max(bounceRight, otherBbRel.maxX - obj.physicalBoundingBox.minX);
-								}
+							const collisions:KeyedList<Collision> = {};
+							this.findCollisions(r, o, collisions);
+							// TODO: only stop on rigid collisions; otherwise just add them to the list
+							for( let c in collisions ) {
+								allCollisions[c] = collisions[c];
+								foundCollisions = true;
 							}
 						}
 						
-						if( bounceUp   && bounceDown  ) bounceUp   = bounceDown  = 0;
-						if( bounceLeft && bounceRight ) bounceLeft = bounceRight = 0;
-						
-						const absVelX = Math.abs(obj.velocity.x);
-						const absVelY = Math.abs(obj.velocity.y);
-						obj.position = new Vector3D(
-							obj.position.x + bounceRight - bounceLeft,
-							obj.position.y + bounceDown - bounceUp,
-							obj.position.z
-						);
-						obj.velocity = new Vector3D(
-							bounceLeft ? -absVelX/2 : bounceRight ? +absVelX/2 : obj.velocity.x,
-							bounceUp   ? -absVelY/2 : bounceDown  ? +absVelY/2 : obj.velocity.y,
-							obj.velocity.z
-						)
+						obj.position = op;
 					}
 				}
 			}
+		}
+		
+		for( const c in allCollisions ) {
+			const collision = allCollisions[c];
+			
+			this.handleCollisionSide(collision);
+			this.handleCollisionSide(collision.reverse(reverseCollision));
 		}
 		
 		this.game.time += interval;
@@ -398,6 +440,7 @@ export default class MazeGame {
 			stateFlags: 0,
 			visualRef: playerVisualRef,
 			velocity: new Vector3D(0,0,0),
+			mass: 20,
 			brain: <PlayerBrain>{
 				desiredMoveDirection: 0,
 				desiredMoveSpeed: 0
@@ -416,6 +459,7 @@ export default class MazeGame {
 				stateFlags: 0,
 				visualRef: playerVisualRef,
 				velocity: new Vector3D(0,0,0),
+				mass: 20,
 			}
 		}
 		
