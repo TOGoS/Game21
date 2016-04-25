@@ -22,9 +22,11 @@ import { newType4Uuid, uuidUrn } from '../tshash/uuids';
 import { Game, Room, PhysicalObject, PhysicalObjectType, TileTree } from './world';
 import DemoWorldGenerator from './DemoWorldGenerator';
 
+// Buffer used for room object positions
 const posBuffer0 = new Vector3D;
 const neighborPos = new Vector3D;
-const objectPosBuffer = new Vector3D;
+// Buffer used for tile tree sub-object positions
+//const ttPosBuffer = new Vector3D;
 
 class DrawCommand {
 	public image:HTMLImageElement;
@@ -147,7 +149,6 @@ export default class CanvasWorldView {
 			const tilePaletteIndexes = tt.childObjectIndexes;
 			const tilePalette = this.game.tilePalettes[tt.childObjectPaletteRef];
 			const objectPrototypes = this.game.objectPrototypes;
-			const childPosBuf = new Vector3D;
 			const xd = tt.tilingBoundingBox.width/tt.xDivisions;
 			const yd = tt.tilingBoundingBox.height/tt.yDivisions;
 			const zd = tt.tilingBoundingBox.depth/tt.zDivisions;
@@ -158,7 +159,7 @@ export default class CanvasWorldView {
 				const childId = tilePalette[tilePaletteIndexes[i]];
 				if( childId != null ) {
 					const child = objectPrototypes[childId];
-					this.drawObject( child, childPosBuf.set(x0+x*xd, y0+y*yd, z0+z*zd), time );
+					this.drawObject( child, posBuffer0.set(x0+x*xd, y0+y*yd, z0+z*zd), time );
 				}
 			}
 			break;
