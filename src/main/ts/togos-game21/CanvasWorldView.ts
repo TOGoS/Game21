@@ -22,6 +22,8 @@ import { newType4Uuid, uuidUrn } from '../tshash/uuids';
 import { Game, Room, PhysicalObject, PhysicalObjectType, TileTree } from './world';
 import DemoWorldGenerator from './DemoWorldGenerator';
 
+const posBuffer0 = new Vector3D;
+const neighborPos = new Vector3D;
 const objectPosBuffer = new Vector3D;
 
 class DrawCommand {
@@ -115,7 +117,9 @@ export default class CanvasWorldView {
 			return;
 		}
 		
-		const unitPpm = Math.min(this.canvas.width, this.canvas.height)/2; // Pixels per meter of a thing 1 meter away
+		// unitPpm = pixels per meter of a thing 1 meter away;
+		// in the future this should be calculated differently, taking some FoV into account:
+		const unitPpm = Math.min(this.canvas.width, this.canvas.height)/2;
 		if( pos.z <= 1 ) return;
 		const scale = unitPpm / pos.z;
 		const screenX = this.screenCenterX + scale * pos.x;
@@ -132,10 +136,11 @@ export default class CanvasWorldView {
 		);
 	}
 	
+	/** Object's .position should already be taken into account in 'pos' */
 	protected drawObject( obj:PhysicalObject, pos:Vector3D, time:number ):void {
 		switch( obj.type ) {
 		case PhysicalObjectType.INDIVIDUAL:
-			this.drawIndividualObject(obj, obj.position ? Vector3D.add(pos, obj.position, objectPosBuffer) : pos, time);
+			this.drawIndividualObject(obj, pos, time);
 			break;
 		case PhysicalObjectType.TILE_TREE:
 			const tt = <TileTree>obj;
@@ -166,7 +171,7 @@ export default class CanvasWorldView {
 	protected drawRoom( room:Room, pos:Vector3D, time:number ):void {
 		for( let o in room.objects ) {
 			const obj = room.objects[o];
-			this.drawObject(obj, Vector3D.add(pos, obj.position, objectPosBuffer), time);
+			this.drawObject(obj, Vector3D.add(pos, obj.position, posBuffer0), time);
 		}
 	}
 	
@@ -180,7 +185,6 @@ export default class CanvasWorldView {
 			return;
 		};
 		this.drawRoom(room, pos, time);
-		const neighborPos = new Vector3D;
 		for( let n in room.neighbors ) {
 			let neighbor = room.neighbors[n];
 			let neighborRoom = this.game.rooms[neighbor.roomId];
