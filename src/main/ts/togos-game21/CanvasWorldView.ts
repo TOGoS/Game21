@@ -140,6 +140,7 @@ export default class CanvasWorldView {
 	
 	/** Object's .position should already be taken into account in 'pos' */
 	protected drawObject( obj:PhysicalObject, pos:Vector3D, time:number ):void {
+		// TODO: Use the same recursion function as elsewhere
 		switch( obj.type ) {
 		case PhysicalObjectType.INDIVIDUAL:
 			this.drawIndividualObject(obj, pos, time);

@@ -4,6 +4,8 @@ import Quaternion from './Quaternion';
 import KeyedList from './KeyedList';
 import Vector3D from './Vector3D';
 
+import { deepFreeze } from './DeepFreezer';
+
 export interface RoomNeighbor {
 	offset:Vector3D;
 	/**
@@ -21,6 +23,7 @@ export enum PhysicalObjectType {
 
 export interface PhysicalObject {
 	position? : Vector3D; // Ignored (and should be null) for tiles/prototypes
+	velocity? : Vector3D;
 	orientation? : Quaternion;
 
 	type:PhysicalObjectType;
@@ -32,6 +35,7 @@ export interface PhysicalObject {
 	
 	isAffectedByGravity:boolean;
 	isRigid:boolean;
+	mass?:number;
 	stateFlags:number;
 	
 	visualRef? : string;
@@ -55,4 +59,7 @@ export interface Game {
 	tilePalettes: KeyedList<Array<string>>;
 	objectPrototypes: KeyedList<PhysicalObject>;
 	rooms: KeyedList<Room>;
+	time: number; // Current time in the world
 }
+
+export const HUNIT_CUBE:Cuboid = deepFreeze(new Cuboid(-0.5,-0.5,-0.5, +0.5,+0.5,+0.5));

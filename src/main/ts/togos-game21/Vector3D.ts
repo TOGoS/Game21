@@ -7,6 +7,8 @@ const roundToNearestMultiple = function(n:number, gridSize:number):number {
 export default class Vector3D {
 	constructor(public x:number=0, public y:number=0, public z:number=0) { }
 	
+	get isZero():boolean { return this.x == 0 && this.y == 0 && this.z == 0; }
+	
 	get length():number { return Math.sqrt(this.x*this.x + this.y*this.y + this.z*this.z); }
 	
 	public static ZERO = deepFreeze(new Vector3D(0,0,0));
@@ -43,10 +45,10 @@ export default class Vector3D {
 		return [this.x, this.y, this.z];
 	}
 	
-	public static accumulate( v0:Vector3D, dest:Vector3D ):Vector3D {
-		dest.x += v0.x;
-		dest.y += v0.y;
-		dest.z += v0.z;
+	public static accumulate( v0:Vector3D, dest:Vector3D, scale:number=1 ):Vector3D {
+		dest.x += v0.x*scale;
+		dest.y += v0.y*scale;
+		dest.z += v0.z*scale;
 		return dest;
 	}
 	public static add( v0:Vector3D, v1:Vector3D, dest:Vector3D=new Vector3D ):Vector3D {
@@ -68,6 +70,10 @@ export default class Vector3D {
 			roundToNearestMultiple(this.y, yGrid),
 			roundToNearestMultiple(this.z, zGrid)
 		);
+	}
+	
+	public static dotProduct(v0:Vector3D, v1:Vector3D):number {
+		return v0.x*v1.x + v0.y*v1.y + v0.z*v1.z;
 	}
 	
 	public static createFrom(thing:any):Vector3D {

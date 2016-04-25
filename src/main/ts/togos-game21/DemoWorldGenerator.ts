@@ -133,24 +133,26 @@ export function simpleObjectVisualShape( drawFunction:(ssu:ShapeSheetUtil, t:num
 	}
 }
 
-function newUuidRef() { return uuidUrn(newType4Uuid()); }
+export function newUuidRef() { return uuidUrn(newType4Uuid()); }
 
 export const crappyBlockVisualRef = "urn:uuid:00cd941d-0083-4084-ab7f-0f2de1911c3f";
 export const crappyBrickVisualRef = "urn:uuid:b8a7c634-8caa-47a1-b8dd-0587dd303b13";
 
 export default class DemoWorldGenerator {
 	public makeCrappyGame():Game {
-		const game = <Game>{
+		const game:Game = {
 			objectVisuals: {},
 			rooms: {},
 			tilePalettes: {},
-			objectPrototypes: {}
+			objectPrototypes: {},
+			time: 0,
 		}
 		
 		const crappyRoomId = newUuidRef();
 		const theMaterialMap = DEFAULT_MATERIALS;
 		const roomObjects:KeyedList<PhysicalObject> = {};
-		for( let i=0; i<100; ++i ) {
+		const randomBlockCount = 0;
+		for( let i=0; i<randomBlockCount; ++i ) {
 			const objectId = newUuidRef();
 			roomObjects[objectId] = {
 				position: new Vector3D((Math.random()-0.5)*10, (Math.random()-0.5)*10, (Math.random()-0.5)*10),

@@ -3,13 +3,335 @@ import TransformationMatrix3D from './TransformationMatrix3D';
 import ObjectVisual, { VisualBasisType } from './ObjectVisual';
 import ProceduralShape from './ProceduralShape';
 import Rectangle from './Rectangle';
+import Cuboid from './Cuboid';
 import Vector3D from './Vector3D';
 import Quaternion from './Quaternion';
+import KeyedList from './KeyedList';
 import { OnAnimationEnd } from './Animation';
 import { DEFAULT_MATERIALS, IDENTITY_MATERIAL_REMAP } from './materials';
 import CanvasWorldView from './CanvasWorldView';
-import DemoWorldGenerator from './DemoWorldGenerator';
-import { Game } from './world';
+import DemoWorldGenerator, { newUuidRef, simpleObjectVisualShape } from './DemoWorldGenerator';
+import { PhysicalObjectType, PhysicalObject, TileTree, Room, Game, HUNIT_CUBE } from './world';
+import { deepFreeze, isDeepFrozen, thaw } from './DeepFreezer';
+
+function defreezeItem<T>( c:any, k:any, o?:any ):T {
+	if( o == null ) o = c[k];
+	if( isDeepFrozen(o) ) c[k] = o = thaw(o);
+	return o;
+}
+
+class Collision {
+	constructor(
+		public room0Ref:string, public rootObj0Ref:string, public obj0:PhysicalObject,
+		public room1Ref:string, public rootObj1Ref:string, public obj1:PhysicalObject,
+		public relativePosition:Vector3D,
+		public relativeVelocity:Vector3D
+	) { }
+	
+	public get key() {
+		return this.rootObj0Ref + "-" + this.rootObj1Ref + ":" +
+			this.relativePosition.x + "," + this.relativePosition.y + "," + this.relativePosition.z
+	}
+	
+	/*
+	public getAverageMomentum( dest:Vector3D ) {
+		if( this.obj0.velocity ) Vector3D.accumulate( this.obj0.velocity, dest, 1 );
+		if( this.obj1.velocity ) Vector3D.accumulate( this.obj1.velocity, dest, 1 );
+	}
+	*/
+	
+	/*
+	 Unneeded since we do the swapping earlier
+	public static create(
+		o0RoomRef:string, o0ObjectRef:string,
+		o1RoomRef:string,	o1ObjectRef:string,
+		displacement:Vector3D
+	):Collision {
+		if( o0ObjectRef > o1ObjectRef ) {
+			return new Collision( o1RoomRef, o1ObjectRef, o0RoomRef, o0ObjectRef, displacement.scale(-1) );
+		} else {
+			return new Collision( o0RoomRef, o0ObjectRef, o1RoomRef, o1ObjectRef, displacement );
+		}
+	}
+	*/
+}
+
+function displacedCuboid( c:Cuboid, d:Vector3D, dest:Cuboid ):Cuboid {
+	dest.minX = c.minX + d.x;
+	dest.minY = c.minY + d.y;
+	dest.minZ = c.minZ + d.z;
+	dest.maxX = c.maxX + d.x;
+	dest.maxY = c.maxY + d.y;
+	dest.maxZ = c.maxZ + d.z;
+	return dest;
+}
+
+const obj1RelativePosition = new Vector3D;
+const objBRelativePosition = new Vector3D;
+const obj1RelativeCuboid = new Cuboid;
+const posBuffer0 = new Vector3D;
+const momentumBuffer = new Vector3D;
+
+class WorldSimulator {
+	public time = 0;
+	public gravityVector:Vector3D = new Vector3D(0, 9.8, 0);
+	
+	constructor(public game:Game) { }
+	
+	protected eachSubObject( obj:PhysicalObject, pos:Vector3D, callback:(subObj:PhysicalObject, pos:Vector3D)=>void ) {
+		if( obj.type == PhysicalObjectType.INDIVIDUAL ) {
+			callback(obj, pos);
+		} else if( obj.type == PhysicalObjectType.TILE_TREE ) {
+			const tt:TileTree = <TileTree>obj;
+			const tilePaletteIndexes = tt.childObjectIndexes;
+			const tilePalette = this.game.tilePalettes[tt.childObjectPaletteRef];
+			const objectPrototypes = this.game.objectPrototypes;
+			const xd = tt.tilingBoundingBox.width/tt.xDivisions;
+			const yd = tt.tilingBoundingBox.height/tt.yDivisions;
+			const zd = tt.tilingBoundingBox.depth/tt.zDivisions;
+			const x0 = pos.x - tt.tilingBoundingBox.width/2  + xd/2;
+			const y0 = pos.y - tt.tilingBoundingBox.height/2 + yd/2;
+			const z0 = pos.z - tt.tilingBoundingBox.depth/2  + zd/2;
+			for( let i=0, z=0; z < tt.zDivisions; ++z ) for( let y=0; y < tt.yDivisions; ++y ) for( let x=0; x < tt.xDivisions; ++x, ++i ) {
+				const childId = tilePalette[tilePaletteIndexes[i]];
+				if( childId != null ) {
+					const child = objectPrototypes[childId];
+					callback( child, posBuffer0.set(x0+x*xd, y0+y*yd, z0+z*zd) );
+				}
+			}
+		}
+	}
+	
+	protected _findCollision2(
+		room0Ref:string, rootObj0Ref:string, obj0:PhysicalObject, pos0:Vector3D, vel0:Vector3D,
+		room1Ref:string, rootObj1Ref:string, obj1:PhysicalObject, pos1:Vector3D, vel1:Vector3D,
+		dest:KeyedList<Collision>
+	):void {
+		obj1RelativePosition.set(
+			pos1.x - pos0.x,
+			pos1.y - pos0.y,
+			pos1.z - pos0.z
+		);
+		displacedCuboid(obj1.physicalBoundingBox, obj1RelativePosition, obj1RelativeCuboid);
+		
+		const obj0Cuboid = obj0.physicalBoundingBox;
+		// Touching at the edge counts as a collision because we'll want to figure friction, etc
+		if( obj1RelativeCuboid.minX > obj0Cuboid.maxX ) return;
+		if( obj1RelativeCuboid.minY > obj0Cuboid.maxY ) return;
+		if( obj1RelativeCuboid.minZ > obj0Cuboid.maxZ ) return;
+		if( obj1RelativeCuboid.maxX < obj0Cuboid.minX ) return;
+		if( obj1RelativeCuboid.maxY < obj0Cuboid.minY ) return;
+		if( obj1RelativeCuboid.maxZ < obj0Cuboid.minZ ) return;
+		
+		if( obj0.isRigid && obj1.isRigid ) { // Or interactive in some way that we care about!
+			// Well there's your collision right there!
+			// (unless I add more detailed shapes in the future)
+			const relativePosition = deepFreeze(obj1RelativePosition);
+			const relativeVelocity = new Vector3D(vel1.x-vel0.x, vel1.y-vel0.y, vel1.z-vel0.z);
+			const collision = new Collision(room0Ref, rootObj0Ref, obj0, room1Ref, rootObj1Ref, obj1, relativePosition, relativeVelocity );
+			const key = collision.key;
+			dest[key] = collision;
+			return;
+		} else if( obj0.type != PhysicalObjectType.INDIVIDUAL ) {
+			this.eachSubObject( obj0, pos0, (subObj, subPos) => {
+				this._findCollision2(
+					room0Ref, rootObj0Ref, subObj, subPos, vel0,
+					room1Ref, rootObj1Ref, obj1, pos1, vel1, dest );
+			});
+		} else if( obj1.type != PhysicalObjectType.INDIVIDUAL ) {
+			this.eachSubObject( obj1, pos1, (subObj, subPos) => {
+				this._findCollision2(
+					room0Ref, rootObj0Ref, obj0, pos0, vel0,
+					room1Ref, rootObj1Ref, subObj, subPos, vel1, dest );
+			});
+		}
+	}
+	
+	protected _findCollisions( room0Ref:string, obj0Ref:string, obj0:PhysicalObject, room1Ref:string, room1Pos:Vector3D, dest:KeyedList<Collision> ) {
+		const room1 = this.game.rooms[room1Ref];
+		for( const obj1Ref in room1.objects ) {
+			if( obj1Ref == obj0Ref ) continue;
+			
+			const obj1 = room1.objects[obj1Ref];
+			
+			const obj0Position = obj0.position;
+			obj1RelativePosition.set(
+				room1Pos.x + obj1.position.x - obj0Position.x,
+				room1Pos.y + obj1.position.y - obj0Position.y,
+				room1Pos.z + obj1.position.z - obj0Position.z
+			);
+			displacedCuboid(obj1.physicalBoundingBox, obj1RelativePosition, obj1RelativeCuboid);
+						
+			const obj0Cuboid = obj0.physicalBoundingBox;
+			// Touching at the edge counts as a collision because we'll want to figure friction, etc
+			if( obj1RelativeCuboid.minX > obj0Cuboid.maxX ) continue;
+			if( obj1RelativeCuboid.minY > obj0Cuboid.maxY ) continue;
+			if( obj1RelativeCuboid.minZ > obj0Cuboid.maxZ ) continue;
+			if( obj1RelativeCuboid.maxX < obj0Cuboid.minX ) continue;
+			if( obj1RelativeCuboid.maxY < obj0Cuboid.minY ) continue;
+			if( obj1RelativeCuboid.maxZ < obj0Cuboid.minZ ) continue;
+			
+			// Order objects by ID so we only count collisions once
+			let roomARef:string, objARef:string, objA:PhysicalObject, roomBRef:string, objBRef:string, objB:PhysicalObject;
+			let dScale:number;
+			if( obj0Ref < obj1Ref ) {
+				roomARef = room0Ref;	objARef = obj0Ref; objA = obj0;
+				roomBRef = room1Ref;	objBRef = obj1Ref; objB = obj1;
+				objBRelativePosition.set( +obj1RelativePosition.x, +obj1RelativePosition.y, +obj1RelativePosition.z );
+			} else {
+				roomARef = room1Ref;	objARef = obj1Ref; objA = obj1;
+				roomBRef = room0Ref;	objBRef = obj0Ref; objB = obj0;
+				objBRelativePosition.set( -obj1RelativePosition.x, -obj1RelativePosition.y, -obj1RelativePosition.z );
+			}
+			
+			this._findCollision2(
+				roomARef, objARef, objA, Vector3D.ZERO       , objA.velocity ? objA.velocity : Vector3D.ZERO,
+				roomBRef, objBRef, objB, objBRelativePosition, objB.velocity ? objB.velocity : Vector3D.ZERO,
+				dest
+			);
+		}
+	}
+	
+	protected findCollisions( roomRef:string, objRef:string, dest:KeyedList<Collision> ):KeyedList<Collision> {
+		const room:Room = this.game.rooms[roomRef];
+		const obj:PhysicalObject = room.objects[objRef];
+		this._findCollisions(roomRef, objRef, obj, roomRef, Vector3D.ZERO, dest);
+		for( const n in room.neighbors ) {
+			const neighbor = room.neighbors[n];
+			const nRef = neighbor.roomId;
+			this._findCollisions(roomRef, objRef, obj, nRef, neighbor.offset, dest);
+		}
+		return dest;
+	}
+	
+	public tick(interval:number):void {
+		const rooms = this.game.rooms;
+		for( let r in rooms ) {
+			let room = defreezeItem<Room>(rooms, r);
+			
+			for( let o in room.objects ) {
+				let obj = room.objects[o];
+				
+				//const G = 9.8;
+				
+				if( obj.isAffectedByGravity ) {
+					obj = defreezeItem<PhysicalObject>(room.objects, o, obj);
+					const ov = obj.velocity ? obj.velocity : Vector3D.ZERO;
+					obj.velocity = new Vector3D( ov.x, ov.y, ov.z );
+					Vector3D.accumulate( this.gravityVector, obj.velocity, interval );
+				}
+				
+				{
+					const ov = obj.velocity;
+					if( ov && !ov.isZero ) {
+						obj = defreezeItem<PhysicalObject>(room.objects, o, obj);
+						const op = obj.position;
+						// TODO: If v > object's width, move in steps
+						obj.position = new Vector3D( op.x + ov.x*interval, op.y+ov.y*interval, op.z+ov.z*interval );
+						
+						const collisions:KeyedList<Collision> = {};
+						this.findCollisions(r, o, collisions);
+						// TODO: Add to list of all collisions and handle them separately
+						//const deflect = new Vector3D;
+						//let deflectCount = 0;
+						
+						var bounceUp = false, bounceDown = false, bounceLeft = false, bounceRight = false;
+						
+						for( let c in collisions ) {
+							//throw new Error("Collision! "+JSON.stringify(collisions[c]));
+							const collision = collisions[c];
+							/*
+							const dot = Vector3D.dotProduct(collision.relativePosition, collision.relativeVelocity);
+							if( dot > 0 ) {
+								// It's moving away already; ignore.
+								// ^ that's maybe not entirely correct but probably works okay for squareish objects
+							}
+							*/
+							
+							const wf = (collision.rootObj0Ref == o ? +1 : -1);
+							const rp = (collision.rootObj0Ref == o ? collision.relativePosition : collision.relativePosition.scale(-1));
+							//const rv = collision.relativeVelocity;
+							
+							const otherObj = (collision.rootObj0Ref == o ? collision.obj1 : collision.obj1);
+							const otherBbRel = displacedCuboid(otherObj.physicalBoundingBox, rp, new Cuboid);
+							
+							// Bouncing is based on object's center line(s) intersecting the other object							
+							if( otherBbRel.minX <= 0 && otherBbRel.maxX >= 0 ) {
+								if( otherBbRel.minY > 0 && obj.physicalBoundingBox.maxY > otherBbRel.minY ) {
+									bounceUp = true;
+								}
+								if( otherBbRel.maxY < 0 && obj.physicalBoundingBox.minY < otherBbRel.maxY ) {
+									bounceDown = true;
+								}
+							}
+							if( otherBbRel.minY <= 0 && otherBbRel.maxY >= 0 ) {
+								if( otherBbRel.minX > 0 && obj.physicalBoundingBox.maxX > otherBbRel.minX ) {
+									bounceLeft = true;
+								}
+								if( otherBbRel.maxX < 0 && obj.physicalBoundingBox.minX < otherBbRel.maxX ) {
+									bounceRight = true;
+								}
+							}
+						}
+						
+						if( bounceUp   && bounceDown  ) bounceUp   = bounceDown  = false;
+						if( bounceLeft && bounceRight ) bounceLeft = bounceRight = false;
+						
+						const absVelX = Math.abs(obj.velocity.x);
+						const absVelY = Math.abs(obj.velocity.y);
+						obj.velocity = new Vector3D(
+							bounceLeft ? -absVelX : bounceRight ? +absVelX : obj.velocity.x,
+							bounceUp   ? -absVelY : bounceDown  ? +absVelY : obj.velocity.y,
+							obj.velocity.z
+						)
+					}
+				}
+			}
+		}
+		
+		this.game.time += interval;
+	}
+}
+
+class PlayerSpecs {
+	maxWalkSpeed:number;
+}
+
+class PlayerBrain {
+	desiredMoveDirection:number; // Angle, in degrees
+	desiredMoveSpeed:number; // How fast he wants to move
+}
+
+class KeyWatcher {
+	protected keysDown:KeyedList<boolean> = {};
+	protected onChange:(ev:KeyboardEvent, kw:KeyWatcher)=>void;
+	
+	constructor( onChange:(ev:KeyboardEvent, kw:KeyWatcher)=>void ) {
+		this.onChange = onChange;
+	}
+	
+	protected update(ev:KeyboardEvent) {
+		this.onChange(ev, this);
+	}
+	
+	public register() {
+		window.addEventListener('keydown', (ev:KeyboardEvent) => {
+			this.keysDown[ev.keyCode] = true;
+			this.update(ev);
+		});
+		window.addEventListener('keyup', (ev:KeyboardEvent) => {
+			this.keysDown[ev.keyCode] = false;
+			this.update(ev);
+		});
+	}
+	
+	public anyDown( keyCodes:number[] ) {
+		for( let i in keyCodes ) {
+			if( this.keysDown[keyCodes[i]] ) return true;
+		}
+		return false;
+	}
+}
 
 export default class MazeGame {
 	protected _game:Game;
@@ -26,20 +348,92 @@ export default class MazeGame {
 		if( this.worldView ) this.worldView.game = g;
 	}
 	
+	public playerRef;
 	
+	protected findPlayer() {
+		for( let r in this._game.rooms ) {
+			const room = this._game.rooms[r];
+			if( room.objects[this.playerRef] ) {
+				return room.objects[this.playerRef];
+			}
+		}
+		return null;
+	}
 	
 	public runDemo() {
-		this.game = new DemoWorldGenerator().makeCrappyGame();
-		let roomId:string;
-		for( roomId in this.game.rooms ); // Just find one; whatever.
+		const playerRef = this.playerRef = newUuidRef();
 		
+		const game = this.game = new DemoWorldGenerator().makeCrappyGame();
+		const sim = new WorldSimulator(game);
+		let roomId:string;
+		for( roomId in game.rooms ); // Just find one; whatever.
+		// Put player in it!
+		
+		const playerVisualRef = newUuidRef();
+		game.objectVisuals[playerVisualRef] = {
+			materialMap: DEFAULT_MATERIALS, // TODO: Make him blue or something
+			maVisual: simpleObjectVisualShape( (ssu:ShapeSheetUtil, t:number, xf:TransformationMatrix3D ) => {
+				ssu.plottedMaterialIndexFunction = () => 4;
+				const origin:Vector3D = xf.multiplyVector(Vector3D.ZERO);
+				ssu.plotSphere(origin.x, origin.y, origin.z, xf.scale/2);
+			})
+		};
+		
+		const playerBb:Cuboid = new Cuboid(-0.5,-0.5,-0.5,0.5,0.5,0.5);
+		
+		game.rooms[roomId].objects[playerRef] = <PhysicalObject>{
+			position: Vector3D.ZERO,
+			orientation: Quaternion.IDENTITY,
+			type: PhysicalObjectType.INDIVIDUAL,
+			tilingBoundingBox: playerBb,
+			physicalBoundingBox: playerBb,
+			visualBoundingBox: playerBb,
+			isAffectedByGravity: true,
+			isRigid: true,
+			stateFlags: 0,
+			visualRef: playerVisualRef,
+			velocity: new Vector3D(0,0,0),
+			brain: <PlayerBrain>{
+				desiredMoveDirection: 0,
+				desiredMoveSpeed: 0
+			}
+		}
+		
+		let ts = Date.now();
 		const animCallback = () => {
-			let t = Date.now()/1000;
+			const player = this.findPlayer();
+			if( player == null ) return;
+			
+			const pp = player.position;
+			
 			this.worldView.clear();
 			this.worldView.focusDistance = 16;
-			this.worldView.drawScene(roomId, new Vector3D(Math.cos(t)*4, Math.sin(t*0.3)*4, this.worldView.focusDistance), 0);
+			this.worldView.drawScene(roomId, new Vector3D(-pp.x, -pp.y, this.worldView.focusDistance-pp.z), sim.time);
+			
+			const newTs = Date.now();
+			if( newTs > ts ) {
+				const interval = Math.min( (newTs - ts)/1000, 0.5 );
+				sim.tick( interval );
+			} // Otherwise something went weird and we just skip
+			ts = newTs;
+			
 			window.requestAnimationFrame(animCallback);
 		};
 		window.requestAnimationFrame(animCallback);
+		
+		const kw = new KeyWatcher( (ev:KeyboardEvent,kw:KeyWatcher) => {
+			//if( ev.type == 'keydown' ) console.log(ev.keyCode+" "+ev.type+"!");
+
+			const left  = kw.anyDown([37, 65]);
+			const down  = kw.anyDown([40, 83]);
+			const up    = kw.anyDown([38, 87]);
+			const right = kw.anyDown([39, 68]);
+			
+			const tiltX = (left && !right) ? -1 : (right && !left) ? +1 : 0;
+			const tiltY = (up && !down) ? -1 : (down && !up) ? +1 : 0;
+			
+			sim.gravityVector = new Vector3D(tiltX*9.8, tiltY*9.8, 0);
+		});
+		kw.register();
 	}
 }
