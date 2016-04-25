@@ -1,9 +1,9 @@
 tsc_inputs = $(shell find src/main/ts) src/main/ts/tshash
 
 generated_js_files = \
-	$(shell find -name '*.ts' | grep -v node_modules | sed 's/\.ts$$/\.js/') \
-	$(shell find -name '*.es5.js' -o -name '*.es6.js')
-all_js_files = $(shell find -name '*.js') ${generated_js_files}
+	$(shell find . -name '*.ts' | grep -v node_modules | sed 's/\.ts$$/\.js/') \
+	$(shell find . -name '*.es5.js' -o -name '*.es6.js')
+all_js_files = $(shell find . -name '*.js') ${generated_js_files}
 
 node := node
 tsc := ${node} node_modules/typescript/bin/tsc
@@ -26,7 +26,7 @@ clean: sortaclean
 	default \
 	publish-demo
 
-demos/%.html: demos/%.php $(shell find -name '*.php') target/game21libs.amd.es5.js
+demos/%.html: demos/%.php $(shell find . -name '*.php') target/game21libs.amd.es5.js
 	cd demos && php "../$<" --inline-resources >"../$@"
 
 %.urn: % Makefile
@@ -60,7 +60,7 @@ target/cjs: src/main/ts/game21libs.cjs.es5.tsconfig.json ${tsc_inputs} node_modu
 	touch "$@"
 
 run-unit-tests: target/cjs
-	cd target/cjs && (find -name '*Test.js' | xargs --no-run-if-empty -n 1 ${node})
+	cd target/cjs && (find . -name '*Test.js' | xargs --no-run-if-empty -n 1 ${node})
 
 run-router: target/cjs
 	node target/cjs/togos-game21/Router.js
