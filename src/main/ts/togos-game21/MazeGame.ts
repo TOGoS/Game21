@@ -72,6 +72,22 @@ class Collision {
 	*/
 }
 
+function vectorToBoundingBoxFitScale( v:Vector3D, bb:Cuboid, bbScale:number ):number {
+	let dScale = 1; // How much v will need to be scaled by to fit within bb*bbScale
+	if( v.x*dScale > bb.maxX * bbScale ) dScale *= ((bb.maxX * bbScale) / v.x);
+	if( v.x*dScale < bb.minX * bbScale ) dScale *= ((bb.minX * bbScale) / v.x);
+	if( v.y*dScale > bb.maxY * bbScale ) dScale *= ((bb.maxY * bbScale) / v.y);
+	if( v.y*dScale < bb.minY * bbScale ) dScale *= ((bb.minY * bbScale) / v.y);
+	if( v.z*dScale > bb.maxZ * bbScale ) dScale *= ((bb.maxZ * bbScale) / v.z);
+	if( v.z*dScale < bb.minZ * bbScale ) dScale *= ((bb.minZ * bbScale) / v.z);
+	return dScale;
+}
+
+function fitVectorToBoundingBox( v:Vector3D, bb:Cuboid, bbScale:number, dest?:Vector3D ):Vector3D {
+	const dScale = vectorToBoundingBoxFitScale(v, bb, bbScale);
+	return v.scale( dScale, dest );
+}
+
 function displacedCuboid( c:Cuboid, d:Vector3D, dest:Cuboid ):Cuboid {
 	dest.minX = c.minX + d.x;
 	dest.minY = c.minY + d.y;
@@ -315,11 +331,14 @@ class WorldSimulator {
 				}
 				
 				{
-					const ov = obj.velocity;
+					let ov = obj.velocity;
 					if( ov && !ov.isZero ) {
 						obj = defreezeItem<PhysicalObject>(room.objects, o, obj);
 						let op = obj.position;
-						const stepCount = Math.min(10, Math.ceil(2 * interval * obj.velocity.length / obj.physicalBoundingBox.width));
+						// TODO: clamp velocity!
+						ov = obj.velocity = fitVectorToBoundingBox( ov, obj.physicalBoundingBox, 100 );
+						const invStepCount = vectorToBoundingBoxFitScale( ov, obj.physicalBoundingBox, 0.875 );
+						const stepCount = Math.ceil( 1 / invStepCount );
 						const stepSize = interval/stepCount;
 						if(stepSize > 1) console.log("Oh things getting fast.  Using "+stepCount+" steps, now.  Step size: "+stepSize);
 						let foundCollisions:boolean = false;
