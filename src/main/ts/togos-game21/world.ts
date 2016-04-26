@@ -35,7 +35,9 @@ export interface PhysicalObject {
 	visualBoundingBox:Cuboid;
 	
 	isAffectedByGravity:boolean;
-	isRigid:boolean;
+	isInteractive?:boolean; // Does it need to be taken into account by collision detection?
+	isRigid?:boolean;
+	bounciness?:number;
 	mass?:number;
 	stateFlags:number;
 	

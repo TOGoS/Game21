@@ -86,7 +86,6 @@ export function makeTileTreeNode( palette:any, w:number, h:number, d:number, _in
 		childObjectIndexes: indexes,
 		// These don't really make sense to have to have on a tile tree
 		isAffectedByGravity: false,
-		isRigid: false,
 		stateFlags: 0,
 		visualRef: null
 	}
@@ -136,6 +135,7 @@ export function simpleObjectVisualShape( drawFunction:(ssu:ShapeSheetUtil, t:num
 export function newUuidRef() { return uuidUrn(newType4Uuid()); }
 
 export const crappyBlockVisualRef = "urn:uuid:00cd941d-0083-4084-ab7f-0f2de1911c3f";
+export const bigBlockVisualRef = newUuidRef();
 export const crappyBrickVisualRef = "urn:uuid:b8a7c634-8caa-47a1-b8dd-0587dd303b13";
 
 export default class DemoWorldGenerator {
@@ -151,20 +151,23 @@ export default class DemoWorldGenerator {
 		const crappyRoomId = newUuidRef();
 		const theMaterialMap = DEFAULT_MATERIALS;
 		const roomObjects:KeyedList<PhysicalObject> = {};
-		const randomBlockCount = 0;
+		const randomBlockCount = 10;
 		for( let i=0; i<randomBlockCount; ++i ) {
 			const objectId = newUuidRef();
 			roomObjects[objectId] = {
-				position: new Vector3D((Math.random()-0.5)*10, (Math.random()-0.5)*10, (Math.random()-0.5)*10),
+				position: new Vector3D((Math.random()-0.5)*10, (Math.random()-0.5)*10, 0), //(Math.random()-0.5)*10),
 				orientation: Quaternion.IDENTITY,
 				type: PhysicalObjectType.INDIVIDUAL,
+				isInteractive: true,
 				isRigid: true,
-				isAffectedByGravity: false,
+				bounciness: 0.5,
+				isAffectedByGravity: true,
+				mass: 8,
 				stateFlags: 0,
-				visualRef: crappyBlockVisualRef,
-				tilingBoundingBox: new Cuboid(-0.5, -0.5, -0.5, 0.5, 0.5, 0.5),
-				physicalBoundingBox: new Cuboid(-0.5, -0.5, -0.5, 0.5, 0.5, 0.5),
-				visualBoundingBox: new Cuboid(-0.5, -0.5, -0.5, 0.5, 0.5, 0.5)
+				visualRef: bigBlockVisualRef,
+				tilingBoundingBox: new Cuboid(-1, -1, -1, 1, 1, 1),
+				physicalBoundingBox: new Cuboid(-1, -1, -1, 1, 1, 1),
+				visualBoundingBox: new Cuboid(-1, -1, -1, 1, 1, 1)
 			};
 		}
 		
@@ -172,22 +175,34 @@ export default class DemoWorldGenerator {
 			const center = xf.multiplyVector(Vector3D.ZERO);
 			const size = xf.scale;
 			ssu.plottedDepthFunction = (x:number, y:number, z:number) => z;
-			ssu.plottedMaterialIndexFunction = (x:number, y:number, z:number) => 8;
+			ssu.plottedMaterialIndexFunction = (x:number, y:number, z:number) => 4;
 			ssu.plotAASharpBeveledCuboid( center.x-size/2, center.y-size/2, center.z-size/2, size, size, size/6);
+		});
+		const bigBlockMaVisual:MAObjectVisual = simpleObjectVisualShape( (ssu:ShapeSheetUtil, t:number, xf:TransformationMatrix3D) => {
+			const center = xf.multiplyVector(Vector3D.ZERO);
+			const size = xf.scale*2;
+			ssu.plottedDepthFunction = (x:number, y:number, z:number) => z;
+			ssu.plottedMaterialIndexFunction = (x:number, y:number, z:number) => 4;
+			ssu.plotAABeveledCuboid( center.x-size/2, center.y-size/2, center.z-size/2, size, size, size/6);
 		});
 		const blockMaterialMap = DEFAULT_MATERIALS; 
 		const blockVisual:ObjectVisual = {
 			materialMap: DEFAULT_MATERIALS,
 			maVisual: blockMaVisual
 		}
-		const brickRemap = makeRemap(8,4,4);
+		const brickRemap = makeRemap(4,8,4);
 		const brickVisual:ObjectVisual = {
 			materialMap: remap(DEFAULT_MATERIALS, brickRemap),
 			maVisual: blockMaVisual
 		}
+		const bigBlockVisual:ObjectVisual = {
+			materialMap: DEFAULT_MATERIALS,
+			maVisual: bigBlockMaVisual
+		}
 		
 		game.objectVisuals[crappyBlockVisualRef] = blockVisual;
 		game.objectVisuals[crappyBrickVisualRef] = brickVisual;
+		game.objectVisuals[bigBlockVisualRef] = bigBlockVisual;
 		
 		const blockCuboid = new Cuboid(-0.5, -0.5, -0.5, 0.5, 0.5, 0.5);
 		
@@ -196,7 +211,9 @@ export default class DemoWorldGenerator {
 			position: null,
 			orientation: Quaternion.IDENTITY,
 			type: PhysicalObjectType.INDIVIDUAL,
+			isInteractive: true,
 			isRigid: true,
+			bounciness: 0.5,
 			isAffectedByGravity: false,
 			stateFlags: 0,
 			visualRef: crappyBrickVisualRef,
@@ -210,7 +227,9 @@ export default class DemoWorldGenerator {
 			position: null,
 			orientation: Quaternion.IDENTITY,
 			type: PhysicalObjectType.INDIVIDUAL,
+			isInteractive: true,
 			isRigid: true,
+			bounciness: 0.5,
 			isAffectedByGravity: false,
 			stateFlags: 0,
 			visualRef: crappyBlockVisualRef,

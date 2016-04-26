@@ -105,6 +105,16 @@ const posBuffer0 = new Vector3D;
 const momentumBuffer = new Vector3D;
 const reverseCollision = new Collision(null,null,null,null,null,null,null,null,null,null);
 
+type CollisionCallback = (
+	room0Ref:string, rootObj0Ref:string, obj0:PhysicalObject, pos0:Vector3D, vel0:Vector3D,
+	room1Ref:string, rootObj1Ref:string, obj1:PhysicalObject, pos1:Vector3D, vel1:Vector3D
+) => void;
+
+function coalesce<T>(v:T, v1:T):T {
+	if( v != null ) return v;
+	return v1;
+}
+
 class WorldSimulator {
 	public time = 0;
 	public gravityVector:Vector3D = Vector3D.ZERO;
@@ -138,7 +148,7 @@ class WorldSimulator {
 	protected _findCollision2(
 		room0Ref:string, rootObj0Ref:string, obj0:PhysicalObject, pos0:Vector3D, vel0:Vector3D,
 		room1Ref:string, rootObj1Ref:string, obj1:PhysicalObject, pos1:Vector3D, vel1:Vector3D,
-		dest:KeyedList<Collision>
+		callback:CollisionCallback
 	):void {
 		obj1RelativePosition.set(
 			pos1.x - pos0.x,
@@ -156,33 +166,33 @@ class WorldSimulator {
 		if( obj1RelativeCuboid.maxY < obj0Cuboid.minY ) return;
 		if( obj1RelativeCuboid.maxZ < obj0Cuboid.minZ ) return;
 		
-		if( obj0.isRigid && obj1.isRigid ) { // Or interactive in some way that we care about!
+		if( obj0.isInteractive && obj1.isInteractive ) { // Or interactive in some way that we care about!
 			// Well there's your collision right there!
 			// (unless I add more detailed shapes in the future)
 			//const relativePosition = deepFreeze(obj1RelativePosition);
 			//const relativeVelocity = deepFreeze(new Vector3D(vel1.x-vel0.x, vel1.y-vel0.y, vel1.z-vel0.z));
-			const collision = new Collision(
-				room0Ref, rootObj0Ref, obj0, deepFreeze(pos0), deepFreeze(vel0),
-				room1Ref, rootObj1Ref, obj1, deepFreeze(pos1), deepFreeze(vel1) );
-			const key = collision.key;
-			dest[key] = collision;
-			return;
+			callback(
+				room0Ref, rootObj0Ref, obj0, pos0, vel0,
+				room1Ref, rootObj1Ref, obj1, pos1, vel1 );
 		} else if( obj0.type != PhysicalObjectType.INDIVIDUAL ) {
+			if(true || true) throw new Error("Oh no, trying to find tree-tree collisions, omg why");
 			this.eachSubObject( obj0, pos0, (subObj, subPos) => {
 				this._findCollision2(
 					room0Ref, rootObj0Ref, subObj, subPos, vel0,
-					room1Ref, rootObj1Ref, obj1, pos1, vel1, dest );
+					room1Ref, rootObj1Ref, obj1  , pos1  , vel1,
+					callback );
 			});
 		} else if( obj1.type != PhysicalObjectType.INDIVIDUAL ) {
 			this.eachSubObject( obj1, pos1, (subObj, subPos) => {
 				this._findCollision2(
-					room0Ref, rootObj0Ref, obj0, pos0, vel0,
-					room1Ref, rootObj1Ref, subObj, subPos, vel1, dest );
+					room0Ref, rootObj0Ref, obj0  , pos0  , vel0,
+					room1Ref, rootObj1Ref, subObj, subPos, vel1,
+					callback );
 			});
 		}
 	}
 	
-	protected _findCollisions( room0Ref:string, obj0Ref:string, obj0:PhysicalObject, room1Ref:string, room1Pos:Vector3D, dest:KeyedList<Collision> ) {
+	protected _findCollisions( room0Ref:string, obj0Ref:string, obj0:PhysicalObject, room1Ref:string, room1Pos:Vector3D, callback:CollisionCallback ):void {
 		const room1 = this.game.rooms[room1Ref];
 		for( const obj1Ref in room1.objects ) {
 			if( obj1Ref == obj0Ref ) continue;
@@ -206,6 +216,7 @@ class WorldSimulator {
 			if( obj1RelativeCuboid.maxY < obj0Cuboid.minY ) continue;
 			if( obj1RelativeCuboid.maxZ < obj0Cuboid.minZ ) continue;
 			
+			/*
 			// Order objects by ID so we only count collisions once
 			let roomARef:string, objARef:string, objA:PhysicalObject, roomBRef:string, objBRef:string, objB:PhysicalObject;
 			let dScale:number;
@@ -222,33 +233,44 @@ class WorldSimulator {
 			this._findCollision2(
 				roomARef, objARef, objA, Vector3D.ZERO       , objA.velocity ? objA.velocity : Vector3D.ZERO,
 				roomBRef, objBRef, objB, objBRelativePosition, objB.velocity ? objB.velocity : Vector3D.ZERO,
-				dest
+				callback
+			);
+			*/
+			
+			this._findCollision2(
+				room0Ref, obj0Ref, obj0, obj0.position, obj0.velocity ? obj0.velocity : Vector3D.ZERO,
+				room1Ref, obj1Ref, obj1, obj1.position, obj1.velocity ? obj1.velocity : Vector3D.ZERO,
+				callback
 			);
 		}
 	}
 	
-	protected findCollisions( roomRef:string, objRef:string, dest:KeyedList<Collision> ):KeyedList<Collision> {
+	protected findCollisions( roomRef:string, objRef:string, callback:CollisionCallback ):void {
 		const room:Room = this.game.rooms[roomRef];
 		const obj:PhysicalObject = room.objects[objRef];
-		this._findCollisions(roomRef, objRef, obj, roomRef, Vector3D.ZERO, dest);
+		this._findCollisions(roomRef, objRef, obj, roomRef, Vector3D.ZERO, callback);
 		for( const n in room.neighbors ) {
 			const neighbor = room.neighbors[n];
 			const nRef = neighbor.roomId;
-			this._findCollisions(roomRef, objRef, obj, nRef, neighbor.offset, dest);
+			this._findCollisions(roomRef, objRef, obj, nRef, neighbor.offset, callback);
 		}
-		return dest;
-	}
+	}	
 	
-	protected handleCollisionSide(collision:Collision):void {
-		const obj0 = collision.obj0;
-		if( obj0.velocity == null ) return; // let's say for now that null velocity means immobile
+	// New, better!  (maybe)
+	/**
+	 * Return true if this should stop obj0 from moving for this tick
+	 */
+	protected handleCollision(
+		room0Ref:string, rootObj0Ref:string, obj0:PhysicalObject, pos0:Vector3D, vel0:Vector3D,
+		room1Ref:string, rootObj1Ref:string, obj1:PhysicalObject, pos1:Vector3D, vel1:Vector3D
+	):boolean {
+		if( obj0.velocity == null ) return false; // let's say for now that null velocity means immobile
+		if( !obj0.isRigid || !obj1.isRigid ) return false;
 		
-		console.log("-- Collision "+objectName(collision.obj0, collision.rootObj0Ref)+ " vs "+objectName(collision.obj1, collision.rootObj1Ref), collision);
-		
-		const obj1 = collision.obj1;
-		const relPos = Vector3D.subtract(collision.pos1, collision.pos0);
+		const relPos = Vector3D.subtract(pos1, pos0);
 		const otherBbRel = displacedCuboid(obj1.physicalBoundingBox, relPos, new Cuboid);
-
+		//console.log("Collision; relative position = "+vectorStr(relPos), "otherBbRel", otherBbRel);
+		
 		// TODO: bouncing spheres?  Or other odd shapes?  Calculate different!
 		
 		var bounceUp = 0, bounceDown = 0, bounceLeft = 0, bounceRight = 0;
@@ -271,26 +293,28 @@ class WorldSimulator {
 			}
 		}
 		
-		console.log("bounce (pre-cancel)", bounceUp, bounceDown, bounceLeft, bounceRight);
+		//console.log("bounce (pre-cancel)", bounceUp, bounceDown, bounceLeft, bounceRight);
 		
 		if( bounceUp   && bounceDown  ) bounceUp   = bounceDown  = 0;
 		if( bounceLeft && bounceRight ) bounceLeft = bounceRight = 0;
 
-		console.log("bounce (post-cancel)", bounceUp, bounceDown, bounceLeft, bounceRight);
+		//console.log("bounce (post-cancel)", bounceUp, bounceDown, bounceLeft, bounceRight);
 		
+		// Really should move both based on mass...
 		obj0.position = new Vector3D(
 			obj0.position.x + bounceRight - bounceLeft,
 			obj0.position.y + bounceDown - bounceUp,
 			obj0.position.z
 		);
 		
-		console.log("new position", vectorStr(obj0.position));
+		//console.log("new position", vectorStr(obj0.position));
 		
-		if( !bounceUp && !bounceDown && !bounceLeft && !bounceRight ) return; // Save ourselves some work
+		if( !bounceUp && !bounceDown && !bounceLeft && !bounceRight ) return false; // Save ourselves some work
 		
-		const obj0Vel = collision.vel0;
+		const obj0Vel = vel0; // TODO: What if this is different than obj0.velocity??  Ack!!!
+		const obj1Vel = vel1;
 		const obj1Mass = obj1.mass == null || obj1.mass == Infinity ? obj0.mass*1000 : obj1.mass;
-		const relVel = Vector3D.subtract(collision.vel1, collision.vel0);
+		const relVel = Vector3D.subtract(vel1, vel0);
 		const obj0Mass = obj0.mass; // assuming non-zero for moving stuffs!
 		if( obj0Mass == null || obj0Mass == Infinity ) throw new Error("Moving object has null/infinite velocity");
 		const totalMass = obj0Mass + obj1Mass;
@@ -301,30 +325,37 @@ class WorldSimulator {
 		const totalVz:number = ((obj0Vel.z*obj0Mass) + (obj0Vel.z + relVel.z)*obj1Mass)/totalMass;
 		
 		// Relative (to obj0's) velocity of the center of mass
-		const relTotalVx = totalVx - obj0Vel.x;
-		const relTotalVy = totalVy - obj0Vel.y;
-		const relTotalVz = totalVz - obj0Vel.z;
 		
-		console.log("total v", vectorStr(new Vector3D(totalVx, totalVy, totalVz)));
-		console.log("relative total v", vectorStr(new Vector3D(relTotalVx, relTotalVy, relTotalVz)));
+		const bounciness = coalesce(obj0.bounciness, 0.5)*coalesce(obj1.bounciness, 0.5);
 		
-		// const bounceFactor = obj1Mass / totalMass;
-		
-		//const relTotalVelMagX = Math.abs(relTotalVx);
-		//const relTotalVelMagY = Math.abs(relTotalVy);
-		// TODO: Fix object's room again here if necessary
-		obj0.velocity = new Vector3D(
-			(bounceLeft||bounceRight) ? totalVx + relTotalVx : obj0Vel.x,
-			(bounceUp  ||bounceDown ) ? totalVy + relTotalVy : obj0Vel.y,
-			obj0Vel.z
-		);
-		
-		console.log("new velocity", vectorStr(obj0.velocity));
+		if( obj0.velocity ) {
+			const relTotal0Vx = totalVx - obj0Vel.x;
+			const relTotal0Vy = totalVy - obj0Vel.y;
+			const relTotal0Vz = totalVz - obj0Vel.z;
+			obj0.velocity = new Vector3D(
+				(bounceLeft||bounceRight) ? totalVx + relTotal0Vx*bounciness : obj0Vel.x,
+				(bounceUp  ||bounceDown ) ? totalVy + relTotal0Vy*bounciness : obj0Vel.y,
+				obj0Vel.z
+			);
+		}
+		if( obj1.velocity ) {
+			const relTotal1Vx = totalVx - obj1Vel.x;
+			const relTotal1Vy = totalVy - obj1Vel.y;
+			const relTotal1Vz = totalVz - obj1Vel.z;
+			obj1.velocity = new Vector3D(
+				(bounceLeft||bounceRight) ? totalVx + relTotal1Vx*bounciness : obj1Vel.x,
+				(bounceUp  ||bounceDown ) ? totalVy + relTotal1Vy*bounciness : obj1Vel.y,
+				obj1Vel.z
+			);
+		}
+
+		//console.log("new velocity", vectorStr(obj0.velocity));
+		return true; // bouncing occured!
 	}
 	
 	public tick(interval:number):void {
 		const rooms = this.game.rooms;
-		const allCollisions:KeyedList<Collision> = {};
+		//const allCollisions:KeyedList<Collision> = {};
 		
 		for( let r in rooms ) {
 			let room = defreezeItem<Room>(rooms, r);
@@ -345,32 +376,44 @@ class WorldSimulator {
 					let ov = obj.velocity;
 					if( ov && !ov.isZero ) {
 						obj = defreezeItem<PhysicalObject>(room.objects, o, obj);
-						let op = obj.position;
-						ov = obj.velocity = fitVectorToBoundingBox( ov, obj.physicalBoundingBox, 100 );
-						const invStepCount = vectorToBoundingBoxFitScale( ov, obj.physicalBoundingBox, 0.875 );
+						ov = obj.velocity = fitVectorToBoundingBox( ov, obj.physicalBoundingBox, 10/interval );
+						const invStepCount = vectorToBoundingBoxFitScale( ov, obj.physicalBoundingBox, 0.875/interval );
 						const stepCount = Math.ceil( 1 / invStepCount );
+						if( stepCount > 10 ) console.log("Lots of steps! "+stepCount);
 						const stepSize = interval/stepCount;
 						if(stepSize > 1) console.log("Oh things getting fast.  Using "+stepCount+" steps, now.  Step size: "+stepSize);
 						let foundCollisions:boolean = false;
 						// Step forward until we hit something
 						for( let s=0; s < stepCount && !foundCollisions; ++s ) {
-							obj.position = op = new Vector3D( op.x + ov.x*stepSize, op.y+ov.y*stepSize, op.z+ov.z*stepSize );
-						
-							const collisions:KeyedList<Collision> = {};
-							this.findCollisions(r, o, collisions);
+							ov = obj.velocity;
+							{
+								const op = obj.position;
+								obj.position = new Vector3D( op.x + ov.x*stepSize, op.y+ov.y*stepSize, op.z+ov.z*stepSize );
+							}
+							
+							this.findCollisions(r, o, (
+								cRoom0Ref:string, cRootObj0Ref:string, cObj0:PhysicalObject, cPos0:Vector3D, cVel0:Vector3D,
+								cRoom1Ref:string, cRootObj1Ref:string, cObj1:PhysicalObject, cPos1:Vector3D, cVel1:Vector3D
+							) => {
+								if( this.handleCollision(
+									cRoom0Ref, cRootObj0Ref, cObj0, cPos0, cVel0,
+									cRoom1Ref, cRootObj1Ref, cObj1, cPos1, cVel1
+								) ) foundCollisions = true; // Do we even really need this?  We can look at new velocity.
+							});
+							/*
 							// TODO: only stop on rigid collisions; otherwise just add them to the list
 							for( let c in collisions ) {
 								allCollisions[c] = collisions[c];
 								foundCollisions = true;
 							}
+							*/
 						}
-						
-						obj.position = op;
 					}
 				}
 			}
 		}
 		
+		/*
 		for( const c in allCollisions ) {
 			const collision = allCollisions[c];
 			
@@ -378,6 +421,7 @@ class WorldSimulator {
 			this.handleCollisionSide(collision);
 			this.handleCollisionSide(collision.reverse(reverseCollision));
 		}
+		*/
 		
 		this.game.time += interval;
 	}
@@ -480,7 +524,9 @@ export default class MazeGame {
 			physicalBoundingBox: playerBb,
 			visualBoundingBox: playerBb,
 			isAffectedByGravity: true,
+			isInteractive: true,
 			isRigid: true,
+			bounciness: 1,
 			stateFlags: 0,
 			visualRef: playerVisualRef,
 			velocity: new Vector3D(0,0,0),
@@ -490,7 +536,7 @@ export default class MazeGame {
 				desiredMoveSpeed: 0
 			}
 		}
-		const extraBallCount = 10;
+		const extraBallCount = 20;
 		for( let i=0; i < extraBallCount; ++i ) {
 			game.rooms[roomId].objects[newUuidRef()] = <PhysicalObject>{
 				debugLabel: "extra ball "+i,
@@ -501,7 +547,9 @@ export default class MazeGame {
 				physicalBoundingBox: playerBb,
 				visualBoundingBox: playerBb,
 				isAffectedByGravity: true,
+				isInteractive: true,
 				isRigid: true,
+				bounciness: 1,
 				stateFlags: 0,
 				visualRef: playerVisualRef,
 				velocity: new Vector3D(0,0,0),
