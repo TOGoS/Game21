@@ -273,59 +273,79 @@ class WorldSimulator {
 		
 		// TODO: bouncing spheres?  Or other odd shapes?  Calculate different!
 		
-		var bounceUp = 0, bounceDown = 0, bounceLeft = 0, bounceRight = 0;
+		var overlapBottom = 0, overlapTop = 0, overlapRight = 0, overlapLeft = 0;
 		
-		// Bouncing is based on object's center line(s) intersecting the other object							
+		// Bouncing is based on object's center line(s) intersecting the other object.
+		// This isn't exactly right but works okay for 'regularish shapes'
 		if( otherBbRel.minX <= 0 && otherBbRel.maxX >= 0 ) {
 			if( otherBbRel.minY > 0 && obj0.physicalBoundingBox.maxY > otherBbRel.minY ) {
-				bounceUp = Math.max(obj0.physicalBoundingBox.maxY - otherBbRel.minY);
+				overlapBottom = Math.max(obj0.physicalBoundingBox.maxY - otherBbRel.minY);
 			}
 			if( otherBbRel.maxY < 0 && obj0.physicalBoundingBox.minY < otherBbRel.maxY ) {
-				bounceDown = Math.max(bounceDown, otherBbRel.maxY - obj0.physicalBoundingBox.minY);
+				overlapTop = Math.max(overlapTop, otherBbRel.maxY - obj0.physicalBoundingBox.minY);
 			}
 		}
 		if( otherBbRel.minY <= 0 && otherBbRel.maxY >= 0 ) {
 			if( otherBbRel.minX > 0 && obj0.physicalBoundingBox.maxX > otherBbRel.minX ) {
-				bounceLeft = Math.max(bounceLeft, obj0.physicalBoundingBox.maxX - otherBbRel.minX);
+				overlapRight = Math.max(overlapRight, obj0.physicalBoundingBox.maxX - otherBbRel.minX);
 			}
 			if( otherBbRel.maxX < 0 && obj0.physicalBoundingBox.minX < otherBbRel.maxX ) {
-				bounceRight = Math.max(bounceRight, otherBbRel.maxX - obj0.physicalBoundingBox.minX);
+				overlapLeft = Math.max(overlapLeft, otherBbRel.maxX - obj0.physicalBoundingBox.minX);
 			}
 		}
 		
 		//console.log("bounce (pre-cancel)", bounceUp, bounceDown, bounceLeft, bounceRight);
 		
-		if( bounceUp   && bounceDown  ) bounceUp   = bounceDown  = 0;
-		if( bounceLeft && bounceRight ) bounceLeft = bounceRight = 0;
-
+		// Fully inside?  Then don't try to move it at all, I guess.
+		if( overlapBottom && overlapTop  ) overlapBottom = overlapTop  = 0;
+		if( overlapRight  && overlapLeft ) overlapRight  = overlapLeft = 0;
+		
+		if( !overlapBottom && !overlapTop && !overlapRight && !overlapLeft ) return false; // Save ourselves some work
+		
 		//console.log("bounce (post-cancel)", bounceUp, bounceDown, bounceLeft, bounceRight);
 		
-		const obj0Mass = obj0.mass; // assuming non-zero for moving stuffs!
-		const obj1Mass = obj1.mass == null || obj1.mass == Infinity ? obj0.mass*1000 : obj1.mass;
-		const totalMass = obj0Mass + obj1Mass;
-		if( obj0Mass == null || obj0Mass == Infinity ) throw new Error("Moving object has null/infinite mass");
+		const obj0Mass = coalesce(obj0.mass, Infinity);
+		if( obj0Mass == Infinity ) throw new Error("Moving object has null/infinite mass");
+		const obj1Mass = obj1.velocity == null ? Infinity : coalesce(obj1.mass, Infinity);
+		const obj1FakeMass = obj1Mass == Infinity ? obj0.mass*1000 : obj1.mass;
+		const totalMass = obj0Mass + obj1FakeMass;
 		
-		const cmX:number = (pos0.x*obj0Mass + pos1.x*obj1Mass)/totalMass;
-		const cmY:number = (pos0.y*obj0Mass + pos1.y*obj1Mass)/totalMass;
-		const cmZ:number = (pos0.z*obj0Mass + pos1.z*obj1Mass)/totalMass;
+		const cmX:number = (pos0.x*obj0Mass + pos1.x*obj1FakeMass)/totalMass;
+		const cmY:number = (pos0.y*obj0Mass + pos1.y*obj1FakeMass)/totalMass;
+		const cmZ:number = (pos0.z*obj0Mass + pos1.z*obj1FakeMass)/totalMass;
 		
-		// Really should move both based on mass...
-		obj0.position = new Vector3D(
-			obj0.position.x + bounceRight - bounceLeft,
-			obj0.position.y + bounceDown - bounceUp,
-			obj0.position.z
-		);
+		const displaceX = overlapLeft - overlapRight;
+		const displaceY = overlapTop  - overlapBottom;
+		
+		const displace0Factor = 1;
+		//const displace1Factor = 1; // obj1Mass == Infinity ? 1 : obj1Mass/totalMass;
+		const displace1Factor = 1 - displace0Factor; // i.e. zero
+		
+		if( obj0.position && obj0Mass != Infinity && displace0Factor > 0 ) {
+			obj0.position = new Vector3D(
+				obj0.position.x + displaceX * displace0Factor,
+				obj0.position.y + displaceY * displace0Factor,
+				obj0.position.z
+			);
+		}
+		if( obj1.position && obj1Mass != Infinity && displace1Factor > 0 ) {
+			obj1.position = new Vector3D(
+				obj1.position.x - displaceX * displace1Factor,
+				obj1.position.y - displaceY * displace1Factor,
+				obj1.position.z
+			);
+		}
+		
+		// TODO: friction!!!!
 		
 		//console.log("new position", vectorStr(obj0.position));
-		
-		if( !bounceUp && !bounceDown && !bounceLeft && !bounceRight ) return false; // Save ourselves some work
 		
 		//const relVel = Vector3D.subtract(vel1, vel0);
 		
 		// Velocity of the center of mass = sum of velocities weighted by mass
-		const totalVx:number = (vel0.x*obj0Mass + vel1.x*obj1Mass)/totalMass;
-		const totalVy:number = (vel0.y*obj0Mass + vel1.y*obj1Mass)/totalMass;
-		const totalVz:number = (vel0.z*obj0Mass + vel1.z*obj1Mass)/totalMass;
+		const totalVx:number = (vel0.x*obj0Mass + vel1.x*obj1FakeMass)/totalMass;
+		const totalVy:number = (vel0.y*obj0Mass + vel1.y*obj1FakeMass)/totalMass;
+		const totalVz:number = (vel0.z*obj0Mass + vel1.z*obj1FakeMass)/totalMass;
 		
 		// Relative (to obj0's) velocity of the center of mass
 		
@@ -336,8 +356,8 @@ class WorldSimulator {
 			const relTotal0Vy = totalVy - vel0.y;
 			const relTotal0Vz = totalVz - vel0.z;
 			obj0.velocity = new Vector3D(
-				(bounceLeft||bounceRight) ? totalVx + relTotal0Vx*bounciness : vel0.x,
-				(bounceUp  ||bounceDown ) ? totalVy + relTotal0Vy*bounciness : vel0.y,
+				(overlapRight||overlapLeft) ? totalVx + relTotal0Vx*bounciness : vel0.x,
+				(overlapBottom  ||overlapTop ) ? totalVy + relTotal0Vy*bounciness : vel0.y,
 				vel0.z
 			);
 		}
@@ -346,8 +366,8 @@ class WorldSimulator {
 			const relTotal1Vy = totalVy - vel1.y;
 			const relTotal1Vz = totalVz - vel1.z;
 			obj1.velocity = new Vector3D(
-				(bounceLeft||bounceRight) ? totalVx + relTotal1Vx*bounciness : vel1.x,
-				(bounceUp  ||bounceDown ) ? totalVy + relTotal1Vy*bounciness : vel1.y,
+				(overlapRight||overlapLeft) ? totalVx + relTotal1Vx*bounciness : vel1.x,
+				(overlapBottom  ||overlapTop ) ? totalVy + relTotal1Vy*bounciness : vel1.y,
 				vel1.z
 			);
 		}
@@ -512,7 +532,7 @@ export default class MazeGame {
 			isAffectedByGravity: true,
 			isInteractive: true,
 			isRigid: true,
-			bounciness: 1,
+			bounciness: 0.9,
 			stateFlags: 0,
 			visualRef: playerVisualRef,
 			velocity: new Vector3D(0,0,0),
@@ -522,7 +542,7 @@ export default class MazeGame {
 				desiredMoveSpeed: 0
 			}
 		}
-		const extraBallCount = 20;
+		const extraBallCount = 100;
 		for( let i=0; i < extraBallCount; ++i ) {
 			game.rooms[roomId].objects[newUuidRef()] = <PhysicalObject>{
 				debugLabel: "extra ball "+i,
@@ -535,7 +555,7 @@ export default class MazeGame {
 				isAffectedByGravity: true,
 				isInteractive: true,
 				isRigid: true,
-				bounciness: 1,
+				bounciness: 0.9,
 				stateFlags: 0,
 				visualRef: playerVisualRef,
 				velocity: new Vector3D(0,0,0),
