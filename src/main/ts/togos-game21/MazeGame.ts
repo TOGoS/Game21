@@ -20,32 +20,30 @@ function defreezeItem<T>( c:any, k:any, o?:any ):T {
 	return o;
 }
 
+function objectName(object:PhysicalObject, k:string):string {
+	let name = '';
+	if( object.debugLabel ) name += object.debugLabel + ' ';
+	name += k;
+	return name; 
+}
+
+function vectorStr(v:Vector3D):string {
+	return "<"+v.x.toPrecision(4)+", "+v.y.toPrecision(4)+", "+v.z.toPrecision(4)+">";
+}
+
 class Collision {
 	constructor(
-		public room0Ref:string, public rootObj0Ref:string, public obj0:PhysicalObject,
-		public room1Ref:string, public rootObj1Ref:string, public obj1:PhysicalObject,
-		public relativePosition:Vector3D,
-		public relativeVelocity:Vector3D
+		public room0Ref:string, public rootObj0Ref:string, public obj0:PhysicalObject, public pos0:Vector3D, public vel0:Vector3D,
+		public room1Ref:string, public rootObj1Ref:string, public obj1:PhysicalObject, public pos1:Vector3D, public vel1:Vector3D
 	) { }
 	
 	public get key() {
-		return this.rootObj0Ref + "-" + this.rootObj1Ref + ":" +
-			this.relativePosition.x + "," + this.relativePosition.y + "," + this.relativePosition.z
+		return this.rootObj0Ref + "-" + this.rootObj1Ref + ":" + this.pos0.x + "," + this.pos0.y + "," + this.pos0.z;
 	}
 	
 	public reverse(dest:Collision):Collision {
-		dest.room0Ref = this.room1Ref; dest.rootObj0Ref = this.rootObj1Ref; dest.obj0 = this.obj1;
-		dest.room1Ref = this.room0Ref; dest.rootObj1Ref = this.rootObj0Ref; dest.obj1 = this.obj0;
-		dest.relativePosition.set(
-			-this.relativePosition.x,
-			-this.relativePosition.y,
-			-this.relativePosition.z
-		);
-		dest.relativeVelocity.set(
-			-this.relativeVelocity.x,
-			-this.relativeVelocity.y,
-			-this.relativeVelocity.z
-		);
+		dest.room0Ref = this.room1Ref; dest.rootObj0Ref = this.rootObj1Ref; dest.obj0 = this.obj1; dest.pos0 = this.pos1; dest.vel0 = this.vel1;
+		dest.room1Ref = this.room0Ref; dest.rootObj1Ref = this.rootObj0Ref; dest.obj1 = this.obj0; dest.pos1 = this.pos0; dest.vel1 = this.vel0;
 		return dest;
 	}
 	
@@ -98,12 +96,14 @@ function displacedCuboid( c:Cuboid, d:Vector3D, dest:Cuboid ):Cuboid {
 	return dest;
 }
 
+declare function Symbol(name:string):symbol;
+
 const obj1RelativePosition = new Vector3D;
 const objBRelativePosition = new Vector3D;
 const obj1RelativeCuboid = new Cuboid;
 const posBuffer0 = new Vector3D;
 const momentumBuffer = new Vector3D;
-const reverseCollision = new Collision(null,null,null,null,null,null,new Vector3D,new Vector3D);
+const reverseCollision = new Collision(null,null,null,null,null,null,null,null,null,null);
 
 class WorldSimulator {
 	public time = 0;
@@ -159,9 +159,11 @@ class WorldSimulator {
 		if( obj0.isRigid && obj1.isRigid ) { // Or interactive in some way that we care about!
 			// Well there's your collision right there!
 			// (unless I add more detailed shapes in the future)
-			const relativePosition = deepFreeze(obj1RelativePosition);
-			const relativeVelocity = deepFreeze(new Vector3D(vel1.x-vel0.x, vel1.y-vel0.y, vel1.z-vel0.z));
-			const collision = new Collision(room0Ref, rootObj0Ref, obj0, room1Ref, rootObj1Ref, obj1, relativePosition, relativeVelocity );
+			//const relativePosition = deepFreeze(obj1RelativePosition);
+			//const relativeVelocity = deepFreeze(new Vector3D(vel1.x-vel0.x, vel1.y-vel0.y, vel1.z-vel0.z));
+			const collision = new Collision(
+				room0Ref, rootObj0Ref, obj0, deepFreeze(pos0), deepFreeze(vel0),
+				room1Ref, rootObj1Ref, obj1, deepFreeze(pos1), deepFreeze(vel1) );
 			const key = collision.key;
 			dest[key] = collision;
 			return;
@@ -241,8 +243,11 @@ class WorldSimulator {
 		const obj0 = collision.obj0;
 		if( obj0.velocity == null ) return; // let's say for now that null velocity means immobile
 		
+		console.log("-- Collision "+objectName(collision.obj0, collision.rootObj0Ref)+ " vs "+objectName(collision.obj1, collision.rootObj1Ref), collision);
+		
 		const obj1 = collision.obj1;
-		const otherBbRel = displacedCuboid(obj1.physicalBoundingBox, collision.relativePosition, new Cuboid);
+		const relPos = Vector3D.subtract(collision.pos1, collision.pos0);
+		const otherBbRel = displacedCuboid(obj1.physicalBoundingBox, relPos, new Cuboid);
 
 		// TODO: bouncing spheres?  Or other odd shapes?  Calculate different!
 		
@@ -266,7 +271,6 @@ class WorldSimulator {
 			}
 		}
 		
-		console.log("---------");
 		console.log("bounce (pre-cancel)", bounceUp, bounceDown, bounceLeft, bounceRight);
 		
 		if( bounceUp   && bounceDown  ) bounceUp   = bounceDown  = 0;
@@ -280,11 +284,13 @@ class WorldSimulator {
 			obj0.position.z
 		);
 		
+		console.log("new position", vectorStr(obj0.position));
+		
 		if( !bounceUp && !bounceDown && !bounceLeft && !bounceRight ) return; // Save ourselves some work
-
+		
+		const obj0Vel = collision.vel0;
 		const obj1Mass = obj1.mass == null || obj1.mass == Infinity ? obj0.mass*1000 : obj1.mass;
-		const obj0Vel = obj0.velocity;
-		const relVel = collision.relativeVelocity;
+		const relVel = Vector3D.subtract(collision.vel1, collision.vel0);
 		const obj0Mass = obj0.mass; // assuming non-zero for moving stuffs!
 		if( obj0Mass == null || obj0Mass == Infinity ) throw new Error("Moving object has null/infinite velocity");
 		const totalMass = obj0Mass + obj1Mass;
@@ -299,8 +305,8 @@ class WorldSimulator {
 		const relTotalVy = totalVy - obj0Vel.y;
 		const relTotalVz = totalVz - obj0Vel.z;
 		
-		console.log("total v", totalVx, totalVy, totalVz);
-		console.log("relative total v", relTotalVx, relTotalVy, relTotalVz);
+		console.log("total v", vectorStr(new Vector3D(totalVx, totalVy, totalVz)));
+		console.log("relative total v", vectorStr(new Vector3D(relTotalVx, relTotalVy, relTotalVz)));
 		
 		// const bounceFactor = obj1Mass / totalMass;
 		
@@ -312,6 +318,8 @@ class WorldSimulator {
 			(bounceUp  ||bounceDown ) ? totalVy + relTotalVy : obj0Vel.y,
 			obj0Vel.z
 		);
+		
+		console.log("new velocity", vectorStr(obj0.velocity));
 	}
 	
 	public tick(interval:number):void {
@@ -366,6 +374,7 @@ class WorldSimulator {
 		for( const c in allCollisions ) {
 			const collision = allCollisions[c];
 			
+			console.log("-----------------")
 			this.handleCollisionSide(collision);
 			this.handleCollisionSide(collision.reverse(reverseCollision));
 		}
@@ -463,6 +472,7 @@ export default class MazeGame {
 		const playerBb:Cuboid = new Cuboid(-0.5,-0.5,-0.5,0.5,0.5,0.5);
 		
 		game.rooms[roomId].objects[playerRef] = <PhysicalObject>{
+			debugLabel: "player ball",
 			position: Vector3D.ZERO,
 			orientation: Quaternion.IDENTITY,
 			type: PhysicalObjectType.INDIVIDUAL,
@@ -483,6 +493,7 @@ export default class MazeGame {
 		const extraBallCount = 10;
 		for( let i=0; i < extraBallCount; ++i ) {
 			game.rooms[roomId].objects[newUuidRef()] = <PhysicalObject>{
+				debugLabel: "extra ball "+i,
 				position: new Vector3D((Math.random()-0.5)*10, (Math.random()-0.5)*10, 0),
 				orientation: Quaternion.IDENTITY,
 				type: PhysicalObjectType.INDIVIDUAL,

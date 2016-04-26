@@ -22,6 +22,7 @@ export enum PhysicalObjectType {
 }
 
 export interface PhysicalObject {
+	debugLabel? : string;
 	position? : Vector3D; // Ignored (and should be null) for tiles/prototypes
 	velocity? : Vector3D;
 	orientation? : Quaternion;
