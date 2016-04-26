@@ -300,6 +300,15 @@ class WorldSimulator {
 
 		//console.log("bounce (post-cancel)", bounceUp, bounceDown, bounceLeft, bounceRight);
 		
+		const obj0Mass = obj0.mass; // assuming non-zero for moving stuffs!
+		const obj1Mass = obj1.mass == null || obj1.mass == Infinity ? obj0.mass*1000 : obj1.mass;
+		const totalMass = obj0Mass + obj1Mass;
+		if( obj0Mass == null || obj0Mass == Infinity ) throw new Error("Moving object has null/infinite mass");
+		
+		const cmX:number = (pos0.x*obj0Mass + pos1.x*obj1Mass)/totalMass;
+		const cmY:number = (pos0.y*obj0Mass + pos1.y*obj1Mass)/totalMass;
+		const cmZ:number = (pos0.z*obj0Mass + pos1.z*obj1Mass)/totalMass;
+		
 		// Really should move both based on mass...
 		obj0.position = new Vector3D(
 			obj0.position.x + bounceRight - bounceLeft,
@@ -311,41 +320,35 @@ class WorldSimulator {
 		
 		if( !bounceUp && !bounceDown && !bounceLeft && !bounceRight ) return false; // Save ourselves some work
 		
-		const obj0Vel = vel0; // TODO: What if this is different than obj0.velocity??  Ack!!!
-		const obj1Vel = vel1;
-		const obj1Mass = obj1.mass == null || obj1.mass == Infinity ? obj0.mass*1000 : obj1.mass;
-		const relVel = Vector3D.subtract(vel1, vel0);
-		const obj0Mass = obj0.mass; // assuming non-zero for moving stuffs!
-		if( obj0Mass == null || obj0Mass == Infinity ) throw new Error("Moving object has null/infinite velocity");
-		const totalMass = obj0Mass + obj1Mass;
+		//const relVel = Vector3D.subtract(vel1, vel0);
 		
 		// Velocity of the center of mass = sum of velocities weighted by mass
-		const totalVx:number = ((obj0Vel.x*obj0Mass) + (obj0Vel.x + relVel.x)*obj1Mass)/totalMass;
-		const totalVy:number = ((obj0Vel.y*obj0Mass) + (obj0Vel.y + relVel.y)*obj1Mass)/totalMass;
-		const totalVz:number = ((obj0Vel.z*obj0Mass) + (obj0Vel.z + relVel.z)*obj1Mass)/totalMass;
+		const totalVx:number = (vel0.x*obj0Mass + vel1.x*obj1Mass)/totalMass;
+		const totalVy:number = (vel0.y*obj0Mass + vel1.y*obj1Mass)/totalMass;
+		const totalVz:number = (vel0.z*obj0Mass + vel1.z*obj1Mass)/totalMass;
 		
 		// Relative (to obj0's) velocity of the center of mass
 		
 		const bounciness = coalesce(obj0.bounciness, 0.5)*coalesce(obj1.bounciness, 0.5);
 		
 		if( obj0.velocity ) {
-			const relTotal0Vx = totalVx - obj0Vel.x;
-			const relTotal0Vy = totalVy - obj0Vel.y;
-			const relTotal0Vz = totalVz - obj0Vel.z;
+			const relTotal0Vx = totalVx - vel0.x;
+			const relTotal0Vy = totalVy - vel0.y;
+			const relTotal0Vz = totalVz - vel0.z;
 			obj0.velocity = new Vector3D(
-				(bounceLeft||bounceRight) ? totalVx + relTotal0Vx*bounciness : obj0Vel.x,
-				(bounceUp  ||bounceDown ) ? totalVy + relTotal0Vy*bounciness : obj0Vel.y,
-				obj0Vel.z
+				(bounceLeft||bounceRight) ? totalVx + relTotal0Vx*bounciness : vel0.x,
+				(bounceUp  ||bounceDown ) ? totalVy + relTotal0Vy*bounciness : vel0.y,
+				vel0.z
 			);
 		}
 		if( obj1.velocity ) {
-			const relTotal1Vx = totalVx - obj1Vel.x;
-			const relTotal1Vy = totalVy - obj1Vel.y;
-			const relTotal1Vz = totalVz - obj1Vel.z;
+			const relTotal1Vx = totalVx - vel1.x;
+			const relTotal1Vy = totalVy - vel1.y;
+			const relTotal1Vz = totalVz - vel1.z;
 			obj1.velocity = new Vector3D(
-				(bounceLeft||bounceRight) ? totalVx + relTotal1Vx*bounciness : obj1Vel.x,
-				(bounceUp  ||bounceDown ) ? totalVy + relTotal1Vy*bounciness : obj1Vel.y,
-				obj1Vel.z
+				(bounceLeft||bounceRight) ? totalVx + relTotal1Vx*bounciness : vel1.x,
+				(bounceUp  ||bounceDown ) ? totalVy + relTotal1Vy*bounciness : vel1.y,
+				vel1.z
 			);
 		}
 
@@ -400,28 +403,11 @@ class WorldSimulator {
 									cRoom1Ref, cRootObj1Ref, cObj1, cPos1, cVel1
 								) ) foundCollisions = true; // Do we even really need this?  We can look at new velocity.
 							});
-							/*
-							// TODO: only stop on rigid collisions; otherwise just add them to the list
-							for( let c in collisions ) {
-								allCollisions[c] = collisions[c];
-								foundCollisions = true;
-							}
-							*/
 						}
 					}
 				}
 			}
 		}
-		
-		/*
-		for( const c in allCollisions ) {
-			const collision = allCollisions[c];
-			
-			console.log("-----------------")
-			this.handleCollisionSide(collision);
-			this.handleCollisionSide(collision.reverse(reverseCollision));
-		}
-		*/
 		
 		this.game.time += interval;
 	}
