@@ -1,3 +1,5 @@
+import Vector3D from './Vector3D';
+
 export default class Cuboid {
 	constructor(
 		public minX:number=0, public minY:number=0, public minZ:number=0,
@@ -18,5 +20,15 @@ export default class Cuboid {
 		dest.maxY = Math.min(c0.maxY, c1.maxY);
 		dest.maxZ = Math.min(c0.maxZ, c1.maxZ);
 		return dest;
+	}
+	
+	public containsVector( v:Vector3D ):boolean {
+		if( v.x < this.minX ) return false;
+		if( v.y < this.minY ) return false;
+		if( v.z < this.minZ ) return false;
+		if( v.x > this.maxX ) return false;
+		if( v.y > this.maxY ) return false;
+		if( v.z > this.maxZ ) return false;
+		return true;
 	}
 };

@@ -207,9 +207,9 @@ export default class CanvasWorldView {
 		this.drawRoom(room, pos, time);
 		for( let n in room.neighbors ) {
 			let neighbor = room.neighbors[n];
-			let neighborRoom = this.game.rooms[neighbor.roomId];
+			let neighborRoom = this.game.rooms[neighbor.roomRef];
 			if( neighborRoom == null ) {
-				console.log("Failed to load neighbor room "+neighbor.roomId+"; can't draw it.");
+				console.log("Failed to load neighbor room "+neighbor.roomRef+"; can't draw it.");
 				continue;
 			}
 			this.drawRoom(neighborRoom, Vector3D.add(pos, neighbor.offset, neighborPos), time);

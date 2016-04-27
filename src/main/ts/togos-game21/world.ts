@@ -13,7 +13,7 @@ export interface RoomNeighbor {
 	 * This is duplicated from the room's own data.
 	 */
 	bounds:Cuboid;
-	roomId:string;
+	roomRef:string;
 }
 
 export enum PhysicalObjectType {
@@ -53,6 +53,7 @@ export interface TileTree extends PhysicalObject {
 }
 
 export interface Room {
+	bounds:Cuboid;
 	objects:KeyedList<PhysicalObject>;
 	neighbors:KeyedList<RoomNeighbor>;
 }

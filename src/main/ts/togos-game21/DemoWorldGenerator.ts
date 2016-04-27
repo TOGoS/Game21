@@ -10,8 +10,10 @@ import { DEFAULT_MATERIALS, IDENTITY_MATERIAL_REMAP, makeRemap,remap } from './m
 import ObjectVisual, { MAObjectVisual, VisualBasisType } from './ObjectVisual';
 import { OnAnimationEnd } from './Animation';
 import { Game, PhysicalObject, PhysicalObjectType, TileTree, Room } from './world';
-import { sha1Urn } from '../tshash/index';
+import { sha1Urn, base32Encode, hash } from '../tshash/index';
+import SHA1 from '../tshash/SHA1';
 import { uuidUrn, newType4Uuid } from '../tshash/uuids';
+import { deepFreeze } from './DeepFreezer';
 
 function toArray<T,D extends ArrayLike<T>>(src:ArrayLike<T>, dest:D):D {
 	for( let i=0; i<src.length; ++i ) dest[i] = src[i];
@@ -138,6 +140,24 @@ export const crappyBlockVisualRef = "urn:uuid:00cd941d-0083-4084-ab7f-0f2de1911c
 export const bigBlockVisualRef = newUuidRef();
 export const crappyBrickVisualRef = "urn:uuid:b8a7c634-8caa-47a1-b8dd-0587dd303b13";
 
+function connectRooms( game:Game, room0Ref:string, room1Ref:string, offset:Vector3D ):string {
+	offset = deepFreeze(offset);
+	const room0 = game.rooms[room0Ref];
+	const room1 = game.rooms[room1Ref];
+	const neighborKey = "n"+base32Encode(hash(room0Ref+";"+room1Ref+";"+offset.toArray().join(","), SHA1));
+	room0.neighbors[neighborKey] = {
+		offset: offset,
+		roomRef: room1Ref,
+		bounds: room1.bounds,
+	}
+	room1.neighbors[neighborKey] = {
+		offset: offset.scale(-1),
+		roomRef: room0Ref,
+		bounds: room0.bounds,
+	}
+	return neighborKey;
+}
+
 export default class DemoWorldGenerator {
 	public makeCrappyGame():Game {
 		const game:Game = {
@@ -148,7 +168,6 @@ export default class DemoWorldGenerator {
 			time: 0,
 		}
 		
-		const crappyRoomId = newUuidRef();
 		const theMaterialMap = DEFAULT_MATERIALS;
 		const roomObjects:KeyedList<PhysicalObject> = {};
 		const randomBlockCount = 10;
@@ -265,6 +284,17 @@ export default class DemoWorldGenerator {
 			2,2,2,2,
 			1,1,1,1,
 		], game);
+		
+		const tileTree1bRef = makeTileTreeRef( [
+			null,
+			brickPrototypeId,
+			blockPrototypeId,
+		], 4, 4, 1, [
+			1,2,1,2,
+			2,1,2,1,
+			1,2,1,2,
+			2,1,2,1,
+		], game);
 
 		const tileTree2Ref = makeTileTreeRef( [
 			null,
@@ -277,12 +307,23 @@ export default class DemoWorldGenerator {
 			1,1,1,1,
 		], game);
 		
+		const tileTree2bRef = makeTileTreeRef( [
+			null,
+			tileTree0Ref,
+			tileTree1bRef,
+		], 4, 4, 1, [
+			1,1,1,1,
+			1,2,2,1,
+			1,2,2,1,
+			1,1,1,1,
+		], game);
+		
 		const tileTree3Ref = makeTileTreeRef( [
 			null,
 			tileTree2Ref,
 		], 8, 8, 1, [
 			1,1,1,1,1,1,1,1,
-			1,0,0,0,0,0,0,1,
+			0,0,0,0,0,0,0,0,
 			1,0,0,1,1,1,0,1,
 			1,0,1,0,0,1,0,1,
 			1,0,1,0,0,1,0,1,
@@ -290,13 +331,38 @@ export default class DemoWorldGenerator {
 			1,1,0,1,0,0,0,1,
 			1,1,1,1,1,1,1,1,
 		], game);
+		
+		const tileTree4Ref = makeTileTreeRef( [
+			null,
+			tileTree2bRef,
+		], 8, 8, 1, [
+			1,1,1,1,1,1,1,1,
+			1,1,1,1,1,1,1,1,
+			1,1,1,1,1,1,1,1,
+			1,1,1,1,1,1,1,1,
+			1,1,0,0,0,0,1,1,
+			0,0,0,0,0,0,0,0,
+			1,1,1,0,0,1,1,1,
+			1,1,1,1,1,1,1,1,
+		], game);
 
 		roomObjects[newUuidRef()] = game.objectPrototypes[tileTree3Ref]; 
 		
-		game.rooms[crappyRoomId] = {
-			objects: roomObjects,
+		const crappyRoom0Id = newUuidRef();
+		const crappyRoom1Id = newUuidRef();
+		
+		game.rooms[crappyRoom0Id] = {
+			objects: { [newUuidRef()]: game.objectPrototypes[tileTree3Ref] },
+			bounds: game.objectPrototypes[tileTree3Ref].tilingBoundingBox,
 			neighbors: {}
-		}
+		};
+		game.rooms[crappyRoom1Id] = {
+			objects: { [newUuidRef()]: game.objectPrototypes[tileTree4Ref] },
+			bounds: game.objectPrototypes[tileTree4Ref].tilingBoundingBox,
+			neighbors: {}
+		};
+		connectRooms( game, crappyRoom0Id, crappyRoom1Id, new Vector3D(-128, -64, 0));
+		connectRooms( game, crappyRoom0Id, crappyRoom1Id, new Vector3D( 128, -64, 0));
 		
 		return game;
 	}

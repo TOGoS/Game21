@@ -3,16 +3,13 @@
 - Simple single-player maze game
 - Single-player game with use of IP packets
 - Client-server game
-
 - Trains
 - Shmoons
 
 ## Misc to-do items
 
 For maze game:
-- separate out simulator
 - quantized physics
-- multiple rooms
 - perspective flattening in certain z range (focus -8 to +8 or somesuch)
 
 Density function tracer:
