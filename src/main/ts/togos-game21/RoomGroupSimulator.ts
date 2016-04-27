@@ -99,14 +99,22 @@ export default class RoomGroupSimulator {
 	public get game():Game { return this._game; }
 	public set game(g:Game) {
 		this._game = g;
+		this.refreshCache();
+	}
+	
+	/**
+	 * Call when game has been changed
+	 * to fix up any cached data
+	 */
+	public refreshCache():void {
 		this.activeObjects = {};
 		if( this._game == null ) return;
 		for( let r in this._game.rooms ) {
 			const room = this._game.rooms[r];
 			for( let o in room.objects ) {
 				const obj = room.objects[o];
+				setObjRoomRef(obj, r);
 				if( this.objectIsActive(obj) ) {
-					setObjRoomRef(obj, r);
 					this.activeObjects[o] = obj;
 				}
 			}
@@ -235,31 +243,40 @@ export default class RoomGroupSimulator {
 		}
 	}
 	
-	protected fixRoomAssignment( currentRoomRef:string, objRef:string ):void {
-		const room = this.game.rooms[currentRoomRef];
-		let obj = room.objects[objRef];
-		if( !room.bounds.containsVector(obj.position) ) for( const n in room.neighbors ) {
-			const neighbor = room.neighbors[n];
-			displacedCuboid(neighbor.bounds, neighbor.offset, neighborRelativeCuboid);
-			if( obj.position.x < neighborRelativeCuboid.minX ) continue;
-			if( obj.position.y < neighborRelativeCuboid.minY ) continue;
-			if( obj.position.z < neighborRelativeCuboid.minZ ) continue;
-			if( obj.position.x > neighborRelativeCuboid.maxX ) continue;
-			if( obj.position.y > neighborRelativeCuboid.maxY ) continue;
-			if( obj.position.z > neighborRelativeCuboid.maxZ ) continue;
-			// ooh, we're in it!
-			obj = defreezeItem(room.objects, objRef, obj);
-			obj.position = Vector3D.subtract(obj.position, neighbor.offset);
-			if( neighbor.roomRef != currentRoomRef ) {
-				delete room.objects[objRef];
-				const newRoom = this.game.rooms[neighbor.roomRef];
-				newRoom.objects[objRef] = obj;
+	protected objectUpdated( obj:PhysicalObject, objRef:string ):void {
+		let roomRef = objRoomRef(obj);
+		if( roomRef ) {
+			const oldRoom = this.game.rooms[roomRef];
+			if( !oldRoom.bounds.containsVector(obj.position) ) for( const n in oldRoom.neighbors ) {
+				const neighbor = oldRoom.neighbors[n];
+				displacedCuboid(neighbor.bounds, neighbor.offset, neighborRelativeCuboid);
+				if( obj.position.x < neighborRelativeCuboid.minX ) continue;
+				if( obj.position.y < neighborRelativeCuboid.minY ) continue;
+				if( obj.position.z < neighborRelativeCuboid.minZ ) continue;
+				if( obj.position.x > neighborRelativeCuboid.maxX ) continue;
+				if( obj.position.y > neighborRelativeCuboid.maxY ) continue;
+				if( obj.position.z > neighborRelativeCuboid.maxZ ) continue;
+				// ooh, we're in it!
+				obj = defreezeItem(oldRoom.objects, objRef, obj);
+				obj.position = Vector3D.subtract(obj.position, neighbor.offset);
+				if( neighbor.roomRef != roomRef ) {
+					roomRef = neighbor.roomRef;
+					delete oldRoom.objects[objRef];
+					const newRoom = this.game.rooms[roomRef];
+					newRoom.objects[objRef] = obj;
+					setObjRoomRef(obj, roomRef);
+				}
+				// We found a neighbor; don't need to keep looking.
+				// roomRef has been updated.
+				break;
 			}
-			setObjRoomRef(obj, neighbor.roomRef);
-		} else {
-			setObjRoomRef(obj, currentRoomRef); // In case it wasn't already set?  Is this the place for that?
 		}
-		// TODO: Take it off the active list if no longer active, etc
+		
+		if( this.objectIsActive(obj) ) {
+			this.activeObjects[objRef] = obj;
+		} else {
+			delete this.activeObjects[objRef];
+		}
 	}
 	
 	// New, better!  (maybe)
@@ -327,13 +344,16 @@ export default class RoomGroupSimulator {
 		//const displace1Factor = 1; // obj1Mass == Infinity ? 1 : obj1Mass/totalMass;
 		const displace1Factor = 1 - displace0Factor; // i.e. zero
 		
+		let updatedObj0 = false;
+		let updatedObj1 = false;
+		
 		if( obj0.position && obj0Mass != Infinity && displace0Factor > 0 ) {
 			obj0.position = new Vector3D(
 				obj0.position.x + displaceX * displace0Factor,
 				obj0.position.y + displaceY * displace0Factor,
 				obj0.position.z
 			);
-			this.fixRoomAssignment( room0Ref, rootObj0Ref );
+			updatedObj0 = true;
 		}
 		/*
 		if( obj1.position && obj1Mass != Infinity && displace1Factor > 0 ) {
@@ -370,6 +390,7 @@ export default class RoomGroupSimulator {
 				(overlapBottom  ||overlapTop ) ? totalVy + relTotal0Vy*bounciness : vel0.y,
 				vel0.z
 			);
+			updatedObj0 = true;
 		}
 		if( obj1.velocity ) {
 			const relTotal1Vx = totalVx - vel1.x;
@@ -380,10 +401,13 @@ export default class RoomGroupSimulator {
 				(overlapBottom  ||overlapTop ) ? totalVy + relTotal1Vy*bounciness : vel1.y,
 				vel1.z
 			);
+			updatedObj1 = true;
 		}
 
-		//console.log("new velocity", vectorStr(obj0.velocity));
-		return true; // bouncing occured!
+		if( updatedObj0 ) this.objectUpdated( obj0, rootObj0Ref );
+		if( updatedObj1 ) this.objectUpdated( obj1, rootObj1Ref );
+		
+		return updatedObj0;
 	}
 	
 	public tick(interval:number):void {
@@ -418,7 +442,7 @@ export default class RoomGroupSimulator {
 						{
 							const op = obj.position;
 							obj.position = new Vector3D( op.x + ov.x*stepSize, op.y+ov.y*stepSize, op.z+ov.z*stepSize );
-							this.fixRoomAssignment( objRoomRef(obj), o );
+							this.objectUpdated(obj, o);
 						}
 							
 						this.findCollisions(objRoomRef(obj), o, (
