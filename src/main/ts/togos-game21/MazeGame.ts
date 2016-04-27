@@ -143,7 +143,7 @@ export default class MazeGame {
 				tilingBoundingBox: playerBb,
 				physicalBoundingBox: playerBb,
 				visualBoundingBox: playerBb,
-				isAffectedByGravity: true,
+				isAffectedByGravity: Math.random() < 0.5,
 				isInteractive: true,
 				isRigid: true,
 				bounciness: 0.9,
