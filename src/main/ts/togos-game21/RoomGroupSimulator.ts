@@ -75,11 +75,51 @@ const obj1RelativeCuboid = new Cuboid;
 const neighborRelativeCuboid = new Cuboid;
 const posBuffer0 = new Vector3D;
 
+const roomRefSym = Symbol("room reference");
+function objRoomRef(obj:PhysicalObject):string { return (<any>obj)[roomRefSym]; }
+function setObjRoomRef(obj:PhysicalObject, roomRef:string):void { (<any>obj)[roomRefSym] = roomRef; }
+
 export default class RoomGroupSimulator {
 	public time = 0;
 	public gravityVector:Vector3D = Vector3D.ZERO;
+	protected _game:Game;
+	protected activeObjects:KeyedList<PhysicalObject>;
 	
-	constructor(public game:Game) { }
+	constructor(game:Game) {
+		this.game = game;
+	}
+	
+	protected objectIsActive( obj:PhysicalObject ) {
+		if( obj.velocity != null && !obj.velocity.isZero ) return true;
+		if( obj.isAffectedByGravity ) return true;
+		// Potentially other things!
+		return false;
+	}
+	
+	public get game():Game { return this._game; }
+	public set game(g:Game) {
+		this._game = g;
+		this.activeObjects = {};
+		if( this._game == null ) return;
+		for( let r in this._game.rooms ) {
+			const room = this._game.rooms[r];
+			for( let o in room.objects ) {
+				const obj = room.objects[o];
+				if( this.objectIsActive(obj) ) {
+					setObjRoomRef(obj, r);
+					this.activeObjects[o] = obj;
+				}
+			}
+		}
+	}
+	
+	public getObject(objRef:string):PhysicalObject {
+		return this.activeObjects[objRef];
+	}
+	
+	public objectRoomRef(obj:PhysicalObject):string {
+		return objRoomRef(obj);
+	}
 	
 	protected eachSubObject( obj:PhysicalObject, pos:Vector3D, callback:(subObj:PhysicalObject, pos:Vector3D)=>void ) {
 		if( obj.type == PhysicalObjectType.INDIVIDUAL ) {
@@ -195,7 +235,7 @@ export default class RoomGroupSimulator {
 		}
 	}
 	
-	protected fixRoomAssignment( currentRoomRef:string, objRef:string ):string {
+	protected fixRoomAssignment( currentRoomRef:string, objRef:string ):void {
 		const room = this.game.rooms[currentRoomRef];
 		let obj = room.objects[objRef];
 		if( !room.bounds.containsVector(obj.position) ) for( const n in room.neighbors ) {
@@ -215,9 +255,11 @@ export default class RoomGroupSimulator {
 				const newRoom = this.game.rooms[neighbor.roomRef];
 				newRoom.objects[objRef] = obj;
 			}
-			return neighbor.roomRef;
+			setObjRoomRef(obj, neighbor.roomRef);
+		} else {
+			setObjRoomRef(obj, currentRoomRef); // In case it wasn't already set?  Is this the place for that?
 		}
-		return currentRoomRef;
+		// TODO: Take it off the active list if no longer active, etc
 	}
 	
 	// New, better!  (maybe)
@@ -346,53 +388,48 @@ export default class RoomGroupSimulator {
 	
 	public tick(interval:number):void {
 		const rooms = this.game.rooms;
-		//const allCollisions:KeyedList<Collision> = {};
 		
-		for( let updatingRoomRef in rooms ) {
-			let room = defreezeItem<Room>(rooms, updatingRoomRef);
-			for( let o in room.objects ) {
-				let currentRoomRef = updatingRoomRef;
-				let obj = room.objects[o];
-				
-				//const G = 9.8;
-				
-				if( obj.isAffectedByGravity ) {
+		for( const o in this.activeObjects ) {
+			let obj = this.activeObjects[o];
+			const room = rooms[objRoomRef(obj)];
+			
+			if( obj.isAffectedByGravity ) {
+				obj = defreezeItem<PhysicalObject>(room.objects, o, obj);
+				const ov = obj.velocity ? obj.velocity : Vector3D.ZERO;
+				obj.velocity = new Vector3D( ov.x, ov.y, ov.z );
+				Vector3D.accumulate( this.gravityVector, obj.velocity, interval );
+			}
+			
+			{
+				let ov = obj.velocity;
+				if( ov && !ov.isZero ) {
 					obj = defreezeItem<PhysicalObject>(room.objects, o, obj);
-					const ov = obj.velocity ? obj.velocity : Vector3D.ZERO;
-					obj.velocity = new Vector3D( ov.x, ov.y, ov.z );
-					Vector3D.accumulate( this.gravityVector, obj.velocity, interval );
-				}
-				
-				{
-					let ov = obj.velocity;
-					if( ov && !ov.isZero ) {
-						obj = defreezeItem<PhysicalObject>(room.objects, o, obj);
-						ov = obj.velocity = fitVectorToBoundingBox( ov, obj.physicalBoundingBox, 10/interval );
-						const invStepCount = vectorToBoundingBoxFitScale( ov, obj.physicalBoundingBox, 0.875/interval );
-						const stepCount = Math.ceil( 1 / invStepCount );
-						if( stepCount > 10 ) console.log("Lots of steps! "+stepCount);
-						const stepSize = interval/stepCount;
-						if(stepSize > 1) console.log("Oh things getting fast.  Using "+stepCount+" steps, now.  Step size: "+stepSize);
-						let foundCollisions:boolean = false;
-						// Step forward until we hit something
-						for( let s=0; s < stepCount && !foundCollisions; ++s ) {
-							ov = obj.velocity;
-							{
-								const op = obj.position;
-								obj.position = new Vector3D( op.x + ov.x*stepSize, op.y+ov.y*stepSize, op.z+ov.z*stepSize );
-								currentRoomRef = this.fixRoomAssignment( currentRoomRef, o );
-							}
-							
-							this.findCollisions(currentRoomRef, o, (
-								cRoom0Ref:string, cRootObj0Ref:string, cObj0:PhysicalObject, cPos0:Vector3D, cVel0:Vector3D,
-								cRoom1Ref:string, cRootObj1Ref:string, cObj1:PhysicalObject, cPos1:Vector3D, cVel1:Vector3D
-							) => {
-								if( this.handleCollision(
-									cRoom0Ref, cRootObj0Ref, cObj0, cPos0, cVel0,
-									cRoom1Ref, cRootObj1Ref, cObj1, cPos1, cVel1
-								) ) foundCollisions = true; // Do we even really need this?  We can look at new velocity.
-							});
+					ov = obj.velocity = fitVectorToBoundingBox( ov, obj.physicalBoundingBox, 10/interval );
+					const invStepCount = vectorToBoundingBoxFitScale( ov, obj.physicalBoundingBox, 0.875/interval );
+					const stepCount = Math.ceil( 1 / invStepCount );
+					//if( stepCount > 10 ) console.log("Lots of steps! "+stepCount);
+					const stepSize = interval/stepCount;
+					//if(stepSize > 1) console.log("Oh things getting fast.  Using "+stepCount+" steps, now.  Step size: "+stepSize);
+					let foundCollisions:boolean = false;
+					// Step forward until we hit something
+					for( let s=0; s < stepCount && !foundCollisions; ++s ) {
+						ov = obj.velocity;
+						
+						{
+							const op = obj.position;
+							obj.position = new Vector3D( op.x + ov.x*stepSize, op.y+ov.y*stepSize, op.z+ov.z*stepSize );
+							this.fixRoomAssignment( objRoomRef(obj), o );
 						}
+							
+						this.findCollisions(objRoomRef(obj), o, (
+							cRoom0Ref:string, cRootObj0Ref:string, cObj0:PhysicalObject, cPos0:Vector3D, cVel0:Vector3D,
+							cRoom1Ref:string, cRootObj1Ref:string, cObj1:PhysicalObject, cPos1:Vector3D, cVel1:Vector3D
+						) => {
+							if( this.handleCollision(
+								cRoom0Ref, cRootObj0Ref, cObj0, cPos0, cVel0,
+								cRoom1Ref, cRootObj1Ref, cObj1, cPos1, cVel1
+							) ) foundCollisions = true; // Do we even really need this?  We can look at new velocity.
+						});
 					}
 				}
 			}

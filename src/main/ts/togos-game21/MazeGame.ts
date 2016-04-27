@@ -92,21 +92,10 @@ export default class MazeGame {
 	
 	public playerRef:string;
 	
-	protected findPlayerRoom():string {
-		for( let r in this._game.rooms ) {
-			const room = this._game.rooms[r];
-			if( room.objects[this.playerRef] ) {
-				return r;
-			}
-		}
-		return null;
-	}
-	
 	public runDemo() {
 		const playerRef = this.playerRef = newUuidRef();
 		
 		const game = this.game = new DemoWorldGenerator().makeCrappyGame();
-		const sim = new RoomGroupSimulator(game);
 		let roomId:string;
 		for( roomId in game.rooms ); // Just find one; whatever.
 		// Put player in it!
@@ -165,10 +154,13 @@ export default class MazeGame {
 			}
 		}
 		
+		const sim = new RoomGroupSimulator(game);
+		
 		let ts = Date.now();
 		const animCallback = () => {
-			const playerRoomRef = this.findPlayerRoom();
-			const player = playerRoomRef == null ? null : this._game.rooms[playerRoomRef].objects[playerRef];
+			const player = sim.getObject(playerRef);
+			const playerRoomRef = sim.objectRoomRef(player);
+			playerRoomRef == null ? null : this._game.rooms[playerRoomRef].objects[playerRef];
 			if( player == null ) return;
 			
 			const pp = player.position;
