@@ -9,6 +9,12 @@
 
 ## Misc to-do items
 
+For maze game:
+- separate out simulator
+- quantized physics
+- multiple rooms
+- perspective flattening in certain z range (focus -8 to +8 or somesuch)
+
 Density function tracer:
 - Quit when exiting bounding rectangle
 - Only return 'hole' if value at the last point is more negative than any other encountered
