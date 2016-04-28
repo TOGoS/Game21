@@ -1,8 +1,31 @@
 <?php
-	require_once 'lib.php';
-	if( !isset($mode ) ) $mode = 'normal';
-	if( !isset($title) ) $title = ($mode === 'demo' ? 'Shapes!' : 'Shape Editor');
-	if( !isset($inlineResources) ) $inlineResources = ($mode === 'demo');
+
+$config = [];
+
+if( isset($argv) ) for( $i=1; $i<count($argv); ++$i ) {
+	if( $argv[$i] == '--inline-resources' ) {
+		$config['inlineResources'] = true;
+	} else if( preg_match('/^(.*?)=(.*)$/', $argv[$i], $bif) ) {
+		$config[$bif[1]] = $bif[2];
+	} else {
+		fwrite(STDERR, "Unrecognized argument: {$argv[$i]}\n");
+		exit(1);
+	}
+}
+
+require_once 'lib.php';
+
+$configProperties = [
+	'inlineResources' => [
+		'valueType' => 'boolean',
+		'defaultValue' => false,
+		'affects' => 'pageGeneration',
+	],
+];
+
+$config = config_from_env($configProperties, $config);
+extract($config, EXTR_SKIP|EXTR_REFS);
+
 ?>
 <html>
 <head>
