@@ -26,7 +26,7 @@ var map = function<T,P>(obj:T, mapFunc:(t:any,p:P)=>any, mapFuncParam:P):T {
 	}
 };
 
-var clone = function<T>(obj:T):T {
+export function clone<T>(obj:T):T {
 	return map(obj, identity, null);
 };
 
@@ -121,8 +121,4 @@ export function deepThaw<T>(obj:T):T {
 	obj = thaw(obj);
 	_map(obj, obj, thaw, null);
 	return obj;
-};
-
-export function myOwnCopyOf<T>(obj:T):T {
-	return deepThaw(deepFreeze(obj,false));
 };

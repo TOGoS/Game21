@@ -124,7 +124,7 @@ export default class CanvasWorldView {
 	
 	protected get unitPpm():number {
 		// TODO: configure somehow based on FoV
-		return Math.min(this.canvas.width, this.canvas.height)/2;
+		return Math.max(this.canvas.width, this.canvas.height)/2;
 	}
 	
 	protected drawIndividualObject( obj:PhysicalObject, pos:Vector3D, time:number ):void {

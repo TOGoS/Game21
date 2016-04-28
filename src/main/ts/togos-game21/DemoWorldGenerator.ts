@@ -16,7 +16,7 @@ import { Game, PhysicalObject, PhysicalObjectType, TileTree, Room } from './worl
 import { sha1Urn, base32Encode, hash } from '../tshash/index';
 import SHA1 from '../tshash/SHA1';
 import { uuidUrn, newType4Uuid } from '../tshash/uuids';
-import { deepFreeze, thaw } from './DeepFreezer';
+import { deepFreeze, thaw, clone } from './DeepFreezer';
 
 function toArray<T,D extends ArrayLike<T>>(src:ArrayLike<T>, dest:D):D {
 	for( let i=0; i<src.length; ++i ) dest[i] = src[i];
@@ -175,26 +175,6 @@ export default class DemoWorldGenerator {
 		}
 		
 		const theMaterialMap = DEFAULT_MATERIAL_MAP;
-		const roomObjects:KeyedList<PhysicalObject> = {};
-		const randomBlockCount = 10;
-		for( let i=0; i<randomBlockCount; ++i ) {
-			const objectId = newUuidRef();
-			roomObjects[objectId] = {
-				position: new Vector3D((Math.random()-0.5)*10, (Math.random()-0.5)*10, 0), //(Math.random()-0.5)*10),
-				orientation: Quaternion.IDENTITY,
-				type: PhysicalObjectType.INDIVIDUAL,
-				isInteractive: true,
-				isRigid: true,
-				bounciness: 0.5,
-				isAffectedByGravity: true,
-				mass: 8,
-				stateFlags: 0,
-				visualRef: bigBlockVisualRef,
-				tilingBoundingBox: new Cuboid(-1, -1, -1, 1, 1, 1),
-				physicalBoundingBox: new Cuboid(-1, -1, -1, 1, 1, 1),
-				visualBoundingBox: new Cuboid(-1, -1, -1, 1, 1, 1)
-			};
-		}
 		
 		const blockMaVisual:MAObjectVisual = simpleObjectVisualShape( (ssu:ShapeSheetUtil, t:number, xf:TransformationMatrix3D) => {
 			const center = xf.multiplyVector(Vector3D.ZERO);
@@ -203,9 +183,10 @@ export default class DemoWorldGenerator {
 			ssu.plottedMaterialIndexFunction = (x:number, y:number, z:number) => 4;
 			ssu.plotAASharpBeveledCuboid( center.x-size/2, center.y-size/2, center.z-size/2, size, size, size/6);
 		});
+		const bigBlockSize = 8;
 		const bigBlockMaVisual:MAObjectVisual = simpleObjectVisualShape( (ssu:ShapeSheetUtil, t:number, xf:TransformationMatrix3D) => {
 			const center = xf.multiplyVector(Vector3D.ZERO);
-			const size = xf.scale*2;
+			const size = xf.scale*bigBlockSize;
 			ssu.plottedDepthFunction = (x:number, y:number, z:number) => z;
 			ssu.plottedMaterialIndexFunction = (x:number, y:number, z:number) => 4;
 			ssu.plotAABeveledCuboid( center.x-size/2, center.y-size/2, center.z-size/2, size, size, size/6);
@@ -351,22 +332,83 @@ export default class DemoWorldGenerator {
 			1,1,1,0,0,1,1,1,
 			1,1,1,1,1,1,1,1,
 		], game);
+		
+		const bigBlockBb = new Cuboid(-4, -4, -4, 4, 4, 4);
+		const bigBlockPrototypeRef = newUuidRef();
+		game.objectPrototypes[bigBlockPrototypeRef] = {
+			position: new Vector3D((Math.random()-0.5)*128, (Math.random()-0.5)*64, 10+16*Math.random()-0.5),
+			orientation: Quaternion.IDENTITY,
+			type: PhysicalObjectType.INDIVIDUAL,
+			isInteractive: true,
+			isRigid: true,
+			bounciness: 0.5,
+			isAffectedByGravity: false,
+			mass: 8,
+			stateFlags: 0,
+			visualRef: bigBlockVisualRef,
+			tilingBoundingBox: bigBlockBb,
+			physicalBoundingBox: bigBlockBb,
+			visualBoundingBox: bigBlockBb
+		};
+		
+		const backgroundTree0Ref = makeTileTreeRef( [
+			null,
+			bigBlockPrototypeRef
+		], 4,4,4, [
+			0, 1, 0, 1,
+			0, 1, 0, 1,
+			0, 1, 0, 1,
+			0, 1, 0, 1,
 
-		roomObjects[newUuidRef()] = game.objectPrototypes[tileTree3Ref]; 
+			0, 1, 0, 0,
+			1, 1, 1, 1,
+			0, 1, 0, 0,
+			0, 1, 0, 0,
+
+			0, 0, 0, 0,
+			1, 1, 1, 1,
+			0, 0, 0, 0,
+			0, 0, 0, 0,
+
+			0, 0, 0, 1,
+			1, 1, 0, 1,
+			0, 1, 0, 0,
+			0, 1, 1, 1,			
+		], game);
+		const backgroundTree1Ref = makeTileTreeRef( [
+			null,
+			backgroundTree0Ref
+		], 4,4,1, [
+			1, 0, 0, 0,
+			1, 1, 1, 1,
+			0, 0, 1, 0,
+			1, 1, 1, 1,
+		], game);
+		//roomObjects[newUuidRef()] = game.objectPrototypes[tileTree3Ref]; 
 		
 		const crappyRoom0Id = newUuidRef();
 		const crappyRoom1Id = newUuidRef();
 		
+		const backgroundTree = clone(game.objectPrototypes[backgroundTree1Ref]);
+		backgroundTree.position = new Vector3D(0,0,20);
+		
 		game.rooms[crappyRoom0Id] = {
-			objects: { [newUuidRef()]: game.objectPrototypes[tileTree3Ref] },
+			objects: {
+				[newUuidRef()]: game.objectPrototypes[tileTree3Ref],
+				[newUuidRef()]: backgroundTree,
+			},
 			bounds: game.objectPrototypes[tileTree3Ref].tilingBoundingBox,
 			neighbors: {}
 		};
 		game.rooms[crappyRoom1Id] = {
-			objects: { [newUuidRef()]: game.objectPrototypes[tileTree4Ref] },
+			objects: {
+				[newUuidRef()]: game.objectPrototypes[tileTree4Ref],
+				[newUuidRef()]: backgroundTree,
+			},
 			bounds: game.objectPrototypes[tileTree4Ref].tilingBoundingBox,
 			neighbors: {}
 		};
+		
 		connectRooms( game, crappyRoom0Id, crappyRoom1Id, new Vector3D(-128, -64, 0));
 		connectRooms( game, crappyRoom0Id, crappyRoom1Id, new Vector3D( 128, -64, 0));
 		
