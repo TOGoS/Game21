@@ -28,9 +28,9 @@ assertRotation( new Vector3D(0,0,-1), new Vector3D(1,0,0), new Vector3D(0,1,0), 
 
 // The plane on http://www.euclideanspace.com/maths/geometry/rotations/conversions/angleToMatrix/:
 // its 'up' (+y) becomes 'towards the viewer' (+z)
-// (they're using a right-handed coordinate system,
-// instead of left-handed like we show on our screens,
-// but the numbers should work out the same)
+// We are *also* using a right-handed coordinate system
+// (just rotated 180° around the X-axis),
+// so the same imagery applies.
 assertRotation( new Vector3D(0,0,+1), new Vector3D(0,1,0), new Vector3D(1,0,0), Math.PI/2 );
 
 

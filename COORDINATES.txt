@@ -1,0 +1,7 @@
+Throughout this codebase I assume a right-handed coordinate system
+where +X = right, +Y = down, and +Z = forward (into the screen).
+
+Distance units are assumed to be 'meters' unless specified otherwise.
+When dealing with raster data, the size of a pixel must be explicitly provided
+(usually in terms of 'pixels per meter', which is what 'resolution' refers to)
+to convert to physical distance units.
