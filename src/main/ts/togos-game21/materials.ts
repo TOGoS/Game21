@@ -1,9 +1,12 @@
+import KeyedList from './KeyedList';
 import { deepFreeze } from './DeepFreezer';
 import SurfaceColor from './SurfaceColor';
 import Material from './Material';
 
 export const MATERIAL_MAP_SIZE = 256;
 
+type MaterialPalette = Array<string>;
+/** A palette with refs resolved to actual material objects */
 type MaterialMap = Array<Material>;
 type MaterialRemap = Uint8Array;
 
@@ -15,6 +18,7 @@ export function randomMaterials(count:number):Array<Material> {
 	const materials:Material[] = [];
 	for( let i=0; i < count; ++i ) {
 		materials.push({
+			title: "random material "+i,
 			diffuse: new SurfaceColor(
 				r, g, b
 			),
@@ -24,21 +28,6 @@ export function randomMaterials(count:number):Array<Material> {
 		b += (Math.random()-0.5)*vari;
 	}
 	return materials;
-}
-
-function fillOutMaterialMap(map:Array<Material>):void {
-	for( let i=0; i < MATERIAL_MAP_SIZE; ++i ) {
-		if( map[i] == null ) {
-			map[i] = {
-				diffuse: new SurfaceColor(
-					0.9+(Math.random()-0.5)*0.1,
-					0.0+(Math.random()-0.5)*0.1,
-					0.9+(Math.random()-0.5)*0.1,
-					0.5
-				)
-			};
-		}
-	}
 }
 
 export function randomMaterialMap():Array<Material> {
@@ -55,48 +44,98 @@ export function randomMaterialMap():Array<Material> {
 	return map;
 };
 
-export const DEFAULT_MATERIALS:MaterialMap = [
-	// 0-3 (reserved)
-	Material.NONE,
-	Material.NONE,
-	Material.NONE,
-	Material.NONE,
-	// 4-7 (steel)
-	{
+const undefRef  = 'urn:uuid:18693b6c-7ace-4c4c-85e7-a5fb082d205e';
+const noneRef   = 'urn:uuid:0c467f1b-06a8-4bd7-a0a4-805835ab599a';
+const steel0Ref = 'urn:uuid:9f5a50ef-8c7e-48db-85bf-c7a6d55a58fe';
+const steel1Ref = 'urn:uuid:9e5ffb1d-3c67-4321-8668-26f9925e3d97';
+const steel2Ref = 'urn:uuid:303a9e78-cb7c-4d3c-9e2f-4b5d6debd001';
+const steel3Ref = 'urn:uuid:e0331ac1-a07b-4b20-b46a-0c4776235da8';
+const ps0Ref    = 'urn:uuid:09c2feeb-a050-4931-85de-efc4a12aacfb';
+const ps1Ref    = 'urn:uuid:b29bc460-4c9d-43e3-a3d2-f9a4114ac9f9';
+const ps2Ref    = 'urn:uuid:1ba047d0-6fdf-4bd1-bf94-db57c77cfd74';
+const ps3Ref    = 'urn:uuid:624f532a-b37b-43be-aedf-d1d3a361191b';
+/*
+CHECK OUT THSI AWSUM WEB SIGHT https://www.uuidgenerator.net/;
+'urn:uuid:c7a19722-d114-4b76-8c6a-51686ccf56aa';
+'urn:uuid:80d1a0c5-d621-40b4-94fd-21453c1d70cd';
+'urn:uuid:f70c6929-68ba-4c4e-9ae9-254b9dcb609e';
+'urn:uuid:d0c90575-fba9-41f1-888b-0339f0f4a498';
+'urn:uuid:4b73a4f5-d717-4907-9435-3004e0a5087d';
+'urn:uuid:de11e708-17d9-46ec-a58c-58cb897b8b47';
+'urn:uuid:ea0f7659-4e74-4b29-9324-9d40f27ce897';
+'urn:uuid:5e820a3a-6457-4550-8909-2cff51b8b1a6';
+'urn:uuid:ea6ae5c8-5c01-49b9-9d59-4d74a7a15079';
+*/
+
+export const DEFAULT_MATERIALS:KeyedList<Material> = {
+	[noneRef]: Material.NONE,
+	[steel0Ref]: {
+		title: "steel 0", 
 		diffuse: new SurfaceColor(1.0,1.0,0.9)
 	},
-	{
+	[steel1Ref]: {
+		title: "steel 1",
 		diffuse: new SurfaceColor(1.0,0.9,0.8)
 	},
-	{
+	[steel2Ref]: {
+		title: "steel 2",
 		diffuse: new SurfaceColor(1.0,0.8,0.7)
 	},
-	{
+	[steel3Ref]: {
+		title: "steel 3",
 		diffuse: new SurfaceColor(1.0,0.7,0.8)
 	},
 	// 8-11 (reddish stone)
-	{
+	[ps0Ref]: {
+		title: "pink stone 0",
 		diffuse: new SurfaceColor(0.70,0.30,0.2)
 	},
-	{
+	[ps1Ref]: {
+		title: "pink stone 1",
 		diffuse: new SurfaceColor(0.65,0.30,0.20)
 	},
-	{
+	[ps2Ref]: {
+		title: "pink stone 2",
 		diffuse: new SurfaceColor(0.60,0.25,0.15)
 	},
-	{
+	[ps3Ref]: {
+		title: "pink stone 3",
 		diffuse: new SurfaceColor(0.55,0.20,0.15)
-	},
-	// 12 (weird transparent thing for testing fog shader)
-	{
-		diffuse: new SurfaceColor(0.25,0.60,0.35,0.5)
 	}
-];
-fillOutMaterialMap(DEFAULT_MATERIALS);
+};
+deepFreeze(DEFAULT_MATERIALS, true);
+
+export const DEFAULT_MATERIAL_PALETTE_REF = 'urn:uuid:c05743d0-488c-4ff6-a667-bdca2c6f91d8'; // TODO: should be a urn:sha1:...# dealio
+
+export const DEFAULT_MATERIAL_PALETTE:Array<string> = deepFreeze([
+	noneRef,
+	steel0Ref,
+	steel1Ref,
+	steel2Ref,
+	steel3Ref,
+	ps0Ref,
+	ps1Ref,
+	ps2Ref,
+	ps3Ref,
+]);
+
+export const DEFAULT_MATERIAL_MAP:MaterialMap = deepFreeze(paletteToMap(DEFAULT_MATERIAL_PALETTE, DEFAULT_MATERIALS));
 
 export const IDENTITY_MATERIAL_REMAP:MaterialRemap = new Uint8Array(256);
 for( let i=0; i<256; ++i ) IDENTITY_MATERIAL_REMAP[i] = i;
 deepFreeze(IDENTITY_MATERIAL_REMAP, true);
+
+export function paletteToMap(palette:Array<string>, materials:KeyedList<Material>):Array<Material> {
+	const map:Array<Material> = []; //palette.map( (i) => materials[i] );
+	for( let i=0; i < 256; ++i ) {
+		const matId = palette[i];
+		const mat = matId == null ? Material.UNDEFINED : materials[matId];
+		if( mat == null ) throw new Error("No such material "+matId+" (while building material map from palette)");
+		map.push(mat);
+	}
+	// while( map.length < 256 ) map.push(Material.UNDEFINED);
+	return map;
+}
 
 /**
  * Think of this kind of like matrix multiplcation.

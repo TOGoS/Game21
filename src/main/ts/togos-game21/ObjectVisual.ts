@@ -57,10 +57,10 @@ export interface MAObjectVisual {
 }
 
 export interface ObjectVisual {
-	materialMapRef? : string;
+	materialPaletteRef? : string;
 	materialMap? : Array<Material>;
-	maObjectVisualRef? : string;
-	maVisual : MAObjectVisual;
+	maVisualRef? : string;
+	maVisual? : MAObjectVisual;
 }
 
 export default ObjectVisual;

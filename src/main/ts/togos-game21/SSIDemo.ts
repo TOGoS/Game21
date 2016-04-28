@@ -9,7 +9,7 @@ import ImageSlice from './ImageSlice';
 import ProceduralShape from './ProceduralShape';
 import Animation, {OnAnimationEnd} from './Animation';
 import ObjectVisual, {ObjectVisualState, ObjectVisualFrame, VisualBasisType} from './ObjectVisual';
-import {DEFAULT_MATERIALS, IDENTITY_MATERIAL_REMAP} from './materials';
+import {DEFAULT_MATERIAL_MAP, IDENTITY_MATERIAL_REMAP} from './materials';
 import ObjectImageManager from './ObjectImageManager';
 
 class CoilShape implements ProceduralShape {
@@ -50,7 +50,7 @@ class CoilShape implements ProceduralShape {
 }
 
 export default class SSIDemo {
-	protected objectImageManager:ObjectImageManager = new ObjectImageManager();
+	protected objectImageManager:ObjectImageManager = new ObjectImageManager(null);
 		
 	/*
 	protected plotCoil() {
@@ -106,7 +106,7 @@ export default class SSIDemo {
 		const frame:ObjectVisualFrame = this.randomObjectVisualFrame();
 		
 		return {
-			materialMap: DEFAULT_MATERIALS,
+			materialMap: DEFAULT_MATERIAL_MAP,
 			maVisual: {
 				states: [
 					{

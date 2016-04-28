@@ -6,14 +6,17 @@ import Cuboid from './Cuboid';
 import Quaternion from './Quaternion';
 import Vector3D from './Vector3D';
 import KeyedList from './KeyedList';
-import { DEFAULT_MATERIALS, IDENTITY_MATERIAL_REMAP, makeRemap,remap } from './materials';
+import {
+	DEFAULT_MATERIAL_MAP, IDENTITY_MATERIAL_REMAP, DEFAULT_MATERIALS, DEFAULT_MATERIAL_PALETTE, DEFAULT_MATERIAL_PALETTE_REF,
+	makeRemap, remap
+} from './materials';
 import ObjectVisual, { MAObjectVisual, VisualBasisType } from './ObjectVisual';
 import { OnAnimationEnd } from './Animation';
 import { Game, PhysicalObject, PhysicalObjectType, TileTree, Room } from './world';
 import { sha1Urn, base32Encode, hash } from '../tshash/index';
 import SHA1 from '../tshash/SHA1';
 import { uuidUrn, newType4Uuid } from '../tshash/uuids';
-import { deepFreeze } from './DeepFreezer';
+import { deepFreeze, thaw } from './DeepFreezer';
 
 function toArray<T,D extends ArrayLike<T>>(src:ArrayLike<T>, dest:D):D {
 	for( let i=0; i<src.length; ++i ) dest[i] = src[i];
@@ -161,6 +164,9 @@ function connectRooms( game:Game, room0Ref:string, room1Ref:string, offset:Vecto
 export default class DemoWorldGenerator {
 	public makeCrappyGame():Game {
 		const game:Game = {
+			materials: thaw(DEFAULT_MATERIALS),
+			materialPalettes: { [DEFAULT_MATERIAL_PALETTE_REF]: DEFAULT_MATERIAL_PALETTE },
+			maObjectVisuals: {},
 			objectVisuals: {},
 			rooms: {},
 			tilePalettes: {},
@@ -168,7 +174,7 @@ export default class DemoWorldGenerator {
 			time: 0,
 		}
 		
-		const theMaterialMap = DEFAULT_MATERIALS;
+		const theMaterialMap = DEFAULT_MATERIAL_MAP;
 		const roomObjects:KeyedList<PhysicalObject> = {};
 		const randomBlockCount = 10;
 		for( let i=0; i<randomBlockCount; ++i ) {
@@ -204,18 +210,18 @@ export default class DemoWorldGenerator {
 			ssu.plottedMaterialIndexFunction = (x:number, y:number, z:number) => 4;
 			ssu.plotAABeveledCuboid( center.x-size/2, center.y-size/2, center.z-size/2, size, size, size/6);
 		});
-		const blockMaterialMap = DEFAULT_MATERIALS; 
+		const blockMaterialMap = DEFAULT_MATERIAL_MAP; 
 		const blockVisual:ObjectVisual = {
-			materialMap: DEFAULT_MATERIALS,
+			materialMap: DEFAULT_MATERIAL_MAP,
 			maVisual: blockMaVisual
 		}
 		const brickRemap = makeRemap(4,8,4);
 		const brickVisual:ObjectVisual = {
-			materialMap: remap(DEFAULT_MATERIALS, brickRemap),
+			materialMap: remap(DEFAULT_MATERIAL_MAP, brickRemap),
 			maVisual: blockMaVisual
 		}
 		const bigBlockVisual:ObjectVisual = {
-			materialMap: DEFAULT_MATERIALS,
+			materialMap: DEFAULT_MATERIAL_MAP,
 			maVisual: bigBlockMaVisual
 		}
 		

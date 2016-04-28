@@ -16,7 +16,7 @@ import ProceduralShape from './ProceduralShape';
 import ImageSlice from './ImageSlice';
 import ObjectImageManager from './ObjectImageManager';
 import {DEFAULT_LIGHTS} from './lights';
-import {DEFAULT_MATERIALS, IDENTITY_MATERIAL_REMAP, makeRemap, remap} from './materials';
+import {DEFAULT_MATERIAL_MAP, IDENTITY_MATERIAL_REMAP, makeRemap, remap} from './materials';
 import Rectangle from './Rectangle';
 import { newType4Uuid, uuidUrn } from '../tshash/uuids';
 import { Game, Room, PhysicalObject, PhysicalObjectType, TileTree } from './world';
@@ -59,11 +59,11 @@ class DrawCommand {
 export default class CanvasWorldView {
 	protected canvas:HTMLCanvasElement;
 	protected canvasContext:CanvasRenderingContext2D;
-	protected objectImageManager:ObjectImageManager = new ObjectImageManager;
+	protected objectImageManager:ObjectImageManager;
 	protected drawCommandBuffer:Array<DrawCommand> = [];
 	protected drawCommandCount = 0;
 	
-	public game:Game;
+	protected _game:Game;
 	public focusDistance = 10; // Distance at which we draw the foreground.  Fog is applied only behind this.
 	public fogColor = new SurfaceColor(0.2, 0.2, 0.2, 0.1); 
 	
@@ -71,6 +71,12 @@ export default class CanvasWorldView {
 		this.canvas = canvas;
 		this.canvasContext = canvas.getContext('2d');
 	};
+	
+	public get game():Game { return this._game; }
+	public set game(g:Game) {
+		this._game = g;
+		this.objectImageManager = new ObjectImageManager(g);
+	}
 	
 	protected nextDrawCommand():DrawCommand {
 		const dcb = this.drawCommandBuffer;

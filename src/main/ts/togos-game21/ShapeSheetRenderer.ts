@@ -8,7 +8,7 @@ import Vector3D from './Vector3D';
 import KeyedList from './KeyedList';
 import DirectionalLight from './DirectionalLight';
 import {DEFAULT_LIGHTS} from './lights';
-import {DEFAULT_MATERIALS} from './materials';
+import {DEFAULT_MATERIAL_MAP} from './materials';
 
 const LARGE_NUMBER = 1000;
 
@@ -162,7 +162,7 @@ export default class ShapeSheetRenderer {
 		// Need to set these last because setting them
 		// may rely on other things being initialized
 		
-		this.materials = DEFAULT_MATERIALS;
+		this.materials = DEFAULT_MATERIAL_MAP;
 		this.lights = DEFAULT_LIGHTS;
 		
 		this.cellCoverages.fill(0);

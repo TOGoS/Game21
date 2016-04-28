@@ -8,7 +8,7 @@ import Vector3D from './Vector3D';
 import Quaternion from './Quaternion';
 import KeyedList from './KeyedList';
 import { OnAnimationEnd } from './Animation';
-import { DEFAULT_MATERIALS, IDENTITY_MATERIAL_REMAP } from './materials';
+import { DEFAULT_MATERIAL_MAP, IDENTITY_MATERIAL_REMAP } from './materials';
 import CanvasWorldView from './CanvasWorldView';
 import DemoWorldGenerator, { newUuidRef, simpleObjectVisualShape } from './DemoWorldGenerator';
 import { PhysicalObjectType, PhysicalObject, TileTree, Room, Game, HUNIT_CUBE } from './world';

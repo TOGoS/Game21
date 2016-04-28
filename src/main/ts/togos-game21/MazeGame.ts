@@ -8,12 +8,13 @@ import Vector3D from './Vector3D';
 import Quaternion from './Quaternion';
 import KeyedList from './KeyedList';
 import { OnAnimationEnd } from './Animation';
-import { DEFAULT_MATERIALS, IDENTITY_MATERIAL_REMAP } from './materials';
+import { DEFAULT_MATERIAL_PALETTE, DEFAULT_MATERIAL_PALETTE_REF, DEFAULT_MATERIAL_MAP, IDENTITY_MATERIAL_REMAP } from './materials';
 import CanvasWorldView from './CanvasWorldView';
 import DemoWorldGenerator, { newUuidRef, simpleObjectVisualShape } from './DemoWorldGenerator';
 import { PhysicalObjectType, PhysicalObject, TileTree, Room, Game, HUNIT_CUBE } from './world';
 import { deepFreeze, isDeepFrozen, thaw } from './DeepFreezer';
 import RoomGroupSimulator from './RoomGroupSimulator';
+import SurfaceColor from './SurfaceColor';
 
 function defreezeItem<T>( c:any, k:any, o?:any ):T {
 	if( o == null ) o = c[k];
@@ -100,14 +101,46 @@ export default class MazeGame {
 		for( roomId in game.rooms ); // Just find one; whatever.
 		// Put player in it!
 		
-		const playerVisualRef = newUuidRef();
+		const ballMaVisualRef = 'urn:uuid:f68c8cb4-1c01-4683-b726-6bf9cd9efc5c';
+		game.maObjectVisuals[ballMaVisualRef] = simpleObjectVisualShape( (ssu:ShapeSheetUtil, t:number, xf:TransformationMatrix3D ) => {
+			ssu.plottedMaterialIndexFunction = () => 4;
+			const origin:Vector3D = xf.multiplyVector(Vector3D.ZERO);
+			ssu.plotSphere(origin.x, origin.y, origin.z, xf.scale/2);
+		});
+		
+		const playerMaterialRef = 'urn:uuid:9ce214f5-7c29-4eff-a749-f74dc9b13201';
+		game.materials[playerMaterialRef] = {
+			title: "player ball material",
+			diffuse: new SurfaceColor(1,0.5,0.5,1),
+		};
+		
+		const noGravMaterialRef = 'urn:uuid:91014423-9e91-4285-98f9-cbb0275d1b6f';
+		game.materials[noGravMaterialRef] = {
+			title: "no-gravity ball material",
+			diffuse: new SurfaceColor(0.5,0.6,0.8,1),
+		};
+		
+		const playerMaterialPaletteRef = 'urn:uuid:b66d6d3c-571f-4579-8d0d-0a9f3d395990';
+		game.materialPalettes[playerMaterialPaletteRef] = [null,null,null,null,playerMaterialRef];
+		
+		const noGravMaterialPaletteRef = 'urn:uuid:1d34436b-cfd5-4a38-b299-19f58439ed1a';
+		game.materialPalettes[noGravMaterialPaletteRef] = [null,null,null,null,noGravMaterialRef];
+		
+		const ballVisualRef = 'urn:uuid:63c6e0a7-58a3-4b73-aa63-5f5a48aab96e';
+		game.objectVisuals[ballVisualRef] = {
+			materialPaletteRef: DEFAULT_MATERIAL_PALETTE_REF,
+			maVisualRef: ballMaVisualRef
+		};
+		const noGravBallVisualRef = 'urn:uuid:b8a1e9be-d6c0-451c-a83f-44392754db14';
+		game.objectVisuals[noGravBallVisualRef] = {
+			materialPaletteRef: noGravMaterialPaletteRef,
+			maVisualRef: ballMaVisualRef
+		};
+		
+		const playerVisualRef = 'urn:uuid:aff97a48-eb22-4108-adeb-94a96850c834';
 		game.objectVisuals[playerVisualRef] = {
-			materialMap: DEFAULT_MATERIALS, // TODO: Make him blue or something
-			maVisual: simpleObjectVisualShape( (ssu:ShapeSheetUtil, t:number, xf:TransformationMatrix3D ) => {
-				ssu.plottedMaterialIndexFunction = () => 4;
-				const origin:Vector3D = xf.multiplyVector(Vector3D.ZERO);
-				ssu.plotSphere(origin.x, origin.y, origin.z, xf.scale/2);
-			})
+			materialPaletteRef: playerMaterialPaletteRef,
+			maVisualRef: ballMaVisualRef
 		};
 		
 		const playerBb:Cuboid = new Cuboid(-0.5,-0.5,-0.5,0.5,0.5,0.5);
@@ -135,6 +168,7 @@ export default class MazeGame {
 		}
 		const extraBallCount = 100;
 		for( let i=0; i < extraBallCount; ++i ) {
+			const grav = Math.random() < 0.5;
 			game.rooms[roomId].objects[newUuidRef()] = <PhysicalObject>{
 				debugLabel: "extra ball "+i,
 				position: new Vector3D((Math.random()-0.5)*10, (Math.random()-0.5)*10, 0),
@@ -143,12 +177,12 @@ export default class MazeGame {
 				tilingBoundingBox: playerBb,
 				physicalBoundingBox: playerBb,
 				visualBoundingBox: playerBb,
-				isAffectedByGravity: Math.random() < 0.5,
+				isAffectedByGravity: grav,
 				isInteractive: true,
 				isRigid: true,
 				bounciness: 0.9,
 				stateFlags: 0,
-				visualRef: playerVisualRef,
+				visualRef: grav ? ballVisualRef : noGravBallVisualRef,
 				velocity: new Vector3D(0,0,0),
 				mass: 20,
 			}

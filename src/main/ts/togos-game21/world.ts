@@ -1,8 +1,9 @@
-import ObjectVisual from './ObjectVisual';
+import ObjectVisual, {MAObjectVisual} from './ObjectVisual';
 import Cuboid from './Cuboid';
 import Quaternion from './Quaternion';
 import KeyedList from './KeyedList';
 import Vector3D from './Vector3D';
+import SurfaceMaterial from './Material';
 
 import { deepFreeze } from './DeepFreezer';
 
@@ -59,6 +60,9 @@ export interface Room {
 }
 
 export interface Game {
+	materials: KeyedList<SurfaceMaterial>;
+	materialPalettes: KeyedList<Array<string>>;
+	maObjectVisuals: KeyedList<MAObjectVisual>;
 	objectVisuals: KeyedList<ObjectVisual>;
 	tilePalettes: KeyedList<Array<string>>;
 	objectPrototypes: KeyedList<PhysicalObject>;

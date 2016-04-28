@@ -1,3 +1,4 @@
+import KeyedList from './KeyedList';
 import ImageSlice from './ImageSlice';
 import ShapeSheet from './ShapeSheet';
 import ProceduralShape from './ProceduralShape';
@@ -9,7 +10,8 @@ import Quaternion from './Quaternion';
 import ShapeSheetRenderer from './ShapeSheetRenderer';
 import ShapeSheetUtil from './ShapeSheetUtil';
 import Material from './Material';
-import {remap} from './materials';
+import { Game } from './world';
+import { remap, paletteToMap as materialPaletteToMap } from './materials';
 import {DEFAULT_LIGHTS} from './lights';
 
 /*
@@ -59,7 +61,12 @@ function phase( time:number, length:number ) {
 
 export default class ObjectImageManager {
 	public resolution:number = 16;
-	protected lights = DEFAULT_LIGHTS;	
+	protected lights = DEFAULT_LIGHTS;
+	public game:Game;
+	
+	constructor(game:Game) {
+		this.game = game;
+	}
 	
 	public frameToShapeSheetSlice(ov:ObjectVisualFrame, t:number, orientation:Quaternion, preferredResolution:number):ImageSlice<ShapeSheet> {
 		switch( ov.visualBasisType ) {
@@ -144,6 +151,18 @@ export default class ObjectImageManager {
 		return animation.frames[frameNumber];
 	}
 	
+	// TODO: Move stuff like this to some DataAccessor class or something
+	// that wraps game + other stuffs
+	protected materialMaps:KeyedList<Array<Material>> = {};
+	protected getMaterialMap(materialPaletteRef:string):Array<Material> {
+		if( this.materialMaps[materialPaletteRef] == null ) {
+			const pal:Array<string> = this.game.materialPalettes[materialPaletteRef];
+			if( pal == null ) throw new Error("No such material palette: "+materialPaletteRef);
+			this.materialMaps[materialPaletteRef] = materialPaletteToMap( pal, this.game.materials );
+		}
+		return this.materialMaps[materialPaletteRef];
+	}
+	
 	public objectVisualImage(visual:ObjectVisual, flags:number, time:number, orientation:Quaternion, preferredResolution:number=this.resolution):ImageSlice<HTMLImageElement> {
 		// TODO: Caching up the wazoo, at least for common cases (single state, identity orientation).
 		// this function's going to be called for each object for each frame, so it's gotta be fast
@@ -162,12 +181,25 @@ export default class ObjectImageManager {
 		
 		// Still might check some other cache...
 		
-		const state = this.objectVisualState(visual.maVisual, flags, orientation);
+		const materialMap =
+			visual.materialMap ? visual.materialMap :
+			visual.materialPaletteRef ? this.getMaterialMap(visual.materialPaletteRef) :
+			null;
+		if( materialMap == null ) {
+			throw new Error("Couldn't resolve material map from visual :(");
+		}
+		
+		const maVisual =
+			visual.maVisual ? visual.maVisual :
+			visual.maVisualRef ? this.game.maObjectVisuals[visual.maVisualRef] :
+			null;
+		
+		const state = this.objectVisualState(maVisual, flags, orientation);
 		const frame = this.frame(state.animation, time);
 		const t = this.animationPhase(state.animation, time);
-		const imageSlice = this.frameToImageSlice(frame, remap(visual.materialMap, state.materialRemap), t, orientation, preferredResolution);
+		const imageSlice = this.frameToImageSlice(frame, remap(materialMap, state.materialRemap), t, orientation, preferredResolution);
 		(<any>visual)[LAST_REQUESTED] = <LastRequestedCache>{
-			flags: visual.maVisual.states.length == 0 ? null : flags,
+			flags: maVisual.states.length == 0 ? null : flags,
 			animationLength: state.animation.length,
 			animationPhase: state.animation.length == Infinity ? null : t,
 			orientation: orientation,
