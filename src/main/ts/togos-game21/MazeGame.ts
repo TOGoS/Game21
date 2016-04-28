@@ -79,6 +79,7 @@ class KeyWatcher {
 export default class MazeGame {
 	protected _game:Game;
 	public worldView:CanvasWorldView;
+	public simulator:RoomGroupSimulator;
 	public initUi(canvas:HTMLCanvasElement) {
 		this.worldView = new CanvasWorldView();
 		this.worldView.initUi(canvas);
@@ -89,14 +90,19 @@ export default class MazeGame {
 	set game(g:Game) {
 		this._game = g;
 		if( this.worldView ) this.worldView.game = g;
+		this.simulator = new RoomGroupSimulator(g);
 	}
 	
 	public playerRef:string;
 	
+	public set gravityVector(v:Vector3D) {
+		if( this.simulator ) this.simulator.gravityVector = v;
+	}
+	
 	public runDemo() {
 		const playerRef = this.playerRef = newUuidRef();
 		
-		const game = this.game = new DemoWorldGenerator().makeCrappyGame();
+		const game = new DemoWorldGenerator().makeCrappyGame();
 		let roomId:string;
 		for( roomId in game.rooms ); // Just find one; whatever.
 		// Put player in it!
@@ -188,7 +194,8 @@ export default class MazeGame {
 			}
 		}
 		
-		const sim = new RoomGroupSimulator(game);
+		this.game = game;
+		const sim = this.simulator;
 		
 		let ts = Date.now();
 		const animCallback = () => {
