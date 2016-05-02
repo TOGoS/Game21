@@ -35,11 +35,13 @@ export default class WebSocketClient {
 	}
 	public connectIfNotConnected(wsUrl:string):WebSocketClient {
 		if( this.connection == null ) {
+			this.console.log("Attempting to connect to "+wsUrl);
 			this.connection = new WebSocket(wsUrl);
 			this.connection.binaryType = 'arraybuffer';
 			this.connection.onopen = this.onOpen.bind(this);
-			this.connection.onerror = error => {
-				this.console.log("Websocket Error: ", error);
+			this.connection.onerror = (error) => {
+				this.connection = null;
+				this.console.log("Websocket Error:", error, "; disconnected");
 			};
 			this.connection.onmessage = this.onMessage.bind(this);
 			this.console.log("Connecting...");
@@ -47,27 +49,41 @@ export default class WebSocketClient {
 		return this;
 	}
 	protected onOpen() {
-		this.console.log('Connected! '+this.enqueuedMessages.length+" messages enqueued.");
+		this.console.log('Connected!');
 		for( var i=0; i < this.enqueuedMessages.length; ++i ) {
 			this.connection.send(this.enqueuedMessages[i]);
+		}
+		this.console.log("Sent "+this.enqueuedMessages.length+" queued messages.");
+	};
+	protected checkConnection() {
+		if( this.connection && this.connection.readyState > 1 ) {
+			// Connection closed!
+			this.connection = null;
 		}
 	};
 	protected onMessage(messageEvent:any):void {
 		var encoding:string;
 		var data = messageEvent.data;
+		var logData:any;
 		if( typeof data == 'string' ) {
 			encoding = "JSON";
+			logData = JSON.parse(data);
 		} else if( data instanceof ArrayBuffer ) {
 			encoding = "binary";
+			logData = data;
 		} else {
 			encoding = "???";
+			logData = null;
 		}
-		this.console.log("Received "+encoding+"-encoded message: "+data);
+		this.console.log("Received "+encoding+"-encoded message:", logData);
 	};
 	protected enqueueMessage(data:any):void {
+		this.checkConnection();
 		if( this.connection != null && this.connection.readyState == 1 ) {
+			this.console.log("Sending message now");
 			this.connection.send(data);
 		} else {
+			this.console.log("Not yet connected; enqueing message.");
 			this.enqueuedMessages.push(data);
 		}
 	};

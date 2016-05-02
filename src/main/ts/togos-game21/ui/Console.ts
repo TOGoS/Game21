@@ -1,5 +1,14 @@
 import KeyedList from '../KeyedList';
 
+function logStringify(thing:any):string {
+	if( typeof(thing) == 'string' ) return thing;
+	if( typeof(thing) == 'number' ) return ""+thing;
+	if( typeof(thing) == 'boolean' ) return thing ? 'true' : 'false';
+	if( typeof(thing) == 'undefined' ) return 'undefined';
+	if( typeof(thing) == 'null' ) return 'null';
+	return JSON.stringify(thing, null, "\t");
+}
+
 class ConsoleProcess {
 	public document:HTMLDocument;
 	public outputDiv:HTMLElement;
@@ -14,9 +23,10 @@ class ConsoleProcess {
 		const pre = this.document.createElement('pre');
 		const texts:string[] = [];
 		for( let t in stuff ) {
-			texts.push(JSON.stringify(stuff[t]));
+			texts.push(logStringify(stuff[t]));
 		}
 		pre.appendChild(document.createTextNode(texts.join(" ")));
+		console.log("Logging:", ...stuff);
 		this.outputDiv.appendChild(pre);
 	}
 	public exit(code:number) {
