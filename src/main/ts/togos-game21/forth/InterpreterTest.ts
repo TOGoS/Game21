@@ -1,4 +1,4 @@
-import Interpreter, {Word} from './Interpreter';
+import Interpreter, {Word, numberDynamicWord, bytecodeWords} from './Interpreter';
 import Tokenizer from './Tokenizer';
 
 function assertEquals( expected:any, actual:any, message:string ):void {
@@ -6,6 +6,8 @@ function assertEquals( expected:any, actual:any, message:string ):void {
 }
 
 var interp = new Interpreter();
+interp.dynamicWords['number'] = numberDynamicWord;
+interp.defineWords(bytecodeWords);
 var tokenizer = new Tokenizer(interp);
 tokenizer.sourceLocation({fileUri:'?', lineNumber:1, columnNumber:1});
 tokenizer.text("1 2 +");
