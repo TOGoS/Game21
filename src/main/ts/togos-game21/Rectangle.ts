@@ -1,6 +1,13 @@
 import { deepFreeze } from './DeepFreezer';
 
-export default class Rectangle {
+export interface RectangularBounds {
+	minX:number;
+	minY:number;
+	maxX:number;
+	maxY:number;
+}
+
+export default class Rectangle implements RectangularBounds {
 	constructor(public minX:number, public minY:number, public maxX:number, public maxY:number) {
 		deepFreeze(this, true);
 	}
