@@ -20,6 +20,7 @@ import {DEFAULT_MATERIAL_MAP, IDENTITY_MATERIAL_REMAP, makeRemap, remap} from '.
 import Rectangle from './Rectangle';
 import { newType4Uuid, uuidUrn } from '../tshash/uuids';
 import { Game, Room, PhysicalObject, PhysicalObjectType, TileTree } from './world';
+import { eachSubObject } from './worldutil';
 import DemoWorldGenerator from './DemoWorldGenerator';
 
 // Buffer used for room object positions
@@ -122,12 +123,14 @@ export default class CanvasWorldView {
 	protected get clipMaxX():number { return this.canvas.width; }
 	protected get clipMaxY():number { return this.canvas.height; }
 	
+	protected drawTime:number; // Timestamp for current drawing
+	
 	protected get unitPpm():number {
 		// TODO: configure somehow based on FoV
 		return Math.max(this.canvas.width, this.canvas.height)/2;
 	}
 	
-	protected drawIndividualObject( obj:PhysicalObject, pos:Vector3D, time:number ):void {
+	protected drawIndividualObject( obj:PhysicalObject, pos:Vector3D ):void {
 		let visual = this.game.objectVisuals[obj.visualRef];
 		if( visual == null ) {
 			console.log("Object visual "+obj.visualRef+" not loaded; can't draw");
@@ -143,7 +146,7 @@ export default class CanvasWorldView {
 		const screenY = this.screenCenterY + scale * pos.y;
 		const reso = 16; // TODO: Should depend on scale, but not just be scale; maybe largest **2 <= scale and <= 32?
 		
-		const imgSlice = this.objectImageManager.objectVisualImage(visual, obj.stateFlags, time, obj.orientation, reso);
+		const imgSlice = this.objectImageManager.objectVisualImage(visual, obj.stateFlags, this.drawTime, obj.orientation, reso);
 		const pixScale = scale/imgSlice.resolution;
 		this.addImageDrawCommand(
 			imgSlice.sheet,
@@ -154,7 +157,7 @@ export default class CanvasWorldView {
 	}
 	
 	/** Object's .position should already be taken into account in 'pos' */
-	protected drawObject( obj:PhysicalObject, pos:Vector3D, time:number ):void {
+	protected drawObject( obj:PhysicalObject, pos:Vector3D ):void {
 		const vbb = obj.visualBoundingBox;
 		const backZ = vbb.maxZ + pos.z;
 		if( backZ <= 1 ) return;
@@ -164,44 +167,23 @@ export default class CanvasWorldView {
 		if( this.screenCenterY + backScale * (vbb.maxY + pos.y) <= this.clipMinY ) return;
 		if( this.screenCenterY + backScale * (vbb.minY + pos.y) >= this.clipMaxY ) return;
 		
-		// TODO: Use the same recursion function as elsewhere
-		switch( obj.type ) {
-		case PhysicalObjectType.INDIVIDUAL:
-			this.drawIndividualObject(obj, pos, time);
-			break;
-		case PhysicalObjectType.TILE_TREE:
-			const tt = <TileTree>obj;
-			const tilePaletteIndexes = tt.childObjectIndexes;
-			const tilePalette = this.game.tilePalettes[tt.childObjectPaletteRef];
-			const objectPrototypes = this.game.objectPrototypes;
-			const xd = tt.tilingBoundingBox.width/tt.xDivisions;
-			const yd = tt.tilingBoundingBox.height/tt.yDivisions;
-			const zd = tt.tilingBoundingBox.depth/tt.zDivisions;
-			const x0 = pos.x - tt.tilingBoundingBox.width/2  + xd/2;
-			const y0 = pos.y - tt.tilingBoundingBox.height/2 + yd/2;
-			const z0 = pos.z - tt.tilingBoundingBox.depth/2  + zd/2;
-			for( let i=0, z=0; z < tt.zDivisions; ++z ) for( let y=0; y < tt.yDivisions; ++y ) for( let x=0; x < tt.xDivisions; ++x, ++i ) {
-				const childId = tilePalette[tilePaletteIndexes[i]];
-				if( childId != null ) {
-					const child = objectPrototypes[childId];
-					this.drawObject( child, posBuffer0.set(x0+x*xd, y0+y*yd, z0+z*zd), time );
-				}
-			}
-			break;
-		default:
-			console.log("Unrecognized objec type! "+obj.type)
-			break;
+		if( obj.visualRef != null ) {
+			this.drawIndividualObject(obj, pos);
 		}
+		
+		eachSubObject( obj, pos, this._game, this.drawObject, this, posBuffer0 );
 	}
 	
-	protected drawRoom( room:Room, pos:Vector3D, time:number ):void {
+	protected drawRoom( room:Room, pos:Vector3D ):void {
 		for( let o in room.objects ) {
 			const obj = room.objects[o];
-			this.drawObject(obj, Vector3D.add(pos, obj.position, posBuffer0), time);
+			this.drawObject(obj, Vector3D.add(pos, obj.position, posBuffer0));
 		}
 	}
 	
 	public drawScene( roomId:string, pos:Vector3D, time:number ):void {
+		this.drawTime = time;
+		
 		this.screenCenterX = this.canvas.width/2;
 		this.screenCenterY = this.canvas.height/2;
 		
@@ -210,7 +192,7 @@ export default class CanvasWorldView {
 			console.log("Failed to load room "+roomId+"; can't draw it.")
 			return;
 		};
-		this.drawRoom(room, pos, time);
+		this.drawRoom(room, pos);
 		for( let n in room.neighbors ) {
 			let neighbor = room.neighbors[n];
 			let neighborRoom = this.game.rooms[neighbor.roomRef];
@@ -218,7 +200,7 @@ export default class CanvasWorldView {
 				console.log("Failed to load neighbor room "+neighbor.roomRef+"; can't draw it.");
 				continue;
 			}
-			this.drawRoom(neighborRoom, Vector3D.add(pos, neighbor.offset, neighborPos), time);
+			this.drawRoom(neighborRoom, Vector3D.add(pos, neighbor.offset, neighborPos));
 		}
 		
 		const fogColorStr = this.fogColor.toRgbaString();

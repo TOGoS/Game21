@@ -12,6 +12,7 @@ import { DEFAULT_MATERIAL_MAP, IDENTITY_MATERIAL_REMAP } from './materials';
 import CanvasWorldView from './CanvasWorldView';
 import DemoWorldGenerator, { newUuidRef, simpleObjectVisualShape } from './DemoWorldGenerator';
 import { PhysicalObjectType, PhysicalObject, TileTree, Room, Game, HUNIT_CUBE } from './world';
+import { eachSubObject } from './worldutil';
 import { deepFreeze, isDeepFrozen, thaw } from './DeepFreezer';
 
 function coalesce<T>(v:T, v1:T):T {
@@ -73,7 +74,6 @@ const obj1RelativePosition = new Vector3D;
 const objBRelativePosition = new Vector3D;
 const obj1RelativeCuboid = new Cuboid;
 const neighborRelativeCuboid = new Cuboid;
-const posBuffer0 = new Vector3D;
 
 const roomRefSym = Symbol("room reference");
 function objRoomRef(obj:PhysicalObject):string { return (<any>obj)[roomRefSym]; }
@@ -129,30 +129,6 @@ export default class RoomGroupSimulator {
 		return objRoomRef(obj);
 	}
 	
-	protected eachSubObject( obj:PhysicalObject, pos:Vector3D, callback:(subObj:PhysicalObject, pos:Vector3D)=>void ) {
-		if( obj.type == PhysicalObjectType.INDIVIDUAL ) {
-			callback(obj, pos);
-		} else if( obj.type == PhysicalObjectType.TILE_TREE ) {
-			const tt:TileTree = <TileTree>obj;
-			const tilePaletteIndexes = tt.childObjectIndexes;
-			const tilePalette = this.game.tilePalettes[tt.childObjectPaletteRef];
-			const objectPrototypes = this.game.objectPrototypes;
-			const xd = tt.tilingBoundingBox.width/tt.xDivisions;
-			const yd = tt.tilingBoundingBox.height/tt.yDivisions;
-			const zd = tt.tilingBoundingBox.depth/tt.zDivisions;
-			const x0 = pos.x - tt.tilingBoundingBox.width/2  + xd/2;
-			const y0 = pos.y - tt.tilingBoundingBox.height/2 + yd/2;
-			const z0 = pos.z - tt.tilingBoundingBox.depth/2  + zd/2;
-			for( let i=0, z=0; z < tt.zDivisions; ++z ) for( let y=0; y < tt.yDivisions; ++y ) for( let x=0; x < tt.xDivisions; ++x, ++i ) {
-				const childId = tilePalette[tilePaletteIndexes[i]];
-				if( childId != null ) {
-					const child = objectPrototypes[childId];
-					callback( child, posBuffer0.set(x0+x*xd, y0+y*yd, z0+z*zd) );
-				}
-			}
-		}
-	}
-	
 	protected _findCollision2(
 		room0Ref:string, rootObj0Ref:string, obj0:PhysicalObject, pos0:Vector3D, vel0:Vector3D,
 		room1Ref:string, rootObj1Ref:string, obj1:PhysicalObject, pos1:Vector3D, vel1:Vector3D,
@@ -184,19 +160,19 @@ export default class RoomGroupSimulator {
 				room1Ref, rootObj1Ref, obj1, pos1, vel1 );
 		} else if( obj0.type != PhysicalObjectType.INDIVIDUAL ) {
 			if(true || true) throw new Error("Oh no, trying to find tree-tree collisions, omg why");
-			this.eachSubObject( obj0, pos0, (subObj, subPos) => {
+			eachSubObject( obj0, pos0, this.game, (subObj, subPos) => {
 				this._findCollision2(
 					room0Ref, rootObj0Ref, subObj, subPos, vel0,
 					room1Ref, rootObj1Ref, obj1  , pos1  , vel1,
 					callback );
-			});
+			}, this);
 		} else if( obj1.type != PhysicalObjectType.INDIVIDUAL ) {
-			this.eachSubObject( obj1, pos1, (subObj, subPos) => {
+			eachSubObject( obj1, pos1, this.game, (subObj, subPos) => {
 				this._findCollision2(
 					room0Ref, rootObj0Ref, obj0  , pos0  , vel0,
 					room1Ref, rootObj1Ref, subObj, subPos, vel1,
 					callback );
-			});
+			}, this);
 		}
 	}
 	
