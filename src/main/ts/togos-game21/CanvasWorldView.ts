@@ -239,11 +239,11 @@ export default class CanvasWorldView {
 			const cellSize = focusScale/opacityRaster.resolution;
 			let dy = Math.round(this.screenCenterY + focusScale*(shadePos.y - opacityRaster.originY)); 
 			for( let y=0, i=0; y < opacityRaster.height; ++y, dy += cellSize ) {
-				if( dy+cellSize <= 0 || dy > ctx.canvas.height ) continue;
+				if( dy+cellSize <= this.clip.minY || dy > this.clip.maxY ) { i += opacityRaster.width; continue; }
 				
 				let dx = Math.round(this.screenCenterX + focusScale*(shadePos.x - opacityRaster.originX));
 				for( let x=0; x < opacityRaster.width; ++x, ++i, dx += cellSize ) {
-					if( dx+cellSize <= 0 || dx > ctx.canvas.width ) continue;
+					if( dx+cellSize <= this.clip.minX || dx > this.clip.maxX ) continue;
 					
 					// TODO: Combine longer spans of black into single draw calls
 					if( opacityRaster.data[i] > 0 ) {
