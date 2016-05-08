@@ -183,7 +183,8 @@ export default class CanvasWorldView {
 		this.drawTime = time;
 		
 		// Make pos a little more manageable
-		pos = pos.roundToGrid(1/32, 1/32, 1/32);
+		// so that math doesn't screw up due to rounding errors
+		pos = pos.roundToGrid(1/64, 1/64, 1/64);
 		
 		this.screenCenterX = this.canvas.width/2;
 		this.screenCenterY = this.canvas.height/2;
@@ -191,13 +192,11 @@ export default class CanvasWorldView {
 		const focusScale = this.unitPpm/this.focusDistance;
 		
 		const opacityRaster:ShadeRaster = new ShadeRaster(40, 40, 1, 20, 20);
-		
 		const sceneShader:SceneShader = new SceneShader();
-		
 		const shadePos = Vector3D.ZERO;
-		// Shade origin is 0,0 shifted to overlap nearest integer coordinate of room being drawn
-		opacityRaster.originX = opacityRaster.width /opacityRaster.resolution/2 + (Math.round(pos.x) - pos.x);
-		opacityRaster.originY = opacityRaster.height/opacityRaster.resolution/2 + (Math.round(pos.y) - pos.y);
+		// Set shade origin such that the shade corner matches up to an integer coordinate in the world
+		opacityRaster.originX = (opacityRaster.width /opacityRaster.resolution/2) + (Math.round(pos.x) - pos.x);
+		opacityRaster.originY = (opacityRaster.height/opacityRaster.resolution/2) + (Math.round(pos.y) - pos.y);
 		sceneShader.sceneOpacityMap(roomId, pos, this._game, opacityRaster);
 		
 		opacityRaster.getBounds(this.clip);
@@ -237,6 +236,7 @@ export default class CanvasWorldView {
 		
 		this.addSpecialDrawCommand( (ctx:CanvasRenderingContext2D) => {
 			const cellSize = focusScale/opacityRaster.resolution;
+			if( Math.round(cellSize) != cellSize ) console.log("Warning!  Cell size (in pixels) at focus distance is not an integer: "+cellSize);
 			let dy = Math.round(this.screenCenterY + focusScale*(shadePos.y - opacityRaster.originY)); 
 			for( let y=0, i=0; y < opacityRaster.height; ++y, dy += cellSize ) {
 				if( dy+cellSize <= this.clip.minY || dy > this.clip.maxY ) { i += opacityRaster.width; continue; }
