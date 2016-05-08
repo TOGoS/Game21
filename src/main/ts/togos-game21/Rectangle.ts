@@ -1,5 +1,3 @@
-import { deepFreeze } from './DeepFreezer';
-
 export interface RectangularBounds {
 	minX:number;
 	minY:number;
@@ -8,8 +6,11 @@ export interface RectangularBounds {
 }
 
 export default class Rectangle implements RectangularBounds {
-	constructor(public minX:number, public minY:number, public maxX:number, public maxY:number) {
-		deepFreeze(this, true);
+	constructor(public minX:number=0, public minY:number=0, public maxX:number=0, public maxY:number=0) { }
+	
+	public set(minX:number, minY:number, maxX:number, maxY:number) {
+		this.minX = minX; this.minY = minY;
+		this.maxX = maxX; this.maxY = maxY;
 	}
 	
 	get width():number { return this.maxX-this.minX; }

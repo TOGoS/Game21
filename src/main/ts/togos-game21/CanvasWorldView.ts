@@ -22,6 +22,7 @@ import { newType4Uuid, uuidUrn } from '../tshash/uuids';
 import { Game, Room, PhysicalObject, PhysicalObjectType, TileTree } from './world';
 import { eachSubObject } from './worldutil';
 import DemoWorldGenerator from './DemoWorldGenerator';
+import SceneShader, { ShadeRaster } from './SceneShader';
 
 // Buffer used for room object positions
 const posBuffer0 = new Vector3D;
@@ -108,7 +109,7 @@ export default class CanvasWorldView {
 			if( dc.image != null ) {
 				ctx.drawImage(dc.image, dc.sx, dc.sy, dc.sw, dc.sh, dc.dx, dc.dy, dc.dw, dc.dh);
 			} else if( dc.special != null ) {
-				dc.special(ctx);
+				dc.special.call(this, ctx);
 			} else {
 				// Uhhh what's that idk
 			}
@@ -118,10 +119,7 @@ export default class CanvasWorldView {
 	
 	protected screenCenterX:number;
 	protected screenCenterY:number;
-	protected get clipMinX():number { return 0; }
-	protected get clipMinY():number { return 0; }
-	protected get clipMaxX():number { return this.canvas.width; }
-	protected get clipMaxY():number { return this.canvas.height; }
+	protected clip:Rectangle = new Rectangle;
 	
 	protected drawTime:number; // Timestamp for current drawing
 	
@@ -162,10 +160,10 @@ export default class CanvasWorldView {
 		const backZ = vbb.maxZ + pos.z;
 		if( backZ <= 1 ) return;
 		const backScale = this.unitPpm / backZ;
-		if( this.screenCenterX + backScale * (vbb.maxX + pos.x) <= this.clipMinX ) return;
-		if( this.screenCenterX + backScale * (vbb.minX + pos.x) >= this.clipMaxX ) return;
-		if( this.screenCenterY + backScale * (vbb.maxY + pos.y) <= this.clipMinY ) return;
-		if( this.screenCenterY + backScale * (vbb.minY + pos.y) >= this.clipMaxY ) return;
+		if( this.screenCenterX + backScale * (vbb.maxX + pos.x) <= this.clip.minX ) return;
+		if( this.screenCenterX + backScale * (vbb.minX + pos.x) >= this.clip.maxX ) return;
+		if( this.screenCenterY + backScale * (vbb.maxY + pos.y) <= this.clip.minY ) return;
+		if( this.screenCenterY + backScale * (vbb.minY + pos.y) >= this.clip.maxY ) return;
 		
 		if( obj.visualRef != null ) {
 			this.drawIndividualObject(obj, pos);
@@ -184,8 +182,31 @@ export default class CanvasWorldView {
 	public drawScene( roomId:string, pos:Vector3D, time:number ):void {
 		this.drawTime = time;
 		
+		// Make pos a little more manageable
+		pos = pos.roundToGrid(1/32, 1/32, 1/32);
+		
 		this.screenCenterX = this.canvas.width/2;
 		this.screenCenterY = this.canvas.height/2;
+		
+		const focusScale = this.unitPpm/this.focusDistance;
+		
+		const opacityRaster:ShadeRaster = new ShadeRaster(40, 40, 1, 20, 20);
+		
+		const sceneShader:SceneShader = new SceneShader();
+		
+		const shadePos = Vector3D.ZERO;
+		// Shade origin is 0,0 shifted to overlap nearest integer coordinate of room being drawn
+		opacityRaster.originX = opacityRaster.width /opacityRaster.resolution/2 + (Math.round(pos.x) - pos.x);
+		opacityRaster.originY = opacityRaster.height/opacityRaster.resolution/2 + (Math.round(pos.y) - pos.y);
+		sceneShader.sceneOpacityMap(roomId, pos, this._game, opacityRaster);
+		
+		opacityRaster.getBounds(this.clip);
+		this.clip.set(
+			Math.round(this.screenCenterX + this.clip.minX*focusScale),
+			Math.round(this.screenCenterY + this.clip.minY*focusScale),
+			Math.round(this.screenCenterX + this.clip.maxX*focusScale),
+			Math.round(this.screenCenterY + this.clip.maxY*focusScale)
+		);
 		
 		const room = this.game.rooms[roomId];
 		if( room == null ) {
@@ -213,6 +234,34 @@ export default class CanvasWorldView {
 				this.focusDistance + i+0.5
 			);
 		}
+		
+		this.addSpecialDrawCommand( (ctx:CanvasRenderingContext2D) => {
+			const cellSize = focusScale/opacityRaster.resolution;
+			let dy = Math.round(this.screenCenterY + focusScale*(shadePos.y - opacityRaster.originY)); 
+			for( let y=0, i=0; y < opacityRaster.height; ++y, dy += cellSize ) {
+				if( dy+cellSize <= 0 || dy > ctx.canvas.height ) continue;
+				
+				let dx = Math.round(this.screenCenterX + focusScale*(shadePos.x - opacityRaster.originX));
+				for( let x=0; x < opacityRaster.width; ++x, ++i, dx += cellSize ) {
+					if( dx+cellSize <= 0 || dx > ctx.canvas.width ) continue;
+					
+					// TODO: Combine longer spans of black into single draw calls
+					if( opacityRaster.data[i] > 0 ) {
+						ctx.fillStyle = 'rgba(0,0,0,'+(opacityRaster.data[i]/255)+')';
+						ctx.fillRect( dx, dy, cellSize, cellSize );
+					}
+				}
+			}
+			
+			const cw = this.canvas.width;
+			const ch = this.canvas.height;
+			
+			ctx.fillStyle = '#000';
+			ctx.fillRect(0, 0, cw, this.clip.minY);
+			ctx.fillRect(0             , this.clip.minY, this.clip.minX, this.clip.height);
+			ctx.fillRect(this.clip.maxX, this.clip.minY, cw - this.clip.maxX, this.clip.height );
+			ctx.fillRect(0, this.clip.maxY, cw, ch - this.clip.maxY);
+		}, this.focusDistance - 0.5 );
 		
 		this.flushDrawCommands();
 	}

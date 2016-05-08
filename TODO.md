@@ -10,6 +10,7 @@
 
 For maze game:
 - quantized physics
+- shadowed areas
 - perspective flattening in certain z range (focus -8 to +8 or somesuch)
 
 Density function tracer:

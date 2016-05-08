@@ -38,6 +38,7 @@ export interface PhysicalObject {
 	isAffectedByGravity:boolean;
 	isInteractive?:boolean; // Does it need to be taken into account by collision detection?
 	isRigid?:boolean;
+	opacity?:number; // For space-filling trees, this should be something like the average of contained items' opacities
 	bounciness?:number;
 	mass?:number;
 	stateFlags:number;

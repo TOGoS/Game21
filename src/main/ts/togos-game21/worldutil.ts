@@ -3,7 +3,7 @@ import Quaternion from './Quaternion';
 import Cuboid from './Cuboid';
 import { Game, PhysicalObject, PhysicalObjectType, TileTree } from './world';
 import { deepFreeze } from './DeepFreezer';
-import { hash, sha1Urn, base32Encode } from '../tshash';
+import { hash, sha1Urn, base32Encode } from '../tshash/index';
 import SHA1 from '../tshash/SHA1';
 
 const posBuffer0:Vector3D=new Vector3D;
@@ -92,6 +92,14 @@ export function makeTileTreeNode( palette:any, w:number, h:number, d:number, _in
 		tileH = Math.max(tile.tilingBoundingBox.height, tileH);
 		tileD = Math.max(tile.tilingBoundingBox.depth , tileD);
 	}
+
+	let totalOpacity:number = 0;
+	for( let i = w*d*h-1; i >= 0; --i ) {
+		const tileRef = tilePalette[indexes[i]];
+		if( tileRef == null ) continue;
+		const tile = game.objectPrototypes[tileRef];
+		totalOpacity += tile.opacity ? tile.opacity : 0;
+	}
 	
 	const tilingBoundingBox = new Cuboid(-tileW*w/2, -tileH*h/2, -tileD*d/2, +tileW*w/2, +tileH*h/2, +tileD*d/2);
 	
@@ -110,7 +118,8 @@ export function makeTileTreeNode( palette:any, w:number, h:number, d:number, _in
 		// These don't really make sense to have to have on a tile tree
 		isAffectedByGravity: false,
 		stateFlags: 0,
-		visualRef: null
+		visualRef: null,
+		opacity: totalOpacity/(w*h*d),
 	}
 }
 

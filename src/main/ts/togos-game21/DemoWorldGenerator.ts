@@ -123,7 +123,8 @@ export default class DemoWorldGenerator {
 			visualRef: crappyBrickVisualRef,
 			tilingBoundingBox: blockCuboid,
 			physicalBoundingBox: blockCuboid,
-			visualBoundingBox: blockCuboid
+			visualBoundingBox: blockCuboid,
+			opacity: 1,
 		}
 		
 		const blockPrototypeId = newUuidRef();
@@ -139,7 +140,8 @@ export default class DemoWorldGenerator {
 			visualRef: crappyBlockVisualRef,
 			tilingBoundingBox: blockCuboid,
 			physicalBoundingBox: blockCuboid,
-			visualBoundingBox: blockCuboid
+			visualBoundingBox: blockCuboid,
+			opacity: 1,
 		}
 		
 		const tileTreeLeafPaletteRef = newUuidRef();
