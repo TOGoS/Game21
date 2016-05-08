@@ -1,7 +1,50 @@
 import Vector3D from './Vector3D';
+import Quaternion from './Quaternion';
+import Cuboid from './Cuboid';
 import { Game, PhysicalObject, PhysicalObjectType, TileTree } from './world';
+import { deepFreeze } from './DeepFreezer';
+import { hash, sha1Urn, base32Encode } from '../tshash';
+import SHA1 from '../tshash/SHA1';
 
 const posBuffer0:Vector3D=new Vector3D;
+
+function toArray<T,D extends ArrayLike<T>>(src:ArrayLike<T>, dest:D):D {
+	for( let i=0; i<src.length; ++i ) dest[i] = src[i];
+	return dest;
+}
+function toUint8Array(src:ArrayLike<number>):Uint8Array {
+	return toArray(src, new Uint8Array(src.length));
+}
+
+function saveObject( obj:any ):string {
+	const json:string = JSON.stringify(obj, null, "\t") + "\t";
+	return sha1Urn(json)+"#";
+}
+
+function objectPrototypeRef( op:any, game?:Game ):string {
+	if( op == null ) return null;
+	if( typeof op == 'string' ) return op;
+	
+	if( game == null ) throw new Error("Can't generate object prototype ref without game object"); // Well, really we should be able to for hash URN things eventually
+	
+	const ref:string = saveObject(op);
+	game.objectPrototypes[ref] = op;
+	return ref;
+}
+
+function paletteRef( palette:any, game:Game ):string {
+	if( typeof palette == 'string' ) return palette;
+	
+	if( game == null ) throw new Error("Can't generate palette ref without game object"); // Well, really we should be able to for hash URN things eventually
+	
+	if( !Array.isArray(palette) ) throw new Error("Supposed tile palette is not an array; can't reference it: "+JSON.stringify(palette));
+	
+	palette = palette.map( (obj:any) => objectPrototypeRef(obj, game) );
+	
+	const ref:string = saveObject(palette);
+	game.tilePalettes[ref] = palette;
+	return ref;
+}
 
 // 'game' is used to look up tile palettes/object prototypes by UUID.
 // Could be replaced with some accessor thingy, possibly asynchronous.
@@ -29,4 +72,69 @@ export function eachSubObject( obj:PhysicalObject, pos:Vector3D, game:Game, call
 	} else {
 		throw new Error("Unrecognized physical object type: "+obj.type);
 	}
+}
+
+export function makeTileTreeNode( palette:any, w:number, h:number, d:number, _indexes:any, game:Game ):TileTree {
+	if( _indexes.length != w*h*d ) {
+		throw new Error("Expected 'indexes' to be array of length "+(w*d*h)+"; but it had length "+_indexes.length);
+	}
+	const indexes:Uint8Array = toUint8Array(_indexes);
+	const _paletteRef = paletteRef(palette, game);
+	
+	const tilePalette = game.tilePalettes[_paletteRef]
+	let tileW = 0, tileH = 0, tileD = 0;
+	for( let t in tilePalette ) {
+		const tileRef = tilePalette[t];
+		if( tileRef == null ) continue;
+		const tile = game.objectPrototypes[tileRef];
+		if( tile == null ) throw new Error("Couldn't find tile "+tileRef+" while calculating size for tile tree; given palette: "+JSON.stringify(palette)+"; "+JSON.stringify(tilePalette));
+		tileW = Math.max(tile.tilingBoundingBox.width , tileW);
+		tileH = Math.max(tile.tilingBoundingBox.height, tileH);
+		tileD = Math.max(tile.tilingBoundingBox.depth , tileD);
+	}
+	
+	const tilingBoundingBox = new Cuboid(-tileW*w/2, -tileH*h/2, -tileD*d/2, +tileW*w/2, +tileH*h/2, +tileD*d/2);
+	
+	return {
+		position: Vector3D.ZERO,
+		orientation: Quaternion.IDENTITY,
+		visualBoundingBox: tilingBoundingBox, // TODO: potentially different!
+		physicalBoundingBox: tilingBoundingBox, // TODO: potentially different!
+		type: PhysicalObjectType.TILE_TREE,
+		tilingBoundingBox: tilingBoundingBox,
+		xDivisions: w,
+		yDivisions: h,
+		zDivisions: d,
+		childObjectPaletteRef: _paletteRef,
+		childObjectIndexes: indexes,
+		// These don't really make sense to have to have on a tile tree
+		isAffectedByGravity: false,
+		stateFlags: 0,
+		visualRef: null
+	}
+}
+
+export function makeTileTreeRef( palette:any, w:number, h:number, d:number, indexes:any, game:Game ):string {
+	const tt:TileTree = makeTileTreeNode(palette, w, h, d, indexes, game);
+	const ref:string = saveObject(tt);
+	game.objectPrototypes[ref] = tt;
+	return ref;
+}
+
+export function connectRooms( game:Game, room0Ref:string, room1Ref:string, offset:Vector3D ):string {
+	offset = deepFreeze(offset);
+	const room0 = game.rooms[room0Ref];
+	const room1 = game.rooms[room1Ref];
+	const neighborKey = "n"+base32Encode(hash(room0Ref+";"+room1Ref+";"+offset.toArray().join(","), SHA1));
+	room0.neighbors[neighborKey] = {
+		offset: offset,
+		roomRef: room1Ref,
+		bounds: room1.bounds,
+	}
+	room1.neighbors[neighborKey] = {
+		offset: offset.scale(-1),
+		roomRef: room0Ref,
+		bounds: room0.bounds,
+	}
+	return neighborKey;
 }
