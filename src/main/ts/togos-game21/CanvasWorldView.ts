@@ -191,6 +191,37 @@ export default class CanvasWorldView {
 		}
 	}
 	
+	protected shadeImages:HTMLImageElement[] = [];
+	protected getShadeImage(shadeData:number) {
+		if( this.shadeImages[shadeData] == null ) {
+			const canv = <HTMLCanvasElement>document.createElement('canvas');
+			canv.width = 8;
+			canv.height = 8;
+			const ctx = canv.getContext('2d');
+			const id:ImageData = ctx.createImageData(8, 8);
+			const idd=id.data;
+			const opacityTL = 1 - ((shadeData >> 6) & 0x3) / 3;
+			const opacityTR = 1 - ((shadeData >> 4) & 0x3) / 3;
+			const opacityBL = 1 - ((shadeData >> 2) & 0x3) / 3;
+			const opacityBR = 1 - ( shadeData       & 0x3) / 3;
+			
+			for( let y=0, i=0; y<8; ++y ) {
+				const opacityL = opacityTL + y*(opacityBL-opacityTL)/8;
+				const opacityR = opacityTR + y*(opacityBR-opacityTR)/8;
+				for( let x=0; x<8; ++x, ++i ) {
+					const opacity = opacityL + x*(opacityR-opacityL)/8;
+					idd[(i<<2)+3] = Math.round(opacity * 255);
+				}
+			}
+			
+			ctx.putImageData(id, 0, 0);
+			const img = <HTMLImageElement>document.createElement('img');
+			img.src = canv.toDataURL();
+			this.shadeImages[shadeData] = img;
+		}
+		return this.shadeImages[shadeData];
+	}
+	
 	public drawScene( roomId:string, pos:Vector3D, time:number ):void {
 		this.drawTime = time;
 		
@@ -276,7 +307,9 @@ export default class CanvasWorldView {
 						ctx.fillStyle = 'rgba(0,0,0,1)';
 						ctx.fillRect( dx, dy, cellSize, cellSize );
 					} else {
-						// 
+						// Want things to go SLOWER?
+						// (And have gradients on the walls?)
+						//ctx.drawImage( this.getShadeImage(shadeRaster.data[i]), dx, dy, cellSize, cellSize );
 					}
 					/*
 					// TODO: Combine longer spans of black into single draw calls
