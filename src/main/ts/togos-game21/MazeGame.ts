@@ -239,6 +239,8 @@ export default class MazeGame {
 				case 109: case 189: // '-'
 					this.worldView.focusDistance *= 2;
 					break;
+				case 37: case 65: case 40: case 83: case 38: case 87: case 39: case 68:
+					break;
 				default:
 					console.log(ev.keyCode+" "+ev.type+"!");
 				}
