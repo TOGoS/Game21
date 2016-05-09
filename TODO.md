@@ -1,4 +1,4 @@
-## Roadmap
+## Demos
 
 - Simple single-player maze game
 - Single-player game with use of IP packets
@@ -6,11 +6,16 @@
 - Trains
 - Shmoons
 
+## Stuff done since last demo
+
+- Basic Forth stuff (no robots yet)
+- Visibility calculations
+
 ## Misc to-do items
 
 For maze game:
 - quantized physics
-- shadowed areas
+- a nicer map editor
 - perspective flattening in certain z range (focus -8 to +8 or somesuch)
 
 Density function tracer:
