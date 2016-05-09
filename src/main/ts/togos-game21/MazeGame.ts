@@ -198,6 +198,7 @@ export default class MazeGame {
 		const sim = this.simulator;
 		
 		let ts = Date.now();
+		this.worldView.focusDistance = 16;
 		const animCallback = () => {
 			const player = sim.getObject(playerRef);
 			const playerRoomRef = sim.objectRoomRef(player);
@@ -207,7 +208,6 @@ export default class MazeGame {
 			const pp = player.position;
 			
 			this.worldView.clear();
-			this.worldView.focusDistance = 16;
 			this.worldView.drawScene(playerRoomRef, new Vector3D(-pp.x, -pp.y, this.worldView.focusDistance-pp.z), sim.time);
 			
 			const newTs = Date.now();
@@ -222,18 +222,28 @@ export default class MazeGame {
 		window.requestAnimationFrame(animCallback);
 		
 		const kw = new KeyWatcher( (ev:KeyboardEvent,kw:KeyWatcher) => {
-			//if( ev.type == 'keydown' ) console.log(ev.keyCode+" "+ev.type+"!");
-			
-			if( ev.type == 'keydown' && ev.keyCode == 80 ) {
-				for( let r in sim.game.rooms ) {
-					const room:Room = sim.game.rooms[r];
-					for( let o in room.objects ) {
-						const obj:PhysicalObject = room.objects[o];
-						if( obj.velocity ) obj.velocity = Vector3D.ZERO;
+			if( ev.type == 'keydown' ) {
+				switch( ev.keyCode ) {
+				case 80:
+					for( let r in sim.game.rooms ) {
+						const room:Room = sim.game.rooms[r];
+						for( let o in room.objects ) {
+							const obj:PhysicalObject = room.objects[o];
+							if( obj.velocity ) obj.velocity = Vector3D.ZERO;
+						}
 					}
+					break;
+				case 107: case 187: // '+'
+					this.worldView.focusDistance /= 2;
+					break;
+				case 109: case 189: // '-'
+					this.worldView.focusDistance *= 2;
+					break;
+				default:
+					console.log(ev.keyCode+" "+ev.type+"!");
 				}
 			}
-
+			
 			const left  = kw.anyDown([37, 65]);
 			const down  = kw.anyDown([40, 83]);
 			const up    = kw.anyDown([38, 87]);
