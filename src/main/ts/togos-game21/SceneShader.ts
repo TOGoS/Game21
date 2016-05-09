@@ -122,13 +122,13 @@ export default class SceneShader {
 			dest.data[idx] = maxDistance;
 			if( maxDistance > 0 ) {
 				const maxDistanceMinus1 = maxDistance - 1;
-				this.opacityTolVisibilityRaster( opacity, x+1, y-1, maxDistanceMinus1, dest );
+				//this.opacityTolVisibilityRaster( opacity, x+1, y-1, maxDistanceMinus1, dest );
 				this.opacityTolVisibilityRaster( opacity, x+1, y  , maxDistanceMinus1, dest );
-				this.opacityTolVisibilityRaster( opacity, x+1, y+1, maxDistanceMinus1, dest );
+				//this.opacityTolVisibilityRaster( opacity, x+1, y+1, maxDistanceMinus1, dest );
 				this.opacityTolVisibilityRaster( opacity, x  , y+1, maxDistanceMinus1, dest );
-				this.opacityTolVisibilityRaster( opacity, x-1, y+1, maxDistanceMinus1, dest );
+				//this.opacityTolVisibilityRaster( opacity, x-1, y+1, maxDistanceMinus1, dest );
 				this.opacityTolVisibilityRaster( opacity, x-1, y  , maxDistanceMinus1, dest );
-				this.opacityTolVisibilityRaster( opacity, x-1, y-1, maxDistanceMinus1, dest );
+				//this.opacityTolVisibilityRaster( opacity, x-1, y-1, maxDistanceMinus1, dest );
 				this.opacityTolVisibilityRaster( opacity, x  , y-1, maxDistanceMinus1, dest );
 			}
 		}
@@ -144,7 +144,7 @@ export default class SceneShader {
 		const height = dest.height;
 		for( let i=0, y=0; y < height; ++y ) {
 			for( let x=0; x < width; ++x, ++i ) {
-				const vdc = vd[i]; 
+				const vdc = vd[i];
 				//let v0 = vdc, v1 = vdc, v2 = vdc, v3 = vdc;
 				
 				const vdw = x >        0 ? vd[i-1]     : 0;
@@ -165,7 +165,7 @@ export default class SceneShader {
 				dd[i] = (
 					( v0       & 0xC0) |
 					((v1 >> 2) & 0x30) |
-					((v2 >> 4) & 0xC0) |
+					((v2 >> 4) & 0x0C) |
 					((v3 >> 6) & 0x03)
 				);
 			}
