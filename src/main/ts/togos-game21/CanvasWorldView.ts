@@ -179,6 +179,18 @@ export default class CanvasWorldView {
 		}
 	}
 	
+	protected opacityRaster:ShadeRaster;
+	protected visibilityRaster:ShadeRaster;
+	protected shadeRaster:ShadeRaster;
+	
+	protected initShadeRasters(w:number, h:number) {
+		if( this.opacityRaster == null || this.opacityRaster.width != w || this.opacityRaster.height != h ) {
+			this.opacityRaster = new ShadeRaster(w, h, 1, w/2, h/2);
+			this.visibilityRaster = new ShadeRaster(w, h, 1, w/2, h/2);
+			this.shadeRaster = new ShadeRaster(w, h, 1, w/2, h/2);
+		}
+	}
+	
 	public drawScene( roomId:string, pos:Vector3D, time:number ):void {
 		this.drawTime = time;
 		
@@ -191,9 +203,11 @@ export default class CanvasWorldView {
 		
 		const focusScale = this.unitPpm/this.focusDistance;
 		
-		const opacityRaster:ShadeRaster    = new ShadeRaster(40, 40, 1, 20, 20);
-		const visibilityRaster:ShadeRaster = new ShadeRaster(40, 40, 1, 20, 20);
-		const shadeRaster:ShadeRaster      = new ShadeRaster(40, 40, 1, 20, 20);
+		this.initShadeRasters(40,40);
+		const opacityRaster    = this.opacityRaster;
+		const visibilityRaster = this.visibilityRaster;
+		const shadeRaster      = this.shadeRaster;
+		
 		const sceneShader:SceneShader = new SceneShader();
 		const shadePos = Vector3D.ZERO;
 		// Set shade origin such that the shade corner matches up to an integer coordinate in the world
