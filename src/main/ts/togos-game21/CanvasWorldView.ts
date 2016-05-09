@@ -191,13 +191,23 @@ export default class CanvasWorldView {
 		
 		const focusScale = this.unitPpm/this.focusDistance;
 		
-		const opacityRaster:ShadeRaster = new ShadeRaster(40, 40, 1, 20, 20);
+		const opacityRaster:ShadeRaster    = new ShadeRaster(40, 40, 1, 20, 20);
+		const visibilityRaster:ShadeRaster = new ShadeRaster(40, 40, 1, 20, 20);
+		const shadeRaster:ShadeRaster      = new ShadeRaster(40, 40, 1, 20, 20);
 		const sceneShader:SceneShader = new SceneShader();
 		const shadePos = Vector3D.ZERO;
 		// Set shade origin such that the shade corner matches up to an integer coordinate in the world
 		opacityRaster.originX = (opacityRaster.width /opacityRaster.resolution/2) + (Math.round(pos.x) - pos.x);
 		opacityRaster.originY = (opacityRaster.height/opacityRaster.resolution/2) + (Math.round(pos.y) - pos.y);
-		sceneShader.sceneOpacityMap(roomId, pos, this._game, opacityRaster);
+		sceneShader.sceneOpacityRaster(roomId, pos, this._game, opacityRaster);
+		visibilityRaster.data.fill(0);
+		sceneShader.opacityTolVisibilityRaster(
+			opacityRaster,
+			Math.floor(opacityRaster.originX*opacityRaster.resolution),
+			Math.floor(opacityRaster.originY*opacityRaster.resolution),
+			255, visibilityRaster
+		);
+		sceneShader.visibilityToShadeRaster( visibilityRaster, shadeRaster );
 		
 		opacityRaster.getBounds(this.clip);
 		this.clip.set(
@@ -246,8 +256,8 @@ export default class CanvasWorldView {
 					if( dx+cellSize <= this.clip.minX || dx > this.clip.maxX ) continue;
 					
 					// TODO: Combine longer spans of black into single draw calls
-					if( opacityRaster.data[i] > 0 ) {
-						ctx.fillStyle = 'rgba(0,0,0,'+(opacityRaster.data[i]/255)+')';
+					if( visibilityRaster.data[i] < 255 ) {
+						ctx.fillStyle = 'rgba(0,0,0,'+((255-visibilityRaster.data[i])/255)+')';
 						ctx.fillRect( dx, dy, cellSize, cellSize );
 					}
 				}
