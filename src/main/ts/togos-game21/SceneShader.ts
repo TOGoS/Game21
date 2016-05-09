@@ -88,6 +88,7 @@ export default class SceneShader {
 	}
 	
 	public sceneOpacityRaster( roomRef:string, roomPos:Vector3D, game:Game, dest:ShadeRaster ):ShadeRaster {
+		// TODO: fill with opaque, then carve out rooms, then add opacity of objects
 		dest.data.fill(0);
 		
 		this.game = game;
