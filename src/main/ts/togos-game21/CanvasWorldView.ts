@@ -255,11 +255,22 @@ export default class CanvasWorldView {
 				for( let x=0; x < opacityRaster.width; ++x, ++i, dx += cellSize ) {
 					if( dx+cellSize <= this.clip.minX || dx > this.clip.maxX ) continue;
 					
+					if( shadeRaster.data[i] == 255 ) {
+						// It's totally transparent!
+					} else if( shadeRaster.data[i] == 0 ) {
+						// It's black!
+						ctx.fillStyle = 'rgba(0,0,0,1)';
+						ctx.fillRect( dx, dy, cellSize, cellSize );
+					} else {
+						// 
+					}
+					/*
 					// TODO: Combine longer spans of black into single draw calls
 					if( visibilityRaster.data[i] < 255 ) {
 						ctx.fillStyle = 'rgba(0,0,0,'+((255-visibilityRaster.data[i])/255)+')';
 						ctx.fillRect( dx, dy, cellSize, cellSize );
 					}
+					*/
 				}
 			}
 			
