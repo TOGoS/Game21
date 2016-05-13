@@ -122,6 +122,8 @@ export default class RoomGroupSimulator {
 	}
 	
 	public getObject(objRef:string):PhysicalObject {
+		// TODO: If not in active objects,
+		// may have to iterate through rooms to find.
 		return this.activeObjects[objRef];
 	}
 	
@@ -253,6 +255,13 @@ export default class RoomGroupSimulator {
 		} else {
 			delete this.activeObjects[objRef];
 		}
+	}
+	
+	public addObject( roomRef:string, obj:PhysicalObject, objId:string=newUuidRef() ):string {
+		this._game.rooms[roomRef].objects[objId] = obj;
+		setObjRoomRef(obj, roomRef);
+		this.objectUpdated(obj, objId);
+		return objId;
 	}
 	
 	// New, better!  (maybe)

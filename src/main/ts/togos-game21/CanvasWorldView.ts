@@ -340,9 +340,9 @@ export default class CanvasWorldView {
 		this.canvasContext.clearRect(0,0,this._canvas.width,this._canvas.height);
 	}
 	
-	public canvasToWorldCoordinates(x:number, y:number, worldZ:number=this.focusDistance, dest:Vector3D=new Vector3D ):Vector3D {
+	public canvasToWorldCoordinates(x:number, y:number, focusZ:number=this.focusDistance, dest:Vector3D=new Vector3D ):Vector3D {
 		const pdx = x - this.screenCenterX, pdy = y - this.screenCenterY;
-		const ppm = this.unitPpm / worldZ;
-		return dest.set( pdx/ppm, pdy/ppm, worldZ );
+		const ppm = this.unitPpm / focusZ;
+		return dest.set( pdx/ppm, pdy/ppm, 0 );
 	}
 }

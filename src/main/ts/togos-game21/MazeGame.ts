@@ -174,7 +174,7 @@ export default class MazeGame {
 				desiredMoveSpeed: 0
 			}
 		}
-		const extraBallCount = 100;
+		const extraBallCount = 5;
 		for( let i=0; i < extraBallCount; ++i ) {
 			const grav = Math.random() < 0.5;
 			game.rooms[roomId].objects[newUuidRef()] = <PhysicalObject>{
@@ -261,19 +261,63 @@ export default class MazeGame {
 		});
 		kw.register();
 		
-		this.worldView.canvas.addEventListener('mousemove', (ev:MouseEvent) => {
-			const canv = this.worldView.canvas;
-			const canvX = ev.offsetX, canvY = ev.offsetY;
-			const px = canvX * (canv.width  / canv.clientWidth ),
-			      py = canvY * (canv.height / canv.clientHeight);
-			// TODO
-			const wp:Vector3D = this.worldView.canvasToWorldCoordinates(px, py);
-			//console.log(wp.x, wp.y);
-			let textNode:Node;
-			if( this.mouseCoordsBox && (textNode = this.mouseCoordsBox.firstChild) ) {
-				textNode.nodeValue = wp.x.toPrecision(2)+", "+wp.y.toPrecision(2);
-				//textNode.nodeValue = canvX.toPrecision(4)+", "+canvY.toPrecision(4);
+		let mouseIsDown = false;
+		let mouseX:number = 0, mouseY:number = 0; // Relative to the canvas element
+		
+		const mouseUpdated = () => {
+			if( mouseIsDown ) {
+				const canv = this.worldView.canvas;
+				const px = mouseX * (canv.width  / canv.clientWidth ),
+					py = mouseY * (canv.height / canv.clientHeight);
+				// TODO
+				const wp:Vector3D = this.worldView.canvasToWorldCoordinates(px, py);
+				//console.log(wp.x, wp.y);
+				let textNode:Node;
+				if( this.mouseCoordsBox && (textNode = this.mouseCoordsBox.firstChild) ) {
+					textNode.nodeValue = wp.x.toPrecision(2)+", "+wp.y.toPrecision(2);
+					//textNode.nodeValue = canvX.toPrecision(4)+", "+canvY.toPrecision(4);
+				}
+				
+				const grav:boolean = Math.random() < 0.5;
+				const player = sim.getObject(playerRef);
+				const roomId = sim.objectRoomRef(player);
+				sim.addObject(roomId,  <PhysicalObject>{
+					debugLabel: "user-created extra ball",
+					position: Vector3D.add(player.position, wp),
+					orientation: Quaternion.IDENTITY,
+					type: PhysicalObjectType.INDIVIDUAL,
+					tilingBoundingBox: playerBb,
+					physicalBoundingBox: playerBb,
+					visualBoundingBox: playerBb,
+					isAffectedByGravity: grav,
+					isInteractive: true,
+					isRigid: true,
+					bounciness: 0.9,
+					stateFlags: 0,
+					visualRef: grav ? ballVisualRef : noGravBallVisualRef,
+					velocity: new Vector3D(0,0,0),
+					mass: 20,
+				});
 			}
-		})
+		};
+		
+		this.worldView.canvas.addEventListener('mousemove', (ev:MouseEvent) => {
+			mouseX = ev.offsetX;
+			mouseY = ev.offsetY;
+			mouseUpdated();
+		});
+		
+		this.worldView.canvas.addEventListener('mousedown', (ev:MouseEvent) => {
+			mouseIsDown = true;
+			mouseX = ev.offsetX;
+			mouseY = ev.offsetY;
+			mouseUpdated();
+		});
+		this.worldView.canvas.addEventListener('mouseup', (ev:MouseEvent) => {
+			mouseIsDown = false;
+			mouseX = ev.offsetX;
+			mouseY = ev.offsetY;
+			mouseUpdated();
+		});
 	}
 }
