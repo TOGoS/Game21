@@ -59,7 +59,7 @@ class DrawCommand {
 }
 
 export default class CanvasWorldView {
-	protected canvas:HTMLCanvasElement;
+	protected _canvas:HTMLCanvasElement;
 	protected canvasContext:CanvasRenderingContext2D;
 	protected objectImageManager:ObjectImageManager;
 	protected drawCommandBuffer:Array<DrawCommand> = [];
@@ -70,7 +70,7 @@ export default class CanvasWorldView {
 	public fogColor = new SurfaceColor(0.2, 0.2, 0.2, 0.1); 
 	
 	public initUi(canvas:HTMLCanvasElement) {
-		this.canvas = canvas;
+		this._canvas = canvas;
 		this.canvasContext = canvas.getContext('2d');
 	};
 	
@@ -79,6 +79,8 @@ export default class CanvasWorldView {
 		this._game = g;
 		this.objectImageManager = new ObjectImageManager(g);
 	}
+	
+	public get canvas():HTMLCanvasElement { return this._canvas; }
 	
 	protected nextDrawCommand():DrawCommand {
 		const dcb = this.drawCommandBuffer;
@@ -125,7 +127,7 @@ export default class CanvasWorldView {
 	
 	protected get unitPpm():number {
 		// TODO: configure somehow based on FoV
-		return Math.max(this.canvas.width, this.canvas.height)/2;
+		return Math.max(this._canvas.width, this._canvas.height)/2;
 	}
 	
 	protected drawIndividualObject( obj:PhysicalObject, pos:Vector3D ):void {
@@ -229,8 +231,8 @@ export default class CanvasWorldView {
 		// so that math doesn't screw up due to rounding errors
 		pos = pos.roundToGrid(1/64, 1/64, 1/64);
 		
-		this.screenCenterX = this.canvas.width/2;
-		this.screenCenterY = this.canvas.height/2;
+		this.screenCenterX = this._canvas.width/2;
+		this.screenCenterY = this._canvas.height/2;
 		
 		const focusScale = this.unitPpm/this.focusDistance;
 		
@@ -321,8 +323,8 @@ export default class CanvasWorldView {
 				}
 			}
 			
-			const cw = this.canvas.width;
-			const ch = this.canvas.height;
+			const cw = this._canvas.width;
+			const ch = this._canvas.height;
 			
 			ctx.fillStyle = '#000';
 			ctx.fillRect(0, 0, cw, this.clip.minY);
@@ -335,6 +337,12 @@ export default class CanvasWorldView {
 	}
 	
 	public clear() {
-		this.canvasContext.clearRect(0,0,this.canvas.width,this.canvas.height);
+		this.canvasContext.clearRect(0,0,this._canvas.width,this._canvas.height);
+	}
+	
+	public canvasToWorldCoordinates(x:number, y:number, worldZ:number=this.focusDistance, dest:Vector3D=new Vector3D ):Vector3D {
+		const pdx = x - this.screenCenterX, pdy = y - this.screenCenterY;
+		const ppm = this.unitPpm / worldZ;
+		return dest.set( pdx/ppm, pdy/ppm, worldZ );
 	}
 }

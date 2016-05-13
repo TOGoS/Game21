@@ -80,6 +80,8 @@ export default class MazeGame {
 	protected _game:Game;
 	public worldView:CanvasWorldView;
 	public simulator:RoomGroupSimulator;
+	public mouseCoordsBox:HTMLElement;
+	public fpsBox:HTMLElement;
 	public initUi(canvas:HTMLCanvasElement) {
 		this.worldView = new CanvasWorldView();
 		this.worldView.initUi(canvas);
@@ -258,5 +260,20 @@ export default class MazeGame {
 			sim.gravityVector = new Vector3D(tiltX*9.8, tiltY*9.8, 0);
 		});
 		kw.register();
+		
+		this.worldView.canvas.addEventListener('mousemove', (ev:MouseEvent) => {
+			const canv = this.worldView.canvas;
+			const canvX = ev.offsetX, canvY = ev.offsetY;
+			const px = canvX * (canv.width  / canv.clientWidth ),
+			      py = canvY * (canv.height / canv.clientHeight);
+			// TODO
+			const wp:Vector3D = this.worldView.canvasToWorldCoordinates(px, py);
+			//console.log(wp.x, wp.y);
+			let textNode:Node;
+			if( this.mouseCoordsBox && (textNode = this.mouseCoordsBox.firstChild) ) {
+				textNode.nodeValue = wp.x.toPrecision(2)+", "+wp.y.toPrecision(2);
+				//textNode.nodeValue = canvX.toPrecision(4)+", "+canvY.toPrecision(4);
+			}
+		})
 	}
 }
