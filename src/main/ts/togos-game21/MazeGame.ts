@@ -243,6 +243,7 @@ export default class MazeGame {
 					break;
 				default:
 					console.log(ev.keyCode+" "+ev.type+"!");
+					break;
 				}
 			}
 			
