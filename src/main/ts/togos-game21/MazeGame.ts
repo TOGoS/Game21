@@ -295,7 +295,7 @@ export default class MazeGame {
 					bounciness: 0.9,
 					stateFlags: 0,
 					visualRef: grav ? ballVisualRef : noGravBallVisualRef,
-					velocity: new Vector3D(0,0,0),
+					velocity: player.velocity,
 					mass: 20,
 				});
 			}
