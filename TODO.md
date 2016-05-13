@@ -1,5 +1,6 @@
 ## Demos
 
+- ShapeSheet editor
 - Simple single-player maze game
 - Single-player game with use of IP packets
 - Client-server game
