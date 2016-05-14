@@ -56,6 +56,9 @@ type BytecodeInstruction = number; // More specifically, a number -128 to +127
  * 0x56 : (a b c -- c b a) = -rot, a.k.a. rot rot
  * 0x57 : (a b -- b) = nip, a.k.a. swap drop
  * 0x58 : (a b -- b a b) = tuck
+ * 0x59
+ * 0x5A : (a -- ) = >r = pop from data stack onto return stack
+ * 0x5B : (-- a) = pop from return stack onto data stack
  * -- numbers
  * 0x60 : (a b -- c) = (a << 7) | b
  * 0x61 : (a b c -- d) = (a << 14) | (b << 7) | c
@@ -138,6 +141,16 @@ class BytecodeProgramInterpreter {
 		case 0x47: // absolute call
 			state.returnStack.push(state.pc+1);
 			return this.doAbsJmp(ds.pop(), state);
+		
+		case 0x5A:
+			state.returnStack.push(state.dataStack.pop());
+			++state.pc;
+			return state;
+		case 0x5B:
+			state.dataStack.push(state.returnStack.pop());
+			++state.pc;
+			return state;
+		
 		case 0x60: { // make 14-bit number
 			const n0 = +ds.pop();
 			const n7 = (ds.pop() & 0x7F);
@@ -272,6 +285,8 @@ export function numberDynamicWord( text:string ):Word {
 
 export const bytecodeInstructions:KeyedList<BytecodeInstruction> = {
 	'noop': 0x40,
+	'>r': 0x5A,
+	'r>': 0x5B,
 	'+': 0x64,
 	'-': 0x65,
 	'exit': 0x43,

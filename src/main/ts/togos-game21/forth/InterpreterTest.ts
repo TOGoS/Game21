@@ -56,4 +56,4 @@ assertEvalu(3, "1 2 +");
 
 assertEvalu(6, ": add3 + + ; 1 2 3 add3");
 
-assertEvalu(21, ": add3 + + ; : add6 add3 add3 ; 1 2 3 4 5 6 add6")
+assertEvalu(21, ": add3 + + ; : add6 add3 >r add3 r> + ; 1 2 3 4 5 6 add6")
