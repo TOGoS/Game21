@@ -5,21 +5,22 @@ import { TokenListener } from './Tokenizer';
 type BytecodeInstruction = number; // More specifically, a number -128 to +127
 
 /*
- * Program memory is logically divided into banks (16k each?)
+ * Program memory is logically divided into banks (65k each?)
  * Banks will be physically stored separately and might not actually fill their full address range.
  * High bits of memory locations indicate which bank is being accessed.
  * Any bank may be read/write protected from a given program.
  * A machine may have multiple programs running at once; e.g. a firmware
  * and user program, loaded into separate banks.
  * 
- * Bank 0 = current program's local memory (mapped to another bank)
- * Bank 1 = current program's bytecode (absolute jumps can go into here)
- * Bank 2 = machine registers
- * Bank 3 = shared memory for all programs
- * Bank 4 = Firmware local memory
- * Bank 5 = Firmware bytecode
- * Bank 6 = User program local memory
- * Bank 7 = User program bytecode
+ * Bank  0 = current program's local memory (mapped to another bank)
+ * Bank  1 = current program's bytecode (absolute jumps can go into here and be mapped to the current program's bank)
+ * Bank  2 = machine registers
+ * Bank  3 = machine routines (i.e. fake bytecode space to call into)
+ * Bank  4..7 = shared memory for all programs
+ * Bank  8 = Firmware local memory
+ * Bank  9 = Firmware bytecode
+ * Bank 10 = User program local memory
+ * Bank 11 = User program bytecode
  * ...etc for any additional programs
  * 
  * Negative addresses may be mapped to address+64 in the 'machine registers' space
@@ -41,6 +42,7 @@ type BytecodeInstruction = number; // More specifically, a number -128 to +127
  * 0x44 : (a l) -> () = jump to relative location l if a is nonzero
  * 0x45 : (a l) -> () = jump to relative location l if a is zero
  * 0x46 : (l) -> () = jump to absolute location l
+ * 0x47 : (l) -> () = call subroutine at absolute location l
  * -- memory operations
  * 0x48 : (addr -- n) = @byte, a.k.a. fetch [a single signed byte]
  * 0x49 : (addr -- n) = @ubyte, a.k.a. fetch [a single unsigned byte]
@@ -55,7 +57,9 @@ type BytecodeInstruction = number; // More specifically, a number -128 to +127
  * 0x57 : (a b -- b) = nip, a.k.a. swap drop
  * 0x58 : (a b -- b a b) = tuck
  * -- numbers
- * 0x61 : (a b c -- d) = pop 3, push new 21-bit integer
+ * 0x60 : (a b -- c) = (a << 7) | b
+ * 0x61 : (a b c -- d) = (a << 14) | (b << 7) | c
+ *        push new 21-bit integer
  *        e.g. 1 2 3 0xA1 -> 0b1_0000010_0000011
  *        Upper bit will be extended, so 0xFF 0xFF 0xFF 0xA1 is a verbose way to say -1.
  * 0x64 : (a b -- a+b) = add
@@ -71,13 +75,23 @@ type BytecodeInstruction = number; // More specifically, a number -128 to +127
  * --
  */
 
+export const INTRABANK_BITS = 16;
+export const BANK_SIZE      = 1<<INTRABANK_BITS;
+export const INTRABANK_MASK = 0x00FFFF;
+export const BANK_MASK      = 0xFF0000;
+
 interface ProgramState {
 	dataStack:any[];
 }
 
+interface DataBank {
+	isWritable:boolean;
+	isExecutable:boolean;
+	dataRef?:string;
+	data?:Int8Array;
+}
+
 interface BytecodeProgramState extends ProgramState {
-	bytecodeRef?:string;
-	bytecode?:Int8Array;
 	pc:number;
 	returnStack:number[];
 }
@@ -86,56 +100,101 @@ interface BytecodeProgramState extends ProgramState {
  * Any machine controlled by a program.
  */
 interface Machine {
+	dataBanks:DataBank[];
 	getRegisterValue(registerId:number):number;
 	setRegisterValue(registerId:number, value:number):void;
 }
 
+/**
+ * Component to run programs.
+ * Does not store any program state itself
+ */
 class BytecodeProgramInterpreter {
-	public run(state:BytecodeProgramState, machine:Machine, maxSteps:number):BytecodeProgramState {
+	protected doAbsJmp(loc:number, state:BytecodeProgramState):BytecodeProgramState {
+		//state = thaw(state);
+		const bankId = (loc >> INTRABANK_BITS);
+		if( bankId == 1 ) {
+			loc = (state.pc & BANK_MASK) | (loc & INTRABANK_MASK);
+		}
+		state.pc = loc;
+		return state;
+	}
+	
+	public doInstruction(inst:number, state:BytecodeProgramState, machine:Machine, banks:DataBank[]):BytecodeProgramState {
+		if( inst < 0x40 && inst >= -0x40 ) {
+			state.dataStack.push(inst);
+			++state.pc;
+			return state;
+		}
+		var ds = state.dataStack;
+		switch( inst & 0xFF ) {
+		case 0x40:
+			++state.pc;
+			return state;
+		case 0x43: // return
+			return this.doAbsJmp(+state.returnStack.pop(), state); 
+		case 0x46: // absolute jump
+			return this.doAbsJmp(ds.pop(), state);
+		case 0x47: // absolute call
+			state.returnStack.push(state.pc+1);
+			return this.doAbsJmp(ds.pop(), state);
+		case 0x60: { // make 14-bit number
+			const n0 = +ds.pop();
+			const n7 = (ds.pop() & 0x7F);
+			ds.push((n7 << 7) | n0);
+			++state.pc;
+			return state;
+		}
+		case 0x61: { // make 21-bit number
+			const n0  = +ds.pop();
+			const n7  = (ds.pop() & 0x7F);
+			const n14 = (ds.pop() & 0x7F);
+			ds.push((n14 << 14 ) | (n7 << 7) | n0);
+			++state.pc;
+			return state;
+		}
+		case 0x64: {
+			const n1 = +ds.pop();
+			const n0 = +ds.pop();
+			ds.push(n0 + n1);
+			++state.pc;
+			return state;
+		}
+		case 0x65: {
+			const n1 = +ds.pop();
+			const n0 = +ds.pop();
+			ds.push(n0 - n1);
+			++state.pc;
+			return state;
+		}
+		default:
+			throw new Error("Instruction 0x"+inst.toString(16)+" not supported");
+		}
+	}
+	
+	public run(state:BytecodeProgramState, machine:Machine, banks:DataBank[], maxSteps:number):BytecodeProgramState {
 		// TODO: potentially unfreeze state
 		// TODO: Load bytecode from cache if state indicates ref instead of actual bytecode
-		if( state.bytecode == null ) throw new Error("BytecodeProgramState#bytecode's null");
-		const bytecode = state.bytecode;
 		
-		for( let i=0; i < maxSteps && state.pc >= 0 && state.pc < bytecode.length; ++i ) {
-			const inst = bytecode[state.pc];
-			if( inst < 0x40 && inst >= -0x40 ) {
-				state.dataStack.push(inst);
-			}
-			var ds = state.dataStack;
-			switch( inst & 0xFF ) {
-			case 0x64: {
-				const n1 = +ds.pop();
-				const n0 = +ds.pop();
-				ds.push(n0 + n1);
-				++state.pc;
-				break;
-			}
-			case 0x65: {
-				const n1 = +ds.pop();
-				const n0 = +ds.pop();
-				ds.push(n0 - n1);
-				++state.pc;
-				break;
-			}
-			case 0xFF:
-				++state.pc;
-				break;
-			default:
-				throw new Error("Instruction "+inst+" not supported");
-			}
+		for( let i=0; i < maxSteps && state.pc >= 0; ++i ) {
+			const bankId = (state.pc >> INTRABANK_BITS);
+			const position = (state.pc & INTRABANK_MASK);
+			const bank = banks[bankId];
+			if( !bank.isExecutable ) throw new Error("Bank "+bankId+" not executable!");
+			let bytecode = bank.data;
+			if( position >= bytecode.length ) throw new Error("Ran off bytecode end: "+position);
+			const inst = bytecode[position];
+			state = this.doInstruction(inst, state, machine, banks);
 		}
 		
 		return state;
 	}
 }
 
-class ProgramBuilder {
-	protected bytecode:Int8Array = new Int8Array(1024);
+export class ProgramBuilder {
 	protected length:number = 0;
-	public get endPc():number {
-		throw new Error("Not impelmented");
-	};
+	public constructor(public bytecode:Int8Array, public bankAddress:number) { }
+	
 	public pushInstruction(instr:number) {
 		this.bytecode[this.length++] = instr;
 	}
@@ -146,7 +205,7 @@ class ProgramBuilder {
 		}
 	}
 	public get currentPosition() {
-		return this.length;
+		return this.bankAddress + this.length;
 	}
 	public relativeOffset(pc:number) {
 		return pc - this.length;
@@ -155,26 +214,42 @@ class ProgramBuilder {
 
 export type Word = (interpreter:Interpreter)=>void;
 
-export function bytecodeWord(bytecode:Int8Array):Word {
+export function instructionWord(instruction:BytecodeInstruction):Word {
 	return (interpreter:Interpreter) => {
 		if( interpreter.isCompiling ) {
-			interpreter.programBuilder.pushBytecode(bytecode);
+			interpreter.programBuilder.pushInstruction(instruction);
 		} else {
-			let ps:BytecodeProgramState = {
-				bytecode: bytecode,
-				pc: 0,
-				dataStack: interpreter.programState.dataStack,
-				returnStack: [-1]
-			};
-			interpreter.bytecodeProgramInterpreter.run(ps, interpreter.machine, Infinity);
+			interpreter.bytecodeProgramInterpreter.doInstruction(
+				instruction,
+				interpreter.programState,
+				interpreter.machine,
+				interpreter.machine.dataBanks
+			);
 		}
 	};
 }
 
-export function instructionWord(instr:number):Word {
+export function bytecodeCallWord(target:number):Word {
+	return (interpreter:Interpreter) => {
+		if( interpreter.isCompiling ) {
+			interpreter.programBuilder.pushBytecode(encodeAbsCall(target));
+		} else {
+			interpreter.programState.returnStack.push(-1);
+			interpreter.programState.pc = target;
+			interpreter.bytecodeProgramInterpreter.run(
+				interpreter.programState,
+				interpreter.machine,
+				interpreter.machine.dataBanks,
+				Infinity
+			);
+		}
+	};
+}
+
+function singleInstructionBytecode(instr:number):Int8Array {
 	const bytecode = new Int8Array(1);
 	bytecode[0] = instr;
-	return bytecodeWord(bytecode);
+	return bytecode;
 }
 
 const numRe = /^\d+$/;
@@ -207,32 +282,77 @@ for( let n in bytecodeInstructions ) {
 	bytecodeWords[n] = instructionWord(bytecodeInstructions[n]);
 };
 
-function encodeNumber(location:number):Int8Array {
-	throw new Error("Not implemented yet");
+function _encodeNumber(n:number, buf:Int8Array, offset:number):number {
+	let septets = 1;
+	for( let m=n; m >= 0x40 || m < -0x40; m >>= 7, ++septets );
+	if( septets == 1 ) {
+		if( buf != null ) buf[0] = n;
+		return 1;
+	} else if( septets == 2 ) {
+		if( buf ) {
+			buf[offset]   = ((n >> 7) & 0x7F);
+			buf[offset+1] = ( n       & 0x7F);
+			buf[offset+2] = 0x60;
+		}
+		return 3;
+	} else if( septets == 3 ) {
+		if( buf ) {
+			buf[offset]   = ((n >> 14) & 0x7F);
+			buf[offset+1] = ((n >>  7) & 0x7F);
+			buf[offset+2] = ( n        & 0x7F);
+			buf[offset+3] = 0x61;
+		}
+		return 4;
+	} else {
+		const highSize = _encodeNumber( n >> 21, buf, offset );
+		const lowSize  = _encodeNumber( n      , buf, offset+highSize );
+		if( highSize + lowSize > 10 ) throw new Error("Something went wrong when determining encoded number size; "+highSize+", "+lowSize);
+		return highSize + lowSize;
+	}
 }
 
-function encodeAbsCall(location:number):Int8Array {
-	encodeNumber(location);
-	throw new Error("Not implemented yet");
+function encodedNumberSize(n:number):number {
+	return _encodeNumber(n, null, 0);
+}
+
+function encodeNumber(n:number):Int8Array {
+	const size  = encodedNumberSize(n);
+	const codes = new Int8Array(size);
+	_encodeNumber(n, codes, 0);
+	return codes;
+}
+
+function encodeAbsCall(n:number, buf:Int8Array=null, offset:number=0):Int8Array {
+	if( buf == null ) {
+		const size = encodedNumberSize(n) + 1;
+		buf = new Int8Array(size);
+	}
+	offset += _encodeNumber(n, buf, offset);
+	buf[offset] = 0x47;
+	return buf;
 }
 
 export const standardCompileWords:KeyedList<Word> = {
 	':': (interp:Interpreter) => {
 		interp.onToken = (t:Token, interp:Interpreter) => {
-			interp.words[t.text] = bytecodeWord(encodeAbsCall(interp.programBuilder.currentPosition));
+			interp.words[t.text] = bytecodeCallWord(interp.programBuilder.currentPosition);
 			interp.isCompiling = true;
 			interp.onToken = null;
 		};
 	},
 	';': (interp:Interpreter) => {
-		interp.programBuilder.pushInstruction(bytecodeInstructions['exit']),
+		interp.programBuilder.pushInstruction(bytecodeInstructions['exit']);
 		interp.isCompiling = false;
 	}
 }
 
 export default class Interpreter implements TokenListener {
-	public programState:ProgramState = { dataStack: [] };
-	public programBuilder:ProgramBuilder = new ProgramBuilder();
+	public programState:BytecodeProgramState = {
+		pc: 0,
+		dataStack: [],
+		returnStack: [],
+	};
+	public programBuilder:ProgramBuilder;
 	public bytecodeProgramInterpreter:BytecodeProgramInterpreter = new BytecodeProgramInterpreter();
 	public machine:Machine;
 	public isCompiling:boolean = false;
