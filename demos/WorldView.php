@@ -44,9 +44,28 @@ extract($config, EXTR_SKIP|EXTR_REFS);
 	height: 480px;
 	image-rendering: pixelated;
 }
+.stattab {
+	background: none;
+	color: white;
+	position: fixed;
+	top: 0; left: 0;
+}
+.stattab th { text-align: right; color: silver; }
+.stattab td { text-align: right; color: white; }
 </style>
 </head>
 <body style="background: rgb(32,0,0)">
+
+<table class="stattab">
+<tr>
+	<th>FPS</th>
+	<td id="fps-box">&nbsp;</td>
+</tr>
+<tr>
+	<th>Mouse</th>
+	<td id="mouse-coords-box">&nbsp;</td>
+</tr>
+</table>
 
 <div class="world-view-region">
 <canvas id="world-view-canvas" class="world-view-canvas" width="320" height="240">
@@ -63,6 +82,8 @@ extract($config, EXTR_SKIP|EXTR_REFS);
 		MazeGame = _MazeGame.default;
 		var mg = new MazeGame();
 		mg.initUi(document.getElementById('world-view-canvas'));
+		mg.fpsBox = document.getElementById('fps-box');
+		mg.mouseCoordsBox = document.getElementById('mouse-coords-box');
 		mg.runDemo();
 	});
 })();
