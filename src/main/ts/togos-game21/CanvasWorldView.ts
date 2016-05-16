@@ -30,6 +30,14 @@ const neighborPos = new Vector3D;
 // Buffer used for tile tree sub-object positions
 //const ttPosBuffer = new Vector3D;
 
+const sceneShader:SceneShader = new SceneShader();
+
+enum VisibilityMaskingMode {
+	NONE, // Draw everything!
+	SOLID, // Draw black squares over non-visible areas
+	FADE
+}
+
 class DrawCommand {
 	public image:HTMLImageElement;
 	public special:(ctx:CanvasRenderingContext2D)=>void;
@@ -67,7 +75,8 @@ export default class CanvasWorldView {
 	
 	protected _game:Game;
 	public focusDistance = 10; // Distance at which we draw the foreground.  Fog is applied only behind this.
-	public fogColor = new SurfaceColor(0.2, 0.2, 0.2, 0.1); 
+	public fogColor = new SurfaceColor(0.2, 0.2, 0.2, 0.1); // Should probably come from game data somehow
+	public visibilityMaskingMode:VisibilityMaskingMode = VisibilityMaskingMode.SOLID;
 	
 	public initUi(canvas:HTMLCanvasElement) {
 		this.canvas = canvas;
@@ -239,28 +248,32 @@ export default class CanvasWorldView {
 		const visibilityRaster = this.visibilityRaster;
 		const shadeRaster      = this.shadeRaster;
 		
-		const sceneShader:SceneShader = new SceneShader();
 		const shadePos = Vector3D.ZERO;
-		// Set shade origin such that the shade corner matches up to an integer coordinate in the world
-		opacityRaster.originX = (opacityRaster.width /opacityRaster.resolution/2) + (Math.round(pos.x) - pos.x);
-		opacityRaster.originY = (opacityRaster.height/opacityRaster.resolution/2) + (Math.round(pos.y) - pos.y);
-		sceneShader.sceneOpacityRaster(roomId, pos, this._game, opacityRaster);
-		visibilityRaster.data.fill(0);
-		sceneShader.opacityTolVisibilityRaster(
-			opacityRaster,
-			Math.floor(opacityRaster.originX*opacityRaster.resolution),
-			Math.floor(opacityRaster.originY*opacityRaster.resolution),
-			255, visibilityRaster
-		);
-		sceneShader.visibilityToShadeRaster( visibilityRaster, shadeRaster );
 		
-		opacityRaster.getBounds(this.clip);
-		this.clip.set(
-			Math.round(this.screenCenterX + this.clip.minX*focusScale),
-			Math.round(this.screenCenterY + this.clip.minY*focusScale),
-			Math.round(this.screenCenterX + this.clip.maxX*focusScale),
-			Math.round(this.screenCenterY + this.clip.maxY*focusScale)
-		);
+		if( this.visibilityMaskingMode == VisibilityMaskingMode.NONE ) {
+			this.clip.set(0, 0, this.canvas.width, this.canvas.height);
+		} else {
+			// Set shade origin such that the shade corner matches up to an integer coordinate in the world
+			opacityRaster.originX = (opacityRaster.width /opacityRaster.resolution/2) + (Math.round(pos.x) - pos.x);
+			opacityRaster.originY = (opacityRaster.height/opacityRaster.resolution/2) + (Math.round(pos.y) - pos.y);
+			sceneShader.sceneOpacityRaster(roomId, pos, this._game, opacityRaster);
+			visibilityRaster.data.fill(0);
+			sceneShader.opacityTolVisibilityRaster(
+				opacityRaster,
+				Math.floor(opacityRaster.originX*opacityRaster.resolution),
+				Math.floor(opacityRaster.originY*opacityRaster.resolution),
+				255, visibilityRaster
+			);
+			sceneShader.visibilityToShadeRaster( visibilityRaster, shadeRaster );
+		
+			opacityRaster.getBounds(this.clip);
+			this.clip.set(
+				Math.round(this.screenCenterX + this.clip.minX*focusScale),
+				Math.round(this.screenCenterY + this.clip.minY*focusScale),
+				Math.round(this.screenCenterX + this.clip.maxX*focusScale),
+				Math.round(this.screenCenterY + this.clip.maxY*focusScale)
+			);
+		}
 		
 		const room = this.game.rooms[roomId];
 		if( room == null ) {
@@ -289,7 +302,7 @@ export default class CanvasWorldView {
 			);
 		}
 		
-		this.addSpecialDrawCommand( (ctx:CanvasRenderingContext2D) => {
+		if( this.visibilityMaskingMode != VisibilityMaskingMode.NONE ) this.addSpecialDrawCommand( (ctx:CanvasRenderingContext2D) => {
 			const cellSize = focusScale/opacityRaster.resolution;
 			if( Math.round(cellSize) != cellSize ) console.log("Warning!  Cell size (in pixels) at focus distance is not an integer: "+cellSize);
 			let dy = Math.round(this.screenCenterY + focusScale*(shadePos.y - opacityRaster.originY)); 
@@ -309,7 +322,9 @@ export default class CanvasWorldView {
 					} else {
 						// Want things to go SLOWER?
 						// (And have gradients on the walls?)
-						//ctx.drawImage( this.getShadeImage(shadeRaster.data[i]), dx, dy, cellSize, cellSize );
+						if( this.visibilityMaskingMode == VisibilityMaskingMode.FADE ) {
+							ctx.drawImage( this.getShadeImage(shadeRaster.data[i]), dx, dy, cellSize, cellSize );
+						}
 					}
 					/*
 					// TODO: Combine longer spans of black into single draw calls

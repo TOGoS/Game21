@@ -241,6 +241,9 @@ export default class MazeGame {
 					break;
 				case 37: case 65: case 40: case 83: case 38: case 87: case 39: case 68:
 					break;
+				case 86:
+					this.worldView.visibilityMaskingMode = (this.worldView.visibilityMaskingMode + 1) % 3;
+					break;
 				default:
 					console.log(ev.keyCode+" "+ev.type+"!");
 				}
