@@ -109,6 +109,38 @@ export default class SceneShader {
 		return dest;
 	}
 	
+	// Naive recursion was too slow so optimize by shooting in straight lines
+	
+	public opacityTolVisibilityRasterOptX( opacity:ShadeRaster, x:number, y:number, maxDistance:number, dest:ShadeRaster, dx:number ):void {
+		if( x < 0 || y < 0 || x >= opacity.width || y >= opacity.height ) return;
+		
+		if( maxDistance > 255 ) maxDistance = 255;
+		const idx = x+y*opacity.width;
+		maxDistance = Math.floor( maxDistance * (255-opacity.data[idx])/255);
+		while( x >= 0 && x <= opacity.width && maxDistance > dest.data[idx] ) {
+			dest.data[idx] = maxDistance;
+			--maxDistance;
+			this.opacityTolVisibilityRasterOptY( opacity, x  , y+1, maxDistance, dest, +1 );
+			this.opacityTolVisibilityRasterOptY( opacity, x  , y-1, maxDistance, dest, -1 );
+			x += dx;
+		}
+	}
+
+	public opacityTolVisibilityRasterOptY( opacity:ShadeRaster, x:number, y:number, maxDistance:number, dest:ShadeRaster, dy:number ):void {
+		if( x < 0 || y < 0 || x >= opacity.width || y >= opacity.height ) return;
+		
+		if( maxDistance > 255 ) maxDistance = 255;
+		const idx = x+y*opacity.width;
+		maxDistance = Math.floor( maxDistance * (255-opacity.data[idx])/255);
+		while( y >= 0 && y <= opacity.height && maxDistance > dest.data[idx] ) {
+			dest.data[idx] = maxDistance;
+			--maxDistance;
+			this.opacityTolVisibilityRasterOptX( opacity, x+1, y  , maxDistance, dest, +1 );
+			this.opacityTolVisibilityRasterOptX( opacity, x-1, y  , maxDistance, dest, -1 );
+			y += dy;
+		}
+	}
+	
 	/**
 	 * Fill dest with zeroes and then call this
 	 * for each cell with eyes. 
@@ -123,14 +155,10 @@ export default class SceneShader {
 			dest.data[idx] = maxDistance;
 			if( maxDistance > 0 ) {
 				const maxDistanceMinus1 = maxDistance - 1;
-				//this.opacityTolVisibilityRaster( opacity, x+1, y-1, maxDistanceMinus1, dest );
-				this.opacityTolVisibilityRaster( opacity, x+1, y  , maxDistanceMinus1, dest );
-				//this.opacityTolVisibilityRaster( opacity, x+1, y+1, maxDistanceMinus1, dest );
-				this.opacityTolVisibilityRaster( opacity, x  , y+1, maxDistanceMinus1, dest );
-				//this.opacityTolVisibilityRaster( opacity, x-1, y+1, maxDistanceMinus1, dest );
-				this.opacityTolVisibilityRaster( opacity, x-1, y  , maxDistanceMinus1, dest );
-				//this.opacityTolVisibilityRaster( opacity, x-1, y-1, maxDistanceMinus1, dest );
-				this.opacityTolVisibilityRaster( opacity, x  , y-1, maxDistanceMinus1, dest );
+				this.opacityTolVisibilityRasterOptX( opacity, x+1, y  , maxDistanceMinus1, dest, +1 );
+				this.opacityTolVisibilityRasterOptY( opacity, x  , y+1, maxDistanceMinus1, dest, +1 );
+				this.opacityTolVisibilityRasterOptX( opacity, x-1, y  , maxDistanceMinus1, dest, -1 );
+				this.opacityTolVisibilityRasterOptY( opacity, x  , y-1, maxDistanceMinus1, dest, -1 );
 			}
 		}
 	}
