@@ -61,11 +61,14 @@ html, body {
 	text-align: center;
 	vertical-align: middle;
 }
-td.x0a0c {
+td.x0a0b {
 	background: darkblue;
 }
-td.x1a1c {
+td.x1a1b {
 	background: darkblue;
+}
+td.identity {
+	background: darkred;
 }
 
 
@@ -83,19 +86,32 @@ td.x1a1c {
 <?php require_game21_js_libs($inlineResources); ?>
 <script type="text/javascript">
 (function() {
-	var QuaternionDemo, quaternionDemo;
+	var QuaternionDemo, quaternionDemo, Quaternion;
 	var galleryTbody = document.getElementById('gallery');
+
+	function qToString( q ) {
+		return "<"+q.a.toPrecision(3)+", "+q.b.toPrecision(3)+", "+q.c.toPrecision(3)+", "+q.d.toPrecision(3)+">";
+	}
 	
-	function generateRow( a, b ) {
+	function generateRow( a, c ) {
 		var tr = document.createElement('tr');
-		var c, d, q, image, td;
-		for( c = -1; c < 1; c += 0.5 ) {
-			for( d = -1; d < 1; d += 0.5 ) {
-				image = quaternionDemo.generateImageSlice(a, b, c, d).sheet;
-				image.setAttribute("title", "<"+a+", "+b+", "+c+", "+d+">");
+		var b, d, q, image, td;
+		for( b = -0.5; b <= 1; b += 0.5 ) {
+			for( d = -0.5; d <= 1; d += 0.5 ) {
 				td = document.createElement('td');
-				td.className = "x"+((2+(a*2))%2)+"a"+((2+(c*2))%2)+"c";
-				td.appendChild(image);
+				var p = new Quaternion(a, b, c, d);
+				if( a != 0 || b != 0 || c != 0 || d != 0 ) {
+					var q = p.normalize();
+					image = quaternionDemo.generateImageSlice(q).sheet;
+					td.appendChild(image);
+					td.setAttribute("title", qToString(q)+" (unnormalized: "+qToString(p)+")");
+				} else {
+					td.setAttribute("title", qToString(p));
+				}
+				td.className = "x"+((3+(a*2))%2)+"a"+((2+(b*2))%2)+"b";
+				if( a == 1 && b == 0 && c == 0 && d == 0 ) {
+					td.className += " identity";
+				}
 				tr.appendChild(td);
 			}
 		}
@@ -103,24 +119,25 @@ td.x1a1c {
 	}
 	
 	function generateSomeImages() {
-		var a = -1;
-		var b = -1;
+		var a = -0.5;
+		var c = -0.5;
 		var generateRowTimeout = function() {
-			generateRow(a, b);
-			b += 0.5;
-			if( b == 1 ) {
+			generateRow(a, c);
+			c += 0.5;
+			if( c > 1 ) {
 				a += 0.5;
-				b = -1;
+				c = -0.5;
 			}
-			if( a != 1 ) {
+			if( a <= 1 && c <= 1 ) {
 				setTimeout(generateRowTimeout, 100);
 			}
 		}; 
 		setTimeout(generateRowTimeout);
 	}
 	
-	require(['togos-game21/QuaternionDemo', 'togos-game21/materials'], function(_QuaternionDemo, _materials) {
+	require(['togos-game21/QuaternionDemo', 'togos-game21/Quaternion', 'togos-game21/materials'], function(_QuaternionDemo, _Quaternion, _materials) {
 		QuaternionDemo = _QuaternionDemo.default;
+		Quaternion = _Quaternion.default;
 		quaternionDemo = new QuaternionDemo();
 		generateSomeImages();
 	});

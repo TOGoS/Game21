@@ -69,7 +69,7 @@ export default class QuaternionDemo {
 		};
 	}	
 	
-	public generateImageSlice( a:number, b:number, c:number, d:number ):ImageSlice<HTMLImageElement> {
-		return this.objectImageManager.objectVisualImage(this.generateObjectVisual(), 0, 0, new Quaternion(a,b,c,d).normalize(), 32);
+	public generateImageSlice( q:Quaternion ):ImageSlice<HTMLImageElement> {
+		return this.objectImageManager.objectVisualImage(this.generateObjectVisual(), 0, 0, q, 32);
 	};
 }
