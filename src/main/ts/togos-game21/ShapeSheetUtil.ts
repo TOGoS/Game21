@@ -442,7 +442,7 @@ class ShapeSheetUtil {
 		this.dataUpdated(boundingRect);
 	};
 	
-	plotLine( x0:number, y0:number, z0:number, r0:number, x1:number, y1:number, z1:number, r1:number, plotFunc:PlotFunction ) {
+	plotLine( x0:number, y0:number, z0:number, r0:number, x1:number, y1:number, z1:number, r1:number, plotFunc:PlotFunction=null ) {
 		if( plotFunc == null ) plotFunc = this.plotSphere;
 		
 		if( x0 == x1 && y0 == y1 ) {

@@ -41,14 +41,14 @@ html, body {
 	color: white;
 }
 /* Since { display: inline-flex; margin: auto } doesn't work like I expect, have a container. :P */
-.image-gallery-container {
+.gallery-container {
 	min-height: 100%;
 	display: flex;
 	flex-direction: row;
 	justify-content: center;
 	align-items: center;
 }
-.image-gallery {
+.gallery {
 	display: flex;
 	flex-direction: column;
 	justify-content: center;
@@ -57,54 +57,71 @@ html, body {
 	min-height: 20px;
 	border: 1px dotted silver;
 }
-.image-gallery div {
-	display: flex;
-	flex-direction: row;
-	flex-wrap: wrap;
-	justify-content: center;
-	align-items: center;
+.gallery td {
+	text-align: center;
+	vertical-align: middle;
 }
+td.x0a0c {
+	background: darkblue;
+}
+td.x1a1c {
+	background: darkblue;
+}
+
+
 </style>
-<title>SSIDemo</title>
+<title>QuaternionDemo</title>
 </head>
 <body>
 
-<div class="image-gallery-container">
-<div class="image-gallery" id="image-gallery"></div>
+<div class="gallery-container">
+<table class="gallery">
+<tbody id="gallery"></tbody>
+</table>
 </div>
 
 <?php require_game21_js_libs($inlineResources); ?>
 <script type="text/javascript">
 (function() {
-	var SSIDemo, ssiDemo, materials;
-	var galleryDiv = document.getElementById('image-gallery');
+	var QuaternionDemo, quaternionDemo;
+	var galleryTbody = document.getElementById('gallery');
 	
-	function generateRow() {
-		var row = document.createElement('div');
-		for( var i=0; i < 10; ++i ) {
-			console.log("Generating shape image #"+i+"...")
-			row.appendChild(ssiDemo.randomShapeImageSlice().sheet);
+	function generateRow( a, b ) {
+		var tr = document.createElement('tr');
+		var c, d, q, image, td;
+		for( c = -1; c < 1; c += 0.5 ) {
+			for( d = -1; d < 1; d += 0.5 ) {
+				image = quaternionDemo.generateImageSlice(a, b, c, d).sheet;
+				image.setAttribute("title", "<"+a+", "+b+", "+c+", "+d+">");
+				td = document.createElement('td');
+				td.className = "x"+((2+(a*2))%2)+"a"+((2+(c*2))%2)+"c";
+				td.appendChild(image);
+				tr.appendChild(td);
+			}
 		}
-		galleryDiv.appendChild(row);
-		ssiDemo.materials = materials.randomMaterialMap();
+		galleryTbody.appendChild(tr);
 	}
 	
 	function generateSomeImages() {
-		var j = 0;
+		var a = -1;
+		var b = -1;
 		var generateRowTimeout = function() {
-			generateRow(j);
-			if( j < 4 ) {
+			generateRow(a, b);
+			b += 0.5;
+			if( b == 1 ) {
+				a += 0.5;
+				b = -1;
+			}
+			if( a != 1 ) {
 				setTimeout(generateRowTimeout, 100);
-				++j;
 			}
 		}; 
 		setTimeout(generateRowTimeout);
 	}
 	
-	require(['togos-game21/SSIDemo', 'togos-game21/materials'], function(_SSIDemo, _materials) {
-		SSIDemo = _SSIDemo.default;
-		ssiDemo = new SSIDemo();
-		materials = _materials;
+	require(['togos-game21/QuaternionDemo', 'togos-game21/materials'], function(_QuaternionDemo, _materials) {
+		QuaternionDemo = _QuaternionDemo.default;
+		quaternionDemo = new QuaternionDemo();
 		generateSomeImages();
 	});
 })();
