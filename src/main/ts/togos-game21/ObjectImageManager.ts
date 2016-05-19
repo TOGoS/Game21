@@ -14,6 +14,53 @@ import { Game } from './world';
 import { remap, paletteToMap as materialPaletteToMap } from './materials';
 import {DEFAULT_LIGHTS} from './lights';
 
+function compressQuaternionComponent( c:number ):number {
+	const a = c;
+	if( c < -1 || c > 1 ) {
+		throw new Error("Ack, quaternion component > 1! "+c);
+	}
+	if( c < -0.7 ) return -2;
+	if( c < -0.4 ) return -1;
+	if( c < +0.4 ) return  0;
+	if( c < +0.7 ) return +1;
+	else           return +2;
+}
+
+function decompressQuaternionComponent( c:number ):number {
+	switch( c ) {
+	case -2: return -1.00;
+	case -1: return -0.5;
+	case  0: return  0.00;
+	case  1: return  0.5;
+	case  2: return  1.00;
+	default:
+		throw new Error("Bad compressed quaternion component value: "+c);
+	}
+}
+
+export function compressQuaternion( q:Quaternion ):number {
+	let a = q.a, b = q.b, c = q.c;
+	if( q.d < 0 ) { a = -a; b = -b; c = -c; }
+	a = compressQuaternionComponent(a);
+	b = compressQuaternionComponent(b);
+	c = compressQuaternionComponent(c);
+	return (a+2) * 25 + (b+2) * 5 + (c+2);
+}
+
+export function decompressQuaternion( com:number ):Quaternion {
+	// Could use a lookup table; there are only 150 of these at most
+	const cc =            (com %  5)       - 2;
+	const cb = Math.floor((com % 25) /  5) - 2;
+	const ca = Math.floor( com       / 25) - 2;
+	
+	const a = decompressQuaternionComponent(ca);
+	const b = decompressQuaternionComponent(cb);
+	const c = decompressQuaternionComponent(cc);
+	
+	
+	return new Quaternion(a, b, c, 1-Math.sqrt(a*a + b*b + c*c)).normalize();
+}
+
 /*
 const oneCount = function(n:number):number {
 	n = n >>> 0;

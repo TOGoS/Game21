@@ -10,7 +10,7 @@ import ProceduralShape from './ProceduralShape';
 import Animation, {OnAnimationEnd} from './Animation';
 import ObjectVisual, {ObjectVisualState, ObjectVisualFrame, VisualBasisType} from './ObjectVisual';
 import {DEFAULT_MATERIAL_MAP, IDENTITY_MATERIAL_REMAP} from './materials';
-import ObjectImageManager from './ObjectImageManager';
+import ObjectImageManager, {compressQuaternion, decompressQuaternion} from './ObjectImageManager';
 
 class ArrowShape implements ProceduralShape {
 	get isAnimated():boolean { return false; }
@@ -71,5 +71,9 @@ export default class QuaternionDemo {
 	
 	public generateImageSlice( q:Quaternion ):ImageSlice<HTMLImageElement> {
 		return this.objectImageManager.objectVisualImage(this.generateObjectVisual(), 0, 0, q, 32);
-	};
+	}
+	
+	public static snap( q:Quaternion ):Quaternion {
+		return decompressQuaternion( compressQuaternion(q) );
+	}
 }

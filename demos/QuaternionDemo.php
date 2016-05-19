@@ -70,6 +70,9 @@ td.x1a1b {
 td.identity {
 	background: darkred;
 }
+td.snapped {
+	border-right: 1px solid darkred;
+}
 
 
 </style>
@@ -95,24 +98,34 @@ td.identity {
 	
 	function generateRow( a, c ) {
 		var tr = document.createElement('tr');
-		var b, d, q, image, td;
+		var b, d, q, image, td0, td1;
 		for( b = -0.5; b <= 1; b += 0.5 ) {
 			for( d = -0.5; d <= 1; d += 0.5 ) {
-				td = document.createElement('td');
+				td0 = document.createElement('td');
+				td1 = document.createElement('td');
 				var p = new Quaternion(a, b, c, d);
 				if( a != 0 || b != 0 || c != 0 || d != 0 ) {
 					var q = p.normalize();
 					image = quaternionDemo.generateImageSlice(q).sheet;
-					td.appendChild(image);
-					td.setAttribute("title", qToString(q)+" (unnormalized: "+qToString(p)+")");
+					td0.appendChild(image);
+					td0.setAttribute("title", qToString(q)+" (unnormalized: "+qToString(p)+")");
+					
+					var r = QuaternionDemo.snap(q);
+					image = quaternionDemo.generateImageSlice(r).sheet;
+					td1.appendChild(image);
+					td1.setAttribute("title", qToString(r));
 				} else {
-					td.setAttribute("title", qToString(p));
+					td0.setAttribute("title", qToString(p));
+					td1.setAttribute("title", qToString(p));
 				}
-				td.className = "x"+((3+(a*2))%2)+"a"+((2+(b*2))%2)+"b";
+				td0.className = "x"+((3+(a*2))%2)+"a"+((2+(b*2))%2)+"b";
+				td1.className = "x"+((3+(a*2))%2)+"a"+((2+(b*2))%2)+"b snapped";
 				if( a == 1 && b == 0 && c == 0 && d == 0 ) {
-					td.className += " identity";
+					td0.className += " identity";
+					td1.className += " identity";
 				}
-				tr.appendChild(td);
+				tr.appendChild(td0);
+				tr.appendChild(td1);
 			}
 		}
 		galleryTbody.appendChild(tr);
