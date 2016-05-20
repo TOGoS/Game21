@@ -142,7 +142,7 @@ td.snapped {
 				c = -0.5;
 			}
 			if( a <= 1 && c <= 1 ) {
-				setTimeout(generateRowTimeout, 100);
+				setTimeout(generateRowTimeout, 0);
 			}
 		}; 
 		setTimeout(generateRowTimeout);
