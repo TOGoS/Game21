@@ -2,6 +2,14 @@ import Vector3D from './Vector3D'
 import { deepFreeze } from './DeepFreezer';
 
 export default class Quaternion {
+	/*
+	 * Sometimes quaternions are written as w + xi + yj + zk,
+	 * Where i, j, and k are imaginary numbers.
+	 * I use use the symbols 'a, b, c, d' to mean 'w, x, y, z', respectively,
+	 * probably because those were used in some of the conversion examples I based my code on.
+	 * i.e. <1, 0, 0, 0> has only a=1, i.e. w=1, i.e. only the real component is non-zero.
+	 * Hence that being the identity.
+	 */
 	public constructor(public a:number=1, public b:number=0, public c:number=0, public d:number=0) { }
 	
 	public set(a:number, b:number, c:number, d:number) : Quaternion {
