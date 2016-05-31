@@ -446,8 +446,8 @@ export default class ShapeSheetRenderer {
 		
 		for( let y = 0; y < destRows; ++y ) {
 			const destRowOffset = destOffset + (y*destSpan); 
-			for( let x = 0, destIdx; x < destCols; ++x ) {
-				const destIdx = destRowOffset + (x*4);
+			for( let x = 0; x < destCols; ++x ) {
+				const destIdx:number = destRowOffset + (x*4);
 				
 				let r = 0, g = 0, b = 0, a = 0;
 				
