@@ -429,7 +429,39 @@ export default class ShapeSheetRenderer {
 		this.updateDepthDerivedData();
 		processRectangleUpdates(this.updatingColorRectangles, this.calculateCellColors.bind(this));
 	};
-
+	
+	static toUint8Rgba(sourceColors:Float32Array, sourceOffset:number, sourceSpan:number, destRgba:Uint8ClampedArray, destOffset:number, destSpan:number, destCols:number, destRows:number, superSampling:number ):void {
+		const ssArea = superSampling*superSampling;
+		
+		for( let y = 0; y < destRows; ++y ) {
+			const destRowOffset = destOffset + (y*destSpan); 
+			for( let x = 0, destIdx; x < destCols; ++x ) {
+				const destIdx = destRowOffset + (x*4);
+				
+				let r = 0, g = 0, b = 0, a = 0;
+				
+				for( let ssy = 0; ssy < superSampling; ++ssy ) {
+					for( let ssx = 0; ssx < superSampling; ++ssx ) {
+						const sourceIdx = sourceOffset + ((y*superSampling)+ssy)*sourceSpan + ((x*superSampling)+ssx)*4;
+						const alpha = sourceColors[sourceIdx+3];
+						a += alpha;
+						// Need to multiply by alpha to weight colors properly; will divide by average alpha later.
+						r += sourceColors[sourceIdx+0] * alpha;
+						g += sourceColors[sourceIdx+1] * alpha;
+						b += sourceColors[sourceIdx+2] * alpha;
+					}
+				}
+				
+				const avgA = a / ssArea;
+				destRgba[destIdx+3] = avgA * 255;
+				const mult = a == 0 ? 0 : 255 / avgA / ssArea; // Need to un-pre-multiply alpha
+				destRgba[destIdx+0] = r * mult;
+				destRgba[destIdx+1] = g * mult;
+				destRgba[destIdx+2] = b * mult;
+			}
+		}
+	}
+	
 	copyToCanvas(region:Rectangle):void {
 		const ss = this.shapeSheet;
 		const width = ss.width, height = ss.height;
@@ -452,15 +484,8 @@ export default class ShapeSheetRenderer {
 		var imgData = ctx.getImageData(minX, minY, w, h);
 		var imgDataData = imgData.data;
 		
-		var bi:number, idi:number, x:number, y:number;
-		for( idi=0, y=minY; y<maxY; ++y ) {
-			for( x=minX, bi=width*y+x; x<maxX; ++x, ++bi, ++idi ) {
-				imgDataData[idi*4+0] = encodeColorValue(cellColors[bi*4+0]);
-				imgDataData[idi*4+1] = encodeColorValue(cellColors[bi*4+1]);
-				imgDataData[idi*4+2] = encodeColorValue(cellColors[bi*4+2]);
-				imgDataData[idi*4+3] = cellColors[bi*4+3] * 255;
-			}
-		}
+		ShapeSheetRenderer.toUint8Rgba(cellColors, (minY*width+minX)*4, 4*width, imgDataData, (minY*width+minX)*4, 4*width, maxX-minX, maxY-minY, 1);
+		
 		if( this.updateRectanglesVisible ) {
 			imgDataData[0+0] = 255;
 			imgDataData[0+2] = 255;
