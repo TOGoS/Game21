@@ -110,6 +110,7 @@ export default class ObjectImageManager {
 	public resolution:number = 16;
 	protected lights = DEFAULT_LIGHTS;
 	public game:Game;
+	protected _superSampling:number = 2;
 	
 	constructor(game:Game) {
 		this.game = game;
@@ -138,14 +139,16 @@ export default class ObjectImageManager {
 	// visuals are to be handled, I expect these 2 functions to be combined into one big one.
 	// Otherwise I have to look at visualBasisType twice.
 	public frameToImageSlice(ov:ObjectVisualFrame, materials:Array<Material>, t:number, orientation:Quaternion, preferredResolution:number):ImageSlice<HTMLImageElement> {
-		const shapeSheetSlice = this.frameToShapeSheetSlice(ov, t, orientation, preferredResolution);
-		const croppedSheet = ShapeSheetUtil.autocrop(shapeSheetSlice, true);
+		const shapeSheetSlice = this.frameToShapeSheetSlice(ov, t, orientation, preferredResolution*this._superSampling);
+		const croppedSheet = ShapeSheetUtil.autocrop(shapeSheetSlice, true, this._superSampling);
+		const sup = this._superSampling;
 		const image:HTMLImageElement = ShapeSheetRenderer.shapeSheetToImage(
 			croppedSheet.sheet,
 			remap(materials, ov.materialRemap),
-			this.lights
+			this.lights,
+			sup
 		)
-		return new ImageSlice<HTMLImageElement>(image, croppedSheet.origin, croppedSheet.resolution, croppedSheet.bounds);
+		return new ImageSlice<HTMLImageElement>(image, croppedSheet.origin.scale(1/sup), croppedSheet.resolution * sup, croppedSheet.bounds.scale(1/sup));
 	}
 	
 	public objectVisualState(visual:MAObjectVisual, flags:number, orientation:Quaternion):ObjectVisualState {

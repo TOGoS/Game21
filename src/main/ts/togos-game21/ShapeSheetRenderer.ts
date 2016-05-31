@@ -121,6 +121,7 @@ export default class ShapeSheetRenderer {
 	 * I mean maybe you could if dimensions match, but why. */
 	protected _shapeSheet:ShapeSheet;
 	public canvas:HTMLCanvasElement;
+	protected _superSampling:number;
 	
 	// Configuration
 	public shadowsEnabled:boolean = true;
@@ -148,8 +149,18 @@ export default class ShapeSheetRenderer {
 	// Debugging info
 	public canvasUpdateCount:number = 0;
 	
-	constructor(shapeSheet:ShapeSheet, canvas:HTMLCanvasElement) {
+	constructor(shapeSheet:ShapeSheet, canvas:HTMLCanvasElement, superSampling:number=1) {
 		this._shapeSheet = shapeSheet;
+		this._superSampling = Math.round(superSampling);
+		if( this._superSampling <= 0 ) {
+			throw new Error("Supersampling must be an integer >= 0; was given: "+superSampling);
+		}
+		if( this._shapeSheet.width % superSampling != 0 ) {
+			throw new Error("Shape sheet width must be a multiple of superSampling; "+this._shapeSheet.width+" % "+superSampling+" != 0");
+		}
+		if( this._shapeSheet.height % superSampling != 0 ) {
+			throw new Error("Shape sheet height must be a multiple of superSampling; "+this._shapeSheet.height+" % "+superSampling+" != 0");
+		}
 		
 		const cellCount = shapeSheet.area;
 		this.cellCoverages       = new Uint8Array(cellCount); // coverage based on depth; 0,1,2,3,4 (divide by 4.0 to get opacity factor)
@@ -466,10 +477,22 @@ export default class ShapeSheetRenderer {
 		const ss = this.shapeSheet;
 		const width = ss.width, height = ss.height;
 		region = Rectangle.intersection( region, ss.bounds );
-		const {minX, minY, maxX, maxY} = region.assertIntegerBoundaries();
+		const sup = this._superSampling;
+		let {minX:_minX, minY:_minY, maxX:_maxX, maxY:_maxY} = region.assertIntegerBoundaries();
+		let destMinX = Math.floor(_minX/sup);
+		let destMinY = Math.floor(_minY/sup);
+		let destMaxX = Math.ceil( _maxX/sup);
+		let destMaxY = Math.ceil( _maxY/sup);
+		// Constructor would not have allowed supersampling such that
+		// it would not align with boundaries.
+		// Otherwise we'd need to check or adjust here.
+		const destW = destMaxX-destMinX;
+		const destH = destMaxY-destMinY;
+		if( destW <= 0 || destH <= 0 ) return;
+		
+		const minX = destMinX*sup, minY = destMinY*sup, maxX = destMaxX*sup, maxY = destMaxY*sup;
 		
 		const w = maxX-minX, h = maxY-minY;
-		if( w <= 0 || h <= 0 ) return;
 		
 		if( this.canvas === null ) return;
 		
@@ -481,10 +504,10 @@ export default class ShapeSheetRenderer {
 		};
 		var cellColors = this.cellColors;
 		
-		var imgData = ctx.getImageData(minX, minY, w, h);
+		var imgData = ctx.getImageData(destMinX, destMinY, destW, destH);
 		var imgDataData = imgData.data;
 		
-		ShapeSheetRenderer.toUint8Rgba(cellColors, (minY*width+minX)*4, 4*width, imgDataData, (minY*width+minX)*4, 4*width, maxX-minX, maxY-minY, 1);
+		ShapeSheetRenderer.toUint8Rgba(cellColors, (minY*width+minX)*4, 4*width, imgDataData, (destMinY*destW+destMinX)*4, 4*destW, destMaxX-destMinX, destMaxY-destMinY, sup);
 		
 		if( this.updateRectanglesVisible ) {
 			imgDataData[0+0] = 255;
@@ -597,11 +620,11 @@ export default class ShapeSheetRenderer {
 		};
 	};
 	
-	public static shapeSheetToImage( ss:ShapeSheet, materials:Array<Material>, lights:KeyedList<DirectionalLight>  ):HTMLImageElement {
+	public static shapeSheetToImage( ss:ShapeSheet, materials:Array<Material>, lights:KeyedList<DirectionalLight>, superSampling:number=1 ):HTMLImageElement {
 		const canv:HTMLCanvasElement = <HTMLCanvasElement>document.createElement('canvas');
-		canv.width = ss.width;
-		canv.height = ss.height;
-		const rend:ShapeSheetRenderer = new ShapeSheetRenderer(ss, canv);
+		canv.width = ss.width / superSampling;
+		canv.height = ss.height / superSampling;
+		const rend:ShapeSheetRenderer = new ShapeSheetRenderer(ss, canv, superSampling);
 		rend.materials = materials;
 		rend.lights = lights;
 		rend.updateCanvas();

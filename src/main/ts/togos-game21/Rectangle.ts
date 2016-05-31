@@ -27,6 +27,14 @@ export default class Rectangle implements RectangularBounds {
 		return new Rectangle(minX, minY, maxX, maxY);
 	}
 	
+	/**
+	 * Scales all components.
+	 * Useful for adjusting bounding boxes to account for different resolutions.
+	 */
+	public scale(s:number):Rectangle {
+		return new Rectangle(this.minX*s, this.minY*s, this.maxX*s, this.maxY*s);
+	}
+	
 	public grow(minX:number, minY:number=minX, maxX:number=minX, maxY:number=minY) {
 		if( minX < 0 ) throw new Error("Grow shouldn't be < 0!");
 		return new Rectangle(this.minX - minX, this.minY - minX, this.maxX + minX, this.maxY + minX );

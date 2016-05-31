@@ -560,8 +560,8 @@ class ShapeSheetUtil {
 		return new ImageSlice<ShapeSheet>( sss.sheet, sss.origin, sss.resolution, cropRect );
 	}
 	
-	public static autocrop( sss:ImageSlice<ShapeSheet>, newSheet:boolean=false ):ImageSlice<ShapeSheet> {
-		const cropRect:Rectangle = this.findAutocrop(sss.sheet, sss.bounds).toNonNegativeRectangle();
+	public static autocrop( sss:ImageSlice<ShapeSheet>, newSheet:boolean=false, gridSize:number=1 ):ImageSlice<ShapeSheet> {
+		const cropRect:Rectangle = this.findAutocrop(sss.sheet, sss.bounds).scale(1/gridSize).growToIntegerBoundaries().scale(gridSize).toNonNegativeRectangle();
 		if( Rectangle.areEqual(sss.bounds, cropRect) ) return sss;
 		
 		return this.crop(sss, cropRect, newSheet);
