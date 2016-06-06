@@ -27,7 +27,14 @@ export interface PhysicalObject {
 	position? : Vector3D; // Ignored (and should be null) for tiles/prototypes
 	velocity? : Vector3D;
 	orientation? : Quaternion;
-
+	
+	prototypeRef?:string; // If indicated, the following properties are defined by the template
+	// In theory an object's properties just default to those of its prototype.
+	// Position, velocity, and orientation are relative.
+	// In practice I may make assumptions that only the object or its prototype
+	// may specify any given property and it's ~undefined behavior condition~
+	// for certain properties or sets of properties to be specified on both.
+	
 	type:PhysicalObjectType;
 	
 	// Bounding boxes are relative to the object's position (whether indicated externally or internally)
