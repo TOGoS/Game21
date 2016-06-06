@@ -148,7 +148,9 @@ export default class ObjectImageManager {
 			this.lights,
 			sup
 		)
-		return new ImageSlice<HTMLImageElement>(image, croppedSheet.origin.scale(1/sup), croppedSheet.resolution * sup, croppedSheet.bounds.scale(1/sup));
+		return new ImageSlice<HTMLImageElement>(
+			image, croppedSheet.origin.scale(1/sup), croppedSheet.resolution / sup,
+			croppedSheet.bounds.scale(1/sup));
 	}
 	
 	public objectVisualState(visual:MAObjectVisual, flags:number, orientation:Quaternion):ObjectVisualState {
