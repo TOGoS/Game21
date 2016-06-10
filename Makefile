@@ -63,7 +63,7 @@ run-unit-tests: target/cjs
 	@# Normally I'd xargs --no-run-if-empty, but
 	@# (A) FreeBSD (i.e. Mac OS X) doesn't have it, and
 	@# (B) There should always be some tests.
-	cd target/cjs && (find . -name '*Test.js' | xargs -n 1 ${node})
+	cd target/cjs && (find . -iname '*Test.js' | xargs -n 1 ${node})
 
 run-router: target/cjs
 	node target/cjs/togos-game21/Router.js
