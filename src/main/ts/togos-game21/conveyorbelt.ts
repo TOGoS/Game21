@@ -1,6 +1,13 @@
 // Data structure for efficiently simulating
 // Factorio-style transport belts
 
+// TODO: Replace this implementation with:
+// - All items on the belt are in a group.
+// - Segment contains an ordered list of groups; none are special.
+// - For each end, context provides space before hard barrier
+//   and an accept(item):boolean function
+//   (called when an item's center crosses the end of the segment)
+
 export enum ConveyorBeltEnd {
 	HEAD,
 	TAIL
