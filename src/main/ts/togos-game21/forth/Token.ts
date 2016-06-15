@@ -1,11 +1,20 @@
-import SourceLocation from './SourceLocation';
+import SourceSpan from './SourceSpan';
 
-export enum QuoteType {
+export enum TokenType {
 	BAREWORD,
-	SINGLE,
-	DOUBLE
+	SINGLE_QUOTED,
+	DOUBLE_QUOTED,
+	COMMENT
 }
 
 export default class Token {
-	constructor(public text:string, public quoteType:QuoteType, public sourceLocation:SourceLocation) { }
+	constructor(public text:string, public type:TokenType, public sourceSpan:SourceSpan) { }
+	
+	public get sourceLocation() {
+		return {
+			fileUri: this.sourceSpan.fileUri,
+			lineNumber: this.sourceSpan.startLineNumber,
+			columnNumber: this.sourceSpan.startColumnNumber
+		}
+	}
 }

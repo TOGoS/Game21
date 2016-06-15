@@ -1,10 +1,13 @@
 import KeyedList from '../KeyedList';
-import Token, { QuoteType } from './Token';
+import Token, { TokenType } from './Token';
 import { TokenListener } from './Tokenizer';
 
 type BytecodeInstruction = number; // More specifically, a number -128 to +127
 
 /*
+ * TODO: Separate segment registers for program, data, stacks
+ * so that most jumps, memory access, etc, can be near zero.
+ * 
  * Program memory is logically divided into banks (65k each?)
  * Banks will be physically stored separately and might not actually fill their full address range.
  * High bits of memory locations indicate which bank is being accessed.
@@ -382,7 +385,7 @@ export default class Interpreter implements TokenListener {
 		}
 		
 		let stack = this.programState.dataStack;
-		if( t.quoteType == QuoteType.DOUBLE ) {
+		if( t.type == TokenType.DOUBLE_QUOTED ) {
 			if( this.isCompiling ) {
 				throw new Error("Can't compile string");
 			}

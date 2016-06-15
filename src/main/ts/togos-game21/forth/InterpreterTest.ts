@@ -41,7 +41,7 @@ function evalu(source:string):any {
 	interp.defineWords(bytecodeWords);
 	interp.defineWords(standardCompileWords);
 	var tokenizer = new Tokenizer(interp);
-	tokenizer.sourceLocation({fileUri:'?', lineNumber:1, columnNumber:1});
+	tokenizer.sourceLocation = {fileUri:'?', lineNumber:1, columnNumber:1};
 	tokenizer.text(source);
 	tokenizer.end();
 	return interp.programState.dataStack.pop();	
