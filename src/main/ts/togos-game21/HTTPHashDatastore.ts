@@ -12,7 +12,7 @@ export default class HTTPHashDatastore implements Datastore {
 	fetch( uri:string ):Promise<Uint8Array> {
 		return null;
 	}
-	store( data:Uint8Array ):string {
+	store( data:Uint8Array, onComplete?:(success:boolean, errorInfo:any)=>void ):string {
 		const urn = sha1Urn(data);
 		const xhr = new XMLHttpRequest;
 		xhr.onreadystatechange = () => {
@@ -26,6 +26,7 @@ export default class HTTPHashDatastore implements Datastore {
 		};
 		xhr.open("PUT", this.n2rUrl+"?"+urn, true);
 		xhr.send(data);
+		// TODO: Call onComplete callback
 		return urn;
 	}
 }
