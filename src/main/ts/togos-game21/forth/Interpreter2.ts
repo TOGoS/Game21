@@ -6,35 +6,34 @@ import { TokenListener } from './Tokenizer';
 
 // A simpler forth interpreter
 
-interface Thread {
+export interface Thread {
 	dataStack:any[];
 	returnStack:number[];
 	program:Word[];
 	pc:number;
 }
 
-interface WordResult {
+export interface WordResult {
 	cost:number;
 }
 
-const STANDARD_RESULT:WordResult = { cost: 1 };
-const STANDARD_RESULT_PROMISE:Promise<WordResult> = new Promise<WordResult>( (resolve, reject) => {
+export const STANDARD_RESULT:WordResult = { cost: 1 };
+export const STANDARD_RESULT_PROMISE:Promise<WordResult> = new Promise<WordResult>( (resolve, reject) => {
 	resolve(STANDARD_RESULT);
 });
 
-interface Word {
+export interface Word {
 	name:string;
 	call( interp:Interpreter, thread:Thread ):Promise<WordResult>;
 }
 
-abstract class RuntimeWord implements Word {
-	public name:string;
-	protected abstract run( interp:Interpreter, thread:Thread ):void;
+export class SynchronousRuntimeWord implements Word {
+	public constructor(public name:string, public runCallback:(interp:Interpreter, thread:Thread)=>void ) { }
 	public call( interp:Interpreter, thread:Thread ):Promise<WordResult> {
 		if( interp.isCompiling ) {
 			thread.program.push(this);
 		} else {
-			this.run(interp, thread);
+			this.runCallback.call(this, interp, thread);
 		}
 		return STANDARD_RESULT_PROMISE;
 	}
@@ -42,26 +41,22 @@ abstract class RuntimeWord implements Word {
 
 type TokenHandler = ( token:Token, interp:Interpreter, thread:Thread )=>void;
 
-class PushValueWord extends RuntimeWord implements Word {
+class PushValueWord extends SynchronousRuntimeWord implements Word {
 	public constructor( public value:any ) {
-		super();
-	}
-	public get name() { return ""+this.value; }
-	public run( interp:Interpreter, thread:Thread ) {
-		thread.dataStack.push(this.value);
+		super(""+value, (interp,thread) => thread.dataStack.push(this.value));
 	}
 }
 
-const ONTOKEN_NORMAL = (token:Token, interp:Interpreter, thread:Thread) => {
+const ONTOKEN_NORMAL:TokenHandler = (token:Token, interp:Interpreter, thread:Thread) => {
 	const w:Word = interp.tokenToWord(token);
 	if( w == null ) return;
 	w.call( interp, thread );
 };
 
 export default class Interpreter implements TokenListener {
-	public words:KeyedList<Word>;
+	public words:KeyedList<Word> = {};
 	public onToken:TokenHandler = ONTOKEN_NORMAL;
-	public isCompiling:boolean;
+	public isCompiling:boolean = false;
 	public threads:Thread[] = [
 		{
 			dataStack: [],
@@ -73,8 +68,10 @@ export default class Interpreter implements TokenListener {
 	
 	public tokenToWord( token:Token ):Word {
 		switch( token.type ) {
-		case TokenType.COMMENT: return null;
-		case TokenType.DOUBLE_QUOTED: return new PushValueWord(token.text);
+		case TokenType.COMMENT:
+			return null;
+		case TokenType.DOUBLE_QUOTED:
+			return new PushValueWord(token.text);
 		case TokenType.SINGLE_QUOTED: case TokenType.BAREWORD:
 			if( this.words[token.text] ) return this.words[token.text];
 			if( token.text.match(/^\d+(\.\d+)?$/) ) {
@@ -86,8 +83,12 @@ export default class Interpreter implements TokenListener {
 		}
 	}
 	
+	public defineWords( words:KeyedList<Word> ):void {
+		for( let k in words ) this.words[k] = words[k];
+	}
+	
 	public token( token:Token ):void {
-		this.onToken.call( this, token );
+		this.onToken( token, this, this.threads[0] );
 	}
 	
 	public end():void { }
