@@ -24,38 +24,43 @@ const STANDARD_RESULT_PROMISE:Promise<WordResult> = new Promise<WordResult>( (re
 
 interface Word {
 	name:string;
-	call( interp:SimpleInterpreter, thread:Thread ):Promise<WordResult>;
+	call( interp:Interpreter, thread:Thread ):Promise<WordResult>;
 }
 
-abstract class RuntimeWord {
-	protected abstract run( interp:SimpleInterpreter, thread:Thread ):void;
-	public call( interp:SimpleInterpreter, thread:Thread ):Promise<WordResult> {
+abstract class RuntimeWord implements Word {
+	public name:string;
+	protected abstract run( interp:Interpreter, thread:Thread ):void;
+	public call( interp:Interpreter, thread:Thread ):Promise<WordResult> {
 		if( interp.isCompiling ) {
 			thread.program.push(this);
 		} else {
-			this.run(interp);
+			this.run(interp, thread);
 		}
 		return STANDARD_RESULT_PROMISE;
 	}
 }
 
+type TokenHandler = ( token:Token, interp:Interpreter, thread:Thread )=>void;
+
 class PushValueWord extends RuntimeWord implements Word {
-	public constructor( public value:any ) { }
+	public constructor( public value:any ) {
+		super();
+	}
 	public get name() { return ""+this.value; }
-	public run( interp:SimpleInterpeter, thread:Thread ) {
+	public run( interp:Interpreter, thread:Thread ) {
 		thread.dataStack.push(this.value);
 	}
 }
 
-const ONTOKEN_NORMAL = (token:Token, interp:SimpleInterpreter, thread:Thread) => {
+const ONTOKEN_NORMAL = (token:Token, interp:Interpreter, thread:Thread) => {
 	const w:Word = interp.tokenToWord(token);
 	if( w == null ) return;
 	w.call( interp, thread );
 };
 
-export default class SimpleInterpreter implements TokenListener {
+export default class Interpreter implements TokenListener {
 	public words:KeyedList<Word>;
-	public onToken:( token:Token, interp:SimpleInterpreter, thread:Thread )=>void = ONTOKEN_NORMAL;
+	public onToken:TokenHandler = ONTOKEN_NORMAL;
 	public isCompiling:boolean;
 	public threads:Thread[] = [
 		{
