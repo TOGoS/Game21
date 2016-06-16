@@ -89,3 +89,21 @@ function reset() {
 		endColumnNumber: 2,
 	}), tokens[2], "Token #2 mismatched" );
 }
+
+// Test backslash escapes in strings
+{
+	reset();
+	tokenizer.text('"foo \\\\\\"\\\'\\a\\e\\f\\n\\r\\t\\v"');
+	tokenizer.end();
+
+	assertEquals( 1, tokens.length, "Should've found 1 token" );
+	assertEquals( new Token("foo \\\"'\x07\x1B\x0C\n\r\t\x0B", TokenType.DOUBLE_QUOTED, {
+		fileUri: "test",
+		lineNumber: 1,
+		columnNumber: 1,
+		endLineNumber: 1,
+		endColumnNumber: 27,
+	}), tokens[0], "Escapey token mismatched" );
+	
+	// TODO: Make it handle \x.. and \u....
+}

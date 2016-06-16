@@ -7,13 +7,22 @@ export interface TokenListener {
 	end():void;
 }
 
+const C_BEL   = 0x07;
 const C_TAB   = 0x09;
 const C_NL    = 0x0A;
 const C_VT    = 0x0B;
 const C_FF    = 0x0C;
 const C_CR    = 0x0D;
+const C_ESC   = 0x1B;
 const C_SPACE = 0x20;
 
+const C_A = 'a'.charCodeAt(0);
+const C_E = 'e'.charCodeAt(0);
+const C_F = 'f'.charCodeAt(0);
+const C_N = 'n'.charCodeAt(0);
+const C_R = 'r'.charCodeAt(0);
+const C_T = 't'.charCodeAt(0);
+const C_V = 'v'.charCodeAt(0);
 const C_SHARP = 0x23;
 const C_DOUBLE_QUOTE = 0x22;
 const C_BACKSLASH = 0x5C;
@@ -37,6 +46,7 @@ export default class Tokenizer {
 	 * Lists end-quote characters that we're awaiting, from inner-most to outer-most.
 	 * If empty, we're not inside any quotes at all.
 	 */
+	protected handlingBackslashEscape:boolean = false;
 	protected awaitingCloseQuoteChars:number[] = [];
 	protected tokenType:TokenType = TokenType.BAREWORD;
 	protected tokenBuffer:string = "";
@@ -110,8 +120,27 @@ export default class Tokenizer {
 	
 	public char(c:number):void {
 		if( this.ended ) throw new Error("Already ended");
-		
-		if( this.awaitingCloseQuoteChars.length == 0 ) {
+
+		if( this.handlingBackslashEscape ) {
+			let decoded:number;
+			switch( c ) {
+			case C_A: decoded = C_BEL; break;
+			case C_E: decoded = C_ESC; break;
+			case C_F: decoded = C_FF; break;
+			case C_N: decoded = C_NL; break;
+			case C_R: decoded = C_CR; break;
+			case C_T: decoded = C_TAB; break;
+			case C_V: decoded = C_VT; break;
+			case C_BACKSLASH: case C_DOUBLE_QUOTE: case C_SINGLE_QUOTE:
+				decoded = c; break;
+			default:
+				throw new Error("Invalid backslash escape sequence: \\"+String.fromCharCode(c)+" "+this.atstr);
+			}
+			this.tokenBuffer += String.fromCharCode(decoded);
+			this.postChar(c);
+			this.handlingBackslashEscape = false;
+			return;
+		} else if( this.awaitingCloseQuoteChars.length == 0 ) {
 			switch( c ) {
 			case C_TAB: case C_VT: case C_NL: case C_FF: case C_CR: case C_SPACE:
 				this.flushToken();
@@ -152,7 +181,9 @@ export default class Tokenizer {
 			const style = this.quoteStylesByCloseChar[currentCloseChar];
 			if( style == null ) throw new Error("Failed to find quote for close quote "+String.fromCharCode(currentCloseChar));
 			if( style.backslashEscapes && c == C_BACKSLASH ) {
-				throw new Error("Backslash escapes not yet supported");
+				this.handlingBackslashEscape = true;
+				this.postChar(c);
+				return;
 			}
 			if( style.openCharCode == c ) {
 				this.awaitingCloseQuoteChars.unshift( style.closeCharCode );
@@ -172,11 +203,14 @@ export default class Tokenizer {
 		}
 	}
 	public end():void {
-		this.flushToken();
+		if( this.handlingBackslashEscape ) {
+			throw new Error("Expected rest of backslash escape sequence but encountered end of stream "+this.atstr);
+		}
 		if( this.ended ) throw new Error("Already ended");
 		if( this.awaitingCloseQuoteChars.length > 0 ) {
-			throw new Error("Expected "+String.fromCharCode(this.awaitingCloseQuoteChars[0])+" but encountered end of stream");
+			throw new Error("Expected "+String.fromCharCode(this.awaitingCloseQuoteChars[0])+" but encountered end of stream "+this.atstr);
 		}
+		this.flushToken();
 		this.ended = true;
 	}
 }
