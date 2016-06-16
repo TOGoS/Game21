@@ -1,3 +1,4 @@
+import KeyedList from '../KeyedList';
 import SourceLocation from './SourceLocation';
 import Token, {TokenType} from './Token';
 
@@ -17,14 +18,17 @@ const C_SHARP = 0x23;
 const C_DOUBLE_QUOTE = 0x22;
 const C_BACKSLASH = 0x5C;
 const C_SINGLE_QUOTE = 0x27;
+const C_OPEN_SINGLE_ANGLE_QUOTE  = "‹".charCodeAt(0);
+const C_CLOSE_SINGLE_ANGLE_QUOTE = "›".charCodeAt(0);
+const C_OPEN_DOUBLE_ANGLE_QUOTE  = "«".charCodeAt(0);
+const C_CLOSE_DOUBLE_ANGLE_QUOTE = "»".charCodeAt(0);
 
 class QuoteStyle {
 	public constructor(
 		public openCharCode:number,
 		public closeCharCode:number,
-		public nestable:boolean,
 		public backslashEscapes:boolean,
-		public isLiteral:boolean
+		public tokenType:TokenType
 	) { }
 }
 
@@ -33,7 +37,7 @@ export default class Tokenizer {
 	 * Lists end-quote characters that we're awaiting, from inner-most to outer-most.
 	 * If empty, we're not inside any quotes at all.
 	 */
-	protected endQuoteChars:number[] = [];
+	protected awaitingCloseQuoteChars:number[] = [];
 	protected tokenType:TokenType = TokenType.BAREWORD;
 	protected tokenBuffer:string = "";
 	protected tokenListener:TokenListener;
@@ -47,12 +51,23 @@ export default class Tokenizer {
 	public constructor(l:TokenListener) {
 		this.tokenListener = l;
 		this.quoteStyles = [
-			new QuoteStyle( C_DOUBLE_QUOTE, C_DOUBLE_QUOTE, false, true, true ),
-			new QuoteStyle( C_SINGLE_QUOTE, C_SINGLE_QUOTE, false, true, true ),
+			new QuoteStyle( C_SINGLE_QUOTE, C_SINGLE_QUOTE, true, TokenType.SINGLE_QUOTED ),
+			new QuoteStyle( C_DOUBLE_QUOTE, C_DOUBLE_QUOTE, true, TokenType.DOUBLE_QUOTED ),
+			new QuoteStyle( C_OPEN_SINGLE_ANGLE_QUOTE, C_CLOSE_SINGLE_ANGLE_QUOTE, false, TokenType.SINGLE_QUOTED ),
+			new QuoteStyle( C_OPEN_DOUBLE_ANGLE_QUOTE, C_CLOSE_DOUBLE_ANGLE_QUOTE, false, TokenType.DOUBLE_QUOTED ),
 		];
 	}
 	
+	protected quoteStylesByOpenChar : KeyedList<QuoteStyle> = {};
+	protected quoteStylesByCloseChar : KeyedList<QuoteStyle> = {};
 	public set quoteStyles(styles:QuoteStyle[]) {
+		this.quoteStylesByOpenChar = {};
+		this.quoteStylesByCloseChar = {};
+		for( let i in styles ) {
+			const style = styles[i];
+			this.quoteStylesByOpenChar[style.openCharCode] = style;
+			this.quoteStylesByCloseChar[style.closeCharCode] = style;
+		}
 	}
 	
 	/** Adjust source location after processing a character */
@@ -89,16 +104,33 @@ export default class Tokenizer {
 		this.tokenType = TokenType.BAREWORD;
 	}
 	
+	protected get atstr():string {
+		return "at "+this.sourceFileUri+":"+this.sourceLineNumber+","+this.sourceColumnNumber;
+	}
+	
 	public char(c:number):void {
 		if( this.ended ) throw new Error("Already ended");
 		
-		if( this.endQuoteChars.length == 0 ) {
+		if( this.awaitingCloseQuoteChars.length == 0 ) {
 			switch( c ) {
 			case C_TAB: case C_VT: case C_NL: case C_FF: case C_CR: case C_SPACE:
 				this.flushToken();
 				this.postChar(c);
 				return;
 			default:
+				const quoteStyle = this.quoteStylesByOpenChar[c];
+				if( quoteStyle ) {
+					if( this.tokenBuffer.length != 0 ) {
+						throw new Error("Open-quote found in middle of token ("+this.tokenBuffer+") "+this.atstr);
+					}
+					this.tokenStartLineNumber = this.sourceLineNumber;
+					this.tokenStartColumnNumber = this.sourceColumnNumber;
+					this.tokenType = quoteStyle.tokenType;
+					this.awaitingCloseQuoteChars.unshift( quoteStyle.closeCharCode );
+					this.postChar(c);
+					return;
+				}
+				
 				if( this.tokenBuffer.length == 0 ) {
 					this.tokenStartLineNumber = this.sourceLineNumber;
 					this.tokenStartColumnNumber = this.sourceColumnNumber;
@@ -108,7 +140,25 @@ export default class Tokenizer {
 				return;
 			}
 		} else {
-			throw new Error("Quoting not yet spported");
+			if( this.awaitingCloseQuoteChars[0] == c ) {
+				this.awaitingCloseQuoteChars.shift();
+				if( this.awaitingCloseQuoteChars.length == 0 ) {
+					this.postChar(c);
+					this.flushToken();
+					return;
+				}
+			}
+			const currentCloseChar = this.awaitingCloseQuoteChars[0];
+			const style = this.quoteStylesByCloseChar[currentCloseChar];
+			if( style == null ) throw new Error("Failed to find quote for close quote "+String.fromCharCode(currentCloseChar));
+			if( style.backslashEscapes && c == C_BACKSLASH ) {
+				throw new Error("Backslash escapes not yet supported");
+			}
+			if( style.openCharCode == c ) {
+				this.awaitingCloseQuoteChars.unshift( style.closeCharCode );
+			}
+			this.tokenBuffer += String.fromCharCode(c);
+			this.postChar(c);
 		}
 	}
 	public set sourceLocation(sl:SourceLocation) {
@@ -124,8 +174,8 @@ export default class Tokenizer {
 	public end():void {
 		this.flushToken();
 		if( this.ended ) throw new Error("Already ended");
-		if( this.endQuoteChars.length > 0 ) {
-			throw new Error("Expected "+String.fromCharCode(this.endQuoteChars[0])+" but encountered end of stream");
+		if( this.awaitingCloseQuoteChars.length > 0 ) {
+			throw new Error("Expected "+String.fromCharCode(this.awaitingCloseQuoteChars[0])+" but encountered end of stream");
 		}
 		this.ended = true;
 	}
