@@ -62,6 +62,6 @@ function assertStackAfter( expectedStack:any[], script:string ) {
 }
 
 assertStackAfter( [3], "1 2 +" );
-//assertStackAfter( ['Hello'], '"Hello"' );
+assertStackAfter( ['Hello'], '"Hello"' );
 assertStackAfter( [2, 1], "1 2 swap" );
-//assertStackAfter( ["barfoo"], '"foo" "bar" swap concat' );
+assertStackAfter( ["barfoo"], '"foo" "bar" swap concat' );
