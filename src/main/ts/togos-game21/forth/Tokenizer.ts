@@ -76,8 +76,8 @@ export default class Tokenizer {
 		
 		this.tokenListener.token(new Token( this.tokenBuffer, this.tokenType, {
 			fileUri: this.sourceFileUri,
-			startLineNumber: this.tokenStartLineNumber,
-			startColumnNumber: this.tokenStartColumnNumber,
+			lineNumber: this.tokenStartLineNumber,
+			columnNumber: this.tokenStartColumnNumber,
 			endLineNumber: this.sourceLineNumber,
 			endColumnNumber: this.sourceColumnNumber
 		}));
