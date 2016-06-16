@@ -62,6 +62,9 @@ export default class Tokenizer {
 			++this.sourceLineNumber;
 			this.sourceColumnNumber = 1;
 			break;
+		case C_TAB:
+			this.sourceColumnNumber = (Math.floor((this.sourceColumnNumber-1) / 8) + 1) * 8 + 1;
+			break;
 		default:
 			++this.sourceColumnNumber;
 			break;
@@ -92,8 +95,8 @@ export default class Tokenizer {
 		if( this.endQuoteChars.length == 0 ) {
 			switch( c ) {
 			case C_TAB: case C_VT: case C_NL: case C_FF: case C_CR: case C_SPACE:
-				this.postChar(c);
 				this.flushToken();
+				this.postChar(c);
 				return;
 			default:
 				if( this.tokenBuffer.length == 0 ) {
