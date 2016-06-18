@@ -180,6 +180,8 @@ export default class ShapeSheetRenderer {
 		this.minimumAverageDepth = Infinity;
 		this.cellAverageDepths.fill(Infinity);
 		
+		// Upon construction, unless the shapesheet happens to be completely blank,
+		// we are out of sync with it, so mark the entire shapesheet as updated.
 		this.dataUpdated(this.shapeSheet.bounds, true, true);
 	};
 	
@@ -518,24 +520,34 @@ export default class ShapeSheetRenderer {
 		ctx.putImageData(imgData, minX, minY);
 	};
 	
+	/**
+	 * Process any updates and copy to canvas immediately.
+	 * For UI you probably want requestCanvasUpdate() instead,
+	 * unless you're already inside an animation frame call.
+	 */
 	updateCanvas():void {
 		this.canvasUpdateRequested = false;
 		this.updateCellColors();
 		processRectangleUpdates(this.updatingCanvasRectangles, this.copyToCanvas.bind(this));
 		++this.canvasUpdateCount;
 	};
-
+	
+	/**
+	 * Request an update to be done in the next animation frame
+	 * if it hasn't been requested already.
+	 */
 	requestCanvasUpdate():void {
 		if( this.canvasUpdateRequested ) return;
 		this.canvasUpdateRequested = true;
-		window.requestAnimationFrame( (function() {
+		window.requestAnimationFrame( () => {
 			this.updateCanvas();
-		}).bind(this) );
+		} );
 	};
 	
 	////
 	
-	dataUpdated(region:Rectangle, shouldRecalculateNormals:boolean=true, shouldRecalculateColors:boolean=true):void {
+	dataUpdated(region:Rectangle=null, shouldRecalculateNormals:boolean=true, shouldRecalculateColors:boolean=true):void {
+		if( region == null ) region = this.shapeSheet.bounds;
 		//console.log("Updated "+JSON.stringify(region));
 		region = region.growToIntegerBoundaries();
 		var ss = this.shapeSheet;
