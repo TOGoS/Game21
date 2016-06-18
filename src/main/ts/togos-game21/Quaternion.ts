@@ -68,7 +68,7 @@ export default class Quaternion {
 	
 	// based on this guy's code:
 	// https://github.com/Kent-H/blue3D/blob/master/Blue3D/src/blue3D/type/QuaternionF.java
-	public static slerp( q0:Quaternion, q1:Quaternion, t:number, allowFlip:boolean, dest:Quaternion):Quaternion {
+	public static slerp( q0:Quaternion, q1:Quaternion, t:number, allowFlip:boolean, dest:Quaternion=new Quaternion):Quaternion {
 		// Warning: this method should not normalize the Quaternion
 		const cosAngle:number = this.dotProduct(q0, q1);
     	
