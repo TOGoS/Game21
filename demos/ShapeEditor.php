@@ -172,12 +172,12 @@ canvas.shape-view {
 <div class="shape-views">
 <canvas id="static-view-canvas" class="shape-view"
   width="<?php eht($width); ?>" height="<?php eht($height); ?>"
-  style="background: darkred; width: <?php eht($shapeViewWidth); ?>px; height: <?php eht($shapeViewHeight); ?>px"
+  style="background: #100; width: <?php eht($shapeViewWidth); ?>px; height: <?php eht($shapeViewHeight); ?>px"
 ></canvas>
 
 <canvas id="rotatey-view-canvas" class="shape-view"
   width="<?php eht($width); ?>" height="<?php eht($height); ?>"
-  style="background: darkred; width: <?php eht($shapeViewWidth); ?>px; height: <?php eht($shapeViewHeight); ?>px"
+  style="background: #100; width: <?php eht($shapeViewWidth); ?>px; height: <?php eht($shapeViewHeight); ?>px"
 ></canvas>
 </div>
 

@@ -90,6 +90,7 @@ class ShapeView {
 		this._shape = shape; this.updated();
 	}
 	public set t( t:number ) {
+		t -= Math.floor(t);
 		if( this._t == t ) return;
 		this._t = t;
 		if( this._shape != null && this._shape.isAnimated ) this.updated();
@@ -123,7 +124,7 @@ class ShapeView {
 	protected updateAnimation( dt:number ) {
 		if( dt == 0 ) return;
 		
-		this.t += dt * this._animation.animationSpeed;
+		this.t = this._t + dt * this._animation.animationSpeed;
 		
 		const rots = this._animation.rotationSpeed * dt;
 		//const newQ = Quaternion.multiply(this._q, this._animation.rotation);
@@ -210,13 +211,18 @@ export default class ShapeSheetEditor
 			draw: (ssu, t, xf) => {
 				let pos:Vector3D = new Vector3D;
 				
-				ssu.plottedMaterialIndexFunction = (x,y,z) => 1;
+				ssu.plottedMaterialIndexFunction = (x,y,z) => 4;
 				
 				xf.multiplyVector( new Vector3D(0,0,0), pos );
 				ssu.plotSphere( pos.x, pos.y, pos.z, xf.scale * 0.5 );
 				
-				xf.multiplyVector( new Vector3D(1,0,0), pos );
-				ssu.plotSphere( pos.x, pos.y, pos.z, xf.scale * 0.25 );
+				ssu.plottedMaterialIndexFunction = (x,y,z) => 8;
+				for( let i=0; i<8; ++i ) {
+					let x = 0.5 + i*0.5;
+					let y = i * 0.1 * Math.sin( t*Math.PI*2 + i * 0.2 );
+					xf.multiplyVector( new Vector3D(x,y,0), pos );
+					ssu.plotSphere( pos.x, pos.y, pos.z, xf.scale * (0.25 + 0.1 * Math.sin(t * Math.PI)) );
+				}
 			}
 		}
 		
@@ -224,7 +230,7 @@ export default class ShapeSheetEditor
 			
 		rotatey.setScaleAndRotation( 16, Quaternion.IDENTITY );
 		rotatey.startAnimation( {
-			animationSpeed: 0.5,
+			animationSpeed: 1,
 			rotation: Quaternion.fromXYZAxisAngle( 0, 1, 0, Math.PI / 2 ),
 			rotationSpeed: 1,
 		} );
