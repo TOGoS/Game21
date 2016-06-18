@@ -14,6 +14,8 @@
 
 ## Misc to-do items
 
+s/Material/SurfaceMaterial/
+
 For maze game:
 - quantized physics
 - a nicer map editor
