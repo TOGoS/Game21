@@ -5,9 +5,12 @@ import Material from './Material';
 
 export const MATERIAL_MAP_SIZE = 256;
 
+/** An array providing a material reference for each 0..255 index */
 type MaterialPalette = Array<string>;
 /** A palette with refs resolved to actual material objects */
 type MaterialMap = Array<Material>;
+/** Given a material map, a 'remap' can map indexes to different indexes
+ * (e.g. to turn indicator lights on and off without modifying the image data) */
 type MaterialRemap = Uint8Array;
 
 export function randomMaterials(count:number):Array<Material> {
