@@ -42,9 +42,9 @@ export default class Quaternion {
 	public static multiply( q0:Quaternion, q1:Quaternion, dest:Quaternion=new Quaternion ):Quaternion {
 		dest.set(
 			q0.a*q1.a - q0.b*q1.b - q0.c*q1.c - q0.d*q1.d,
-			q0.a*q1.a + q0.b*q1.a + q0.c*q1.d - q0.d*q1.c,
-			q0.a*q1.c - q0.b*q1.d + q0.c*q1.a + q0.d*q1.a,
-			q0.a*q1.d + q0.b*q1.c - q0.c*q1.a + q0.d*q1.a
+			q0.a*q1.b + q0.b*q1.a + q0.c*q1.d - q0.d*q1.c,
+			q0.a*q1.c - q0.b*q1.d + q0.c*q1.a + q0.d*q1.b,
+			q0.a*q1.d + q0.b*q1.c - q0.c*q1.b + q0.d*q1.a
 		);
 		return dest;
 	}
@@ -68,7 +68,7 @@ export default class Quaternion {
 	
 	// based on this guy's code:
 	// https://github.com/Kent-H/blue3D/blob/master/Blue3D/src/blue3D/type/QuaternionF.java
-	public static slerp( q0:Quaternion, q1:Quaternion, t:number, allowFlip:boolean, dest:Quaternion):Quaternion {
+	public static slerp( q0:Quaternion, q1:Quaternion, t:number, allowFlip:boolean, dest:Quaternion=new Quaternion):Quaternion {
 		// Warning: this method should not normalize the Quaternion
 		const cosAngle:number = this.dotProduct(q0, q1);
     	
@@ -100,3 +100,13 @@ export default class Quaternion {
 		return q0.a === q1.a && q0.b === q1.b && q0.c === q1.c && q0.d === q1.d;
 	}
 }
+
+function assertEquals( a:any, b:any, m?:string ) {
+	const aJson = JSON.stringify(a);
+	const bJson = JSON.stringify(b);
+	if( aJson !== bJson ) {
+		throw new Error( "Assertion failed: "+aJson+" != "+bJson+(m ? "; "+m : ""));
+	}
+}
+
+assertEquals( Quaternion.IDENTITY, Quaternion.multiply(Quaternion.IDENTITY, Quaternion.IDENTITY) );
