@@ -143,8 +143,11 @@ html, body {
 	margin: 0;
 	box-sizing: border-box;
 }
+* {
+	margin: 0;
+	box-sizing: border-box;
+}
 .shape-views {
-	min-height: 100%;
 	margin: 0;
 	display: flex;
 	flex-direction: row;
@@ -162,6 +165,47 @@ canvas.shape-view {
 	image-rendering: -moz-crisp-edges;
 	image-rendering: pixelated;
 }
+textarea {
+	border: 1px solid silver;
+	color: white;
+	background: black;
+}
+
+#shape-editor-ui {
+	display: flex;
+	flex-direction: row;
+	width: 100%;
+	height: 100%;
+	margin: 0;
+}
+#shape-editor-ui #left {
+	height: 100%;
+	margin: 0;
+	flex-grow: 1;
+	display: flex;
+	flex-direction: column;
+}
+#left textarea {
+	height: 100%;
+	flex-grow: 2;
+}
+#shape-editor-ui #right {
+	display: flex;
+	flex-grow: 3;
+	flex-direction: column;
+}
+#shape-editor-ui .shape-views {
+	background: #111;
+}
+#shape-editor-ui #messages {
+	background: #010;
+	color: silver;
+	overflow: auto;
+	flex-grow: 1;
+}
+.error {
+	color: red;
+}
 </style>
 <title><?php eht($title); ?></title>
 </head>
@@ -169,6 +213,20 @@ canvas.shape-view {
 
 <!-- Config: <?php echo json_encode($config, JSON_PRETTY_PRINT); ?> -->
 
+<div id="shape-editor-ui">
+<div id="left">
+<textarea rows="40" cols="40" id="script-text">
+1 plot-sphere
+1 0 0 move
+1 plot-sphere
+</textarea>
+<div>
+<button id="reload-button">Reload</button>
+<button id="save-button">Save</button>
+</div>
+</div>
+
+<div id="right">
 <div class="shape-views">
 <canvas id="static-view-canvas" class="shape-view"
   width="<?php eht($width); ?>" height="<?php eht($height); ?>"
@@ -179,6 +237,11 @@ canvas.shape-view {
   width="<?php eht($width); ?>" height="<?php eht($height); ?>"
   style="background: #100; width: <?php eht($shapeViewWidth); ?>px; height: <?php eht($shapeViewHeight); ?>px"
 ></canvas>
+</div>
+
+<div id="messages">
+</div>
+</div>
 </div>
 
 <?php require_game21_js_libs($inlineResources); ?>

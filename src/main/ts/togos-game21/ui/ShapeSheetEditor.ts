@@ -198,8 +198,27 @@ class ShapeViewSet {
 export default class ShapeSheetEditor
 {
 	protected viewSet:ShapeViewSet = new ShapeViewSet();
+	protected scriptBox:HTMLTextAreaElement;
+	protected messageBox:HTMLElement;
 	
-	public initUi():void { }
+	protected printMessage( text:string, className:string ) {
+		let elem = document.createElement('p');
+		elem.className = className;
+		elem.appendChild( document.createTextNode(text) );
+		this.messageBox.appendChild(elem);
+		this.messageBox.scrollTop = this.messageBox.scrollHeight;
+	}
+	
+	public initUi():void {
+		this.scriptBox = <HTMLTextAreaElement>document.getElementById('script-text');
+		this.messageBox = <HTMLElement>document.getElementById('messages');
+		document.getElementById('reload-button').addEventListener('click', () => {
+			this.printMessage( this.scriptBox.value, 'debug' );
+		});
+		document.getElementById('save-button').addEventListener('click', () => {
+			this.printMessage( "Saving not yet implemented", 'error' );
+		});
+	}
 	
 	public runDemo():void {
 		this.viewSet.addViewFromCanvas( <HTMLCanvasElement>document.getElementById('static-view-canvas'), 'static' );
