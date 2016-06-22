@@ -3,20 +3,7 @@
 import SourceLocation from './SourceLocation';
 import Token, {TokenType} from './Token';
 import Tokenizer from './Tokenizer';
-
-function fail(...args:any[]) {
-	console.error.apply(console.error, args);
-	if( process ) process.exit(1);
-}
-
-function assertEquals( a:any, b:any, msg?:string ) {
-	const aJson = JSON.stringify(a);
-	const bJson = JSON.stringify(b);
-	if( a != b ) {
-		fail( aJson + " != " + bJson + (msg ? "; "+msg : "") );
-	}
-	console.log("Hey, hey, "+aJson+" = "+bJson+"!");
-}
+import { registerTestResult, assertEquals } from '../testing';
 
 /*
  * Oh jeez why is this so hard.
@@ -87,7 +74,6 @@ function compileTokens( tokens:Token[], compilation:ProgramCompilation, sLoc:Sou
 		const words = compilation.program;
 		for( let i=skip; i<tokens.length; ++i ) {
 			const token = tokens[i];
-			console.log("token "+i+": "+JSON.stringify(token));
 			if( token.type == TokenType.COMMENT ) continue;
 			if( token.type == TokenType.DOUBLE_QUOTED ) {
 				words.push( { invoke: (ctx) => {
@@ -135,21 +121,12 @@ function compileTokens( tokens:Token[], compilation:ProgramCompilation, sLoc:Sou
 			}
 		}
 		
-		console.log("Reached the end of "+sLoc.fileUri);
-		
 		// Hey hey, we got to the end!
 		resolve( compilation.program );
 	} );
 }
 
-function compileSource( thing:(string|Ref), compilation:ProgramCompilation, sLoc:SourceLocation ) : Promise<Program> {
-	if( typeof(thing) == 'object' ) {
-		console.log("fetching...");
-		const ref = <Ref>thing;
-	}
-	
-	console.log("Compiling "+thing);
-	
+function compileSource( thing:string, compilation:ProgramCompilation, sLoc:SourceLocation ) : Promise<Program> {
 	// Otherwise it's a string
 	return new Promise( (resolve,reject) => {
 		const tokens:Token[] = [];
@@ -190,20 +167,10 @@ function runProgram( program:Program ) : Promise<RuntimeContext> {
 	} );
 }
 
-compileRef( {ref: 'urn:file1'}, { program: [] } ).then( (program) => {
-	console.log("Compilation completed!");
+registerTestResult(compileRef( {ref: 'urn:file1'}, { program: [] } ).then( (program) => {
 	return runProgram( program );
-}, (err) => {
-	fail("Failed to compile the thing. :(", err);
 }).then( (ctx) => {
-	console.log("Interpretation completed!  Remaining fuel: "+ctx.fuel);
-
 	const res = ctx.output.join('');
 	assertEquals( 'foobarbaz', res );
-	
-}, (err) => {
-	fail("Ack!  Error while interpreting!", err);
-});
-
-console.log("Hello, I am AsyncCompilationTest.")
-console.error('Wat?');
+	return { }
+}));
