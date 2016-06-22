@@ -2,6 +2,12 @@
 
 import KeyedList from './KeyedList';
 
+/**
+ * HTTP abstraction layer.
+ * Because node doesn't support XMLHttpRequest.
+ * Also because promises are nice.
+ */
+
 export interface Request {
 	method : string;
 	uri : string;
