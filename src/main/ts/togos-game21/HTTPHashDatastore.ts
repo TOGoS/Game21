@@ -1,7 +1,8 @@
 import Datastore from './Datastore';
 import { sha1Urn } from '../tshash/index';
+import http from './http';
 
-export default class HTTPHashDatastore implements Datastore {
+export default class HTTPHashDatastore implements Datastore<Uint8Array> {
 	constructor( protected n2rUrl:string="http://game21-data.nuke24.net/uri-res/N2R" ) {
 	}
 	
@@ -14,27 +15,8 @@ export default class HTTPHashDatastore implements Datastore {
 	}
 	store( data:Uint8Array, onComplete?:(success:boolean, errorInfo:any)=>void ):string {
 		const urn = sha1Urn(data);
-		const xhr = new XMLHttpRequest;
-		xhr.onreadystatechange = () => {
-			if( xhr.readyState == XMLHttpRequest.DONE ) {
-				if( xhr.status >= 200 && xhr.status <= 300 ) {
-					console.log("Successfully saved "+urn);
-				} else {
-					console.log("Save failed for "+urn+": "+xhr.statusText);
-				}
-			}
-		};
-		xhr.open("PUT", this.n2rUrl+"?"+urn, true);
-		xhr.send(data);
+		http.request('PUT', this.n2rUrl+"?"+urn, {}, data);
 		// TODO: Call onComplete callback
 		return urn;
 	}
 }
-
-// Test!
-
-import { utf8Encode } from '../tshash/index';
-
-const data = utf8Encode("Hello, world!");
-const ds = new HTTPHashDatastore;
-console.log("Storing as "+ds.store(data));
