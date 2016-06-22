@@ -212,5 +212,6 @@ export default class Tokenizer {
 		}
 		this.flushToken();
 		this.ended = true;
+		this.tokenListener.end();
 	}
 }
