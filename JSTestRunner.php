@@ -61,11 +61,13 @@
 		}
 	};
 	
-	for( var m in testModNames  ) {
+	for( var m in testModNames ) {
 		var modName = testModNames[m];
 		(function() {
 			var testModName = modName; 
 			require([testModName], function(testMod) {
+				// TODO: may have enqueued async tests;
+				// look at registered tests somehow.
 				testCompleted(testModName, true);
 			}, function(err) {
 				testCompleted(testModName, false, err);
