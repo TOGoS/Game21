@@ -15,4 +15,4 @@ registerTestResult( new Promise( (resolve,reject) => {
 		if( success ) resolve( { } );
 		else resolve( { errors: [ errorInfo ] } );
 	} );
-}));
+}), "HTTPHashDatastore test");
