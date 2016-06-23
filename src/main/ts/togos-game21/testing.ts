@@ -38,19 +38,28 @@ let anyTestsFailed = false;
 
 let allRegisteredTestResults:Array<Promise<TestResult>> = [];
 
+export function testPassed( res:TestResult ) {
+	if( res.errors ) for( let e in res.errors ) return false;
+	if( res.failures ) for( let e in res.failures ) return false;
+	return true;
+}
+
+export function testResultToString( res:TestResult ) {
+	const lines:string[] = [];
+	if( res.errors ) {
+		for( let e in res.errors ) lines.push(res.errors[e].message);
+	}
+	if( res.failures ) {
+		for( let e in res.failures ) lines.push(res.failures[e].message);
+	}
+	return lines.join("\n");
+}
+
 export function registerTestResult( res:Promise<TestResult>, name?:string ) {
 	allRegisteredTestResults.push(res);
 	res.catch( (err):TestResult => ({ errors: [{message:err}] }) ).then( (res:TestResult) => {
-		let failed = false;
-		if( res.errors && res.errors.length > 0 ) {
-			console.error("Errors during "+(name ? name : "test")+":", res.errors);
-			failed = true;
-		}
-		if( res.failures && res.failures.length > 0 ) {
-			console.error((name ? name : "test")+" failures:", res.errors);
-			failed = true;
-		}
-		if( failed ) {
+		if( !testPassed(res) ) {
+			console.error( "Errors during "+(name ? name : "test")+":", testResultToString(res) );
 			anyTestsFailed = true;
 			setExitCode(1);
 		}
