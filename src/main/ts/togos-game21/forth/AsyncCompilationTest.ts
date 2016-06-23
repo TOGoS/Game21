@@ -167,7 +167,7 @@ function runProgram( program:Program ) : Promise<RuntimeContext> {
 	} );
 }
 
-registerTestResult(compileRef( {ref: 'urn:file1'}, { program: [] } ).then( (program) => {
+registerTestResult('AsyncCompilationTest - urn:file2 eval', compileRef( {ref: 'urn:file1'}, { program: [] } ).then( (program) => {
 	return runProgram( program );
 }).then( (ctx) => {
 	const res = ctx.output.join('');

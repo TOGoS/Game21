@@ -55,11 +55,11 @@ export function testResultToString( res:TestResult ) {
 	return lines.join("\n");
 }
 
-export function registerTestResult( res:Promise<TestResult>, name?:string ) {
+export function registerTestResult( testName:string, res:Promise<TestResult> ) {
 	allRegisteredTestResults.push(res);
 	res.catch( (err):TestResult => ({ errors: [{message:err}] }) ).then( (res:TestResult) => {
 		if( !testPassed(res) ) {
-			console.error( "Errors during "+(name ? name : "test")+":", testResultToString(res) );
+			console.error( "Errors during '"+testName+"':", testResultToString(res) );
 			anyTestsFailed = true;
 			setExitCode(1);
 		}
