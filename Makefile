@@ -11,7 +11,7 @@ tsc := ${node} node_modules/typescript/bin/tsc
 default: demos/ShapeDemo.html target/cjs
 
 sortaclean:
-	rm -rf ${generated_js_files} demos/*.html demos/*.html.urn demos/*.url
+	rm -rf ${generated_js_files} demos/*.html demos/*.html.urn demos/*.url target
 
 clean: sortaclean
 	rm -rf node_modules
