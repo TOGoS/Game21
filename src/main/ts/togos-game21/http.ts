@@ -33,12 +33,14 @@ class XHRClient implements Client{
 			xhr.responseType = 'arraybuffer';
 			xhr.onreadystatechange = () => {
 				if( xhr.readyState == XMLHttpRequest.DONE ) {
+					console.log('resolving http request...');
 					resolve( {
 						statusCode: xhr.status,
 						statusText: xhr.statusText,
 						headers: {},
-						content: new Uint8Array( <ArrayBuffer>xhr.response)
+						content: new Uint8Array( <ArrayBuffer>xhr.response )
 					} );
+					console.log('resolved');
 				}
 			};
 			xhr.open(request.method, request.uri, true);

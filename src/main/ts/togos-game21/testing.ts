@@ -23,15 +23,23 @@ export function assertEquals( a:any, b:any, msg?:string ):void {
 
 // More structured method...
 
+export interface ErrorInfo {
+	message: string;
+	[k: string]: any;
+}
+
 export interface TestResult {
-	errors?: Array<any>,
-	failures?: Array<any>,
+	errors?: Array<ErrorInfo>,
+	failures?: Array<ErrorInfo>,
 	information?: KeyedList<any>
 }
 
 let anyTestsFailed = false;
 
+let allRegisteredTestResults:Array<Promise<TestResult>> = [];
+
 export function registerTestResult( res:Promise<TestResult>, name?:string ) {
+	allRegisteredTestResults.push(res);
 	res.catch( (err):TestResult => ({ errors: [{message:err}] }) ).then( (res:TestResult) => {
 		let failed = false;
 		if( res.errors && res.errors.length > 0 ) {
@@ -47,4 +55,10 @@ export function registerTestResult( res:Promise<TestResult>, name?:string ) {
 			setExitCode(1);
 		}
 	});
+}
+
+export function flushRegisteredTestResults():Array<Promise<TestResult>> {
+	const o = allRegisteredTestResults;
+	allRegisteredTestResults = [];
+	return o;
 }

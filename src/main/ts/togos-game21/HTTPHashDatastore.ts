@@ -15,8 +15,15 @@ export default class HTTPHashDatastore implements Datastore<Uint8Array> {
 	}
 	store( data:Uint8Array, onComplete?:(success:boolean, errorInfo:any)=>void ):string {
 		const urn = sha1Urn(data);
-		http.request('PUT', this.n2rUrl+"?"+urn, {}, data);
-		// TODO: Call onComplete callback
+		const url = this.n2rUrl+"?"+urn;
+		let resProm = http.request('PUT', url, {}, data)
+		if( onComplete ) resProm.then( (res) => {
+			if( res.statusCode < 200 || res.statusCode >= 300 ) {
+				onComplete( false, "Received status code "+res.statusCode+" from PUT to "+url );
+			} else {
+				onComplete( true, null );
+			}
+		});
 		return urn;
 	}
 }

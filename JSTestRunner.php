@@ -19,7 +19,7 @@
 </head>
 <body>
 
-<p id="result">Running...</p>
+<p id="result">Running <span id="test-name">&nbsp;</span><span id="running-dots">...</span></p>
 <pre id="debug">&nbsp;</pre>
 
 <?php require_game21_js_libs($inlineResources); ?>
@@ -32,9 +32,15 @@
 	var failedTestCount = 0;
 	var errors = [];
 	
+	var clear = function( elem ) {
+		while( elem.firstChild ) elem.removeChild(elem.firstChild);
+	}
+	
 	var resultElem = document.getElementById('result');
 	var debugElem = document.getElementById('debug');
-	var debugLines = ["Tests: "+testModNames.join(', ')];
+	var testNameElem = document.getElementById('test-name');
+	var dotsElem = document.getElementById('running-dots');
+	var debugLines = ["Tests: "+testModNames.join(', '), ''];
 	var updateDebugText = function(line) {
 		if( line != null ) debugLines.push(line);
 		debugElem.firstChild.nodeValue = debugLines.join("\n");
@@ -51,6 +57,8 @@
 			console.log(error);
 		}
 		if( ++runTestCount == totalTestCount ) {
+			testNameElem.firstChild.nodeValue = '';
+			dotsElem.firstChild.nodeValue = '';
 			if( failedTestCount == 0 ) {
 				resultElem.className = 'success';
 				resultElem.firstChild.nodeValue = "All "+passedTestCount+" tests passed!";
@@ -61,24 +69,39 @@
 		}
 	};
 	
-	for( var m in testModNames ) {
-		var modName = testModNames[m];
-		(function() {
-			var testModName = modName; 
-			require([testModName], function(testMod) {
-				// TODO: may have enqueued async tests;
-				// look at registered tests somehow.
-				testCompleted(testModName, true);
-			}, function(err) {
-				testCompleted(testModName, false, err);
+	require(['togos-game21/testing'], function(testing) {
+		function testModules( moduleNames ) {
+			return new Promise( (resolve,reject) => {
+				if( moduleNames.length == 0 ) return Promise.resolve(true);
+				
+				var testModName = moduleNames[0];
+				require([testModName], function(testMod) {
+					testNameElem.firstChild.nodeValue = testModName;
+					console.log("Loaded "+testModName+"...");
+					Promise.all(testing.flushRegisteredTestResults()).
+						then( (allResults) => {
+							let errorMessages = [];
+							for( var r in allResults ) {
+								if( allResults[r].errors && allResults[r].errors.length > 0 ) {
+									for( e in allResults[r].errors ) errorMessages.push( allResults[r].errors[e].message );
+								}
+								if( allResults[r].failures && allResults[r].failures.length > 0 ) {
+									for( e in allResults[r].failures ) errorMessages.push( allResults[r].failures[e].message );
+								}
+							}
+							testCompleted(testModName, errorMessages.length == 0, {message: errorMessages.join("\n")})
+						} ).
+						catch( (err) => testCompleted(testModName, false, {message: err}) ).
+						then( () => testModules(moduleNames.slice(1)) );
+				});
 			});
-		})();
-	}
+		}
+		
+		testModules(testModNames).then( () => { console.log("All tests finished."); } );
+	});
 })(); 
 
 //]]></script>
-
-<p style="color:darkorange">TODO: Currently not waiting for async tests to complete.  Passed might not really be passed.  Check console.</p>
 
 </body>
 </html>

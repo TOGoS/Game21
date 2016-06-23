@@ -118,13 +118,15 @@ function fitpar($cw, $ch, $iw, $ih) {
 	return array($iw, $ih);
 }
 
-function find_ts_test_modules() {
-	$filenames = scandir('src/main/ts/togos-game21');
-	$modules = [];
+function find_ts_test_modules( $dir='src/main/ts', $modPfx='', array &$modules=[] ) {
+	$filenames = scandir($dir);
 	foreach( $filenames as $fn ) {
+		if( $fn[0] == '.' ) continue;
 		if( preg_match('/^(.*Test)\.ts$/',$fn,$bif) ) {
-			$modName = 'togos-game21/'.$bif[1];
+			$modName = $modPfx.$bif[1];
 			$modules[$modName] = $modName;
+		} else if( is_dir($subDir = $dir.'/'.$fn) ) {
+			find_ts_test_modules( $subDir, $modPfx.$fn.'/', $modules );
 		}
 	}
 	return $modules;
