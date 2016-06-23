@@ -1,4 +1,4 @@
-/// <reference path="node.d.ts"/>
+/// <reference path="../node.d.ts"/>
 
 import KeyedList from './KeyedList';
 import IP6Address, {parseIp6Address, stringifyIp6Address} from './IP6Address';

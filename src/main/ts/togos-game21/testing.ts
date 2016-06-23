@@ -1,11 +1,8 @@
 /// <reference path="../Promise.d.ts" />
-
-interface ProcessWithExitCode extends NodeJS.Process {
-	exitCode:number;
-}
+/// <reference path="../node.d.ts" />
 
 function setExitCode( c:number ):void {
-	if( process ) (<ProcessWithExitCode>process).exitCode = c;
+	if( typeof(process) == 'object' ) process.exitCode = c;
 }
 
 import KeyedList from './KeyedList';
