@@ -28,7 +28,8 @@ export function assertEquals( a:any, b:any, msg?:string ):void {
 export interface TestResult {
 	errors?: Array<ErrorInfo>,
 	failures?: Array<ErrorInfo>,
-	information?: KeyedList<any>
+	notes?: Array<string>,
+	data?: KeyedList<any>
 }
 
 let anyTestsFailed = false;
@@ -59,6 +60,9 @@ export function registerTestResult( testName:string, res:Promise<TestResult> ) {
 			console.error( "Errors during '"+testName+"':", testResultToString(res) );
 			anyTestsFailed = true;
 			setExitCode(1);
+		}
+		if( res.notes && res.notes.length > 0 ) {
+			console.info("Notes from '"+testName+"':", res.notes);
 		}
 	});
 }
