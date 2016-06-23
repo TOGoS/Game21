@@ -1,4 +1,5 @@
 /// <reference path="../Promise.d.ts" />
+/// <reference path="../node.d.ts" />
 
 import KeyedList from './KeyedList';
 
@@ -6,6 +7,10 @@ import KeyedList from './KeyedList';
  * HTTP abstraction layer.
  * Because node doesn't support XMLHttpRequest.
  * Also because promises are nice.
+ * 
+ * This is designed to handle small bits of data, hence passing Uint8Arrays.
+ * If we need to handle larger things,
+ * this should at that point be refactored to use Blobs or something.
  */
 
 export interface Request {
@@ -26,7 +31,7 @@ export interface Client {
 	openRequest( request:Request ):Promise<Response>;
 }
 
-class XHRClient implements Client{
+class XHRClient implements Client {
 	public openRequest( request:Request ):Promise<Response> {
 		return new Promise( (resolve,reject) => {
 			const xhr = new XMLHttpRequest;
@@ -50,12 +55,26 @@ class XHRClient implements Client{
 	}
 }
 
-function makeClient() {
-	if( XMLHttpRequest ) {
-		return new XHRClient();
-	} else {
-		throw new Error("No XMLHttpRequest; can't consturct http client.");
+class NodeClient implements Client {
+	public openRequest( request:Request ):Promise<Response> {
+		return new Promise( (resolve,reject) => {
+			const http = require('http');
+			reject('NodeClient#openRequest not implemented!');
+		});
 	}
+}
+
+function makeClient() {
+	if( typeof(XMLHttpRequest) != 'undefined' ) return new XHRClient();
+	
+	if( typeof(require) != 'undefined' ) {
+		try {
+			require.resolve('http');
+			return new NodeClient();
+		} catch(e) { }
+	}
+	
+	throw new Error("No XMLHttpRequest or require('http'); can't consturct http client.");
 }
 
 let _client : Client;

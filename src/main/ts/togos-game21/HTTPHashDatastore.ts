@@ -1,3 +1,4 @@
+import ErrorInfo from './ErrorInfo';
 import Datastore from './Datastore';
 import { sha1Urn } from '../tshash/index';
 import http from './http';
@@ -13,17 +14,19 @@ export default class HTTPHashDatastore implements Datastore<Uint8Array> {
 	fetch( uri:string ):Promise<Uint8Array> {
 		return null;
 	}
-	store( data:Uint8Array, onComplete?:(success:boolean, errorInfo:any)=>void ):string {
+	store( data:Uint8Array, onComplete?:(success:boolean, errorInfo:ErrorInfo)=>void ):string {
 		const urn = sha1Urn(data);
 		const url = this.n2rUrl+"?"+urn;
 		let resProm = http.request('PUT', url, {}, data)
 		if( onComplete ) resProm.then( (res) => {
 			if( res.statusCode < 200 || res.statusCode >= 300 ) {
-				onComplete( false, "Received status code "+res.statusCode+" from PUT to "+url );
+				onComplete( false, {message: "Received status code "+res.statusCode+" from PUT to "+url} );
 			} else {
 				onComplete( true, null );
 			}
-		});
+		}).catch( (err) => {
+			onComplete( false, {message: err} );
+		})
 		return urn;
 	}
 }

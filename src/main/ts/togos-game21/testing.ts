@@ -1,6 +1,8 @@
 /// <reference path="../Promise.d.ts" />
 /// <reference path="../node.d.ts" />
 
+import ErrorInfo from './ErrorInfo';
+
 function setExitCode( c:number ):void {
 	if( typeof(process) == 'object' ) process.exitCode = c;
 }
@@ -22,11 +24,6 @@ export function assertEquals( a:any, b:any, msg?:string ):void {
 };
 
 // More structured method...
-
-export interface ErrorInfo {
-	message: string;
-	[k: string]: any;
-}
 
 export interface TestResult {
 	errors?: Array<ErrorInfo>,
