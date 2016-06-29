@@ -3,10 +3,12 @@
 import SourceLocation from './SourceLocation';
 import Token, {TokenType} from './Token';
 import Tokenizer from './Tokenizer';
-import URIRef from '../URIRef';
 import {
-	WordType, Word, RuntimeWord, CompilationWord, RuntimeContext, CompilationContext, Program
+	WordType, Word, RuntimeWord, CompilationWord, RuntimeContext, CompilationContext, Program,
+	compileSource, compileTokens
 } from './rs1';
+import KeyedList from '../KeyedList';
+import URIRef from '../URIRef';
 import { registerTestResult, assertEquals } from '../testing';
 
 /*
@@ -39,97 +41,7 @@ function fetch( ref:string ):Promise<string> {
 	});
 }
 
-function atText( sl:SourceLocation ) {
-	return "at "+sl.fileUri+":"+sl.lineNumber+","+sl.columnNumber;
-}
-
-const echoWord = {
-	name: 'echo',
-	wordType: WordType.OTHER_RUNTIME,
-	forthRun: (ctx:RuntimeContext) => {
-		ctx.output.push(ctx.dataStack.pop());
-		ctx.fuel -= 10; // Fake IO is 'spensive!
-		return Promise.resolve(ctx);
-	}
-};
-
-
-function compileTokens( tokens:Token[], compilation:CompilationContext, sLoc:SourceLocation, skip:number=0 ) : Promise<Program> {
-	return new Promise( (resolve,reject) => {
-		const words = compilation.program;
-		for( let i=skip; i<tokens.length; ++i ) {
-			const token = tokens[i];
-			if( token.type == TokenType.COMMENT ) continue;
-			if( token.type == TokenType.DOUBLE_QUOTED ) {
-				words.push( {
-					name: "push literal string",
-					wordType: WordType.PUSH_VALUE,
-					forthRun: (ctx:RuntimeContext) => {
-						ctx.dataStack.push(token.text);
-						--ctx.fuel;
-						return Promise.resolve(ctx);
-					}
-				} );
-				continue;
-			}
-			
-			switch( token.text ) {
-			case 'echo':
-				words.push( echoWord );
-				break;
-			case 'urn:file1': case 'urn:file2':
-				words.push( {
-					name: "push URI reference "+token.text,
-					wordType: WordType.PUSH_URI_REF,
-					valueUri: token.text,
-					forthRun: (ctx:RuntimeContext) => Promise.reject("Can't interpret URI words at runtime")
-				} );
-				break;
-			case 'eval':
-				{
-					const prevWord = compilation.program[compilation.program.length-1];
-					if( prevWord.wordType == WordType.PUSH_URI_REF ) {
-						compilation.program.pop(); // We're going to replace it!
-						// Compile that thing,
-						compileRef( { uri: prevWord.valueUri }, compilation ).
-							// then continue compiling our thing
-							then( (_) => compileTokens(tokens, compilation, sLoc, i+1) ).
-							// And of course, when done...
-							then( (program) => resolve(program) );
-						return;
-					} else {
-						reject("Expected word before 'eval' to have a valueUri, but it does not.");
-						return;
-					}
-				}
-			default:
-				reject("Unrecognized word '"+token.text+"' "+atText(token.sourceLocation));
-				return;
-			}
-		}
-		
-		// Hey hey, we got to the end!
-		resolve( compilation.program );
-	} );
-}
-
-function compileSource( thing:string, compilation:CompilationContext, sLoc:SourceLocation ) : Promise<Program> {
-	// Otherwise it's a string
-	return new Promise( (resolve,reject) => {
-		const tokens:Token[] = [];
-		// TODO: Once this is working/committed,
-		// change it to work in source chunks
-		// (not have to wait for EOF to start compiling)
-		const tokenizer = new Tokenizer( {
-			token: (token) => tokens.push(token),
-			end: () => resolve( compileTokens( tokens, compilation, sLoc ) )
-		} );
-		tokenizer.text( <string>thing );
-		tokenizer.end();
-	} );
-}
-
-function compileRef( ref:URIRef, compilation:CompilationContext ) : Promise<Program> {
+function compileRef( ref:URIRef, compilation:CompilationContext ) : Promise<CompilationContext> {
 	return fetch(ref.uri).then( (resolved) => {
 		return compileSource(resolved, compilation, {
 			fileUri: ref.uri,
@@ -154,9 +66,39 @@ function runProgram( program:Program ) : Promise<RuntimeContext> {
 	} );
 }
 
-let compileCtx:CompilationContext = { program: [], fixups: {} };
-registerTestResult('AsyncCompilationTest - urn:file2 eval', compileRef( {uri: 'urn:file1'}, compileCtx ).then( (program) => {
-	return runProgram( program );
+const words : KeyedList<Word> = {
+	echo: <RuntimeWord>{
+		name: 'echo',
+		wordType: WordType.OTHER_RUNTIME,
+		forthRun: (ctx:RuntimeContext):Promise<RuntimeContext> => {
+			ctx.output.push(ctx.dataStack.pop());
+			ctx.fuel -= 10; // Fake IO is 'spensive!
+			return Promise.resolve(ctx);
+		}
+	},
+	eval: <CompilationWord>{
+		name: 'eval',
+		wordType: WordType.OTHER_COMPILETIME,
+		forthCompile: (compilation:CompilationContext):Promise<CompilationContext> => {
+			const prevWord = compilation.program[compilation.program.length-1];
+			if( prevWord.wordType == WordType.PUSH_URI_REF ) {
+				compilation.program.pop(); // We're going to replace it!
+				// Compile that thing,
+				return compileRef( { uri: prevWord.valueUri }, compilation );
+			} else {
+				return Promise.reject("Expected word before 'eval' to have a valueUri, but it does not.");
+			}
+		}
+	}
+};
+
+let compileCtx:CompilationContext = {
+	program: [],
+	words: words,
+	fixups: {}
+};
+registerTestResult('AsyncCompilationTest - urn:file2 eval', compileRef( {uri: 'urn:file1'}, compileCtx ).then( (compileCtx) => {
+	return runProgram( compileCtx.program );
 }).then( (ctx) => {
 	const res = ctx.output.join('');
 	assertEquals( 'foobarbaz', res );
