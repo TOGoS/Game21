@@ -25,10 +25,6 @@ export interface RuntimeWord extends Word {
 	forthRun( ctx:RuntimeContext ) : Promise<RuntimeContext>;
 }
 
-export interface URIRef {
-	uri: string
-}
-
 type FixupCallback<T> = (value:T, error:string)=>void;
 interface Fixup<T> {
 	value : T;

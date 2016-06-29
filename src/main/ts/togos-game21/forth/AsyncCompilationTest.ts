@@ -3,8 +3,9 @@
 import SourceLocation from './SourceLocation';
 import Token, {TokenType} from './Token';
 import Tokenizer from './Tokenizer';
+import URIRef from '../URIRef';
 import {
-	WordType, Word, RuntimeWord, CompilationWord, RuntimeContext, CompilationContext, Program, URIRef
+	WordType, Word, RuntimeWord, CompilationWord, RuntimeContext, CompilationContext, Program
 } from './rs1';
 import { registerTestResult, assertEquals } from '../testing';
 
