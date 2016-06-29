@@ -43,7 +43,6 @@ export interface CompilationContext {
 export interface RuntimeContext {
 	dataStack : any[];
 	returnStack : number[];
-	output : string[];
 	
 	fuel : number;
 	program : Program;
@@ -126,4 +125,12 @@ export function makeWordGetter( words:KeyedList<Word>, backup : (text:string)=>W
 		if( words[text] ) return words[text];
 		return backup(text);
 	}
+}
+
+/**
+ * Run a program until ip goes out of bounds or its fuel runs out
+ */
+export function runContext( ctx:RuntimeContext ):Promise<RuntimeContext> {
+	if( ctx.fuel <= 0 || ctx.ip >= ctx.program.length || ctx.ip < 0 ) return Promise.resolve(ctx);
+	return ctx.program[ctx.ip++].forthRun(ctx).then( runContext );
 }

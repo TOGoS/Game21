@@ -5,22 +5,16 @@ import Token, {TokenType} from './Token';
 import Tokenizer from './Tokenizer';
 import {
 	WordType, Word, RuntimeWord, CompilationWord, RuntimeContext, CompilationContext, Program,
-	compileSource, compileTokens, makeWordGetter
+	compileSource, compileTokens, makeWordGetter, runContext
 } from './rs1';
 import KeyedList from '../KeyedList';
 import URIRef from '../URIRef';
 import { TestResult, registerTestResult, assertEquals } from '../testing';
 
-function runContext( ctx:RuntimeContext ):Promise<RuntimeContext> {
-	if( ctx.ip >= ctx.program.length || ctx.ip < 0 ) return Promise.resolve(ctx);
-	return ctx.program[ctx.ip++].forthRun(ctx).then( runContext );
-}
-
 function runProgram( program:Program ) : Promise<RuntimeContext> {
 	return runContext( {
 		dataStack: [],
 		returnStack: [],
-		output: [],
 		program: program,
 		ip: 0,
 		fuel: 100,
@@ -32,6 +26,7 @@ const words : KeyedList<Word> = {
 		name: "+",
 		wordType: WordType.OTHER_RUNTIME,
 		forthRun: (ctx:RuntimeContext):Promise<RuntimeContext> => {
+			--ctx.fuel;
 			const b = ctx.dataStack.pop();
 			const a = ctx.dataStack.pop();
 			ctx.dataStack.push(a + b);
@@ -42,6 +37,7 @@ const words : KeyedList<Word> = {
 		name: "-",
 		wordType: WordType.OTHER_RUNTIME,
 		forthRun: (ctx:RuntimeContext):Promise<RuntimeContext> => {
+			--ctx.fuel;
 			const b = ctx.dataStack.pop();
 			const a = ctx.dataStack.pop();
 			ctx.dataStack.push(a - b);
@@ -52,6 +48,7 @@ const words : KeyedList<Word> = {
 		name: "*",
 		wordType: WordType.OTHER_RUNTIME,
 		forthRun: (ctx:RuntimeContext):Promise<RuntimeContext> => {
+			--ctx.fuel;
 			const b = ctx.dataStack.pop();
 			const a = ctx.dataStack.pop();
 			ctx.dataStack.push(a * b);
@@ -62,6 +59,7 @@ const words : KeyedList<Word> = {
 		name: "/",
 		wordType: WordType.OTHER_RUNTIME,
 		forthRun: (ctx:RuntimeContext):Promise<RuntimeContext> => {
+			--ctx.fuel;
 			const b = ctx.dataStack.pop();
 			const a = ctx.dataStack.pop();
 			ctx.dataStack.push(a / b);
@@ -72,6 +70,7 @@ const words : KeyedList<Word> = {
 		name: "dup",
 		wordType: WordType.OTHER_RUNTIME,
 		forthRun: (ctx:RuntimeContext):Promise<RuntimeContext> => {
+			--ctx.fuel;
 			const a = ctx.dataStack.pop();
 			ctx.dataStack.push(a);
 			ctx.dataStack.push(a);
@@ -82,6 +81,7 @@ const words : KeyedList<Word> = {
 		name: "drop",
 		wordType: WordType.OTHER_RUNTIME,
 		forthRun: (ctx:RuntimeContext):Promise<RuntimeContext> => {
+			--ctx.fuel;
 			ctx.dataStack.pop();
 			return Promise.resolve(ctx);
 		}
@@ -90,6 +90,7 @@ const words : KeyedList<Word> = {
 		name: "swap",
 		wordType: WordType.OTHER_RUNTIME,
 		forthRun: (ctx:RuntimeContext):Promise<RuntimeContext> => {
+			--ctx.fuel;
 			const b = ctx.dataStack.pop();
 			const a = ctx.dataStack.pop();
 			ctx.dataStack.push(b);
@@ -101,6 +102,7 @@ const words : KeyedList<Word> = {
 		name: "goto",
 		wordType: WordType.OTHER_RUNTIME,
 		forthRun: (ctx:RuntimeContext):Promise<RuntimeContext> => {
+			--ctx.fuel;
 			ctx.ip = ctx.dataStack.pop();
 			return Promise.resolve(ctx);
 		}
@@ -109,6 +111,7 @@ const words : KeyedList<Word> = {
 		name: "call",
 		wordType: WordType.OTHER_RUNTIME,
 		forthRun: (ctx:RuntimeContext):Promise<RuntimeContext> => {
+			--ctx.fuel;
 			ctx.returnStack.push(ctx.ip);
 			ctx.ip = ctx.dataStack.pop();
 			return Promise.resolve(ctx);
@@ -118,6 +121,7 @@ const words : KeyedList<Word> = {
 		name: "exit",
 		wordType: WordType.OTHER_RUNTIME,
 		forthRun: (ctx:RuntimeContext):Promise<RuntimeContext> => {
+			--ctx.fuel;
 			ctx.ip = ctx.returnStack.pop();
 			return Promise.resolve(ctx);
 		}
@@ -126,6 +130,7 @@ const words : KeyedList<Word> = {
 		name: "push-to-return-stack",
 		wordType: WordType.OTHER_RUNTIME,
 		forthRun: (ctx:RuntimeContext):Promise<RuntimeContext> => {
+			--ctx.fuel;
 			ctx.returnStack.push(ctx.dataStack.pop());
 			return Promise.resolve(ctx);
 		}
@@ -134,6 +139,7 @@ const words : KeyedList<Word> = {
 		name: "pop-from-return-stack",
 		wordType: WordType.OTHER_RUNTIME,
 		forthRun: (ctx:RuntimeContext):Promise<RuntimeContext> => {
+			--ctx.fuel;
 			ctx.dataStack.push(ctx.returnStack.pop());
 			return Promise.resolve(ctx);
 		}

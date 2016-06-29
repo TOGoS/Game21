@@ -5,7 +5,7 @@ import Token, {TokenType} from './Token';
 import Tokenizer from './Tokenizer';
 import {
 	WordType, Word, RuntimeWord, CompilationWord, RuntimeContext, CompilationContext, Program,
-	compileSource, compileTokens, makeWordGetter
+	compileSource, compileTokens, makeWordGetter, runContext
 } from './rs1';
 import KeyedList from '../KeyedList';
 import URIRef from '../URIRef';
@@ -51,16 +51,15 @@ function compileRef( ref:URIRef, compilation:CompilationContext ) : Promise<Comp
 	} );
 }
 
-function runContext( ctx:RuntimeContext ):Promise<RuntimeContext> {
-	if( ctx.ip >= ctx.program.length || ctx.ip < 0 ) return Promise.resolve(ctx);
-	return ctx.program[ctx.ip++].forthRun(ctx).then( runContext );
-}
+interface ACTRuntimeContext extends RuntimeContext {
+	output: string[]
+}			
 
 function runProgram( program:Program ) : Promise<RuntimeContext> {
-	return runContext( {
+	return runContext( <RuntimeContext>{
 		dataStack: [],
 		returnStack: [],
-		output: [],
+		output: <string[]>[],
 		program: program,
 		ip: 0,
 		fuel: 100,
@@ -72,7 +71,7 @@ const words : KeyedList<Word> = {
 		name: 'echo',
 		wordType: WordType.OTHER_RUNTIME,
 		forthRun: (ctx:RuntimeContext):Promise<RuntimeContext> => {
-			ctx.output.push(ctx.dataStack.pop());
+			(<ACTRuntimeContext>ctx).output.push(ctx.dataStack.pop());
 			ctx.fuel -= 10; // Fake IO is 'spensive!
 			return Promise.resolve(ctx);
 		}
@@ -111,7 +110,7 @@ let compileCtx:CompilationContext = {
 registerTestResult('AsyncCompilationTest - urn:file2 eval', compileRef( {uri: 'urn:file1'}, compileCtx ).then( (compileCtx) => {
 	return runProgram( compileCtx.program );
 }).then( (ctx) => {
-	const res = ctx.output.join('');
+	const res = (<ACTRuntimeContext>ctx).output.join('');
 	assertEquals( 'foobarbaz', res );
 	return { }
 }));
