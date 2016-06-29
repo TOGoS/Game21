@@ -42,6 +42,7 @@ export interface CompilationContext {
 
 export interface RuntimeContext {
 	dataStack : any[];
+	returnStack : number[];
 	output : string[];
 	
 	fuel : number;

@@ -59,6 +59,7 @@ function runContext( ctx:RuntimeContext ):Promise<RuntimeContext> {
 function runProgram( program:Program ) : Promise<RuntimeContext> {
 	return runContext( {
 		dataStack: [],
+		returnStack: [],
 		output: [],
 		program: program,
 		ip: 0,

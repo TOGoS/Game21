@@ -19,6 +19,7 @@ function runContext( ctx:RuntimeContext ):Promise<RuntimeContext> {
 function runProgram( program:Program ) : Promise<RuntimeContext> {
 	return runContext( {
 		dataStack: [],
+		returnStack: [],
 		output: [],
 		program: program,
 		ip: 0,
@@ -28,7 +29,7 @@ function runProgram( program:Program ) : Promise<RuntimeContext> {
 
 const words : KeyedList<Word> = {
 	"+": <RuntimeWord>{
-		name: '+',
+		name: "+",
 		wordType: WordType.OTHER_RUNTIME,
 		forthRun: (ctx:RuntimeContext):Promise<RuntimeContext> => {
 			const b = ctx.dataStack.pop();
@@ -38,7 +39,7 @@ const words : KeyedList<Word> = {
 		}
 	},
 	"-": <RuntimeWord>{
-		name: '-',
+		name: "-",
 		wordType: WordType.OTHER_RUNTIME,
 		forthRun: (ctx:RuntimeContext):Promise<RuntimeContext> => {
 			const b = ctx.dataStack.pop();
@@ -48,7 +49,7 @@ const words : KeyedList<Word> = {
 		}
 	},
 	"*": <RuntimeWord>{
-		name: '*',
+		name: "*",
 		wordType: WordType.OTHER_RUNTIME,
 		forthRun: (ctx:RuntimeContext):Promise<RuntimeContext> => {
 			const b = ctx.dataStack.pop();
@@ -58,7 +59,7 @@ const words : KeyedList<Word> = {
 		}
 	},
 	"/": <RuntimeWord>{
-		name: '/',
+		name: "/",
 		wordType: WordType.OTHER_RUNTIME,
 		forthRun: (ctx:RuntimeContext):Promise<RuntimeContext> => {
 			const b = ctx.dataStack.pop();
@@ -68,7 +69,7 @@ const words : KeyedList<Word> = {
 		}
 	},
 	"dup": <RuntimeWord>{
-		name: 'dup',
+		name: "dup",
 		wordType: WordType.OTHER_RUNTIME,
 		forthRun: (ctx:RuntimeContext):Promise<RuntimeContext> => {
 			const a = ctx.dataStack.pop();
@@ -78,7 +79,7 @@ const words : KeyedList<Word> = {
 		}
 	},
 	"drop": <RuntimeWord>{
-		name: 'drop',
+		name: "drop",
 		wordType: WordType.OTHER_RUNTIME,
 		forthRun: (ctx:RuntimeContext):Promise<RuntimeContext> => {
 			ctx.dataStack.pop();
@@ -86,13 +87,38 @@ const words : KeyedList<Word> = {
 		}
 	},
 	"swap": <RuntimeWord>{
-		name: 'swap',
+		name: "swap",
 		wordType: WordType.OTHER_RUNTIME,
 		forthRun: (ctx:RuntimeContext):Promise<RuntimeContext> => {
 			const b = ctx.dataStack.pop();
 			const a = ctx.dataStack.pop();
 			ctx.dataStack.push(b);
 			ctx.dataStack.push(a);
+			return Promise.resolve(ctx);
+		}
+	},
+	"goto": <RuntimeWord>{
+		name: "goto",
+		wordType: WordType.OTHER_RUNTIME,
+		forthRun: (ctx:RuntimeContext):Promise<RuntimeContext> => {
+			ctx.ip = ctx.dataStack.pop();
+			return Promise.resolve(ctx);
+		}
+	},
+	"call": <RuntimeWord>{
+		name: "call",
+		wordType: WordType.OTHER_RUNTIME,
+		forthRun: (ctx:RuntimeContext):Promise<RuntimeContext> => {
+			ctx.returnStack.push(ctx.ip);
+			ctx.ip = ctx.dataStack.pop();
+			return Promise.resolve(ctx);
+		}
+	},
+	"exit": <RuntimeWord>{
+		name: "exit",
+		wordType: WordType.OTHER_RUNTIME,
+		forthRun: (ctx:RuntimeContext):Promise<RuntimeContext> => {
+			ctx.ip = ctx.returnStack.pop();
 			return Promise.resolve(ctx);
 		}
 	},
@@ -129,7 +155,11 @@ function registerResultStackTest( name:string, s:any[], source:string ) {
 			return { }
 		});
 
-	registerTestResult('RegularStuffTest - '+name, res);
+	registerTestResult("RegularStuffTest - "+name, res);
 }
 
+registerResultStackTest( "stack ops", [1, 3, 2, 2], "1 2 3 4 drop swap dup" );
 registerResultStackTest( "basic arithmetic", [-3, -1.5], "1 2 + 3 4 - * dup 2 /" );
+
+registerResultStackTest( "goto", [1, 2, 3, 4], "1 2 7 goto 6 6 6 3 4" );
+registerResultStackTest( "call", [1, 2, 3, 4, 5, 6], "1 2 8 call 5 6 -1 goto 3 4 exit" );
