@@ -3,6 +3,9 @@
 import SourceLocation from './SourceLocation';
 import Token, {TokenType} from './Token';
 import Tokenizer from './Tokenizer';
+import {
+	WordType, Word, RuntimeWord, CompilationWord, RuntimeContext, CompilationContext, Program, Ref
+} from './rs1';
 import { registerTestResult, assertEquals } from '../testing';
 
 /*
@@ -20,58 +23,6 @@ import { registerTestResult, assertEquals } from '../testing';
  *
  * Result should be "foobarbaz"
  */
-
-interface Ref {
-	ref: string
-}
-
-type FixupCallback<T> = (value:T, error:string)=>void;
-interface Fixup<T> {
-	value: T,
-	references: FixupCallback<T>[];
-}
-
-interface CompilationContext {
-	program : Word[];
-}
-
-interface RuntimeContext {
-	dataStack: any[];
-	output: string[];
-	
-	fuel: number;
-	program: Program;
-	ip: number;
-}
-
-enum WordType {
-	PUSH_VALUE,
-	PUSH_URI_REF,
-	OTHER_COMPILETIME,
-	OTHER_RUNTIME
-}
-
-interface Word {
-	name : string,
-	wordType : WordType,
-}
-
-interface CompilationWord extends Word {
-	forthCompile( ctx:CompilationContext ) : Promise<CompilationContext>;
-}
-
-interface RuntimeWord extends Word {
-	/** When this is a 'push literal value' word. */
-	value? : any;
-	valueUri? : string;
-	forthRun( ctx:RuntimeContext ) : Promise<RuntimeContext>;
-}
-
-type Program = RuntimeWord[];
-
-interface ProgramCompilation {
-	program : Program
-}
 
 function fetch( ref:string ):Promise<string> {
 	return new Promise( (resolve,reject) => {
@@ -102,7 +53,7 @@ const echoWord = {
 };
 
 
-function compileTokens( tokens:Token[], compilation:ProgramCompilation, sLoc:SourceLocation, skip:number=0 ) : Promise<Program> {
+function compileTokens( tokens:Token[], compilation:CompilationContext, sLoc:SourceLocation, skip:number=0 ) : Promise<Program> {
 	return new Promise( (resolve,reject) => {
 		const words = compilation.program;
 		for( let i=skip; i<tokens.length; ++i ) {
@@ -112,7 +63,7 @@ function compileTokens( tokens:Token[], compilation:ProgramCompilation, sLoc:Sou
 				words.push( {
 					name: "push literal string",
 					wordType: WordType.PUSH_VALUE,
-					forthRun: (ctx) => {
+					forthRun: (ctx:RuntimeContext) => {
 						ctx.dataStack.push(token.text);
 						--ctx.fuel;
 						return Promise.resolve(ctx);
@@ -130,7 +81,7 @@ function compileTokens( tokens:Token[], compilation:ProgramCompilation, sLoc:Sou
 					name: "push URI reference "+token.text,
 					wordType: WordType.PUSH_URI_REF,
 					valueUri: token.text,
-					forthRun: (ctx) => Promise.reject("Can't interpret URI words at runtime")
+					forthRun: (ctx:RuntimeContext) => Promise.reject("Can't interpret URI words at runtime")
 				} );
 				break;
 			case 'eval':
@@ -161,7 +112,7 @@ function compileTokens( tokens:Token[], compilation:ProgramCompilation, sLoc:Sou
 	} );
 }
 
-function compileSource( thing:string, compilation:ProgramCompilation, sLoc:SourceLocation ) : Promise<Program> {
+function compileSource( thing:string, compilation:CompilationContext, sLoc:SourceLocation ) : Promise<Program> {
 	// Otherwise it's a string
 	return new Promise( (resolve,reject) => {
 		const tokens:Token[] = [];
@@ -177,7 +128,7 @@ function compileSource( thing:string, compilation:ProgramCompilation, sLoc:Sourc
 	} );
 }
 
-function compileRef( ref:Ref, compilation:ProgramCompilation ) : Promise<Program> {
+function compileRef( ref:Ref, compilation:CompilationContext ) : Promise<Program> {
 	return fetch(ref.ref).then( (resolved) => {
 		return compileSource(resolved, compilation, {
 			fileUri: ref.ref,
@@ -202,7 +153,8 @@ function runProgram( program:Program ) : Promise<RuntimeContext> {
 	} );
 }
 
-registerTestResult('AsyncCompilationTest - urn:file2 eval', compileRef( {ref: 'urn:file1'}, { program: [] } ).then( (program) => {
+let compileCtx:CompilationContext = { program: [], fixups: {} };
+registerTestResult('AsyncCompilationTest - urn:file2 eval', compileRef( {ref: 'urn:file1'}, compileCtx ).then( (program) => {
 	return runProgram( program );
 }).then( (ctx) => {
 	const res = ctx.output.join('');
