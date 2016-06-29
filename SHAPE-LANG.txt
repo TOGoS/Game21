@@ -17,7 +17,7 @@ include urn:sha1:BLAHBLAHBLAH # Include another script as if its contents were t
 
 123 $my-context-variable !   # Store 123 into $my-context-variable
 $my-context-variable @       # Load the value of $my-context-variable onto the stack
-my-context-variable          # Shorthand for 
+my-context-variable          # Shorthand for $my-context-variable @
 
 ### Functions, control structures
 
@@ -25,10 +25,10 @@ my-context-variable          # Shorthand for
 : my-label : my-other-label  ; # : really just defines a label for a point in the code
 
 my-function                    # Call my-function
-:my-function                   # Get the address of my-function or label
+$my-function                   # Get the address of my-function or label
 
-x :my-label jz                 # Jump to my-label if x is zero
-x :my-label jnz                # Jump to my-label if x is non-zero
+x $my-label jz                 # Jump to my-label if x is zero
+x $my-label jnz                # Jump to my-label if x is non-zero
 
 # Standard if/else/then and case/of/endof/endcase from forth
 
