@@ -4,7 +4,7 @@ import SourceLocation from './SourceLocation';
 import Token, {TokenType} from './Token';
 import Tokenizer from './Tokenizer';
 import {
-	WordType, Word, RuntimeWord, CompilationWord, RuntimeContext, CompilationContext, Program, Ref
+	WordType, Word, RuntimeWord, CompilationWord, RuntimeContext, CompilationContext, Program, URIRef
 } from './rs1';
 import { registerTestResult, assertEquals } from '../testing';
 
@@ -90,7 +90,7 @@ function compileTokens( tokens:Token[], compilation:CompilationContext, sLoc:Sou
 					if( prevWord.wordType == WordType.PUSH_URI_REF ) {
 						compilation.program.pop(); // We're going to replace it!
 						// Compile that thing,
-						compileRef( { ref: prevWord.valueUri }, compilation ).
+						compileRef( { uri: prevWord.valueUri }, compilation ).
 							// then continue compiling our thing
 							then( (_) => compileTokens(tokens, compilation, sLoc, i+1) ).
 							// And of course, when done...
@@ -128,10 +128,10 @@ function compileSource( thing:string, compilation:CompilationContext, sLoc:Sourc
 	} );
 }
 
-function compileRef( ref:Ref, compilation:CompilationContext ) : Promise<Program> {
-	return fetch(ref.ref).then( (resolved) => {
+function compileRef( ref:URIRef, compilation:CompilationContext ) : Promise<Program> {
+	return fetch(ref.uri).then( (resolved) => {
 		return compileSource(resolved, compilation, {
-			fileUri: ref.ref,
+			fileUri: ref.uri,
 			lineNumber: 1,
 			columnNumber: 1
 		})
@@ -154,7 +154,7 @@ function runProgram( program:Program ) : Promise<RuntimeContext> {
 }
 
 let compileCtx:CompilationContext = { program: [], fixups: {} };
-registerTestResult('AsyncCompilationTest - urn:file2 eval', compileRef( {ref: 'urn:file1'}, compileCtx ).then( (program) => {
+registerTestResult('AsyncCompilationTest - urn:file2 eval', compileRef( {uri: 'urn:file1'}, compileCtx ).then( (program) => {
 	return runProgram( program );
 }).then( (ctx) => {
 	const res = ctx.output.join('');
