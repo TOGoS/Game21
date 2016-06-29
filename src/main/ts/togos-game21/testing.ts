@@ -18,7 +18,7 @@ export function fail( message:string ):void {
 export function assertEquals( a:any, b:any, msg?:string ):void {
 	const aJson = JSON.stringify(a);
 	const bJson = JSON.stringify(b);
-	if( a != b ) {
+	if( aJson != bJson ) {
 		fail( "Assertion failed: " + aJson + " != " + bJson + (msg ? "; "+msg : "") );
 	}
 };
