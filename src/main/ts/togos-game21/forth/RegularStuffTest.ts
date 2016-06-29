@@ -122,6 +122,22 @@ const words : KeyedList<Word> = {
 			return Promise.resolve(ctx);
 		}
 	},
+	">r": <RuntimeWord>{
+		name: "push-to-return-stack",
+		wordType: WordType.OTHER_RUNTIME,
+		forthRun: (ctx:RuntimeContext):Promise<RuntimeContext> => {
+			ctx.returnStack.push(ctx.dataStack.pop());
+			return Promise.resolve(ctx);
+		}
+	},
+	"r>": <RuntimeWord>{
+		name: "pop-from-return-stack",
+		wordType: WordType.OTHER_RUNTIME,
+		forthRun: (ctx:RuntimeContext):Promise<RuntimeContext> => {
+			ctx.dataStack.push(ctx.returnStack.pop());
+			return Promise.resolve(ctx);
+		}
+	},
 };
 
 const wordGetter = makeWordGetter( words, (text:string) => {
@@ -163,3 +179,5 @@ registerResultStackTest( "basic arithmetic", [-3, -1.5], "1 2 + 3 4 - * dup 2 /"
 
 registerResultStackTest( "goto", [1, 2, 3, 4], "1 2 7 goto 6 6 6 3 4" );
 registerResultStackTest( "call", [1, 2, 3, 4, 5, 6], "1 2 8 call 5 6 -1 goto 3 4 exit" );
+
+registerResultStackTest( "mess with return stack", [3, 4, 7, 8], "13 >r 7 >r exit 1 2 3 4 r> goto 5 6 7 8" );
