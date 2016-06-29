@@ -31,6 +31,10 @@ interface Fixup<T> {
 	references: FixupCallback<T>[];
 }
 
+interface CompilationContext {
+	program : Word[];
+}
+
 interface RuntimeContext {
 	dataStack: any[];
 	output: string[];
@@ -40,15 +44,33 @@ interface RuntimeContext {
 	ip: number;
 }
 
-interface Word {
-	valueUri?: string;
-	invoke( ctx:RuntimeContext ) : Promise<RuntimeContext>;
+enum WordType {
+	PUSH_VALUE,
+	PUSH_URI_REF,
+	OTHER_COMPILETIME,
+	OTHER_RUNTIME
 }
 
-type Program = Word[];
+interface Word {
+	name : string,
+	wordType : WordType,
+}
+
+interface CompilationWord extends Word {
+	forthCompile( ctx:CompilationContext ) : Promise<CompilationContext>;
+}
+
+interface RuntimeWord extends Word {
+	/** When this is a 'push literal value' word. */
+	value? : any;
+	valueUri? : string;
+	forthRun( ctx:RuntimeContext ) : Promise<RuntimeContext>;
+}
+
+type Program = RuntimeWord[];
 
 interface ProgramCompilation {
-	program: Program
+	program : Program
 }
 
 function fetch( ref:string ):Promise<string> {
@@ -69,6 +91,17 @@ function atText( sl:SourceLocation ) {
 	return "at "+sl.fileUri+":"+sl.lineNumber+","+sl.columnNumber;
 }
 
+const echoWord = {
+	name: 'echo',
+	wordType: WordType.OTHER_RUNTIME,
+	forthRun: (ctx:RuntimeContext) => {
+		ctx.output.push(ctx.dataStack.pop());
+		ctx.fuel -= 10; // Fake IO is 'spensive!
+		return Promise.resolve(ctx);
+	}
+};
+
+
 function compileTokens( tokens:Token[], compilation:ProgramCompilation, sLoc:SourceLocation, skip:number=0 ) : Promise<Program> {
 	return new Promise( (resolve,reject) => {
 		const words = compilation.program;
@@ -76,32 +109,34 @@ function compileTokens( tokens:Token[], compilation:ProgramCompilation, sLoc:Sou
 			const token = tokens[i];
 			if( token.type == TokenType.COMMENT ) continue;
 			if( token.type == TokenType.DOUBLE_QUOTED ) {
-				words.push( { invoke: (ctx) => {
-					ctx.dataStack.push(token.text);
-					--ctx.fuel;
-					return Promise.resolve(ctx);
-				} } );
+				words.push( {
+					name: "push literal string",
+					wordType: WordType.PUSH_VALUE,
+					forthRun: (ctx) => {
+						ctx.dataStack.push(token.text);
+						--ctx.fuel;
+						return Promise.resolve(ctx);
+					}
+				} );
 				continue;
 			}
 			
 			switch( token.text ) {
 			case 'echo':
-				words.push( { invoke: (ctx) => {
-					ctx.output.push(ctx.dataStack.pop());
-					ctx.fuel -= 10; // Fake IO is 'spensive!
-					return Promise.resolve(ctx);
-				} } );
+				words.push( echoWord );
 				break;
 			case 'urn:file1': case 'urn:file2':
 				words.push( {
+					name: "push URI reference "+token.text,
+					wordType: WordType.PUSH_URI_REF,
 					valueUri: token.text,
-					invoke: (ctx) => Promise.reject("Can't interpret URI words at runtime")
+					forthRun: (ctx) => Promise.reject("Can't interpret URI words at runtime")
 				} );
 				break;
 			case 'eval':
 				{
 					const prevWord = compilation.program[compilation.program.length-1];
-					if( prevWord.valueUri ) {
+					if( prevWord.wordType == WordType.PUSH_URI_REF ) {
 						compilation.program.pop(); // We're going to replace it!
 						// Compile that thing,
 						compileRef( { ref: prevWord.valueUri }, compilation ).
@@ -154,7 +189,7 @@ function compileRef( ref:Ref, compilation:ProgramCompilation ) : Promise<Program
 
 function runContext( ctx:RuntimeContext ):Promise<RuntimeContext> {
 	if( ctx.ip >= ctx.program.length || ctx.ip < 0 ) return Promise.resolve(ctx);
-	return ctx.program[ctx.ip++].invoke(ctx).then( runContext );
+	return ctx.program[ctx.ip++].forthRun(ctx).then( runContext );
 }
 
 function runProgram( program:Program ) : Promise<RuntimeContext> {
