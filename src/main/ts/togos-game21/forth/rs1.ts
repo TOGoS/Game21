@@ -36,7 +36,7 @@ interface Fixup<T> {
 
 export interface CompilationContext {
 	program : Program;
-	words : KeyedList<Word>;
+	getWord : (text:string) => Word;
 	fixups : KeyedList<Fixup<number>>
 }
 
@@ -74,37 +74,27 @@ export function compileTokens( tokens:Token[], compilation:CompilationContext, s
 				continue;
 			}
 			
-			const word = compilation.words[token.text];
-			if( word != null ) {
-				switch( word.wordType ) {
-				case WordType.PUSH_VALUE:
-				case WordType.PUSH_URI_REF:
-				case WordType.OTHER_RUNTIME:
-					program.push( <RuntimeWord>word );
-					continue;
-				case WordType.OTHER_COMPILETIME:
-					resolve(
-						(<CompilationWord>word).forthCompile(compilation).
-							// then continue compiling our thing
-							then( (_) => compileTokens(tokens, compilation, sLoc, i+1) )
-					);
-					return;
-				default:
-					throw new Error("Bad word type: "+word.wordType);
-				}
+			const word = compilation.getWord(token.text);
+			if( word == null ) {
+				reject("Unrecognized word '"+token.text+"' "+atText(token.sourceLocation));
+				return;
 			}
 			
-			switch( token.text ) {
-			case 'urn:file1': case 'urn:file2':
-				program.push( {
-					name: "push URI reference "+token.text,
-					wordType: WordType.PUSH_URI_REF,
-					valueUri: token.text,
-					forthRun: (ctx:RuntimeContext) => Promise.reject("Can't interpret URI words at runtime")
-				} );
-				break;
+			switch( word.wordType ) {
+			case WordType.PUSH_VALUE:
+			case WordType.PUSH_URI_REF:
+			case WordType.OTHER_RUNTIME:
+				program.push( <RuntimeWord>word );
+				continue;
+			case WordType.OTHER_COMPILETIME:
+				resolve(
+					(<CompilationWord>word).forthCompile(compilation).
+						// then continue compiling our thing
+						then( (_) => compileTokens(tokens, compilation, sLoc, i+1) )
+				);
+				return;
 			default:
-				reject("Unrecognized word '"+token.text+"' "+atText(token.sourceLocation));
+				reject("Bad word type: "+word.wordType);
 				return;
 			}
 		}
@@ -128,4 +118,11 @@ export function compileSource( source:string, compilation:CompilationContext, sL
 		tokenizer.text( <string>source );
 		tokenizer.end();
 	} );
+}
+
+export function makeWordGetter( words:KeyedList<Word>, backup : (text:string)=>Word ) {
+	return (text:string) => {
+		if( words[text] ) return words[text];
+		return backup(text);
+	}
 }

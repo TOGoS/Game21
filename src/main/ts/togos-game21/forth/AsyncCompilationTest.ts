@@ -5,7 +5,7 @@ import Token, {TokenType} from './Token';
 import Tokenizer from './Tokenizer';
 import {
 	WordType, Word, RuntimeWord, CompilationWord, RuntimeContext, CompilationContext, Program,
-	compileSource, compileTokens
+	compileSource, compileTokens, makeWordGetter
 } from './rs1';
 import KeyedList from '../KeyedList';
 import URIRef from '../URIRef';
@@ -94,7 +94,17 @@ const words : KeyedList<Word> = {
 
 let compileCtx:CompilationContext = {
 	program: [],
-	words: words,
+	getWord : makeWordGetter( words, (text:string) => {
+		if( /^urn:/.test(text) ) {
+			return {
+				name: text,
+				wordType: WordType.PUSH_URI_REF,
+				valueUri: text,
+				forthRun: (ctx:RuntimeContext) => Promise.reject("Can't fetch URI at runtime")
+			};
+		}
+		return null;
+	}),
 	fixups: {}
 };
 registerTestResult('AsyncCompilationTest - urn:file2 eval', compileRef( {uri: 'urn:file1'}, compileCtx ).then( (compileCtx) => {
