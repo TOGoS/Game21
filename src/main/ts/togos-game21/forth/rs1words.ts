@@ -2,7 +2,7 @@
 
 import KeyedList from '../KeyedList';
 import {
-	Word, WordType, RuntimeWord, CompilationWord, RuntimeContext, CompilationContext, Program
+	Word, WordType, RuntimeWord, CompilationWord, RuntimeContext, CompilationContext, Program, WordGetter
 } from './rs1';
 
 export const arithmeticWords : KeyedList<Word> = {
@@ -138,6 +138,17 @@ export const rsWords:KeyedList<Word> = {
 		}
 	},
 };
+
+export function makeWordGetter( words:KeyedList<Word>, ...backups : WordGetter[] ) : WordGetter {
+	return (text:string) => {
+		if( words[text] ) return words[text];
+		for( let b in backups ) {
+			let w = backups[b](text);
+			if( w != null ) return w;
+		}
+		return null;
+	}
+}
 
 export function mergeDicts<T>(...dicts:KeyedList<T>[]):KeyedList<T> {
 	const z:KeyedList<T> = {};

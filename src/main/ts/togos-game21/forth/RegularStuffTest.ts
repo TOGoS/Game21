@@ -5,9 +5,9 @@ import Token, {TokenType} from './Token';
 import Tokenizer from './Tokenizer';
 import {
 	WordType, Word, RuntimeWord, CompilationWord, RuntimeContext, CompilationContext, Program,
-	compileSource, compileTokens, makeWordGetter, runContext
+	compileSource, compileTokens, runContext
 } from './rs1';
-import { standardWords, parseNumberWord } from './rs1words';
+import { standardWords, makeWordGetter, parseNumberWord } from './rs1words';
 import KeyedList from '../KeyedList';
 import URIRef from '../URIRef';
 import { TestResult, registerTestResult, assertEquals } from '../testing';

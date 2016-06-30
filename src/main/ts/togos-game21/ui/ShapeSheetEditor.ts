@@ -12,6 +12,13 @@ import ShapeSheetRenderer from '../ShapeSheetRenderer';
 import ShapeSheetUtil from '../ShapeSheetUtil';
 import { DEFAULT_MATERIAL_MAP } from '../materials';
 import { DEFAULT_LIGHTS } from '../lights';
+import {
+	Word, WordType, Program, RuntimeWord, RuntimeContext, CompilationContext,
+	compileSource, runContext
+} from '../forth/rs1'
+import {
+	makeWordGetter, standardWords, mergeDicts, parseNumberWord
+} from '../forth/rs1words';
 
 interface ViewAnimationSettings {
 	animationSpeed : number; // change in t per second
@@ -195,11 +202,38 @@ class ShapeViewSet {
 	}
 }
 
+interface ShapeGeneratorContext extends RuntimeContext {
+	shapeSheetUtil : ShapeSheetUtil;
+	contextValues : KeyedList<any>;
+	transform : TransformationMatrix3D;
+}
+
+const customWords : KeyedList<Word> = {
+	"plot-sphere": <RuntimeWord> {
+		name: "plot-sphere",
+		wordType: WordType.OTHER_RUNTIME,
+		forthRun: <RuntimeWord> (ctx:RuntimeContext) => {
+			(<ShapeGeneratorContext>ctx).shapeSheetUtil.plotSphere( 10, 10, 10, 10 );
+			return Promise.resolve(ctx);
+		}
+	},
+	"move": <RuntimeWord> {
+		name: "move",
+		wordType: WordType.OTHER_RUNTIME,
+		forthRun: <RuntimeWord> (ctx:RuntimeContext) => {
+			// TODO
+			return Promise.resolve(ctx);
+		}
+	},
+}
+
 export default class ShapeSheetEditor
 {
 	protected viewSet:ShapeViewSet = new ShapeViewSet();
 	protected scriptBox:HTMLTextAreaElement;
 	protected messageBox:HTMLElement;
+	protected program:Program;
+	protected rendering:boolean = false;
 	
 	protected printMessage( text:string, className:string ) {
 		let elem = document.createElement('p');
@@ -209,11 +243,30 @@ export default class ShapeSheetEditor
 		this.messageBox.scrollTop = this.messageBox.scrollHeight;
 	}
 	
+	protected compile(script:string) : Promise<CompilationContext> {
+		const ctx : CompilationContext = {
+			getWord: makeWordGetter( mergeDicts(standardWords, customWords), parseNumberWord ),
+			program: [],
+			fixups: {}
+		};
+		const sLoc = {
+			fileUri: 'new-script',
+			lineNumber: 1,
+			columnNumber: 1,
+		}
+		return compileSource( script, ctx, sLoc );
+	}
+	
 	public initUi():void {
 		this.scriptBox = <HTMLTextAreaElement>document.getElementById('script-text');
 		this.messageBox = <HTMLElement>document.getElementById('messages');
 		document.getElementById('reload-button').addEventListener('click', () => {
-			this.printMessage( this.scriptBox.value, 'debug' );
+			this.compile( this.scriptBox.value ).then( (ctx:CompilationContext) => {
+				this.program = ctx.program;
+				console.log("Compiled!", this.program.length+" words");
+			}).catch( (err) => {
+				console.error('Failed to compile!', err);
+			});
 		});
 		document.getElementById('save-button').addEventListener('click', () => {
 			this.printMessage( "Saving not yet implemented", 'error' );
@@ -228,6 +281,31 @@ export default class ShapeSheetEditor
 			isAnimated: true,
 			estimateOuterBounds: (t, xf) => new Rectangle( -1, -1, 1, 1 ), // This gets ignored; we just use the whole canvas
 			draw: (ssu, t, xf) => {
+				
+				const prog = this.program == null ? [] : this.program;
+				
+				const ctx : ShapeGeneratorContext = {
+					program: prog,
+					dataStack: [],
+					returnStack: [],
+					ip: 0,
+					fuel: 1000,
+					shapeSheetUtil: ssu,
+					contextValues: {
+						t: t
+					},
+					transform: xf
+				}
+				
+				ssu.plottedMaterialIndexFunction = (x,y,z) => 4;
+				this.rendering = true;
+				runContext( ctx ).then( (ctx) => {
+					this.rendering = false
+				}).catch( (err) => {
+					console.error("Failed to run program", err);
+				});
+				
+				/*
 				let pos:Vector3D = new Vector3D;
 				
 				ssu.plottedMaterialIndexFunction = (x,y,z) => 4;
@@ -242,6 +320,7 @@ export default class ShapeSheetEditor
 					xf.multiplyVector( new Vector3D(x,y,0), pos );
 					ssu.plotSphere( pos.x, pos.y, pos.z, xf.scale * (0.25 + 0.1 * Math.sin(t * Math.PI)) );
 				}
+				*/
 			}
 		}
 		
