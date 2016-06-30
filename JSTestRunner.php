@@ -40,7 +40,7 @@
 	var debugElem = document.getElementById('debug');
 	var testNameElem = document.getElementById('test-name');
 	var dotsElem = document.getElementById('running-dots');
-	var debugLines = ["Tests: "+testModNames.join(', '), ''];
+	var debugLines = ["Tests:\n\t"+testModNames.join(",\n\t"), ''];
 	var updateDebugText = function(line) {
 		if( line != null ) debugLines.push(line);
 		debugElem.firstChild.nodeValue = debugLines.join("\n");
