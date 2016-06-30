@@ -149,4 +149,23 @@ export function mergeDicts<T>(...dicts:KeyedList<T>[]):KeyedList<T> {
 	return z;
 }
 
+export function literalValueWord( v:any ) : RuntimeWord {
+	return {
+		name: ""+v,
+		wordType: WordType.PUSH_VALUE,
+		value: v,
+		forthRun: function(ctx:RuntimeContext) {
+			ctx.dataStack.push(this.value);
+			return Promise.resolve(ctx)
+		}
+	};
+}
+
+export function parseNumberWord( text:string ) : RuntimeWord {
+	if( /^[+-]?\d+$/.test(text) ) {
+		return literalValueWord( +text );
+	}
+	return null;
+}
+
 export const standardWords = mergeDicts(arithmeticWords, stackWords, jumpWords, rsWords);

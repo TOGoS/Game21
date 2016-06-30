@@ -120,10 +120,16 @@ export function compileSource( source:string, compilation:CompilationContext, sL
 	} );
 }
 
-export function makeWordGetter( words:KeyedList<Word>, backup : (text:string)=>Word ) {
+export type WordGetter = (text:string)=>Word;
+
+export function makeWordGetter( words:KeyedList<Word>, ...backups : WordGetter[] ) : WordGetter {
 	return (text:string) => {
 		if( words[text] ) return words[text];
-		return backup(text);
+		for( let b in backups ) {
+			let w = backups[b](text);
+			if( w != null ) return w;
+		}
+		return null;
 	}
 }
 

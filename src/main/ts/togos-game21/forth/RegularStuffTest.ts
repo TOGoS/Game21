@@ -7,7 +7,7 @@ import {
 	WordType, Word, RuntimeWord, CompilationWord, RuntimeContext, CompilationContext, Program,
 	compileSource, compileTokens, makeWordGetter, runContext
 } from './rs1';
-import { standardWords } from './rs1words';
+import { standardWords, parseNumberWord } from './rs1words';
 import KeyedList from '../KeyedList';
 import URIRef from '../URIRef';
 import { TestResult, registerTestResult, assertEquals } from '../testing';
@@ -22,21 +22,7 @@ function runProgram( program:Program ) : Promise<RuntimeContext> {
 	} );
 }
 
-const wordGetter = makeWordGetter( standardWords, (text:string) => {
-	if( /^[+-]?\d+$/.test(text) ) {
-		return {
-			name: text,
-			wordType: WordType.PUSH_VALUE,
-			value: +text,
-			forthRun: function(ctx:RuntimeContext) {
-				ctx.dataStack.push(this.value);
-				return Promise.resolve(ctx)
-			}
-		};
-	}
-	return null;
-});
-
+const wordGetter = makeWordGetter( standardWords, parseNumberWord );
 
 function registerResultStackTest( name:string, s:any[], source:string ) {
 	const compileCtx:CompilationContext = {
