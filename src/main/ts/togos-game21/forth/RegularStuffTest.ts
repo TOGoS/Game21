@@ -7,6 +7,7 @@ import {
 	WordType, Word, RuntimeWord, CompilationWord, RuntimeContext, CompilationContext, Program,
 	compileSource, compileTokens, makeWordGetter, runContext
 } from './rs1';
+import { standardWords } from './rs1words';
 import KeyedList from '../KeyedList';
 import URIRef from '../URIRef';
 import { TestResult, registerTestResult, assertEquals } from '../testing';
@@ -21,132 +22,7 @@ function runProgram( program:Program ) : Promise<RuntimeContext> {
 	} );
 }
 
-const words : KeyedList<Word> = {
-	"+": <RuntimeWord>{
-		name: "+",
-		wordType: WordType.OTHER_RUNTIME,
-		forthRun: (ctx:RuntimeContext):Promise<RuntimeContext> => {
-			--ctx.fuel;
-			const b = ctx.dataStack.pop();
-			const a = ctx.dataStack.pop();
-			ctx.dataStack.push(a + b);
-			return Promise.resolve(ctx);
-		}
-	},
-	"-": <RuntimeWord>{
-		name: "-",
-		wordType: WordType.OTHER_RUNTIME,
-		forthRun: (ctx:RuntimeContext):Promise<RuntimeContext> => {
-			--ctx.fuel;
-			const b = ctx.dataStack.pop();
-			const a = ctx.dataStack.pop();
-			ctx.dataStack.push(a - b);
-			return Promise.resolve(ctx);
-		}
-	},
-	"*": <RuntimeWord>{
-		name: "*",
-		wordType: WordType.OTHER_RUNTIME,
-		forthRun: (ctx:RuntimeContext):Promise<RuntimeContext> => {
-			--ctx.fuel;
-			const b = ctx.dataStack.pop();
-			const a = ctx.dataStack.pop();
-			ctx.dataStack.push(a * b);
-			return Promise.resolve(ctx);
-		}
-	},
-	"/": <RuntimeWord>{
-		name: "/",
-		wordType: WordType.OTHER_RUNTIME,
-		forthRun: (ctx:RuntimeContext):Promise<RuntimeContext> => {
-			--ctx.fuel;
-			const b = ctx.dataStack.pop();
-			const a = ctx.dataStack.pop();
-			ctx.dataStack.push(a / b);
-			return Promise.resolve(ctx);
-		}
-	},
-	"dup": <RuntimeWord>{
-		name: "dup",
-		wordType: WordType.OTHER_RUNTIME,
-		forthRun: (ctx:RuntimeContext):Promise<RuntimeContext> => {
-			--ctx.fuel;
-			const a = ctx.dataStack.pop();
-			ctx.dataStack.push(a);
-			ctx.dataStack.push(a);
-			return Promise.resolve(ctx);
-		}
-	},
-	"drop": <RuntimeWord>{
-		name: "drop",
-		wordType: WordType.OTHER_RUNTIME,
-		forthRun: (ctx:RuntimeContext):Promise<RuntimeContext> => {
-			--ctx.fuel;
-			ctx.dataStack.pop();
-			return Promise.resolve(ctx);
-		}
-	},
-	"swap": <RuntimeWord>{
-		name: "swap",
-		wordType: WordType.OTHER_RUNTIME,
-		forthRun: (ctx:RuntimeContext):Promise<RuntimeContext> => {
-			--ctx.fuel;
-			const b = ctx.dataStack.pop();
-			const a = ctx.dataStack.pop();
-			ctx.dataStack.push(b);
-			ctx.dataStack.push(a);
-			return Promise.resolve(ctx);
-		}
-	},
-	"goto": <RuntimeWord>{
-		name: "goto",
-		wordType: WordType.OTHER_RUNTIME,
-		forthRun: (ctx:RuntimeContext):Promise<RuntimeContext> => {
-			--ctx.fuel;
-			ctx.ip = ctx.dataStack.pop();
-			return Promise.resolve(ctx);
-		}
-	},
-	"call": <RuntimeWord>{
-		name: "call",
-		wordType: WordType.OTHER_RUNTIME,
-		forthRun: (ctx:RuntimeContext):Promise<RuntimeContext> => {
-			--ctx.fuel;
-			ctx.returnStack.push(ctx.ip);
-			ctx.ip = ctx.dataStack.pop();
-			return Promise.resolve(ctx);
-		}
-	},
-	"exit": <RuntimeWord>{
-		name: "exit",
-		wordType: WordType.OTHER_RUNTIME,
-		forthRun: (ctx:RuntimeContext):Promise<RuntimeContext> => {
-			--ctx.fuel;
-			ctx.ip = ctx.returnStack.pop();
-			return Promise.resolve(ctx);
-		}
-	},
-	">r": <RuntimeWord>{
-		name: "push-to-return-stack",
-		wordType: WordType.OTHER_RUNTIME,
-		forthRun: (ctx:RuntimeContext):Promise<RuntimeContext> => {
-			--ctx.fuel;
-			ctx.returnStack.push(ctx.dataStack.pop());
-			return Promise.resolve(ctx);
-		}
-	},
-	"r>": <RuntimeWord>{
-		name: "pop-from-return-stack",
-		wordType: WordType.OTHER_RUNTIME,
-		forthRun: (ctx:RuntimeContext):Promise<RuntimeContext> => {
-			--ctx.fuel;
-			ctx.dataStack.push(ctx.returnStack.pop());
-			return Promise.resolve(ctx);
-		}
-	},
-};
-
-const wordGetter = makeWordGetter( words, (text:string) => {
+const wordGetter = makeWordGetter( standardWords, (text:string) => {
 	if( /^[+-]?\d+$/.test(text) ) {
 		return {
 			name: text,
