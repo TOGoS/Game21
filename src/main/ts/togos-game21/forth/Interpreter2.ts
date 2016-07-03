@@ -53,7 +53,7 @@ const ONTOKEN_NORMAL:TokenHandler = (token:Token, interp:Interpreter, thread:Thr
 	w.call( interp, thread );
 };
 
-export default class Interpreter implements TokenListener {
+export default class Interpreter {
 	public words:KeyedList<Word> = {};
 	public onToken:TokenHandler = ONTOKEN_NORMAL;
 	public isCompiling:boolean = false;

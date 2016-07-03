@@ -94,9 +94,13 @@ const words : KeyedList<Word> = {
 	}
 };
 
+function makeCompilationContext( dictionary:KeyedList<Word>, backup:(text:string)=>Word ) {
+}
+
 let compileCtx:CompilationContext = {
 	program: [],
-	getWord : makeWordGetter( words, (text:string) => {
+	dictionary: words,
+	fallbackWordGetter: makeWordGetter( words, (text:string) => {
 		if( /^urn:/.test(text) ) {
 			return {
 				name: text,
@@ -107,7 +111,8 @@ let compileCtx:CompilationContext = {
 		}
 		return null;
 	}),
-	fixups: {}
+	fixups: {},
+	compilingMain:true,
 };
 registerTestResult('AsyncCompilationTest - urn:file2 eval', compileRef( {uri: 'urn:file1'}, compileCtx ).then( (compileCtx) => {
 	return runProgram( compileCtx.program );

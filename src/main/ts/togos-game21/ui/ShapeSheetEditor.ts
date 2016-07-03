@@ -258,9 +258,11 @@ export default class ShapeSheetEditor
 	
 	protected compile(script:string) : Promise<CompilationContext> {
 		const ctx : CompilationContext = {
-			getWord: makeWordGetter( mergeDicts(standardWords, customWords), parseNumberWord ),
+			dictionary: mergeDicts(standardWords, customWords),
+			fallbackWordGetter: makeWordGetter( parseNumberWord ),
 			program: [],
-			fixups: {}
+			fixups: {},
+			compilingMain: false,
 		};
 		const sLoc = {
 			fileUri: 'new-script',

@@ -364,7 +364,7 @@ export const standardCompileWords:KeyedList<Word> = {
 	}
 }
 
-export default class Interpreter implements TokenListener {
+export default class Interpreter {
 	public programState:BytecodeProgramState = {
 		pc: 0,
 		dataStack: [],
@@ -379,6 +379,7 @@ export default class Interpreter implements TokenListener {
 	public dynamicWords:KeyedList<(text:string)=>Word> = {}
 	
 	public token(t:Token):void {
+		// TODO: onToken can return a promise, so token needs to, too
 		if( this.onToken ) {
 			this.onToken(t, this);
 			return;
@@ -405,8 +406,6 @@ export default class Interpreter implements TokenListener {
 			}
 		}
 		throw new Error("Unrecognized word: '"+t.text+"'");
-	}
-	public end():void {
 	}
 	
 	public defineWords(words:KeyedList<Word>):void {

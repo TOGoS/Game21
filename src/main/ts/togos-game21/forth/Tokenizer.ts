@@ -1,11 +1,9 @@
 import KeyedList from '../KeyedList';
 import SourceLocation from './SourceLocation';
 import Token, {TokenType} from './Token';
+import { resolvedPromise, vopToPromise, shortcutThen } from '../promises';
 
-export interface TokenListener {
-	token(token:Token):void;
-	end():void;
-}
+export type TokenListener = (t:Token) => Promise<void>|void;
 
 const C_BEL   = 0x07;
 const C_TAB   = 0x09;
@@ -96,13 +94,13 @@ export default class Tokenizer {
 		}
 	}
 	
-	protected flushToken():void {
+	protected flushToken() : Promise<void>|void {
 		if( this.tokenBuffer.length == 0 && this.tokenType == TokenType.BAREWORD ) {
 			// Nothing to flush! Ahahahah1!!
 			return;
 		}
 		
-		this.tokenListener.token(new Token( this.tokenBuffer, this.tokenType, {
+		const p = this.tokenListener(new Token( this.tokenBuffer, this.tokenType, {
 			fileUri: this.sourceFileUri,
 			lineNumber: this.tokenStartLineNumber,
 			columnNumber: this.tokenStartColumnNumber,
@@ -112,13 +110,14 @@ export default class Tokenizer {
 		
 		this.tokenBuffer = "";
 		this.tokenType = TokenType.BAREWORD;
+		return p;
 	}
 	
 	protected get atstr():string {
 		return "at "+this.sourceFileUri+":"+this.sourceLineNumber+","+this.sourceColumnNumber;
 	}
 	
-	public char(c:number):void {
+	protected _char(c:number) : Promise<void>|void {
 		if( this.ended ) throw new Error("Already ended");
 
 		if( this.handlingBackslashEscape ) {
@@ -143,9 +142,11 @@ export default class Tokenizer {
 		} else if( this.awaitingCloseQuoteChars.length == 0 ) {
 			switch( c ) {
 			case C_TAB: case C_VT: case C_NL: case C_FF: case C_CR: case C_SPACE:
-				this.flushToken();
-				this.postChar(c);
-				return;
+				try {
+					return this.flushToken();
+				} finally {
+					this.postChar(c);
+				}
 			default:
 				const quoteStyle = this.quoteStylesByOpenChar[c];
 				if( quoteStyle ) {
@@ -173,8 +174,7 @@ export default class Tokenizer {
 				this.awaitingCloseQuoteChars.shift();
 				if( this.awaitingCloseQuoteChars.length == 0 ) {
 					this.postChar(c);
-					this.flushToken();
-					return;
+					return this.flushToken();
 				}
 			}
 			const currentCloseChar = this.awaitingCloseQuoteChars[0];
@@ -190,6 +190,7 @@ export default class Tokenizer {
 			}
 			this.tokenBuffer += String.fromCharCode(c);
 			this.postChar(c);
+			return;
 		}
 	}
 	public set sourceLocation(sl:SourceLocation) {
@@ -197,12 +198,16 @@ export default class Tokenizer {
 		this.sourceColumnNumber = sl.columnNumber;
 		this.sourceFileUri = sl.fileUri;
 	}
-	public text(text:string):void {
-		for( let i=0; i<text.length; ++i ) {
-			this.char(text.charCodeAt(i));
+	public text(text:string, skip:number=0) : Thenable<void> {
+		for( let i=skip; i<text.length; ++i ) {
+			let p;
+			if( p = this._char(text.charCodeAt(i)) ) {
+				return p.then( () => this.text(text, i+1) );
+			}
 		}
+		return resolvedPromise(null);
 	}
-	public end():void {
+	public end() : Thenable<void> {
 		if( this.handlingBackslashEscape ) {
 			throw new Error("Expected rest of backslash escape sequence but encountered end of stream "+this.atstr);
 		}
@@ -210,8 +215,20 @@ export default class Tokenizer {
 		if( this.awaitingCloseQuoteChars.length > 0 ) {
 			throw new Error("Expected "+String.fromCharCode(this.awaitingCloseQuoteChars[0])+" but encountered end of stream "+this.atstr);
 		}
-		this.flushToken();
 		this.ended = true;
-		this.tokenListener.end();
+		return shortcutThen(
+			vopToPromise( this.flushToken(), null ),
+			() => this.tokenListener({
+				type: TokenType.END_OF_FILE,
+				text: "",
+				sourceLocation: {
+					fileUri: this.sourceFileUri,
+					lineNumber: this.sourceLineNumber,
+					columnNumber: this.sourceColumnNumber,
+					endLineNumber: this.sourceLineNumber,
+					endColumnNumber: this.sourceColumnNumber,
+				}
+			})
+		);
 	}
 }

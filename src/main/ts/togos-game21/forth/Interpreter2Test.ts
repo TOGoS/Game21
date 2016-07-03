@@ -54,7 +54,7 @@ function assertStackAfter( expectedStack:any[], script:string ) {
 	const interpreter = new Interpreter();
 	interpreter.defineWords( words );
 
-	const tokenizer = new Tokenizer(interpreter);
+	const tokenizer = new Tokenizer(interpreter.token.bind(interpreter));
 	tokenizer.text(script);
 	tokenizer.end();
 	

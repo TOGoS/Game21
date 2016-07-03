@@ -1,9 +1,14 @@
 /// <reference path="../../Promise.d.ts" />
 
+import { resolvedPromise, rejectedPromise } from '../promises';
+import Token, { TokenType } from './Token';
 import KeyedList from '../KeyedList';
 import {
-	Word, WordType, RuntimeWord, CompilationWord, RuntimeContext, CompilationContext, Program, WordGetter
+	Word, WordType, RuntimeWord, CompilationWord, RuntimeContext, CompilationContext, Program, WordGetter,
+	atText, defineAndResolveFixup, pushFixupPlaceholder, fixupPlaceholderWord
 } from './rs1';
+
+export { fixupPlaceholderWord } from './rs1';
 
 export const arithmeticWords : KeyedList<Word> = {
 	"+": <RuntimeWord>{
@@ -91,6 +96,15 @@ export const jumpWords:KeyedList<Word> = {
 	},
 }
 
+const exitWord:RuntimeWord = {
+	name: "exit",
+	wordType: WordType.OTHER_RUNTIME,
+	forthRun: (ctx:RuntimeContext):void => {
+		--ctx.fuel;
+		ctx.ip = ctx.returnStack.pop();
+	}
+};
+
 export const rsWords:KeyedList<Word> = {
 	"call": <RuntimeWord>{
 		name: "call",
@@ -101,14 +115,7 @@ export const rsWords:KeyedList<Word> = {
 			ctx.ip = ctx.dataStack.pop();
 		}
 	},
-	"exit": <RuntimeWord>{
-		name: "exit",
-		wordType: WordType.OTHER_RUNTIME,
-		forthRun: (ctx:RuntimeContext):void => {
-			--ctx.fuel;
-			ctx.ip = ctx.returnStack.pop();
-		}
-	},
+	"exit": exitWord,
 	">r": <RuntimeWord>{
 		name: "push-to-return-stack",
 		wordType: WordType.OTHER_RUNTIME,
@@ -127,9 +134,55 @@ export const rsWords:KeyedList<Word> = {
 	},
 };
 
-export function makeWordGetter( words:KeyedList<Word>, ...backups : WordGetter[] ) : WordGetter {
+export const wordDefinitionWords:KeyedList<Word> = {
+	":": <CompilationWord>{
+		name: ":",
+		wordType: WordType.OTHER_COMPILETIME,
+		forthCompile: (ctx:CompilationContext):Promise<CompilationContext> => {
+			return new Promise<CompilationContext>( (resolve,reject) => {
+				ctx.onToken = (nameT:Token) => {
+					switch( nameT.type ) {
+					case TokenType.BAREWORD: case TokenType.SINGLE_QUOTED:
+						ctx.onToken = null;
+						if( ctx.compilingMain ) {
+							pushFixupPlaceholder(ctx, "(resume main)");
+						}
+						defineLocation( ctx, nameT.text, ctx.program.length );
+						ctx.onToken = null;
+						ctx.compilingMain = false;
+						return;
+					case TokenType.END_OF_FILE:
+						return reject("Encountered end of file when expecting word name "+atText(nameT.sourceLocation));
+					case TokenType.DOUBLE_QUOTED:
+						return reject("Encountered quoted string when expecting word name "+atText(nameT.sourceLocation));
+					default:
+						return reject("Unexpected token type "+nameT.type+" when expecting word name "+atText(nameT.sourceLocation));
+					}
+				}
+			}); 
+		}
+	},
+	";": <CompilationWord>{
+		name: ";",
+		wordType: WordType.OTHER_COMPILETIME,
+		forthCompile: (ctx:CompilationContext) : void|Thenable<CompilationContext> => {
+			if( ctx.compilingMain ) return rejectedPromise("Weird ';' "+atText(ctx.sourceLocation));
+
+			ctx.program.push(exitWord);
+			const resumeMainWord = jumpWord(ctx.program.length, "(resume main)"); 
+			const resumeMainFixup = ctx.fixups["(resume main)"];
+			if( resumeMainFixup ) {
+				for( let i in resumeMainFixup.references ) {
+					resumeMainFixup[i]( resumeMainWord );
+				}
+			}
+			ctx.compilingMain = true;
+		}
+	}
+}
+
+export function makeWordGetter( ...backups : WordGetter[] ) : WordGetter {
 	return (text:string) => {
-		if( words[text] ) return words[text];
 		for( let b in backups ) {
 			let w = backups[b](text);
 			if( w != null ) return w;
@@ -148,9 +201,10 @@ export function mergeDicts<T>(...dicts:KeyedList<T>[]):KeyedList<T> {
 	return z;
 }
 
-export function literalValueWord( v:any ) : RuntimeWord {
+export function literalValueWord( v:any, name?:string ) : RuntimeWord {
+	if( name == null ) name = ""+v;
 	return {
-		name: ""+v,
+		name: name,
 		wordType: WordType.PUSH_VALUE,
 		value: v,
 		forthRun: function(ctx:RuntimeContext) {
@@ -159,11 +213,41 @@ export function literalValueWord( v:any ) : RuntimeWord {
 	};
 }
 
+export function callWord( location:number, targetName:string ) : RuntimeWord {
+	return <RuntimeWord> {
+		name: "call:"+targetName,
+		wordType: WordType.OTHER_RUNTIME,
+		forthRun: (ctx:RuntimeContext) => {
+			ctx.returnStack.push(ctx.ip);
+			ctx.ip = location;
+		}
+	}
+}
+
+export function jumpWord( location:number, targetName:string ) : RuntimeWord {
+	return <RuntimeWord> {
+		name: "jump:"+targetName,
+		wordType: WordType.OTHER_RUNTIME,
+		forthRun: (ctx:RuntimeContext) => {
+			ctx.ip = location;
+		}
+	}
+}
+
 export function parseNumberWord( text:string ) : RuntimeWord {
 	if( /^[+-]?\d+(\.\d+)?$/.test(text) ) {
 		return literalValueWord( +text );
 	}
 	return null;
+}
+
+export function defineLocation( ctx:CompilationContext, name:string, loc:number ) {
+	const locName = "$"+name;
+	const callName = name;
+	const jumpName = "jump:"+name;
+	defineAndResolveFixup( ctx, callName, callWord(loc, name) );
+	defineAndResolveFixup( ctx, jumpName, jumpWord(loc, name) );
+	defineAndResolveFixup( ctx, locName , literalValueWord(loc, locName) );
 }
 
 export const standardWords = mergeDicts(arithmeticWords, stackWords, jumpWords, rsWords);

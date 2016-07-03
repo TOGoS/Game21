@@ -4,7 +4,8 @@ export enum TokenType {
 	BAREWORD,
 	SINGLE_QUOTED,
 	DOUBLE_QUOTED,
-	COMMENT
+	COMMENT,
+	END_OF_FILE
 }
 
 export default class Token {

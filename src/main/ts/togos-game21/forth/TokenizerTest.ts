@@ -14,10 +14,7 @@ let tokenizer : Tokenizer;
 	
 function reset() {
 	tokens = [];
-	tokenizer = new Tokenizer( {
-		token: (t:Token) => tokens.push(t),
-		end: () => {}
-	} );
+	tokenizer = new Tokenizer( (t:Token) => { tokens.push(t) } );
 	tokenizer.sourceLocation = {
 		fileUri: "test",
 		lineNumber: 1,

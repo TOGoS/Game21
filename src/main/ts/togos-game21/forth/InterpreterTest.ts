@@ -40,7 +40,7 @@ function evalu(source:string):any {
 	interp.dynamicWords['number'] = numberDynamicWord;
 	interp.defineWords(bytecodeWords);
 	interp.defineWords(standardCompileWords);
-	var tokenizer = new Tokenizer(interp);
+	var tokenizer = new Tokenizer(interp.token.bind(interp));
 	tokenizer.sourceLocation = {fileUri:'?', lineNumber:1, columnNumber:1};
 	tokenizer.text(source);
 	tokenizer.end();
