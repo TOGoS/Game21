@@ -299,11 +299,8 @@ export default class ShapeSheetEditor
 				
 				ssu.plottedMaterialIndexFunction = (x,y,z) => 4;
 				this.rendering = true;
-				runContext( ctx ).then( (ctx) => {
-					this.rendering = false
-				}).catch( (err) => {
-					console.error("Failed to run program", err);
-				});
+				const p = runContext( ctx );
+				// TODO: if p ain't null we gotta wait, I guess
 				
 				/*
 				let pos:Vector3D = new Vector3D;

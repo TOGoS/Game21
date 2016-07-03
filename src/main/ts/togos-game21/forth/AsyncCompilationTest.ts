@@ -55,15 +55,17 @@ interface ACTRuntimeContext extends RuntimeContext {
 	output: string[]
 }			
 
-function runProgram( program:Program ) : Promise<RuntimeContext> {
-	return runContext( <RuntimeContext>{
+function runProgram( program:Program ) : Promise<ACTRuntimeContext> {
+	const runtimeCtx = <ACTRuntimeContext>{
 		dataStack: [],
 		returnStack: [],
 		output: <string[]>[],
 		program: program,
 		ip: 0,
 		fuel: 100,
-	} );
+	};
+	const p = runContext( runtimeCtx );
+	return p == null ? Promise.resolve(runtimeCtx) : <Promise<ACTRuntimeContext>>p;
 }
 
 const words : KeyedList<Word> = {
@@ -109,8 +111,8 @@ let compileCtx:CompilationContext = {
 };
 registerTestResult('AsyncCompilationTest - urn:file2 eval', compileRef( {uri: 'urn:file1'}, compileCtx ).then( (compileCtx) => {
 	return runProgram( compileCtx.program );
-}).then( (ctx) => {
-	const res = (<ACTRuntimeContext>ctx).output.join('');
+}).then( (ctx:ACTRuntimeContext) => {
+	const res = ctx.output.join('');
 	assertEquals( 'foobarbaz', res );
 	return { }
 }));

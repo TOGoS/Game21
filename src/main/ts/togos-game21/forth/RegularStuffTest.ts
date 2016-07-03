@@ -13,13 +13,15 @@ import URIRef from '../URIRef';
 import { TestResult, registerTestResult, assertEquals } from '../testing';
 
 function runProgram( program:Program ) : Promise<RuntimeContext> {
-	return runContext( {
+	const ctx : RuntimeContext = {
 		dataStack: [],
 		returnStack: [],
 		program: program,
 		ip: 0,
 		fuel: 100,
-	} );
+	};
+	const p = runContext( ctx );
+	return p == null ? Promise.resolve(ctx) :<Promise<RuntimeContext>>p;
 }
 
 const wordGetter = makeWordGetter( standardWords, parseNumberWord );

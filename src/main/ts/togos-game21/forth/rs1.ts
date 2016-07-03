@@ -1,3 +1,7 @@
+/// <reference path="../../Promise.d.ts"/>
+
+import { resolvedPromise } from '../promises';
+
 // Runtime System 1
 
 import Token, { TokenType } from './Token';
@@ -25,7 +29,8 @@ export interface RuntimeWord extends Word {
 	/** When this is a 'push literal value' word. */
 	value? : any;
 	valueUri? : string;
-	forthRun( ctx:RuntimeContext ) : Promise<RuntimeContext>;
+	/** If there's any asynchronousness that needs to be done, a promise is returned.  Otherwise null. */
+	forthRun( ctx:RuntimeContext ) : Promise<RuntimeContext>|void;
 }
 
 type FixupCallback<T> = (value:T, error:string)=>void;
@@ -134,9 +139,17 @@ export function makeWordGetter( words:KeyedList<Word>, ...backups : WordGetter[]
 }
 
 /**
- * Run a program until ip goes out of bounds or its fuel runs out
+ * Returns a promise that, upon completion, will have
+ * run a program until ip goes out of bounds or its fuel runs out.
+ * 
+ * If you pass in a Promise<RuntimeContext> as the second parameter
+ * and the program completes running without any asynchonicity,
+ * that same promise will be returned.
  */
 export function runContext( ctx:RuntimeContext ):Promise<RuntimeContext> {
-	if( ctx.fuel <= 0 || ctx.ip >= ctx.program.length || ctx.ip < 0 ) return Promise.resolve(ctx);
-	return ctx.program[ctx.ip++].forthRun(ctx).then( runContext );
+	for( ; ctx.fuel > 0 && ctx.ip >= 0 && ctx.ip < ctx.program.length ; ) {
+		let prom = ctx.program[ctx.ip++].forthRun(ctx);
+		if( prom != null ) return (<Promise<RuntimeContext>>prom).then( runContext );
+	}
+	return resolvedPromise(ctx);
 }
