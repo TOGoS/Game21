@@ -148,7 +148,9 @@ export function makeWordGetter( words:KeyedList<Word>, ...backups : WordGetter[]
  */
 export function runContext( ctx:RuntimeContext ):Promise<RuntimeContext> {
 	for( ; ctx.fuel > 0 && ctx.ip >= 0 && ctx.ip < ctx.program.length ; ) {
-		let prom = ctx.program[ctx.ip++].forthRun(ctx);
+		const word = ctx.program[ctx.ip++];
+		let prom = word.forthRun(ctx);
+		if( prom != null ) console.log(word.name+" returned a promise; so naughty!");
 		if( prom != null ) return (<Promise<RuntimeContext>>prom).then( runContext );
 	}
 	return resolvedPromise(ctx);

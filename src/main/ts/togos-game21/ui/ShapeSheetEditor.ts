@@ -19,6 +19,7 @@ import {
 import {
 	makeWordGetter, standardWords, mergeDicts, parseNumberWord
 } from '../forth/rs1words';
+import { isResolved } from '../promises';
 
 interface ViewAnimationSettings {
 	animationSpeed : number; // change in t per second
@@ -208,21 +209,33 @@ interface ShapeGeneratorContext extends RuntimeContext {
 	transform : TransformationMatrix3D;
 }
 
+const tempVec = new Vector3D;
+const tempXf = new TransformationMatrix3D;
+
 const customWords : KeyedList<Word> = {
 	"plot-sphere": <RuntimeWord> {
 		name: "plot-sphere",
 		wordType: WordType.OTHER_RUNTIME,
 		forthRun: <RuntimeWord> (ctx:RuntimeContext) => {
-			(<ShapeGeneratorContext>ctx).shapeSheetUtil.plotSphere( 10, 10, 10, 10 );
-			return Promise.resolve(ctx);
+			const sgctx:ShapeGeneratorContext = (<ShapeGeneratorContext>ctx);
+			const rad = +ctx.dataStack.pop();
+			tempVec.set(0,0,0);
+			sgctx.transform.multiplyVector( tempVec, tempVec );
+			(<ShapeGeneratorContext>ctx).shapeSheetUtil.plotSphere( tempVec.x, tempVec.y, tempVec.z, sgctx.transform.scale * rad );
+			return null;
 		}
 	},
 	"move": <RuntimeWord> {
 		name: "move",
 		wordType: WordType.OTHER_RUNTIME,
 		forthRun: <RuntimeWord> (ctx:RuntimeContext) => {
-			// TODO
-			return Promise.resolve(ctx);
+			const sgctx:ShapeGeneratorContext = (<ShapeGeneratorContext>ctx);
+			const z = sgctx.dataStack.pop();
+			const y = sgctx.dataStack.pop();
+			const x = sgctx.dataStack.pop();
+			TransformationMatrix3D.translationXYZ(x,y,z, tempXf);
+			TransformationMatrix3D.multiply(sgctx.transform, tempXf, sgctx.transform);
+			return null;
 		}
 	},
 }
@@ -300,6 +313,10 @@ export default class ShapeSheetEditor
 				ssu.plottedMaterialIndexFunction = (x,y,z) => 4;
 				this.rendering = true;
 				const p = runContext( ctx );
+				if( !isResolved(p) ) {
+					console.warn("Script didn't finish immediately; you won't see all the results, or possibly anything");
+				}
+
 				// TODO: if p ain't null we gotta wait, I guess
 				
 				/*

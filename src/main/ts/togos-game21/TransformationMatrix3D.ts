@@ -67,6 +67,15 @@ export default class TransformationMatrix3D {
 		);
 	}
 	
+	public static translationXYZ( x:number, y:number, z:number, dest:TransformationMatrix3D=new TransformationMatrix3D ):TransformationMatrix3D {
+		return dest.set(
+			1, 0, 0, x,
+			0, 1, 0, y,
+			0, 0, 1, z
+		//	0, 0, 0, 1      // Implied bottom row
+		);
+	}
+
 	public static translation( xlt:Vector3D, dest:TransformationMatrix3D=new TransformationMatrix3D ):TransformationMatrix3D {
 		return dest.set(
 			1, 0, 0, xlt.x,

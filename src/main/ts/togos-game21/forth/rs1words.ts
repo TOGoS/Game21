@@ -155,13 +155,12 @@ export function literalValueWord( v:any ) : RuntimeWord {
 		value: v,
 		forthRun: function(ctx:RuntimeContext) {
 			ctx.dataStack.push(this.value);
-			return Promise.resolve(ctx)
 		}
 	};
 }
 
 export function parseNumberWord( text:string ) : RuntimeWord {
-	if( /^[+-]?\d+$/.test(text) ) {
+	if( /^[+-]?\d+(\.\d+)?$/.test(text) ) {
 		return literalValueWord( +text );
 	}
 	return null;
