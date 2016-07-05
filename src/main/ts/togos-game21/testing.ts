@@ -9,6 +9,8 @@ function setExitCode( c:number ):void {
 
 import KeyedList from './KeyedList';
 
+export let thereIsATestingFramework = false;
+
 export function fail( message:string ):void {
 	console.error( message );
 	setExitCode(1);
@@ -55,7 +57,7 @@ export function testResultToString( res:TestResult ) {
 
 export function registerTestResult( testName:string, res:Promise<TestResult> ) {
 	allRegisteredTestResults.push(res);
-	res.catch( (err):TestResult => ({ errors: [{message:err}] }) ).then( (res:TestResult) => {
+	res.catch( (err):TestResult => ({ errors: [ {message: err.message}] }) ).then( (res:TestResult) => {
 		if( !testPassed(res) ) {
 			console.error( "Errors during '"+testName+"':", testResultToString(res) );
 			anyTestsFailed = true;

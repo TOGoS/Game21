@@ -29,7 +29,7 @@ function reset() {
 	tokenizer.text("foo bar\n\tbaz");
 	tokenizer.end();
 	
-	assertEquals( 3, tokens.length, "Should be 3 tokens!" );
+	assertEquals( 4, tokens.length, "Should be 3 tokens (including the EOF one)!" );
 	
 	assertEquals( new Token("foo", TokenType.BAREWORD, {
 		fileUri: "test",
@@ -60,7 +60,7 @@ function reset() {
 	tokenizer.text('"foo bar" \'baz quux\' «\n\tjiffy ‹\'pop\' «bop›» corn\n»');
 	tokenizer.end();
 
-	assertEquals( 3, tokens.length, "Should've found 3 tokens" );
+	assertEquals( 4, tokens.length, "Should've found 4 tokens (including the EOF one)" );
 	
 	assertEquals( new Token("foo bar", TokenType.DOUBLE_QUOTED, {
 		fileUri: "test",
@@ -93,7 +93,7 @@ function reset() {
 	tokenizer.text('"foo \\\\\\"\\\'\\a\\e\\f\\n\\r\\t\\v"');
 	tokenizer.end();
 
-	assertEquals( 1, tokens.length, "Should've found 1 token" );
+	assertEquals( 2, tokens.length, "Should've found 2 tokens (including the EOF one)" );
 	assertEquals( new Token("foo \\\"'\x07\x1B\x0C\n\r\t\x0B", TokenType.DOUBLE_QUOTED, {
 		fileUri: "test",
 		lineNumber: 1,

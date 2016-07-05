@@ -48,6 +48,7 @@ class PushValueWord extends SynchronousRuntimeWord implements Word {
 }
 
 const ONTOKEN_NORMAL:TokenHandler = (token:Token, interp:Interpreter, thread:Thread) => {
+	if( token.type == TokenType.END_OF_FILE ) return;
 	const w:Word = interp.tokenToWord(token);
 	if( w == null ) return;
 	w.call( interp, thread );

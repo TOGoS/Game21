@@ -5,7 +5,7 @@ import Token, { TokenType } from './Token';
 import KeyedList from '../KeyedList';
 import {
 	Word, WordType, RuntimeWord, CompilationWord, RuntimeContext, CompilationContext, Program, WordGetter,
-	atText, defineAndResolveFixup, pushFixupPlaceholder, fixupPlaceholderWord
+	atText, defineWordAndResolveFixup, pushFixupPlaceholder, fixupPlaceholderWord
 } from './rs1';
 
 export { fixupPlaceholderWord } from './rs1';
@@ -86,8 +86,8 @@ export const stackWords:KeyedList<Word> = {
 }
 
 export const jumpWords:KeyedList<Word> = {
-	"goto": <RuntimeWord>{
-		name: "goto",
+	"jump": <RuntimeWord>{
+		name: "jump",
 		wordType: WordType.OTHER_RUNTIME,
 		forthRun: (ctx:RuntimeContext):void => {
 			--ctx.fuel;
@@ -105,6 +105,7 @@ const exitWord:RuntimeWord = {
 	}
 };
 
+/** Words that deal with the return stack */
 export const rsWords:KeyedList<Word> = {
 	"call": <RuntimeWord>{
 		name: "call",
@@ -135,45 +136,63 @@ export const rsWords:KeyedList<Word> = {
 };
 
 export const wordDefinitionWords:KeyedList<Word> = {
+	"code-label:": <CompilationWord>{
+		name: "code-label:",
+		wordType: WordType.OTHER_COMPILETIME,
+		forthCompile: (ctx:CompilationContext):void => {
+			ctx.onToken = (nameT:Token) => {
+				switch( nameT.type ) {
+				case TokenType.BAREWORD: case TokenType.SINGLE_QUOTED:
+					ctx.onToken = null;
+					defineFixupPlaceholderGeneratorWords(ctx, nameT.text);
+					return;
+				case TokenType.END_OF_FILE:
+					throw new Error("Encountered end of file when expecting label name "+atText(nameT.sourceLocation));
+				case TokenType.DOUBLE_QUOTED:
+					throw new Error("Encountered quoted string when expecting label name "+atText(nameT.sourceLocation));
+				default:
+					throw new Error("Unexpected token type "+nameT.type+" when expecting label name "+atText(nameT.sourceLocation));
+				}
+			}
+		}
+	},
 	":": <CompilationWord>{
 		name: ":",
 		wordType: WordType.OTHER_COMPILETIME,
-		forthCompile: (ctx:CompilationContext):Promise<CompilationContext> => {
-			return new Promise<CompilationContext>( (resolve,reject) => {
-				ctx.onToken = (nameT:Token) => {
-					switch( nameT.type ) {
-					case TokenType.BAREWORD: case TokenType.SINGLE_QUOTED:
-						ctx.onToken = null;
-						if( ctx.compilingMain ) {
-							pushFixupPlaceholder(ctx, "(resume main)");
-						}
-						defineLocation( ctx, nameT.text, ctx.program.length );
-						ctx.onToken = null;
-						ctx.compilingMain = false;
-						return;
-					case TokenType.END_OF_FILE:
-						return reject("Encountered end of file when expecting word name "+atText(nameT.sourceLocation));
-					case TokenType.DOUBLE_QUOTED:
-						return reject("Encountered quoted string when expecting word name "+atText(nameT.sourceLocation));
-					default:
-						return reject("Unexpected token type "+nameT.type+" when expecting word name "+atText(nameT.sourceLocation));
+		forthCompile: (ctx:CompilationContext):void => {
+			ctx.onToken = (nameT:Token) => {
+				switch( nameT.type ) {
+				case TokenType.BAREWORD: case TokenType.SINGLE_QUOTED:
+					ctx.onToken = null;
+					if( ctx.compilingMain ) {
+						pushFixupPlaceholder(ctx, "(resume main)");
 					}
+					defineLocation( ctx, nameT.text, ctx.program.length );
+					ctx.onToken = null;
+					ctx.compilingMain = false;
+					return;
+				case TokenType.END_OF_FILE:
+					throw new Error("Encountered end of file when expecting word name "+atText(nameT.sourceLocation));
+				case TokenType.DOUBLE_QUOTED:
+					throw new Error("Encountered quoted string when expecting word name "+atText(nameT.sourceLocation));
+				default:
+					throw new Error("Unexpected token type "+nameT.type+" when expecting word name "+atText(nameT.sourceLocation));
 				}
-			}); 
+			};
 		}
 	},
 	";": <CompilationWord>{
 		name: ";",
 		wordType: WordType.OTHER_COMPILETIME,
 		forthCompile: (ctx:CompilationContext) : void|Thenable<CompilationContext> => {
-			if( ctx.compilingMain ) return rejectedPromise("Weird ';' "+atText(ctx.sourceLocation));
+			if( ctx.compilingMain ) return rejectedPromise(new Error("Weird ';' "+atText(ctx.sourceLocation)));
 
 			ctx.program.push(exitWord);
 			const resumeMainWord = jumpWord(ctx.program.length, "(resume main)"); 
 			const resumeMainFixup = ctx.fixups["(resume main)"];
 			if( resumeMainFixup ) {
 				for( let i in resumeMainFixup.references ) {
-					resumeMainFixup[i]( resumeMainWord );
+					resumeMainFixup.references[i]( resumeMainWord, null );
 				}
 			}
 			ctx.compilingMain = true;
@@ -224,14 +243,14 @@ export function callWord( location:number, targetName:string ) : RuntimeWord {
 	}
 }
 
+export class JumpWord implements RuntimeWord {
+	wordType = WordType.OTHER_RUNTIME;
+	constructor(public name:string, public location:number) { }
+	forthRun(ctx:RuntimeContext) { ctx.ip = this.location; }
+}
+
 export function jumpWord( location:number, targetName:string ) : RuntimeWord {
-	return <RuntimeWord> {
-		name: "jump:"+targetName,
-		wordType: WordType.OTHER_RUNTIME,
-		forthRun: (ctx:RuntimeContext) => {
-			ctx.ip = location;
-		}
-	}
+	return new JumpWord("jump:"+targetName, location);
 }
 
 export function parseNumberWord( text:string ) : RuntimeWord {
@@ -245,9 +264,29 @@ export function defineLocation( ctx:CompilationContext, name:string, loc:number 
 	const locName = "$"+name;
 	const callName = name;
 	const jumpName = "jump:"+name;
-	defineAndResolveFixup( ctx, callName, callWord(loc, name) );
-	defineAndResolveFixup( ctx, jumpName, jumpWord(loc, name) );
-	defineAndResolveFixup( ctx, locName , literalValueWord(loc, locName) );
+	defineWordAndResolveFixup( ctx, callName, callWord(loc, name) );
+	defineWordAndResolveFixup( ctx, jumpName, jumpWord(loc, name) );
+	defineWordAndResolveFixup( ctx, locName , literalValueWord(loc, locName) );
 }
 
-export const standardWords = mergeDicts(arithmeticWords, stackWords, jumpWords, rsWords);
+/**
+ * given a label name,
+ * generate foo, $foo, and jump:$foo variants
+ * that for now just append a placeholder word to the program and register a fixup at the placeholder's location
+ */
+function defineFixupPlaceholderGeneratorWords( ctx:CompilationContext, name:string ) {
+	const variations = [name, "jump:"+name, "$"+name];
+	for( let v in variations ) {
+		const wName = variations[v];
+		const placeholder = fixupPlaceholderWord(wName);
+		ctx.dictionary[wName] = <CompilationWord>{
+			name: wName,
+			wordType: WordType.OTHER_COMPILETIME,
+			forthCompile: (ctx:CompilationContext) => {
+				pushFixupPlaceholder( ctx, wName, placeholder )
+			}
+		}
+	}
+}
+
+export const standardWords = mergeDicts(arithmeticWords, stackWords, jumpWords, rsWords, wordDefinitionWords);

@@ -19,7 +19,7 @@ export function resolvedPromise<T>( value:T ) : Thenable<T> {
     return p;
 }
 
-export function rejectedPromise<T>( error:any ) : Thenable<T> {
+export function rejectedPromise<T>( error:Error ) : Thenable<T> {
     const p = Promise.reject(value);
     (<any>p)[ERRORSYM] = error;
     (<any>p)[STATESYM] = State.REJECTED;
@@ -38,10 +38,18 @@ export function value<T>( p:Thenable<T> ):T {
     return <T>((<any>p)[VALUESYM]);
 }
 
+function isThenable( v:any ):boolean {
+    return v != null && v.then; 
+}
+
+function thenable<T>( v:T|Thenable<T> ):Thenable<T> {
+    return isThenable(v) ? <Thenable<T>>v : resolvedPromise(v);
+}
+
 export function shortcutThen<T,U>( p:Thenable<T>, onResolve: (v:T)=>U|Thenable<U> ) : Thenable<U> {
     if( isResolved(p) ) {
         const u = onResolve(value(p));
-        return (<Thenable<U>>u).then ? <Thenable<U>>u : resolvedPromise(u);
+        return isThenable(u) ? <Thenable<U>>u : resolvedPromise(u);
     }
     return p.then(onResolve);
 }
@@ -51,5 +59,5 @@ export function shortcutThen<T,U>( p:Thenable<T>, onResolve: (v:T)=>U|Thenable<U
  * Otherwise return p.
  */
 export function vopToPromise<T>( p:Thenable<T>|void, v:T ):Thenable<T> {
-    return p == null ? resolvedPromise(v) : <Promise<T>>p;
+    return p != null ? <Thenable<T>>p : resolvedPromise(v);
 }

@@ -384,6 +384,8 @@ export default class Interpreter {
 			this.onToken(t, this);
 			return;
 		}
+
+		if( t.type == TokenType.END_OF_FILE ) return;
 		
 		let stack = this.programState.dataStack;
 		if( t.type == TokenType.DOUBLE_QUOTED ) {

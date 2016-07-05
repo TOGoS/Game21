@@ -9,11 +9,12 @@
 #   material / surface parameters
 #   anything else that determines how drawing happens that's not an explicit parameter
 
-ctxvar $my-context-variable  # Declare $my-context-variable as a context variable.
-alias <ctx save-context      # Define "<ctx" as an alias for "save-context"
-alias ctx> restore-context
+ctxvar: $my-context-variable  # Declare $my-context-variable as a context variable.
+alias: <ctx save-context      # Define "<ctx" as an alias for "save-context"
+alias: ctx> restore-context
+code-label: foo               # Declare a runtime word/code label before it's defined
 
-include urn:sha1:BLAHBLAHBLAH # Include another script as if its contents were typed inline
+include: urn:sha1:BLAHBLAHBLAH # Include another script as if its contents were typed inline
 
 123 $my-context-variable !   # Store 123 into $my-context-variable
 $my-context-variable @       # Load the value of $my-context-variable onto the stack
@@ -32,16 +33,16 @@ x $my-label jnz                # Jump to my-label if x is non-zero
 
 # Standard if/else/then and case/of/endof/endcase from forth
 
-true if 
+true if{
   it-was
-else
-then
+}else{
+}then
 
-somevar case
-  32 of do-something endof
-  64 of do-something-bigger endof
+somevar case{
+  32 of{ do-something }endof
+  64 of{ do-something-bigger }endof
   do-default-thing
-endcase
+}endcase
 
 ### Drawing
 
@@ -53,9 +54,8 @@ endcase
 
 plot-sphere # Draw a sphere
 
-alias openpoly open-polygon    # More handy aliases?
-alias polypt polygon-point
-alias 
+alias: openpoly open-polygon    # More handy aliases?
+alias: polypt polygon-point
 
 open-polygon 1 0 0 move polygon-point 0 1 0 move polygon-point -1 0 0 move fill-polygon # Draw a polygon
 

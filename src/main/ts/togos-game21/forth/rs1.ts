@@ -33,7 +33,7 @@ export interface RuntimeWord extends Word {
 	forthRun( ctx:RuntimeContext ) : Thenable<RuntimeContext>|void;
 }
 
-type FixupCallback<T> = (value:T, error:string)=>void;
+type FixupCallback<T> = (value:T, error:Error)=>void;
 interface Fixup<T> {
 	value : T;
 	placeholder? : T;
@@ -78,6 +78,7 @@ export function compileToken( token:Token, compilation:CompilationContext ) : vo
 
 	const program = compilation.program;
 
+	if( token.type == TokenType.END_OF_FILE ) return;
 	if( token.type == TokenType.COMMENT ) return;
 	if( token.type == TokenType.DOUBLE_QUOTED ) {
 		program.push( {
@@ -94,7 +95,7 @@ export function compileToken( token:Token, compilation:CompilationContext ) : vo
 	
 	const word = getWord(compilation, token.text);
 	if( word == null ) {
-		return Promise.reject("Unrecognized word '"+token.text+"' "+atText(token.sourceLocation));
+		return Promise.reject(new Error("Unrecognized word '"+token.text+"' "+atText(token.sourceLocation)));
 	}
 	
 	switch( word.wordType ) {
@@ -106,7 +107,7 @@ export function compileToken( token:Token, compilation:CompilationContext ) : vo
 	case WordType.OTHER_COMPILETIME:
 		return (<CompilationWord>word).forthCompile(compilation);
 	default:
-		return Promise.reject("Bad word type: "+word.wordType);
+		return Promise.reject(new Error("Bad word type: "+word.wordType));
 	}
 }
 
@@ -154,11 +155,13 @@ export function makeWordGetter( words:KeyedList<Word>, ...backups : WordGetter[]
  */
 export function runContext( ctx:RuntimeContext ):Promise<RuntimeContext> {
 	for( ; ctx.fuel > 0 && ctx.ip >= 0 && ctx.ip < ctx.program.length ; ) {
+		console.log("Running '"+ctx.program[ctx.ip].name+"' at ip="+ctx.ip);
 		const word = ctx.program[ctx.ip++];
 		let prom = word.forthRun(ctx);
 		if( prom != null ) console.log(word.name+" returned a promise; so naughty!");
 		if( prom != null ) return (<Promise<RuntimeContext>>prom).then( runContext );
 	}
+	console.log("Program done (at "+ctx.ip+")!");
 	return resolvedPromise(ctx);
 }
 
@@ -167,30 +170,31 @@ export function fixupPlaceholderWord( name:string ) : RuntimeWord {
 	return <RuntimeWord> {
 		name: fullName,
 		wordType: WordType.OTHER_RUNTIME,
-		forthRun: () => rejectedPromise<RuntimeContext>( "attempted to invoke "+fullName+", which was never fixed up" )
+		forthRun: () => rejectedPromise<RuntimeContext>( new Error("attempted to invoke "+fullName+", which was never fixed up") )
 	}
 }
 
-export function pushFixupPlaceholder( ctx:CompilationContext, name:string ) {
+export function pushFixupPlaceholder( ctx:CompilationContext, name:string, placeholderWord:RuntimeWord=fixupPlaceholderWord(name) ) {
 	const loc = ctx.program.length;
 
-	let fixup;
+	let fixup:Fixup<RuntimeWord>;
 	if( (fixup = ctx.fixups[name]) == null ) fixup = ctx.fixups[name] = {
 		value: null,
-		placeholder: fixupPlaceholderWord(name),
+		placeholder: placeholderWord,
 		references: []
 	};
 	ctx.program.push( fixup.placeholder )
 	fixup.references.push( (w:RuntimeWord) => ctx.program[loc] = w );
 }
 
-export function defineAndResolveFixup( ctx:CompilationContext, name:string, w:RuntimeWord ) {
+export function defineWordAndResolveFixup( ctx:CompilationContext, name:string, w:RuntimeWord ) {
 	ctx.dictionary[name] = w;
 	if( ctx.fixups[name] ) {
 		const refs = ctx.fixups[name].references;
 		for( let i in refs ) {
 			refs[i](w, null);
 		}
+		//ctx.fixups[name].references.length = 0;
 		delete ctx.fixups[name];
 	}
 }
