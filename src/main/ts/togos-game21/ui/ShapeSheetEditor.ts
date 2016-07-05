@@ -293,6 +293,17 @@ const customWords : KeyedList<Word> = {
 			return null;
 		}
 	},
+	"scale": <RuntimeWord> {
+		name: "scale",
+		wordType: WordType.OTHER_RUNTIME,
+		forthRun: <RuntimeWord> (ctx:RuntimeContext) => {
+			const sgctx:ShapeGeneratorContext = (<ShapeGeneratorContext>ctx);
+			const scale = sgctx.dataStack.pop();
+			TransformationMatrix3D.scale(scale, scale, scale, tempXf);
+			TransformationMatrix3D.multiply(sgctx.transform, tempXf, sgctx.transform);
+			return null;
+		}
+	},
 	"context-variable:": <CompilationWord> {
 		name: "context-variable:",
 		wordType: WordType.OTHER_COMPILETIME,
