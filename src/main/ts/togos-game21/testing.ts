@@ -9,22 +9,6 @@ function setExitCode( c:number ):void {
 
 import KeyedList from './KeyedList';
 
-export let thereIsATestingFramework = false;
-
-export function fail( message:string ):void {
-	console.error( message );
-	setExitCode(1);
-	throw new Error(message);
-}
-
-export function assertEquals( a:any, b:any, msg?:string ):void {
-	const aJson = JSON.stringify(a);
-	const bJson = JSON.stringify(b);
-	if( aJson != bJson ) {
-		fail( "Assertion failed: " + aJson + " != " + bJson + (msg ? "; "+msg : "") );
-	}
-};
-
 // More structured method...
 
 export interface TestResult {
@@ -33,10 +17,6 @@ export interface TestResult {
 	notes?: Array<string>,
 	data?: KeyedList<any>
 }
-
-let anyTestsFailed = false;
-
-let allRegisteredTestResults:Array<Promise<TestResult>> = [];
 
 export function testPassed( res:TestResult ) {
 	if( res.errors ) for( let e in res.errors ) return false;
@@ -55,22 +35,53 @@ export function testResultToString( res:TestResult ) {
 	return lines.join("\n");
 }
 
-export function registerTestResult( testName:string, res:Promise<TestResult> ) {
-	allRegisteredTestResults.push(res);
-	res.catch( (err):TestResult => ({ errors: [ {message: err.message}] }) ).then( (res:TestResult) => {
-		if( !testPassed(res) ) {
-			console.error( "Errors during '"+testName+"':", testResultToString(res) );
-			anyTestsFailed = true;
-			setExitCode(1);
-		}
-		if( res.notes && res.notes.length > 0 ) {
-			console.info("Notes from '"+testName+"':", res.notes);
-		}
-	});
+export interface TestHarness {
+	registerTestResult( testName:string, res:Promise<TestResult> ):void;
 }
 
-export function flushRegisteredTestResults():Array<Promise<TestResult>> {
-	const o = allRegisteredTestResults;
-	allRegisteredTestResults = [];
-	return o;
+class CommandLineTestHarness implements TestHarness {
+	registerTestResult( testName:string, resP:Promise<TestResult> ) {
+		resP.catch( (err) => {
+			return {errors: [err]};
+		}).then( (res) => {
+			if( !testPassed(res) ) {
+				console.error("Test '"+testName+"' did not pass", res);
+				setExitCode(1);
+			}
+		})
+	}
+}
+
+export var testHarness = new CommandLineTestHarness();
+
+export function registerTestResult( testName:string, res:Promise<TestResult> ):void {
+	testHarness.registerTestResult( testName, res );
+}
+
+export function assertEqualsPromise( a:any, b:any, msg?:string ):Promise<void> {
+	const aJson = JSON.stringify(a);
+	const bJson = JSON.stringify(b);
+	if( aJson != bJson ) {
+		return Promise.reject( new Error("Assertion failed: " + aJson + " != " + bJson + (msg ? "; "+msg : "")) );
+	} else {
+		return Promise.resolve(null);
+	}
+}
+
+// As an alternative to registerTestResult:
+
+export var currentTestName = "(anonymous test)";
+
+export function fail( message:string ):void {
+	registerTestResult( currentTestName, Promise.resolve( { failures: [ { message:message} ] } ) );
+	// Don't want to continue!
+	throw new Error(message);
+}
+
+export function assertEquals( a:any, b:any, msg?:string ):void {
+	const aJson = JSON.stringify(a);
+	const bJson = JSON.stringify(b);
+	if( aJson != bJson ) {
+		fail( "Assertion failed: " + aJson + " != " + bJson + (msg ? "; "+msg : "") );
+	}
 }

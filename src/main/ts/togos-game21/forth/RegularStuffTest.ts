@@ -10,7 +10,7 @@ import {
 import { standardWords, mergeDicts, makeWordGetter, parseNumberWord } from './rs1words';
 import KeyedList from '../KeyedList';
 import URIRef from '../URIRef';
-import { TestResult, registerTestResult, assertEquals } from '../testing';
+import { TestResult, registerTestResult, assertEqualsPromise } from '../testing';
 import { vopToPromise } from '../promises';
 
 function runProgram( program:Program ) : Promise<RuntimeContext> {
@@ -52,12 +52,11 @@ function registerResultStackTest( name:string, s:any[], source:string ) {
 	
 	const res:Promise<TestResult> = compileSource(source, compileCtx, {fileUri:"test:"+name, lineNumber:1, columnNumber:1} ).
 		then( (compileCtx:CompilationContext) => {
-			console.log("Compiled "+name, compileCtx);
+			//console.log("Compiled "+name, compileCtx);
 			return runProgram( compileCtx.program );
 		}).then( (runtimeCtx:RuntimeContext):TestResult => {
-			console.log("Got "+name+" program result", runtimeCtx.dataStack);
-			assertEquals( s, runtimeCtx.dataStack );
-			return { }
+			//console.log("Got "+name+" program result", runtimeCtx.dataStack);
+			return assertEqualsPromise( s, runtimeCtx.dataStack );
 		});
 	
 	registerTestResult("RegularStuffTest - "+name, res);

@@ -25,8 +25,8 @@
 <?php require_game21_js_libs($inlineResources); ?>
 <script type="text/javascript">//<![CDATA[
 (function() {
-	var testModNames = <?php ejsv(array_values(find_ts_test_modules())); ?>;
-	var totalTestCount = testModNames.length;
+	var testModuleNames = <?php ejsv(array_values(find_ts_test_modules())); ?>;
+	var totalTestCount = testModuleNames.length;
 	var runTestCount = 0;
 	var passedTestCount = 0;
 	var failedTestCount = 0;
@@ -40,25 +40,29 @@
 	var debugElem = document.getElementById('debug');
 	var testNameElem = document.getElementById('test-name');
 	var dotsElem = document.getElementById('running-dots');
-	var debugLines = ["Tests:\n\t"+testModNames.join(",\n\t"), ''];
+	var debugLines = ["Tests:\n\t"+testModuleNames.join(",\n\t"), ''];
 	var updateDebugText = function(line) {
 		if( line != null ) debugLines.push(line);
 		debugElem.firstChild.nodeValue = debugLines.join("\n");
 	}
 	updateDebugText();
 	
+	var logErrors = function(testName, errors) {
+		var errorMessages = [];
+		for( var i in errors ) {
+			var error = errors[i];
+			console.error(error);
+			errorMessages.push( error.message+(error.stack ? "\n"+error.stack : " (no stack available)") );
+		}
+		updateDebugText(testName+" failed: "+errorMessages.join("\n"));
+	}
+	
 	var testCompleted = function(testName, success, errors) {
 		if( success ) {
 			++passedTestCount;
 		} else {
 			++failedTestCount;
-			var errorMessages = [];
-			for( var i in errors ) {
-				var error = errors[i];
-				console.error(error);
-				errorMessages.push( error.message+(error.stack ? "\n"+error.stack : " (no stack available)") );
-			}
-			updateDebugText(testName+" failed: "+errorMessages.join("\n"));
+			logErrors( testName, errors );
 		}
 		if( ++runTestCount == totalTestCount ) {
 			testNameElem.firstChild.nodeValue = '';
@@ -75,38 +79,54 @@
 	
 	require(['togos-game21/testing'], function(testing) {
 		function testModules( moduleNames ) {
-			return new Promise( (resolve,reject) => {
-				if( moduleNames.length == 0 ) return Promise.resolve(true);
+			return new Promise( function(resolve,reject) {
+				if( moduleNames.length == 0 ) resolve();
 				
-				var testModName = moduleNames[0];
+				var testModuleName = moduleNames[0];
+				var moduleTestResults = [];
+				
+				testing.testHarness = {
+					registerTestResult: function(name, resultPromise) {
+						moduleTestResults.push({
+							moduleName: testModuleName,
+							testName: name,
+							resultPromise: resultPromise,
+						});
+					}
+				};
+				
 				try {
-					require([testModName], function(testMod) {
-						testNameElem.firstChild.nodeValue = testModName;
-						console.log("Loaded "+testModName+"...");
-						Promise.all(testing.flushRegisteredTestResults()).
-							then( (allResults) => {
-								let errors = [];
-								for( var r in allResults ) {
-									if( allResults[r].errors && allResults[r].errors.length > 0 ) {
-										for( e in allResults[r].errors ) errors.push( allResults[r].errors[e] );
+					require([testModuleName], function(testMod) {
+						testNameElem.firstChild.nodeValue = testModuleName;
+						console.log("Loaded "+testModuleName+"...");
+						var anyFailuresThisModule = false;
+						var allResultsHandled = moduleTestResults.map( function(mtr) {
+							return mtr.resultPromise.
+								catch( function(err) { return { errors: [err] } } ).
+								then( function(tr) {
+									if( tr.errors && tr.errors.length > 0 ) {
+										anyFailuresThisModule = true;
+										logErrors( mtr.testModuleName+"/"+mtr.testName, tr.errors );
 									}
-									if( allResults[r].failures && allResults[r].failures.length > 0 ) {
-										for( e in allResults[r].failures ) errors.push( { tfType: "failure", message: allResults[r].failures[e].message } );
+									if( tr.failures && tr.failures.length > 0 ) {
+										anyFailuresThisModule = true;
+										logErrors( mtr.testModuleName+"/"+mtr.testName, tr.failures );
 									}
-								}
-								testCompleted(testModName, errors.length == 0, errors)
-							} ).
-							catch( (err) => testCompleted(testModName, false, [err]) ).
-							then( () => testModules(moduleNames.slice(1)) );
+								});
+						});
+						return Promise.all(allResultsHandled).then( function() {
+							testCompleted( testModuleName, !anyFailuresThisModule );
+							resolve();
+						});
 					});
 				} catch( err ) {
-					testCompleted(testModName, false, [err]);
-					testModules(moduleNames.slice(1));
+					testCompleted(testModuleName, false, [err]);
+					resolve();
 				}
-			});
+			}).then( function() { testModules(moduleNames.slice(1)) } );
 		}
 		
-		testModules(testModNames).then( () => { console.log("All tests finished."); } );
+		testModules(testModuleNames).then( () => { console.log("All tests finished."); } );
 	});
 })(); 
 
