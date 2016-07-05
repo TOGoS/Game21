@@ -58,13 +58,13 @@ export function registerTestResult( testName:string, res:Promise<TestResult> ):v
 	testHarness.registerTestResult( testName, res );
 }
 
-export function assertEqualsPromise( a:any, b:any, msg?:string ):Promise<void> {
+export function assertEqualsPromise( a:any, b:any, msg?:string ):Promise<TestResult> {
 	const aJson = JSON.stringify(a);
 	const bJson = JSON.stringify(b);
 	if( aJson != bJson ) {
 		return Promise.reject( new Error("Assertion failed: " + aJson + " != " + bJson + (msg ? "; "+msg : "")) );
 	} else {
-		return Promise.resolve(null);
+		return Promise.resolve( { } );
 	}
 }
 

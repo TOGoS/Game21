@@ -54,7 +54,7 @@ function registerResultStackTest( name:string, s:any[], source:string ) {
 		then( (compileCtx:CompilationContext) => {
 			//console.log("Compiled "+name, compileCtx);
 			return runProgram( compileCtx.program );
-		}).then( (runtimeCtx:RuntimeContext):TestResult => {
+		}).then( (runtimeCtx:RuntimeContext):Promise<TestResult> => {
 			//console.log("Got "+name+" program result", runtimeCtx.dataStack);
 			return assertEqualsPromise( s, runtimeCtx.dataStack );
 		});

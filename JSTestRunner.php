@@ -79,9 +79,9 @@
 	
 	require(['togos-game21/testing'], function(testing) {
 		function testModules( moduleNames ) {
+			if( moduleNames.length == 0 ) return Promise.resolve();
+
 			return new Promise( function(resolve,reject) {
-				if( moduleNames.length == 0 ) resolve();
-				
 				var testModuleName = moduleNames[0];
 				var moduleTestResults = [];
 				
