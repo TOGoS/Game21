@@ -155,13 +155,13 @@ export function makeWordGetter( words:KeyedList<Word>, ...backups : WordGetter[]
  */
 export function runContext( ctx:RuntimeContext ):Promise<RuntimeContext> {
 	for( ; ctx.fuel > 0 && ctx.ip >= 0 && ctx.ip < ctx.program.length ; ) {
-		console.log("Running '"+ctx.program[ctx.ip].name+"' at ip="+ctx.ip);
+		//console.log("Running '"+ctx.program[ctx.ip].name+"' at ip="+ctx.ip);
 		const word = ctx.program[ctx.ip++];
 		let prom = word.forthRun(ctx);
-		if( prom != null ) console.log(word.name+" returned a promise; so naughty!");
+		// prom = null?  continue synchronously; else finish running asynchronously and return promise
 		if( prom != null ) return (<Promise<RuntimeContext>>prom).then( runContext );
 	}
-	console.log("Program done (at "+ctx.ip+")!");
+	//console.log("Program done (at "+ctx.ip+")!");
 	return resolvedPromise(ctx);
 }
 

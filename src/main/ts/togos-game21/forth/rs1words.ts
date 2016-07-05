@@ -100,7 +100,6 @@ const exitWord:RuntimeWord = {
 	name: "exit",
 	wordType: WordType.OTHER_RUNTIME,
 	forthRun: (ctx:RuntimeContext):void => {
-		console.log("Let's take a looksie at the return stack before exiting.", ctx.returnStack);
 		--ctx.fuel;
 		const ret = ctx.returnStack.pop();
 		ctx.ip = ret == null ? -1 : +ret;
