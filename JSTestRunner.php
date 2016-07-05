@@ -55,10 +55,10 @@
 			var errorMessages = [];
 			for( var i in errors ) {
 				var error = errors[i];
+				console.error(error);
 				errorMessages.push( error.message+(error.stack ? "\n"+error.stack : " (no stack available)") );
 			}
 			updateDebugText(testName+" failed: "+errorMessages.join("\n"));
-			console.log(errors);
 		}
 		if( ++runTestCount == totalTestCount ) {
 			testNameElem.firstChild.nodeValue = '';
@@ -79,25 +79,30 @@
 				if( moduleNames.length == 0 ) return Promise.resolve(true);
 				
 				var testModName = moduleNames[0];
-				require([testModName], function(testMod) {
-					testNameElem.firstChild.nodeValue = testModName;
-					console.log("Loaded "+testModName+"...");
-					Promise.all(testing.flushRegisteredTestResults()).
-						then( (allResults) => {
-							let errors = [];
-							for( var r in allResults ) {
-								if( allResults[r].errors && allResults[r].errors.length > 0 ) {
-									for( e in allResults[r].errors ) errors.push( allResults[r].errors[e] );
+				try {
+					require([testModName], function(testMod) {
+						testNameElem.firstChild.nodeValue = testModName;
+						console.log("Loaded "+testModName+"...");
+						Promise.all(testing.flushRegisteredTestResults()).
+							then( (allResults) => {
+								let errors = [];
+								for( var r in allResults ) {
+									if( allResults[r].errors && allResults[r].errors.length > 0 ) {
+										for( e in allResults[r].errors ) errors.push( allResults[r].errors[e] );
+									}
+									if( allResults[r].failures && allResults[r].failures.length > 0 ) {
+										for( e in allResults[r].failures ) errors.push( { tfType: "failure", message: allResults[r].failures[e].message } );
+									}
 								}
-								if( allResults[r].failures && allResults[r].failures.length > 0 ) {
-									for( e in allResults[r].failures ) errors.push( { tfType: "failure", message: allResults[r].failures[e].message } );
-								}
-							}
-							testCompleted(testModName, errors.length == 0, errors)
-						} ).
-						catch( (err) => testCompleted(testModName, false, {message: err}) ).
-						then( () => testModules(moduleNames.slice(1)) );
-				});
+								testCompleted(testModName, errors.length == 0, errors)
+							} ).
+							catch( (err) => testCompleted(testModName, false, [err]) ).
+							then( () => testModules(moduleNames.slice(1)) );
+					});
+				} catch( err ) {
+					testCompleted(testModName, false, [err]);
+					testModules(moduleNames.slice(1));
+				}
 			});
 		}
 		
