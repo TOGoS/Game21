@@ -222,6 +222,7 @@ export function literalValueWord( v:any, name?:string ) : RuntimeWord {
 		wordType: WordType.PUSH_VALUE,
 		value: v,
 		forthRun: function(ctx:RuntimeContext) {
+			--ctx.fuel;
 			ctx.dataStack.push(this.value);
 		}
 	};
@@ -232,6 +233,7 @@ export function callWord( location:number, targetName:string ) : RuntimeWord {
 		name: "call:"+targetName,
 		wordType: WordType.OTHER_RUNTIME,
 		forthRun: (ctx:RuntimeContext) => {
+			--ctx.fuel;
 			ctx.returnStack.push(ctx.ip);
 			ctx.ip = location;
 		}
