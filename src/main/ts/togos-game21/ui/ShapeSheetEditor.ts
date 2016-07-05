@@ -12,9 +12,10 @@ import ShapeSheetRenderer from '../ShapeSheetRenderer';
 import ShapeSheetUtil from '../ShapeSheetUtil';
 import { DEFAULT_MATERIAL_MAP } from '../materials';
 import { DEFAULT_LIGHTS } from '../lights';
+import Token, { TokenType } from '../forth/Token';
 import {
-	Word, WordType, Program, RuntimeWord, RuntimeContext, CompilationContext,
-	compileSource, runContext
+	Word, WordType, Program, RuntimeWord, RuntimeContext, CompilationContext, CompilationWord,
+	compileSource, runContext, atText
 } from '../forth/rs1'
 import {
 	makeWordGetter, standardWords, mergeDicts, parseNumberWord
@@ -212,6 +213,60 @@ interface ShapeGeneratorContext extends RuntimeContext {
 const tempVec = new Vector3D;
 const tempXf = new TransformationMatrix3D;
 
+interface ContextVariableRef {
+	variableName : string;
+}
+
+class GetContextValueWord implements RuntimeWord {
+	wordType = WordType.OTHER_RUNTIME;
+	constructor( public name:string ) { }
+	forthRun( ctx:RuntimeContext ):void {
+		--ctx.fuel;
+		ctx.dataStack.push( (<ShapeGeneratorContext>ctx).contextValues[this.name] );
+	}
+}
+
+class GetContextVariableWord implements RuntimeWord {
+	wordType = WordType.OTHER_RUNTIME;
+	constructor( public name:string, public variableRef:ContextVariableRef ) { }
+	forthRun( ctx:RuntimeContext ):void {
+		--ctx.fuel;
+		ctx.dataStack.push( this.variableRef );
+	}
+}
+
+const fetchValueWord : RuntimeWord = {
+	wordType: WordType.OTHER_RUNTIME,
+	name: "@",
+	forthRun( ctx:RuntimeContext ):void {
+		--ctx.fuel;
+		const ref = ctx.dataStack.pop();
+		if( ref == null || !ref.variableName ) {
+			throw new Error(ref+" is not a context varable!");
+		}
+		ctx.dataStack.push( (<ShapeGeneratorContext>ctx).contextValues[ref.variableName] );
+	}
+}
+
+const storeValueWord : RuntimeWord = {
+	wordType: WordType.OTHER_RUNTIME,
+	name: "!",
+	forthRun(ctx:RuntimeContext ):void {
+		--ctx.fuel;
+		const ref = ctx.dataStack.pop();
+		if( ref == null || !ref.variableName ) {
+			throw new Error(ref+" is not a context varable!");
+		}
+		const val = ctx.dataStack.pop();
+		(<ShapeGeneratorContext>ctx).contextValues[ref.variableName] = val;
+	}
+}
+
+function declareContextVariable( ctx:CompilationContext, name:string ):void {
+	ctx.dictionary[name] = new GetContextValueWord(name);
+	ctx.dictionary['$'+name] = new GetContextVariableWord(name, {variableName:name});
+}
+
 const customWords : KeyedList<Word> = {
 	"plot-sphere": <RuntimeWord> {
 		name: "plot-sphere",
@@ -238,6 +293,31 @@ const customWords : KeyedList<Word> = {
 			return null;
 		}
 	},
+	"context-variable:": <CompilationWord> {
+		name: "context-variable:",
+		wordType: WordType.OTHER_COMPILETIME,
+		forthCompile: <CompilationWord> (ctx:CompilationContext) => {
+			ctx.onToken = (nameT:Token) => {
+				switch( nameT.type ) {
+				case TokenType.BAREWORD: case TokenType.SINGLE_QUOTED:
+					ctx.onToken = null;
+					if( nameT.text.charAt(0) != '$' ) {
+						throw new Error("Symbol after 'context-variable:' must start with \"$\""+atText(nameT.sourceLocation));
+					}
+					declareContextVariable(ctx, nameT.text.substr(1));
+					return;
+				case TokenType.END_OF_FILE:
+					throw new Error("Encountered end of file when expecting context variable name "+atText(nameT.sourceLocation));
+				case TokenType.DOUBLE_QUOTED:
+					throw new Error("Encountered quoted string when expecting context variable name "+atText(nameT.sourceLocation));
+				default:
+					throw new Error("Unexpected token type "+nameT.type+" when expecting context variable name "+atText(nameT.sourceLocation));
+				}
+			}
+		}
+	},
+	"!": storeValueWord,
+	"@": fetchValueWord,
 }
 
 export default class ShapeSheetEditor
