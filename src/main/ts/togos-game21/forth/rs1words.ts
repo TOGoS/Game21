@@ -188,13 +188,7 @@ export const wordDefinitionWords:KeyedList<Word> = {
 			if( ctx.compilingMain ) return rejectedPromise(new Error("Weird ';' "+atText(ctx.sourceLocation)));
 
 			ctx.program.push(exitWord);
-			const resumeMainWord = jumpWord(ctx.program.length, "(resume main)"); 
-			const resumeMainFixup = ctx.fixups["(resume main)"];
-			if( resumeMainFixup ) {
-				for( let i in resumeMainFixup.references ) {
-					resumeMainFixup.references[i]( resumeMainWord, null );
-				}
-			}
+			defineLocation( ctx, "(resume main)", ctx.program.length );
 			ctx.compilingMain = true;
 		}
 	}
