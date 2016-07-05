@@ -77,5 +77,11 @@ registerResultStackTest( "call two user-defined function", [1, 2, 3, 4], ": thre
 registerResultStackTest( "jump to a user-defined function", [1, 2, 3],   ": foo 3 -1 jump ; 1 2 jump:foo " )
 registerResultStackTest( "declare fixup", [1, 2],   "code-label: foo 1 2" )
 registerResultStackTest( "use fixup fixup", [1, 3],   "code-label: foo 1 jump:foo 2 : foo 3" )
-registerResultStackTest( "jump to a user-defined function 2", [1, 2, 4], "code-label: end : foo 1 2 jump:end  ; 3 drop jump:foo  : end 4 ;" )
-registerResultStackTest( "jump to a user-defined function 3", [1, 2, 4], "code-label: end : foo 1 2 $end jump ; 3 drop $foo jump : end 4 ;" )
+
+// These rely on 'exit' on an empty return stack quitting the program (by jumping to -1)
+registerResultStackTest(
+	"jump to a user-defined function 2", [1, 2, 4],
+	"code-label: end : foo 1 2 jump:end  ; 3 drop jump:foo  : end 4 ;" )
+registerResultStackTest(
+	"jump to a user-defined function 3", [1, 2, 4],
+	"code-label: end : foo 1 2 $end jump ; 3 drop $foo jump : end 4 ;" )

@@ -100,8 +100,10 @@ const exitWord:RuntimeWord = {
 	name: "exit",
 	wordType: WordType.OTHER_RUNTIME,
 	forthRun: (ctx:RuntimeContext):void => {
+		console.log("Let's take a looksie at the return stack before exiting.", ctx.returnStack);
 		--ctx.fuel;
-		ctx.ip = ctx.returnStack.pop();
+		const ret = ctx.returnStack.pop();
+		ctx.ip = ret == null ? -1 : +ret;
 	}
 };
 
@@ -165,7 +167,7 @@ export const wordDefinitionWords:KeyedList<Word> = {
 				case TokenType.BAREWORD: case TokenType.SINGLE_QUOTED:
 					ctx.onToken = null;
 					if( ctx.compilingMain ) {
-						pushFixupPlaceholder(ctx, "(resume main)");
+						pushFixupPlaceholder(ctx, "jump:(resume main)");
 					}
 					defineLocation( ctx, nameT.text, ctx.program.length );
 					ctx.onToken = null;
