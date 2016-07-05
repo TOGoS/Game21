@@ -47,14 +47,18 @@
 	}
 	updateDebugText();
 	
-	var testCompleted = function(testName, success, error) {
+	var testCompleted = function(testName, success, errors) {
 		if( success ) {
 			++passedTestCount;
 		} else {
 			++failedTestCount;
-			errors.push(error);
-			updateDebugText(testName+" failed: "+error.message);
-			console.log(error);
+			var errorMessages = [];
+			for( var i in errors ) {
+				var error = errors[i];
+				errorMessages.push( error.message+(error.stack ? "\n"+error.stack : " (no stack available)") );
+			}
+			updateDebugText(testName+" failed: "+errorMessages.join("\n"));
+			console.log(errors);
 		}
 		if( ++runTestCount == totalTestCount ) {
 			testNameElem.firstChild.nodeValue = '';
@@ -80,16 +84,16 @@
 					console.log("Loaded "+testModName+"...");
 					Promise.all(testing.flushRegisteredTestResults()).
 						then( (allResults) => {
-							let errorMessages = [];
+							let errors = [];
 							for( var r in allResults ) {
 								if( allResults[r].errors && allResults[r].errors.length > 0 ) {
-									for( e in allResults[r].errors ) errorMessages.push( allResults[r].errors[e].message );
+									for( e in allResults[r].errors ) errors.push( allResults[r].errors[e] );
 								}
 								if( allResults[r].failures && allResults[r].failures.length > 0 ) {
-									for( e in allResults[r].failures ) errorMessages.push( allResults[r].failures[e].message );
+									for( e in allResults[r].failures ) errors.push( { tfType: "failure", message: allResults[r].failures[e].message } );
 								}
 							}
-							testCompleted(testModName, errorMessages.length == 0, {message: errorMessages.join("\n")})
+							testCompleted(testModName, errors.length == 0, errors)
 						} ).
 						catch( (err) => testCompleted(testModName, false, {message: err}) ).
 						then( () => testModules(moduleNames.slice(1)) );
