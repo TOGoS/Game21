@@ -142,10 +142,10 @@ export default class Tokenizer {
 		} else if( this.awaitingCloseQuoteChars.length == 0 ) {
 			switch( c ) {
 			case C_TAB: case C_VT: case C_NL: case C_FF: case C_CR: case C_SPACE:
-				try {
-					return this.flushToken();
-				} finally {
+				{
+					const p:Promise<void>|void = this.flushToken();
 					this.postChar(c);
+					return p;
 				}
 			default:
 				const quoteStyle = this.quoteStylesByOpenChar[c];
@@ -200,9 +200,9 @@ export default class Tokenizer {
 	}
 	public text(text:string, skip:number=0) : Thenable<void> {
 		for( let i=skip; i<text.length; ++i ) {
-			let p;
-			if( p = this._char(text.charCodeAt(i)) ) {
-				return p.then( () => this.text(text, i+1) );
+			let p : Promise<void>|void;
+			if( (p = this._char(text.charCodeAt(i))) != null ) {
+				return (<Promise<void>>p).then( () => this.text(text, i+1) );
 			}
 		}
 		return resolvedPromise(null);
