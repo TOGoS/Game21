@@ -262,7 +262,7 @@ export default class ShapeSheetEditor
 			fallbackWordGetter: makeWordGetter( parseNumberWord ),
 			program: [],
 			fixups: {},
-			compilingMain: false,
+			compilingMain: true,
 		};
 		const sLoc = {
 			fileUri: 'new-script',
