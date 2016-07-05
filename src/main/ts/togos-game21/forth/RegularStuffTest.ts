@@ -71,6 +71,8 @@ registerResultStackTest( "call", [1, 2, 3, 4, 5, 6], "1 2 8 call 5 6 -1 jump 3 4
 registerResultStackTest( "mess with return stack", [3, 4, 7, 8], "13 >r 7 >r exit 1 2 3 4 r> jump 5 6 7 8" );
 
 registerResultStackTest( "call a user-defined function", [3, 1, 2], ": foo 1 2 ; 3 foo" )
+registerResultStackTest( "call nested user-defined functions", [1, 2, 3, 4], ": add + ; : foo 1 2 add ; 1 2 foo 4" )
+
 registerResultStackTest( "don't call a user-defined function", [3], ": foo 1 2 ; 3" )
 registerResultStackTest( "call two user-defined function", [1, 2, 3, 4], ": three 3 ; 1 : four 4 ; 2 three four" )
 
