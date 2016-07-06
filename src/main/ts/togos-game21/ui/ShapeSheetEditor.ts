@@ -1,7 +1,7 @@
 import { freeze, deepFreeze, thaw } from '../DeepFreezer';
 import KeyedList from '../KeyedList';
 import DirectionalLight from '../DirectionalLight';
-import Material from '../Material';
+import SurfaceMaterial from '../SurfaceMaterial';
 import ProceduralShape from '../ProceduralShape';
 import Rectangle from '../Rectangle';
 import Vector3D from '../Vector3D';
@@ -11,7 +11,7 @@ import ShapeSheet from '../ShapeSheet';
 import ShapeSheetRenderer from '../ShapeSheetRenderer';
 import ShapeSheetUtil from '../ShapeSheetUtil';
 import { AnimationType, animationTypeFromName } from '../Animation';
-import { DEFAULT_MATERIAL_MAP } from '../materials';
+import { DEFAULT_MATERIAL_MAP } from '../surfacematerials';
 import { DEFAULT_LIGHTS } from '../lights';
 import Token, { TokenType } from '../forth/Token';
 import {
@@ -117,7 +117,7 @@ class ShapeView {
 		this._xf = deepFreeze(xf);
 		if( this._shape != null ) this.updated();
 	}
-	public set materials( materials:Array<Material> ) {
+	public set materials( materials:Array<SurfaceMaterial> ) {
 		this._ssr.materials = materials;
 		if( this._shape != null ) this.updated();
 	}
@@ -179,7 +179,7 @@ class ShapeView {
 class ShapeViewSet {
 	protected _shape : ProceduralShape;
 	protected _views : KeyedList<ShapeView> = {};
-	protected _materials : Array<Material> = DEFAULT_MATERIAL_MAP;
+	protected _materials : Array<SurfaceMaterial> = DEFAULT_MATERIAL_MAP;
 	protected _lights : KeyedList<DirectionalLight> = DEFAULT_LIGHTS;
 	protected _paused : boolean = false;
 
@@ -191,7 +191,7 @@ class ShapeViewSet {
 		this._shape = shape;
 		for( let i in this._views ) this._views[i].shape = shape;
 	}
-	public set materials( materials:Array<Material> ) {
+	public set materials( materials:Array<SurfaceMaterial> ) {
 		this._materials = materials;
 		for( let i in this._views ) this._views[i].materials = materials;
 	}

@@ -14,8 +14,6 @@
 
 ## Misc to-do items
 
-s/Material/SurfaceMaterial/
-
 For maze game:
 - quantized physics
 - a nicer map editor
@@ -64,3 +62,7 @@ Possibly outdated but maybe not:
 - Self-shadowing (not useful for tiles, but fun to play with)
 - Serialize all data including preview as PNG
 - Deserialize!
+
+## Done!
+
+* s/Material/SurfaceMaterial/

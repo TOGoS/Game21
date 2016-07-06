@@ -9,7 +9,7 @@ import ImageSlice from './ImageSlice';
 import ProceduralShape from './ProceduralShape';
 import Animation, { AnimationType } from './Animation';
 import ObjectVisual, {ObjectVisualState, ObjectVisualFrame, VisualBasisType} from './ObjectVisual';
-import {DEFAULT_MATERIAL_MAP, IDENTITY_MATERIAL_REMAP} from './materials';
+import {DEFAULT_MATERIAL_MAP, IDENTITY_MATERIAL_REMAP} from './surfacematerials';
 import ObjectImageManager, {compressQuaternion, decompressQuaternion} from './ObjectImageManager';
 
 class ArrowShape implements ProceduralShape {

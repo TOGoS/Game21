@@ -9,9 +9,9 @@ import Vector3D from './Vector3D';
 import Quaternion from './Quaternion';
 import ShapeSheetRenderer from './ShapeSheetRenderer';
 import ShapeSheetUtil from './ShapeSheetUtil';
-import Material from './Material';
+import SurfaceMaterial from './SurfaceMaterial';
 import { Game } from './world';
-import { remap, paletteToMap as materialPaletteToMap } from './materials';
+import { remap, paletteToMap as materialPaletteToMap } from './surfacematerials';
 import {DEFAULT_LIGHTS} from './lights';
 
 function compressQuaternionComponent( c:number ):number {
@@ -138,7 +138,7 @@ export default class ObjectImageManager {
 	// Due to the differences between how procedural and shapesheet
 	// visuals are to be handled, I expect these 2 functions to be combined into one big one.
 	// Otherwise I have to look at visualBasisType twice.
-	public frameToImageSlice(ov:ObjectVisualFrame, materials:Array<Material>, t:number, orientation:Quaternion, preferredResolution:number):ImageSlice<HTMLImageElement> {
+	public frameToImageSlice(ov:ObjectVisualFrame, materials:Array<SurfaceMaterial>, t:number, orientation:Quaternion, preferredResolution:number):ImageSlice<HTMLImageElement> {
 		const shapeSheetSlice = this.frameToShapeSheetSlice(ov, t, orientation, preferredResolution*this._superSampling);
 		const croppedSheet = ShapeSheetUtil.autocrop(shapeSheetSlice, true, this._superSampling);
 		const sup = this._superSampling;
@@ -205,8 +205,8 @@ export default class ObjectImageManager {
 	
 	// TODO: Move stuff like this to some DataAccessor class or something
 	// that wraps game + other stuffs
-	protected materialMaps:KeyedList<Array<Material>> = {};
-	protected getMaterialMap(materialPaletteRef:string):Array<Material> {
+	protected materialMaps:KeyedList<Array<SurfaceMaterial>> = {};
+	protected getMaterialMap(materialPaletteRef:string):Array<SurfaceMaterial> {
 		if( this.materialMaps[materialPaletteRef] == null ) {
 			const pal:Array<string> = this.game.materialPalettes[materialPaletteRef];
 			if( pal == null ) throw new Error("No such material palette: "+materialPaletteRef);

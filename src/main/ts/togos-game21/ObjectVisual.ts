@@ -2,8 +2,8 @@ import ProceduralShape from './ProceduralShape';
 import ShapeSheet from './ShapeSheet';
 import ImageSlice from './ImageSlice';
 import Animation from './Animation';
-import Material from './Material';
-import {IDENTITY_MATERIAL_REMAP} from './materials';
+import SurfaceMaterial from './SurfaceMaterial';
+import {IDENTITY_MATERIAL_REMAP} from './surfacematerials';
 import Rectangle from './Rectangle';
 import Quaternion from './Quaternion';
 import Vector3D from './Vector3D';
@@ -49,7 +49,7 @@ export interface ObjectVisualState {
 }
 
 /**
- * Material Agnostic Object Visual; all the information except the material map
+ * SurfaceMaterial Agnostic Object Visual; all the information except the material map
  * (though states and animation frames may still remap materials)
  */
 export interface MAObjectVisual {
@@ -58,7 +58,7 @@ export interface MAObjectVisual {
 
 export interface ObjectVisual {
 	materialPaletteRef? : string;
-	materialMap? : Array<Material>;
+	materialMap? : Array<SurfaceMaterial>;
 	maVisualRef? : string;
 	maVisual? : MAObjectVisual;
 }

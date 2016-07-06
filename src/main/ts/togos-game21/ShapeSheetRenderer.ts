@@ -3,12 +3,12 @@ import Rectangle from './Rectangle';
 import ShapeSheet from './ShapeSheet';
 import SurfaceColor from './SurfaceColor';
 import LightColor from './LightColor';
-import Material from './Material';
+import SurfaceMaterial from './SurfaceMaterial';
 import Vector3D from './Vector3D';
 import KeyedList from './KeyedList';
 import DirectionalLight from './DirectionalLight';
 import {DEFAULT_LIGHTS} from './lights';
-import {DEFAULT_MATERIAL_MAP} from './materials';
+import {DEFAULT_MATERIAL_MAP} from './surfacematerials';
 
 const LARGE_NUMBER = 1000;
 
@@ -128,7 +128,7 @@ export default class ShapeSheetRenderer {
 	public shaders:Array<Shader> = [];
 	public updateRectanglesVisible:boolean = false;
 	protected _shadowDistanceOverride:number = null;
-	protected _materials:Array<Material>;
+	protected _materials:Array<SurfaceMaterial>;
 	protected _lights:KeyedList<DirectionalLight>;
 
 	// Cached information
@@ -190,7 +190,7 @@ export default class ShapeSheetRenderer {
 	get materials() {
 		return this._materials;
 	}
-	set materials(materials:Array<Material>) {
+	set materials(materials:Array<SurfaceMaterial>) {
 		this._materials = deepFreeze(materials);
 		this.materialsUpdated();
 	};
@@ -632,7 +632,7 @@ export default class ShapeSheetRenderer {
 		};
 	};
 	
-	public static shapeSheetToImage( ss:ShapeSheet, materials:Array<Material>, lights:KeyedList<DirectionalLight>, superSampling:number=1 ):HTMLImageElement {
+	public static shapeSheetToImage( ss:ShapeSheet, materials:Array<SurfaceMaterial>, lights:KeyedList<DirectionalLight>, superSampling:number=1 ):HTMLImageElement {
 		const canv:HTMLCanvasElement = <HTMLCanvasElement>document.createElement('canvas');
 		canv.width = ss.width / superSampling;
 		canv.height = ss.height / superSampling;

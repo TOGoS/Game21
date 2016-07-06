@@ -1,24 +1,24 @@
 import KeyedList from './KeyedList';
 import { deepFreeze } from './DeepFreezer';
 import SurfaceColor from './SurfaceColor';
-import Material from './Material';
+import SurfaceMaterial from './SurfaceMaterial';
 
 export const MATERIAL_MAP_SIZE = 256;
 
 /** An array providing a material reference for each 0..255 index */
 type MaterialPalette = Array<string>;
 /** A palette with refs resolved to actual material objects */
-type MaterialMap = Array<Material>;
+type MaterialMap = Array<SurfaceMaterial>;
 /** Given a material map, a 'remap' can map indexes to different indexes
  * (e.g. to turn indicator lights on and off without modifying the image data) */
 type MaterialRemap = Uint8Array;
 
-export function randomMaterials(count:number):Array<Material> {
+export function randomMaterials(count:number):Array<SurfaceMaterial> {
 	let r = Math.random();
 	let g = Math.random();
 	let b = Math.random();
 	const vari = Math.random()*0.5;
-	const materials:Material[] = [];
+	const materials:SurfaceMaterial[] = [];
 	for( let i=0; i < count; ++i ) {
 		materials.push({
 			title: "random material "+i,
@@ -33,12 +33,12 @@ export function randomMaterials(count:number):Array<Material> {
 	return materials;
 }
 
-export function randomMaterialMap():Array<Material> {
-	const map:Array<Material> = [
-		Material.NONE,
-		Material.NONE,
-		Material.NONE,
-		Material.NONE,
+export function randomMaterialMap():Array<SurfaceMaterial> {
+	const map:Array<SurfaceMaterial> = [
+		SurfaceMaterial.NONE,
+		SurfaceMaterial.NONE,
+		SurfaceMaterial.NONE,
+		SurfaceMaterial.NONE,
 	]
 	for( var i=4; i<256; i += 4 ) {
 		map.splice(map.length, 0, ...randomMaterials(4));
@@ -70,8 +70,8 @@ CHECK OUT THSI AWSUM WEB SIGHT https://www.uuidgenerator.net/;
 'urn:uuid:ea6ae5c8-5c01-49b9-9d59-4d74a7a15079';
 */
 
-export const DEFAULT_MATERIALS:KeyedList<Material> = {
-	[noneRef]: Material.NONE,
+export const DEFAULT_MATERIALS:KeyedList<SurfaceMaterial> = {
+	[noneRef]: SurfaceMaterial.NONE,
 	[steel0Ref]: {
 		title: "steel 0", 
 		diffuse: new SurfaceColor(1.0,1.0,0.9)
@@ -128,15 +128,15 @@ export const IDENTITY_MATERIAL_REMAP:MaterialRemap = new Uint8Array(256);
 for( let i=0; i<256; ++i ) IDENTITY_MATERIAL_REMAP[i] = i;
 deepFreeze(IDENTITY_MATERIAL_REMAP, true);
 
-export function paletteToMap(palette:Array<string>, materials:KeyedList<Material>):Array<Material> {
-	const map:Array<Material> = []; //palette.map( (i) => materials[i] );
+export function paletteToMap(palette:Array<string>, materials:KeyedList<SurfaceMaterial>):Array<SurfaceMaterial> {
+	const map:Array<SurfaceMaterial> = []; //palette.map( (i) => materials[i] );
 	for( let i=0; i < 256; ++i ) {
 		const matId = palette[i];
-		const mat = matId == null ? Material.UNDEFINED : materials[matId];
+		const mat = matId == null ? SurfaceMaterial.UNDEFINED : materials[matId];
 		if( mat == null ) throw new Error("No such material "+matId+" (while building material map from palette)");
 		map.push(mat);
 	}
-	// while( map.length < 256 ) map.push(Material.UNDEFINED);
+	// while( map.length < 256 ) map.push(SurfaceMaterial.UNDEFINED);
 	return map;
 }
 
@@ -144,7 +144,7 @@ export function paletteToMap(palette:Array<string>, materials:KeyedList<Material
  * Think of this kind of like matrix multiplcation.
  * material map * material remap = material map with additional transformations
  */
-export function remap(map:Array<Material>, remap:MaterialRemap, dest:Array<Material>=null):Array<Material> {
+export function remap(map:Array<SurfaceMaterial>, remap:MaterialRemap, dest:Array<SurfaceMaterial>=null):Array<SurfaceMaterial> {
 	if( dest == null ) {
 		// Then we can shortcut if there's nothing to do.
 		if( remap == IDENTITY_MATERIAL_REMAP ) return map;

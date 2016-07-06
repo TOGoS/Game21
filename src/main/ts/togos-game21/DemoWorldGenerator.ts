@@ -9,7 +9,7 @@ import KeyedList from './KeyedList';
 import {
 	DEFAULT_MATERIAL_MAP, IDENTITY_MATERIAL_REMAP, DEFAULT_MATERIALS, DEFAULT_MATERIAL_PALETTE, DEFAULT_MATERIAL_PALETTE_REF,
 	makeRemap, remap
-} from './materials';
+} from './surfacematerials';
 import ObjectVisual, { MAObjectVisual, VisualBasisType } from './ObjectVisual';
 import { AnimationType } from './Animation';
 import { Game, PhysicalObject, PhysicalObjectType, TileTree, Room } from './world';

@@ -3,7 +3,7 @@ import Cuboid from './Cuboid';
 import Quaternion from './Quaternion';
 import KeyedList from './KeyedList';
 import Vector3D from './Vector3D';
-import SurfaceMaterial from './Material';
+import SurfaceMaterial from './SurfaceMaterial';
 
 import { deepFreeze } from './DeepFreezer';
 
