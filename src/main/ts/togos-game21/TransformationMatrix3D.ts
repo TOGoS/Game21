@@ -86,19 +86,23 @@ export default class TransformationMatrix3D {
 	};
 	
 	public static multiply( m1:TransformationMatrix3D, m2:TransformationMatrix3D, dest:TransformationMatrix3D=new TransformationMatrix3D ):TransformationMatrix3D {
-		dest.xx = m1.xx * m2.xx + m1.xy * m2.yx + m1.xz * m2.zx + 0;
-		dest.xy = m1.xx * m2.xy + m1.xy * m2.yy + m1.xz * m2.zy + 0;
-		dest.xz = m1.xx * m2.xz + m1.xy * m2.yz + m1.xz * m2.zz + 0;
-		dest.x1 = m1.xx * m2.x1 + m1.xy * m2.y1 + m1.xz * m2.z1 + m1.x1;
-		dest.yx = m1.yx * m2.xx + m1.yy * m2.yx + m1.yz * m2.zx + 0;
-		dest.yy = m1.yx * m2.xy + m1.yy * m2.yy + m1.yz * m2.zy + 0;
-		dest.yz = m1.yx * m2.xz + m1.yy * m2.yz + m1.yz * m2.zz + 0;
-		dest.y1 = m1.yx * m2.x1 + m1.yy * m2.y1 + m1.yz * m2.z1 + m1.y1;
-		dest.zx = m1.zx * m2.xx + m1.zy * m2.yx + m1.zz * m2.zx + 0;
-		dest.zy = m1.zx * m2.xy + m1.zy * m2.yy + m1.zz * m2.zy + 0;
-		dest.zz = m1.zx * m2.xz + m1.zy * m2.yz + m1.zz * m2.zz + 0;
-		dest.z1 = m1.zx * m2.x1 + m1.zy * m2.y1 + m1.zz * m2.z1 + m1.z1;
-		return dest;
+		const xx = m1.xx * m2.xx + m1.xy * m2.yx + m1.xz * m2.zx + 0;
+		const xy = m1.xx * m2.xy + m1.xy * m2.yy + m1.xz * m2.zy + 0;
+		const xz = m1.xx * m2.xz + m1.xy * m2.yz + m1.xz * m2.zz + 0;
+		const x1 = m1.xx * m2.x1 + m1.xy * m2.y1 + m1.xz * m2.z1 + m1.x1;
+		const yx = m1.yx * m2.xx + m1.yy * m2.yx + m1.yz * m2.zx + 0;
+		const yy = m1.yx * m2.xy + m1.yy * m2.yy + m1.yz * m2.zy + 0;
+		const yz = m1.yx * m2.xz + m1.yy * m2.yz + m1.yz * m2.zz + 0;
+		const y1 = m1.yx * m2.x1 + m1.yy * m2.y1 + m1.yz * m2.z1 + m1.y1;
+		const zx = m1.zx * m2.xx + m1.zy * m2.yx + m1.zz * m2.zx + 0;
+		const zy = m1.zx * m2.xy + m1.zy * m2.yy + m1.zz * m2.zy + 0;
+		const zz = m1.zx * m2.xz + m1.zy * m2.yz + m1.zz * m2.zz + 0;
+		const z1 = m1.zx * m2.x1 + m1.zy * m2.y1 + m1.zz * m2.z1 + m1.z1;
+		return dest.set(
+			xx, xy, xz, x1,
+			yx, yy, yz, y1,
+			zx, zy, zz, z1
+		);
 	}
 	
 	public multiply( r:TransformationMatrix3D, dest:TransformationMatrix3D=new TransformationMatrix3D ):TransformationMatrix3D {
@@ -146,6 +150,10 @@ export default class TransformationMatrix3D {
 	}
 	
 	public clone(into:TransformationMatrix3D=new TransformationMatrix3D):TransformationMatrix3D {
-		return into.set( this.xx, this.xy, this.xz, this.x1, this.yx, this.yy, this.yz, this.y1, this.zx, this.zy, this.zz, this.z1 );
+		return into.set(
+			this.xx, this.xy, this.xz, this.x1,
+			this.yx, this.yy, this.yz, this.y1,
+			this.zx, this.zy, this.zz, this.z1
+		);
 	}
 }
