@@ -1,4 +1,4 @@
-import { freeze } from '../DeepFreezer';
+import { freeze, deepFreeze } from '../DeepFreezer';
 import KeyedList from '../KeyedList';
 import DirectionalLight from '../DirectionalLight';
 import Material from '../Material';
@@ -33,6 +33,7 @@ class ShapeView {
 	protected _t : number = 0;
 	protected _xf : TransformationMatrix3D = TransformationMatrix3D.IDENTITY;
 	public autoRender : boolean = true;
+	public paused : boolean = false;
 	
 	// Can be used to calculate xf
 	protected _scale : number = 16;
@@ -97,6 +98,7 @@ class ShapeView {
 	
 	public set shape( shape:ProceduralShape ) {
 		this._shape = shape; this.updated();
+		console.log("Updated "+this._canv.id, this.transform);
 	}
 	public set t( t:number ) {
 		t -= Math.floor(t);
@@ -107,7 +109,7 @@ class ShapeView {
 	public set transform( xf:TransformationMatrix3D ) {
 		if( this._xf == xf ) return;
 		if( this._xf.toString() == xf.toString() ) return;
-		this._xf = xf;
+		this._xf = deepFreeze(xf);
 		if( this._shape != null ) this.updated();
 	}
 	public set materials( materials:Array<Material> ) {
@@ -151,9 +153,11 @@ class ShapeView {
 			curTime = Date.now();
 			
 			let dt = (curTime - prevTime) / 1000;
-			if( dt < 0 ) dt = 0; // Don't go backwards because that would be confusing.
-			if( dt > 0.1 ) dt = 0.1; // Don't animate too fast
-			this.updateAnimation( dt );
+			if( !this.paused ) {
+				if( dt < 0 ) dt = 0; // Don't go backwards because that would be confusing.
+				if( dt > 0.1 ) dt = 0.1; // Don't animate too fast
+				this.updateAnimation( dt );
+			}
 			
 			if( this.updateRequested ) {
 				this.updateRequested = false;
@@ -172,7 +176,12 @@ class ShapeViewSet {
 	protected _views : KeyedList<ShapeView> = {};
 	protected _materials : Array<Material> = DEFAULT_MATERIAL_MAP;
 	protected _lights : KeyedList<DirectionalLight> = DEFAULT_LIGHTS;
+	protected _paused : boolean = false;
 
+	public set paused( p:boolean ) {
+		this._paused = p;
+		for( let i in this._views ) this._views[i].paused = p;
+	}
 	public set shape( shape:ProceduralShape ) {
 		this._shape = shape;
 		for( let i in this._views ) this._views[i].shape = shape;
@@ -339,6 +348,9 @@ export default class ShapeSheetEditor
 	protected program:Program;
 	protected rendering:boolean = false;
 	
+	protected playButton:HTMLElement;
+	protected pauseButton:HTMLElement;
+	
 	protected printMessage( text:string, className:string ) {
 		let elem = document.createElement('p');
 		elem.className = className;
@@ -363,76 +375,87 @@ export default class ShapeSheetEditor
 		return compileSource( script, ctx, sLoc );
 	}
 	
+	public reloadProgram():void {
+		this.compile( this.scriptBox.value ).then( (ctx:CompilationContext) => {
+			this.program = ctx.program;
+			console.log("Compiled!", this.program.length+" words");
+			
+			this.viewSet.shape = {
+				isAnimated: true,
+				estimateOuterBounds: (t, xf) => new Rectangle( -1, -1, 1, 1 ), // This gets ignored; we just use the whole canvas
+				draw: (ssu, t, xf) => {
+					
+					const prog = this.program == null ? [] : this.program;
+					
+					const ctx : ShapeGeneratorContext = {
+						program: prog,
+						dataStack: [],
+						returnStack: [],
+						ip: 0,
+						fuel: 1000,
+						shapeSheetUtil: ssu,
+						contextValues: {
+							t: t
+						},
+						transform: xf.clone()
+					}
+					
+					ssu.plottedMaterialIndexFunction = (x,y,z) => 4;
+					this.rendering = true;
+					const p = runContext( ctx );
+					if( !isResolved(p) ) {
+						console.warn("Script didn't finish immediately; you won't see all the results, or possibly anything");
+					}
+				}
+			}
+		}).catch( (err) => {
+			console.error('Failed to compile!', err);
+		});
+	}
+	
 	public initUi():void {
 		this.scriptBox = <HTMLTextAreaElement>document.getElementById('script-text');
 		this.messageBox = <HTMLElement>document.getElementById('messages');
 		document.getElementById('reload-button').addEventListener('click', () => {
-			this.compile( this.scriptBox.value ).then( (ctx:CompilationContext) => {
-				this.program = ctx.program;
-				console.log("Compiled!", this.program.length+" words");
-			}).catch( (err) => {
-				console.error('Failed to compile!', err);
-			});
+			this.reloadProgram();
 		});
 		document.getElementById('save-button').addEventListener('click', () => {
 			this.printMessage( "Saving not yet implemented", 'error' );
 		});
+		
+		this.pauseButton = document.getElementById('pause-button');
+		this.playButton = document.getElementById('play-button');
+		
+		this.pauseButton.addEventListener('click', () => {
+			this.pauseAnimation();
+		});
+		this.playButton.addEventListener('click', () => {
+			this.resumeAnimation();
+		});
+		
+		this.resumeAnimation();
+	}
+	
+	protected pauseAnimation():void {
+		this.viewSet.paused = true;
+		this.pauseButton.style.display = 'none';
+		this.playButton.style.display = '';
+	}
+	protected resumeAnimation():void {
+		this.viewSet.paused = false;
+		this.playButton.style.display = 'none';
+		this.pauseButton.style.display = '';
 	}
 	
 	public runDemo():void {
 		this.viewSet.addViewFromCanvas( <HTMLCanvasElement>document.getElementById('static-view-canvas'), 'static' );
 		this.viewSet.addViewFromCanvas( <HTMLCanvasElement>document.getElementById('rotatey-view-canvas'), 'rotatey' );
 		
-		this.viewSet.shape = {
-			isAnimated: true,
-			estimateOuterBounds: (t, xf) => new Rectangle( -1, -1, 1, 1 ), // This gets ignored; we just use the whole canvas
-			draw: (ssu, t, xf) => {
-				
-				const prog = this.program == null ? [] : this.program;
-				
-				const ctx : ShapeGeneratorContext = {
-					program: prog,
-					dataStack: [],
-					returnStack: [],
-					ip: 0,
-					fuel: 1000,
-					shapeSheetUtil: ssu,
-					contextValues: {
-						t: t
-					},
-					transform: xf
-				}
-				
-				ssu.plottedMaterialIndexFunction = (x,y,z) => 4;
-				this.rendering = true;
-				const p = runContext( ctx );
-				if( !isResolved(p) ) {
-					console.warn("Script didn't finish immediately; you won't see all the results, or possibly anything");
-				}
-
-				// TODO: if p ain't null we gotta wait, I guess
-				
-				/*
-				let pos:Vector3D = new Vector3D;
-				
-				ssu.plottedMaterialIndexFunction = (x,y,z) => 4;
-				
-				xf.multiplyVector( new Vector3D(0,0,0), pos );
-				ssu.plotSphere( pos.x, pos.y, pos.z, xf.scale * 0.5 );
-				
-				ssu.plottedMaterialIndexFunction = (x,y,z) => 8;
-				for( let i=0; i<8; ++i ) {
-					let x = 0.5 + i*0.5;
-					let y = i * 0.1 * Math.sin( t*Math.PI*2 + i * 0.2 );
-					xf.multiplyVector( new Vector3D(x,y,0), pos );
-					ssu.plotSphere( pos.x, pos.y, pos.z, xf.scale * (0.25 + 0.1 * Math.sin(t * Math.PI)) );
-				}
-				*/
-			}
-		}
+		const staticy = this.viewSet.views['static'];
+		staticy.setScaleAndRotation( 16, Quaternion.IDENTITY );
 		
 		const rotatey = this.viewSet.views['rotatey'];
-			
+		
 		rotatey.setScaleAndRotation( 16, Quaternion.IDENTITY );
 		rotatey.startAnimation( {
 			animationSpeed: 1,

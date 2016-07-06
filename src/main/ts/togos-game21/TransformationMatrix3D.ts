@@ -48,7 +48,7 @@ export default class TransformationMatrix3D {
 	public get "1y"() { return 0; }
 	public get "1z"() { return 0; }
 	public get "11"() { return 1; }
-		
+	
 	public static IDENTITY = deepFreeze(new TransformationMatrix3D(1,0,0,0,0,1,0,0,0,0,1,0));
 	
 	public multiplyVector( v:Vector3D, dest:Vector3D=new Vector3D ) : Vector3D {
@@ -143,5 +143,9 @@ export default class TransformationMatrix3D {
 	
 	public toString():String {
 		return this.rows.map( r => r.map(n => fmtNum(n, 7, 2)).join(" ")).join("\n");
+	}
+	
+	public clone(into:TransformationMatrix3D=new TransformationMatrix3D):TransformationMatrix3D {
+		return into.set( this.xx, this.xy, this.xz, this.x1, this.yx, this.yy, this.yz, this.y1, this.zx, this.zy, this.zz, this.z1 );
 	}
 }

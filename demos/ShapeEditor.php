@@ -26,22 +26,22 @@ $configProperties = [
 	],
 	'shapeViewMaxWidth' => [
 		'valueType' => 'number',
-		'defaultValue' => 768,
+		'defaultValue' => 256,
 		'affects' => 'pageGeneration',
 	],
 	'shapeViewMaxHeight' => [
 		'valueType' => 'number',
-		'defaultValue' => 384,
+		'defaultValue' => 256,
 		'affects' => 'pageGeneration',
 	],
 	'width' => [
 		'valueType' => 'number',
-		'defaultValue' => 192,
+		'defaultValue' => 128,
 		'affects' => 'pageGeneration',
 	],
 	'height' => [
 		'valueType' => 'number',
-		'defaultValue' => 192,
+		'defaultValue' => 128,
 		'affects' => 'pageGeneration',
 	],
 	'inlineResources' => [
@@ -151,10 +151,12 @@ html, body {
 	margin: 0;
 	display: flex;
 	flex-direction: row;
+	flex-wrap: wrap;
 	justify-content: center;
 }
 .shape-views > * {
 	margin: 16px;
+	display: flex;
 }
 .preview-region {
 	display: flex;
@@ -216,13 +218,17 @@ textarea {
 <div id="shape-editor-ui">
 <div id="left">
 <textarea rows="40" cols="40" id="script-text">
+: another 0.6 scale 0.5 0 0 move 1 plot-sphere ;
 1 plot-sphere
-1 0 0 move
-1 plot-sphere
+another
+another
+another
 </textarea>
 <div>
 <button id="reload-button">Reload</button>
 <button id="save-button">Save</button>
+<button id="pause-button" title="Pause rendering">&#x23f8;</button>
+<button id="play-button" title="Resume rendering">&#x25b6;</button>
 </div>
 </div>
 
