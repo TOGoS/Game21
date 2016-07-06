@@ -11,7 +11,7 @@ import {
 	makeRemap, remap
 } from './materials';
 import ObjectVisual, { MAObjectVisual, VisualBasisType } from './ObjectVisual';
-import { OnAnimationEnd } from './Animation';
+import { AnimationType } from './Animation';
 import { Game, PhysicalObject, PhysicalObjectType, TileTree, Room } from './world';
 import { sha1Urn, base32Encode, hash } from '../tshash/index';
 import SHA1 from '../tshash/SHA1';
@@ -21,7 +21,7 @@ import { makeTileTreeRef, connectRooms } from './worldutil';
 
 export function simpleObjectVisualShape( drawFunction:(ssu:ShapeSheetUtil, t:number, xf:TransformationMatrix3D )=>void ):MAObjectVisual {
 	const shape:ProceduralShape = {
-		isAnimated: false,
+		animationType: AnimationType.NONE,
 		estimateOuterBounds: (t:number, xf:TransformationMatrix3D) => {
 			let s = xf.scale;
 			return new Rectangle(-s*16, -s*16, s*16, s*16)
@@ -38,8 +38,8 @@ export function simpleObjectVisualShape( drawFunction:(ssu:ShapeSheetUtil, t:num
 				applicabilityFlagsMin: 0x00000000,
 				materialRemap: IDENTITY_MATERIAL_REMAP,
 				animation: {
+					type: AnimationType.NONE,
 					length: Infinity,
-					onEnd: OnAnimationEnd.LOOP,
 					frames: [
 						{
 							visualBasisType: VisualBasisType.PROCEDURAL,

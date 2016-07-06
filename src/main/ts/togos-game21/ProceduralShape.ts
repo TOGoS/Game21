@@ -1,13 +1,13 @@
 import Rectangle from './Rectangle';
+import { AnimationType } from './Animation';
 import TransformationMatrix3D from './TransformationMatrix3D';
 import ShapeSheetUtil from './ShapeSheetUtil';
 
 interface ProceduralShape {
 	/**
-	 * True if this shape draws differently depending on t.
-	 * This might be useful to know when generating cache keys.
+	 * Gives a hint for how this procedural shape is meant to be animated, if at all.
 	 */
-	isAnimated:boolean;
+	animationType : AnimationType;
 	/**
 	 * @param {number} t a number between 0 and 1 indicating the point in the object's animation that we are drawing
 	 */

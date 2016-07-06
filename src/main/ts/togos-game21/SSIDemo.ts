@@ -7,7 +7,7 @@ import ShapeSheetRenderer from './ShapeSheetRenderer';
 import ShapeSheetUtil, {constantMaterialIndexFunction, NOOP_PLOTTED_DEPTH_FUNCTION} from './ShapeSheetUtil';
 import ImageSlice from './ImageSlice';
 import ProceduralShape from './ProceduralShape';
-import Animation, {OnAnimationEnd} from './Animation';
+import Animation, { AnimationType } from './Animation';
 import ObjectVisual, {ObjectVisualState, ObjectVisualFrame, VisualBasisType} from './ObjectVisual';
 import {DEFAULT_MATERIAL_MAP, IDENTITY_MATERIAL_REMAP} from './materials';
 import ObjectImageManager from './ObjectImageManager';
@@ -19,8 +19,8 @@ class CoilShape implements ProceduralShape {
 	public minS:number = 0.7;
 	public maxS:number = 1.5;
 	
-	public get isAnimated() {
-		return this.minS != this.maxS;
+	public get animationType() {
+		return this.minS != this.maxS ? AnimationType.REVERSE : AnimationType.NONE;
 	}
 	
 	estimateOuterBounds( t:number, xf:TransformationMatrix3D ):Rectangle {
@@ -74,8 +74,8 @@ export default class SSIDemo {
 						applicabilityFlagsMin: 0,
 						applicabilityFlagsMax: 0,
 						animation: {
+							type: AnimationType.NONE,
 							length: Infinity,
-							onEnd: OnAnimationEnd.LOOP,
 							frames: [this.randomObjectVisualFrame()]
 						}
 					}

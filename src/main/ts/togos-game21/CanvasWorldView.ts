@@ -11,7 +11,6 @@ import Quaternion from './Quaternion';
 import TransformationMatrix3D from './TransformationMatrix3D';
 import Cuboid from './Cuboid';
 import { ObjectVisual, MAObjectVisual, VisualBasisType} from './ObjectVisual';
-import Animation, {OnAnimationEnd} from './Animation';
 import ProceduralShape from './ProceduralShape';
 import ImageSlice from './ImageSlice';
 import ObjectImageManager from './ObjectImageManager';

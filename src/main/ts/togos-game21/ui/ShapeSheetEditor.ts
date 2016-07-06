@@ -10,6 +10,7 @@ import TransformationMatrix3D from '../TransformationMatrix3D';
 import ShapeSheet from '../ShapeSheet';
 import ShapeSheetRenderer from '../ShapeSheetRenderer';
 import ShapeSheetUtil from '../ShapeSheetUtil';
+import { AnimationType, animationTypeFromName } from '../Animation';
 import { DEFAULT_MATERIAL_MAP } from '../materials';
 import { DEFAULT_LIGHTS } from '../lights';
 import Token, { TokenType } from '../forth/Token';
@@ -108,7 +109,7 @@ class ShapeView {
 		t -= Math.floor(t);
 		if( this._t == t ) return;
 		this._t = t;
-		if( this._shape != null && this._shape.isAnimated ) this.updated();
+		if( this._shape != null && this._shape.animationType != AnimationType.NONE ) this.updated();
 	}
 	public set transform( xf:TransformationMatrix3D ) {
 		if( this._xf == xf ) return;
@@ -435,7 +436,7 @@ export default class ShapeSheetEditor
 			console.log("Compiled!", this.program.length+" words");
 			
 			this.viewSet.shape = {
-				isAnimated: true,
+				animationType: animationTypeFromName("loop"), // TODO: parse from source headers
 				estimateOuterBounds: (t, xf) => new Rectangle( -1, -1, 1, 1 ), // This gets ignored; we just use the whole canvas
 				draw: (ssu, t, xf) => {
 					
