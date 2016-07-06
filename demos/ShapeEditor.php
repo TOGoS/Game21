@@ -218,11 +218,27 @@ textarea {
 <div id="shape-editor-ui">
 <div id="left">
 <textarea rows="40" cols="40" id="script-text">
-: another 0.6 scale 0.5 0 0 move 1 plot-sphere ;
+: another
+  0.9 scale
+  0.5 0 0 0 0 1 10 deg2rad aarotate
+  move 1 plot-sphere
+  exit
+
+: horn
+  another
+  another
+  another
+  another
+  another
+  another
+  exit
+
+;
+
 1 plot-sphere
-another
-another
-another
+save-context horn restore-context
+0 1 0 180 deg2rad aarotate
+save-context horn restore-context
 </textarea>
 <div>
 <button id="reload-button">Reload</button>

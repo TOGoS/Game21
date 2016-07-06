@@ -1,4 +1,4 @@
-import { freeze, deepFreeze } from '../DeepFreezer';
+import { freeze, deepFreeze, thaw } from '../DeepFreezer';
 import KeyedList from '../KeyedList';
 import DirectionalLight from '../DirectionalLight';
 import Material from '../Material';
@@ -213,10 +213,14 @@ class ShapeViewSet {
 	}
 }
 
-interface ShapeGeneratorContext extends RuntimeContext {
-	shapeSheetUtil : ShapeSheetUtil;
+interface SavableContext {
 	contextValues : KeyedList<any>;
 	transform : TransformationMatrix3D;
+}
+
+interface ShapeGeneratorContext extends RuntimeContext, SavableContext {
+	shapeSheetUtil : ShapeSheetUtil;
+	contextStack : SavableContext[];
 }
 
 const tempVec = new Vector3D;
@@ -267,13 +271,20 @@ const storeValueWord : RuntimeWord = {
 			throw new Error(ref+" is not a context varable!");
 		}
 		const val = ctx.dataStack.pop();
-		(<ShapeGeneratorContext>ctx).contextValues[ref.variableName] = val;
+		const sgctx = <ShapeGeneratorContext>ctx;
+		if( Object.isFrozen(sgctx.contextValues) ) sgctx.contextValues = thaw(sgctx.contextValues);
+		sgctx.contextValues[ref.variableName] = val;
 	}
 }
 
 function declareContextVariable( ctx:CompilationContext, name:string ):void {
 	ctx.dictionary[name] = new GetContextValueWord(name);
 	ctx.dictionary['$'+name] = new GetContextVariableWord(name, {variableName:name});
+}
+
+function applyTransform( sgctx:ShapeGeneratorContext, xf:TransformationMatrix3D ) {
+	if( Object.isFrozen(sgctx.transform) ) sgctx.transform = thaw(sgctx.transform);
+	TransformationMatrix3D.multiply(sgctx.transform, xf, sgctx.transform);
 }
 
 const customWords : KeyedList<Word> = {
@@ -296,8 +307,7 @@ const customWords : KeyedList<Word> = {
 			const z = sgctx.dataStack.pop();
 			const y = sgctx.dataStack.pop();
 			const x = sgctx.dataStack.pop();
-			TransformationMatrix3D.translationXYZ(x,y,z, tempXf);
-			TransformationMatrix3D.multiply(sgctx.transform, tempXf, sgctx.transform);
+			applyTransform(sgctx, TransformationMatrix3D.translationXYZ(x,y,z, tempXf));
 		}
 	},
 	"scale": <RuntimeWord> {
@@ -306,8 +316,7 @@ const customWords : KeyedList<Word> = {
 		forthRun: <RuntimeWord> (ctx:RuntimeContext):void => {
 			const sgctx:ShapeGeneratorContext = (<ShapeGeneratorContext>ctx);
 			const scale = sgctx.dataStack.pop();
-			TransformationMatrix3D.scale(scale, scale, scale, tempXf);
-			TransformationMatrix3D.multiply(sgctx.transform, tempXf, sgctx.transform);
+			applyTransform(sgctx, TransformationMatrix3D.scale(scale, scale, scale, tempXf));
 		}
 	},
 	"deg2rad": <RuntimeWord> {
@@ -326,8 +335,32 @@ const customWords : KeyedList<Word> = {
 			const z = sgctx.dataStack.pop();
 			const y = sgctx.dataStack.pop();
 			const x = sgctx.dataStack.pop();
-			TransformationMatrix3D.fromXYZAxisAngle(x, y, z, ang, tempXf);
-			TransformationMatrix3D.multiply(sgctx.transform, tempXf, sgctx.transform);
+			applyTransform(sgctx, TransformationMatrix3D.fromXYZAxisAngle(x, y, z, ang, tempXf));
+		}
+	},
+	"save-context": <RuntimeWord> {
+		"name": "save-context",
+		wordType: WordType.OTHER_RUNTIME,
+		forthRun: <RuntimeWord> (ctx:RuntimeContext):void => {
+			const sgctx:ShapeGeneratorContext = (<ShapeGeneratorContext>ctx);
+			sgctx.contextStack.push( {
+				contextValues: deepFreeze(sgctx.contextValues),
+				transform: deepFreeze(sgctx.transform),
+			} );
+		}
+	},
+	"restore-context": <RuntimeWord> {
+		"name": "save-context",
+		wordType: WordType.OTHER_RUNTIME,
+		forthRun: <RuntimeWord> (ctx:RuntimeContext):void => {
+			const sgctx:ShapeGeneratorContext = (<ShapeGeneratorContext>ctx);
+			const saved = sgctx.contextStack.pop();
+			if( saved == null ) {
+				console.error("Saved context stack empty; can't restore-context");
+				return;
+			}
+			sgctx.contextValues = saved.contextValues,
+			sgctx.transform = saved.transform;
 		}
 	},
 	"context-variable:": <CompilationWord> {
@@ -411,10 +444,11 @@ export default class ShapeSheetEditor
 						ip: 0,
 						fuel: 1000,
 						shapeSheetUtil: ssu,
-						contextValues: {
+						contextValues: deepFreeze({
 							t: t
-						},
-						transform: xf.clone()
+						}),
+						transform: xf,
+						contextStack: [],
 					}
 					
 					ssu.plottedMaterialIndexFunction = (x,y,z) => 4;
