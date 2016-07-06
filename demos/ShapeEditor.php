@@ -218,22 +218,31 @@ textarea {
 <div id="shape-editor-ui">
 <div id="left">
 <textarea rows="40" cols="40" id="script-text">
+alias: &lt;ctx save-context
+alias: ctx&gt; restore-context
+
+context-variable: $t # The 'time' variable, [0,1)
+context-variable: $flap
+
 : horn # (segmentcount --)
   0.9 scale
-  0.5 0 0 0 0 1 10 deg2rad aarotate
+  0.5 0 0 0 0 1 flap deg2rad aarotate
   move 1 plot-sphere
   1 - dup $horn jump-if-nonzero
   drop
 ;
 
+t 180 deg2rad * sin 20 * 10 - $flap !
+
 1 plot-sphere
-save-context 5 horn restore-context
+&lt;ctx 5 horn ctx&gt;
 0 1 0 90 deg2rad aarotate
-save-context 8 horn restore-context
+&lt;ctx 8 horn ctx&gt;
 0 1 0 90 deg2rad aarotate
-save-context 16 horn restore-context
+&lt;ctx 16 horn ctx&gt;
 0 1 0 90 deg2rad aarotate
-save-context 24 horn restore-context</textarea>
+&lt;ctx 24 horn ctx&gt;
+</textarea>
 <div>
 <button id="reload-button">Reload</button>
 <button id="save-button">Save</button>

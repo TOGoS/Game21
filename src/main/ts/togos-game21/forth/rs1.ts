@@ -40,13 +40,15 @@ interface Fixup<T> {
 	references : FixupCallback<T>[];
 }
 
+export type TokenHandler = (token:Token) => void|Promise<CompilationContext>;
+
 export interface CompilationContext {
 	/** Source location of the token being processed */
 	sourceLocation? : SourceLocation;
 	program : Program;
 	dictionary : KeyedList<Word>;
 	fallbackWordGetter : (text:string) => Word;
-	onToken? : (token:Token) => void|Promise<CompilationContext>;
+	onToken? : TokenHandler;
 	fixups : KeyedList<Fixup<RuntimeWord>>
 	compilingMain : boolean;
 }
@@ -66,7 +68,7 @@ export function atText( sl:SourceLocation ) {
 	return "at "+sl.fileUri+":"+sl.lineNumber+","+sl.columnNumber;
 }
 
-function getWord( ctx:CompilationContext, text:string ):Word {
+export function getWord( ctx:CompilationContext, text:string ):Word {
 	let w = ctx.dictionary[text];
 	if( w ) return ctx.dictionary[text];
 	return ctx.fallbackWordGetter(text);

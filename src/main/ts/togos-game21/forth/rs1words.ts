@@ -5,7 +5,8 @@ import Token, { TokenType } from './Token';
 import KeyedList from '../KeyedList';
 import {
 	Word, WordType, RuntimeWord, CompilationWord, RuntimeContext, CompilationContext, Program, WordGetter,
-	atText, defineWordAndResolveFixup, pushFixupPlaceholder, fixupPlaceholderWord
+	TokenHandler,
+	getWord, atText, defineWordAndResolveFixup, pushFixupPlaceholder, fixupPlaceholderWord
 } from './rs1';
 
 export { fixupPlaceholderWord } from './rs1';
@@ -41,6 +42,16 @@ export const arithmeticWords : KeyedList<Word> = {
 			ctx.dataStack.push(a * b);
 		}
 	},
+	"**": <RuntimeWord>{
+		name: "**",
+		wordType: WordType.OTHER_RUNTIME,
+		forthRun: (ctx:RuntimeContext):void => {
+			--ctx.fuel;
+			const b = ctx.dataStack.pop();
+			const a = ctx.dataStack.pop();
+			ctx.dataStack.push( Math.pow(a, b) );
+		}
+	},
 	"/": <RuntimeWord>{
 		name: "/",
 		wordType: WordType.OTHER_RUNTIME,
@@ -49,6 +60,25 @@ export const arithmeticWords : KeyedList<Word> = {
 			const b = ctx.dataStack.pop();
 			const a = ctx.dataStack.pop();
 			ctx.dataStack.push(a / b);
+		}
+	},
+}
+
+export const trigonometryWords : KeyedList<Word> = {
+	"sin": <RuntimeWord>{
+		name: "sin",
+		wordType: WordType.OTHER_RUNTIME,
+		forthRun: (ctx:RuntimeContext):void => {
+			ctx.fuel -= 10;
+			ctx.dataStack.push( Math.sin(ctx.dataStack.pop()) );
+		}
+	},
+	"cos": <RuntimeWord>{
+		name: "cos",
+		wordType: WordType.OTHER_RUNTIME,
+		forthRun: (ctx:RuntimeContext):void => {
+			ctx.fuel -= 10;
+			ctx.dataStack.push( Math.cos(ctx.dataStack.pop()) );
 		}
 	},
 }
@@ -156,7 +186,37 @@ export const rsWords:KeyedList<Word> = {
 	},
 };
 
+function waitForWordToken( callback:(name:string)=>void|Promise<CompilationContext> ):TokenHandler {
+	return (t:Token) => {
+		switch( t.type ) {
+		case TokenType.BAREWORD: case TokenType.SINGLE_QUOTED:
+			return callback(t.text);
+		case TokenType.COMMENT:
+			// Ignore!  Wait for next one
+			return;
+		case TokenType.END_OF_FILE:
+			throw new Error("Encountered end of file when expecting label name "+atText(t.sourceLocation));
+		case TokenType.DOUBLE_QUOTED:
+			throw new Error("Encountered quoted string when expecting label name "+atText(t.sourceLocation));
+		default:
+			throw new Error("Unexpected token type "+t.type+" when expecting label name "+atText(t.sourceLocation));
+		}
+	}
+}
+
 export const wordDefinitionWords:KeyedList<Word> = {
+	"alias:": <CompilationWord>{
+		name: "alias:",
+		wordType: WordType.OTHER_COMPILETIME,
+		forthCompile: (ctx:CompilationContext):void => {
+			ctx.onToken = waitForWordToken( (newName:string) => {
+				ctx.onToken = waitForWordToken( (oldName:string) => {
+					ctx.dictionary[newName] = getWord( ctx, oldName );
+					ctx.onToken = null;
+				});
+			});
+		}
+	},
 	"code-label:": <CompilationWord>{
 		name: "code-label:",
 		wordType: WordType.OTHER_COMPILETIME,
@@ -306,4 +366,8 @@ function defineFixupPlaceholderGeneratorWords( ctx:CompilationContext, name:stri
 	}
 }
 
-export const standardWords = mergeDicts(arithmeticWords, stackWords, jumpWords, rsWords, wordDefinitionWords);
+export const standardWords = mergeDicts(
+	arithmeticWords, trigonometryWords,
+	stackWords, jumpWords, rsWords,
+	wordDefinitionWords
+);
