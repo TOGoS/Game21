@@ -280,43 +280,60 @@ const customWords : KeyedList<Word> = {
 	"plot-sphere": <RuntimeWord> {
 		name: "plot-sphere",
 		wordType: WordType.OTHER_RUNTIME,
-		forthRun: <RuntimeWord> (ctx:RuntimeContext) => {
+		forthRun: <RuntimeWord> (ctx:RuntimeContext):void => {
 			const sgctx:ShapeGeneratorContext = (<ShapeGeneratorContext>ctx);
 			const rad = +ctx.dataStack.pop();
 			tempVec.set(0,0,0);
 			sgctx.transform.multiplyVector( tempVec, tempVec );
 			(<ShapeGeneratorContext>ctx).shapeSheetUtil.plotSphere( tempVec.x, tempVec.y, tempVec.z, sgctx.transform.scale * rad );
-			return null;
 		}
 	},
 	"move": <RuntimeWord> {
 		name: "move",
 		wordType: WordType.OTHER_RUNTIME,
-		forthRun: <RuntimeWord> (ctx:RuntimeContext) => {
+		forthRun: <RuntimeWord> (ctx:RuntimeContext):void => {
 			const sgctx:ShapeGeneratorContext = (<ShapeGeneratorContext>ctx);
 			const z = sgctx.dataStack.pop();
 			const y = sgctx.dataStack.pop();
 			const x = sgctx.dataStack.pop();
 			TransformationMatrix3D.translationXYZ(x,y,z, tempXf);
 			TransformationMatrix3D.multiply(sgctx.transform, tempXf, sgctx.transform);
-			return null;
 		}
 	},
 	"scale": <RuntimeWord> {
 		name: "scale",
 		wordType: WordType.OTHER_RUNTIME,
-		forthRun: <RuntimeWord> (ctx:RuntimeContext) => {
+		forthRun: <RuntimeWord> (ctx:RuntimeContext):void => {
 			const sgctx:ShapeGeneratorContext = (<ShapeGeneratorContext>ctx);
 			const scale = sgctx.dataStack.pop();
 			TransformationMatrix3D.scale(scale, scale, scale, tempXf);
 			TransformationMatrix3D.multiply(sgctx.transform, tempXf, sgctx.transform);
-			return null;
+		}
+	},
+	"deg2rad": <RuntimeWord> {
+		"name": "deg2rad",
+		wordType: WordType.OTHER_RUNTIME,
+		forthRun: <RuntimeWord> (ctx:RuntimeContext):void => {
+			ctx.dataStack.push( ctx.dataStack.pop() * Math.PI / 180 );
+		},
+	},
+	"aarotate": <RuntimeWord> {
+		"name": "aarotate",
+		wordType: WordType.OTHER_RUNTIME,
+		forthRun: <RuntimeWord> (ctx:RuntimeContext):void => {
+			const sgctx:ShapeGeneratorContext = (<ShapeGeneratorContext>ctx);
+			const ang = sgctx.dataStack.pop();
+			const z = sgctx.dataStack.pop();
+			const y = sgctx.dataStack.pop();
+			const x = sgctx.dataStack.pop();
+			TransformationMatrix3D.fromXYZAxisAngle(x, y, z, ang, tempXf);
+			TransformationMatrix3D.multiply(sgctx.transform, tempXf, sgctx.transform);
 		}
 	},
 	"context-variable:": <CompilationWord> {
 		name: "context-variable:",
 		wordType: WordType.OTHER_COMPILETIME,
-		forthCompile: <CompilationWord> (ctx:CompilationContext) => {
+		forthCompile: <CompilationWord> (ctx:CompilationContext):void => {
 			ctx.onToken = (nameT:Token) => {
 				switch( nameT.type ) {
 				case TokenType.BAREWORD: case TokenType.SINGLE_QUOTED:
