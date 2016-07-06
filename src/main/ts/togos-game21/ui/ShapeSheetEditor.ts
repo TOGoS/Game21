@@ -51,11 +51,13 @@ class ShapeView {
 	protected _ss  : ShapeSheet;
 	protected _ssr : ShapeSheetRenderer;
 	protected _ssu : ShapeSheetUtil;
+	protected _superSampling : number;
 	
-	constructor( canvas:HTMLCanvasElement ) {
+	constructor( canvas:HTMLCanvasElement, ss:number=1 ) {
 		this._canv = canvas;
-		this._ss   = new ShapeSheet( canvas.width, canvas.height );
-		this._ssr  = new ShapeSheetRenderer( this._ss, this._canv, 1 );
+		this._superSampling = ss;
+		this._ss   = new ShapeSheet( canvas.width*ss, canvas.height*ss );
+		this._ssr  = new ShapeSheetRenderer( this._ss, this._canv, ss );
 		// Since we'll always redraw the entire thing,
 		// no need to tell util about the renderer.
 		this._ssu  = new ShapeSheetUtil( this._ss );
@@ -63,10 +65,12 @@ class ShapeView {
 		this.setScaleAndRotation( this._scale, Quaternion.IDENTITY );
 	}
 	
+	public get scale():number { return this._scale; }
+	
 	public setScaleAndRotation( scale:number, q:Quaternion ) {
 		const xforms : TransformationMatrix3D[] = [
 			TransformationMatrix3D.translation( new Vector3D(this._ss.width/2, this._ss.height/2) ),
-			TransformationMatrix3D.scale( 16 ),
+			TransformationMatrix3D.scale( scale * this._superSampling ),
 			TransformationMatrix3D.fromQuaternion( q )
 		];
 		let xf = TransformationMatrix3D.IDENTITY;
@@ -206,8 +210,8 @@ class ShapeViewSet {
 		this._views[name] = view;
 	}
 	
-	public addViewFromCanvas( canvas:HTMLCanvasElement, name:string ):ShapeView {
-		const newView = new ShapeView( canvas );
+	public addViewFromCanvas( canvas:HTMLCanvasElement, name:string, ss:number=1 ):ShapeView {
+		const newView = new ShapeView( canvas, ss );
 		this.addView( newView, name );
 		return newView;
 	}
@@ -499,15 +503,13 @@ export default class ShapeSheetEditor
 	}
 	
 	public runDemo():void {
-		this.viewSet.addViewFromCanvas( <HTMLCanvasElement>document.getElementById('static-view-canvas'), 'static' );
-		this.viewSet.addViewFromCanvas( <HTMLCanvasElement>document.getElementById('rotatey-view-canvas'), 'rotatey' );
-		
-		const staticy = this.viewSet.views['static'];
-		staticy.setScaleAndRotation( 16, Quaternion.IDENTITY );
+		this.viewSet.addViewFromCanvas( <HTMLCanvasElement>document.getElementById('static-view-canvas'), 'static', 2 );
+		const static2 = this.viewSet.addViewFromCanvas( <HTMLCanvasElement>document.getElementById('static-view-canvas2'), 'static2', 4 );
+		static2.setScaleAndRotation( 32, Quaternion.IDENTITY );
+		this.viewSet.addViewFromCanvas( <HTMLCanvasElement>document.getElementById('rotatey-view-canvas'), 'rotatey', 1 );
 		
 		const rotatey = this.viewSet.views['rotatey'];
 		
-		rotatey.setScaleAndRotation( 16, Quaternion.IDENTITY );
 		rotatey.startAnimation( {
 			animationSpeed: 1,
 			rotation: Quaternion.fromXYZAxisAngle( 0, 1, 0, Math.PI / 2 ),
