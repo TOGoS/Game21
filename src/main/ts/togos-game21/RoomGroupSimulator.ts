@@ -1,16 +1,9 @@
-import ShapeSheetUtil from './ShapeSheetUtil';
-import TransformationMatrix3D from './TransformationMatrix3D';
-import ObjectVisual, { VisualBasisType } from './ObjectVisual';
 import ProceduralShape from './ProceduralShape';
 import Rectangle from './Rectangle';
 import Cuboid from './Cuboid';
 import Vector3D from './Vector3D';
-import Quaternion from './Quaternion';
 import KeyedList from './KeyedList';
-import { OnAnimationEnd } from './Animation';
-import { DEFAULT_MATERIAL_MAP, IDENTITY_MATERIAL_REMAP } from './materials';
-import CanvasWorldView from './CanvasWorldView';
-import DemoWorldGenerator, { newUuidRef, simpleObjectVisualShape } from './DemoWorldGenerator';
+import { newUuidRef } from './DemoWorldGenerator';
 import { PhysicalObjectType, PhysicalObject, TileTree, Room, Game, HUNIT_CUBE } from './world';
 import { eachSubObject } from './worldutil';
 import { deepFreeze, isDeepFrozen, thaw } from './DeepFreezer';
