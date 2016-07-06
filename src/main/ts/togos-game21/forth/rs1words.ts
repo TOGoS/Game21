@@ -94,6 +94,26 @@ export const jumpWords:KeyedList<Word> = {
 			ctx.ip = ctx.dataStack.pop();
 		}
 	},
+	"jump-if-nonzero": <RuntimeWord>{
+		name: "jump-if-nonzero",
+		wordType: WordType.OTHER_RUNTIME,
+		forthRun: (ctx:RuntimeContext):void => {
+			--ctx.fuel;
+			const dest = ctx.dataStack.pop();
+			const val  = ctx.dataStack.pop();
+			if( val != null && +val != 0 ) ctx.ip = dest;
+		}
+	},
+	"jump-if-zero": <RuntimeWord>{
+		name: "jump-if-zero",
+		wordType: WordType.OTHER_RUNTIME,
+		forthRun: (ctx:RuntimeContext):void => {
+			--ctx.fuel;
+			const dest = ctx.dataStack.pop();
+			const val  = ctx.dataStack.pop();
+			if( val == null || +val == 0 ) ctx.ip = dest;
+		}
+	},
 }
 
 const exitWord:RuntimeWord = {
