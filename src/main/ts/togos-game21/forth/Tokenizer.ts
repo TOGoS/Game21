@@ -44,6 +44,7 @@ export default class Tokenizer {
 	 * Lists end-quote characters that we're awaiting, from inner-most to outer-most.
 	 * If empty, we're not inside any quotes at all.
 	 */
+	protected handlingLineComment:boolean = false;
 	protected handlingBackslashEscape:boolean = false;
 	protected awaitingCloseQuoteChars:number[] = [];
 	protected tokenType:TokenType = TokenType.BAREWORD;
@@ -119,8 +120,20 @@ export default class Tokenizer {
 	
 	protected _char(c:number) : Promise<void>|void {
 		if( this.ended ) throw new Error("Already ended");
-
-		if( this.handlingBackslashEscape ) {
+		
+		if( this.handlingLineComment ) {
+			switch( c ) {
+			case C_VT: case C_CR: case C_NL: case C_FF:
+				this.flushToken();
+				this.handlingLineComment = false;
+				break;
+			default:
+				this.tokenBuffer += String.fromCharCode(c);
+				break;
+			}
+			this.postChar(c);
+			return;
+		} else if( this.handlingBackslashEscape ) {
 			let decoded:number;
 			switch( c ) {
 			case C_A: decoded = C_BEL; break;
@@ -140,10 +153,21 @@ export default class Tokenizer {
 			this.handlingBackslashEscape = false;
 			return;
 		} else if( this.awaitingCloseQuoteChars.length == 0 ) {
+			// Reading spaces or barewords!
 			switch( c ) {
 			case C_TAB: case C_VT: case C_NL: case C_FF: case C_CR: case C_SPACE:
 				{
 					const p:Promise<void>|void = this.flushToken();
+					this.postChar(c);
+					return p;
+				}
+			case C_SHARP:
+				{
+					const p:Promise<void>|void = this.flushToken();
+					this.tokenStartLineNumber = this.sourceLineNumber;
+					this.tokenStartColumnNumber = this.sourceColumnNumber;
+					this.tokenType = TokenType.COMMENT;
+					this.handlingLineComment = true;
 					this.postChar(c);
 					return p;
 				}

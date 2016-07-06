@@ -104,3 +104,18 @@ function reset() {
 	
 	// TODO: Make it handle \x.. and \u....
 }
+
+{
+	reset();
+	tokenizer.text('# foo bar ');
+	tokenizer.text('baz\n#smoosh comment\n42');
+	tokenizer.end();
+	
+	assertEquals( 4, tokens.length, "Should've found 4 tokens (#, #, 42, EOF)" );
+	assertEquals( TokenType.COMMENT, tokens[0].type );
+	assertEquals( " foo bar baz", tokens[0].text );
+	assertEquals( TokenType.COMMENT, tokens[1].type );
+	assertEquals( "smoosh comment", tokens[1].text );
+	assertEquals( TokenType.BAREWORD, tokens[2].type );
+	assertEquals( TokenType.END_OF_FILE, tokens[3].type );
+}
