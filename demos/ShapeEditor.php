@@ -218,28 +218,22 @@ textarea {
 <div id="shape-editor-ui">
 <div id="left">
 <textarea rows="40" cols="40" id="script-text">
-: another
+: horn # (segmentcount --)
   0.9 scale
   0.5 0 0 0 0 1 10 deg2rad aarotate
   move 1 plot-sphere
-  exit
-
-: horn
-  another
-  another
-  another
-  another
-  another
-  another
-  exit
-
+  1 - dup $horn jump-if-nonzero
+  drop
 ;
 
 1 plot-sphere
-save-context horn restore-context
-0 1 0 180 deg2rad aarotate
-save-context horn restore-context
-</textarea>
+save-context 5 horn restore-context
+0 1 0 90 deg2rad aarotate
+save-context 8 horn restore-context
+0 1 0 90 deg2rad aarotate
+save-context 16 horn restore-context
+0 1 0 90 deg2rad aarotate
+save-context 24 horn restore-context</textarea>
 <div>
 <button id="reload-button">Reload</button>
 <button id="save-button">Save</button>

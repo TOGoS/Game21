@@ -283,7 +283,7 @@ function declareContextVariable( ctx:CompilationContext, name:string ):void {
 }
 
 function applyTransform( sgctx:ShapeGeneratorContext, xf:TransformationMatrix3D ) {
-	if( Object.isFrozen(sgctx.transform) ) sgctx.transform = thaw(sgctx.transform);
+	if( Object.isFrozen(sgctx.transform) ) sgctx.transform = sgctx.transform.clone();
 	TransformationMatrix3D.multiply(sgctx.transform, xf, sgctx.transform);
 }
 
@@ -344,13 +344,13 @@ const customWords : KeyedList<Word> = {
 		forthRun: <RuntimeWord> (ctx:RuntimeContext):void => {
 			const sgctx:ShapeGeneratorContext = (<ShapeGeneratorContext>ctx);
 			sgctx.contextStack.push( {
-				contextValues: deepFreeze(sgctx.contextValues),
-				transform: deepFreeze(sgctx.transform),
+				contextValues: deepFreeze(sgctx.contextValues, true),
+				transform: deepFreeze(sgctx.transform, true),
 			} );
 		}
 	},
 	"restore-context": <RuntimeWord> {
-		"name": "save-context",
+		"name": "restore-context",
 		wordType: WordType.OTHER_RUNTIME,
 		forthRun: <RuntimeWord> (ctx:RuntimeContext):void => {
 			const sgctx:ShapeGeneratorContext = (<ShapeGeneratorContext>ctx);
@@ -442,7 +442,7 @@ export default class ShapeSheetEditor
 						dataStack: [],
 						returnStack: [],
 						ip: 0,
-						fuel: 1000,
+						fuel: 10000,
 						shapeSheetUtil: ssu,
 						contextValues: deepFreeze({
 							t: t
