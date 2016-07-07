@@ -2,9 +2,9 @@ import SurfaceColor from './SurfaceColor';
 
 export interface SurfaceMaterialLayer {
 	diffuse:SurfaceColor;
-	roughness:number;
-	/** 0 - no subsurface scattering; 1 - very scattery */
-	subsurfaceScattering?:number;
+	/** 0 = perfect mirror, 1 = drywall, >1 = subsurface scattering */
+	ruffness:number;
+	// TODO: some way to indicate glow color, which may vary based on surface angle
 }
 
 interface SurfaceMaterial {

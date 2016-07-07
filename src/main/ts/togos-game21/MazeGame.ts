@@ -120,11 +120,11 @@ export default class MazeGame {
 			title: "player ball material",
 			layers: [
 				{
-					roughness: 1.0,
+					ruffness: 1.0,
 					diffuse: new SurfaceColor(1,0.5,0.5,1),
 				},
 				{
-					roughness: 0.1,
+					ruffness: 0.1,
 					diffuse: new SurfaceColor(1,1,1,0.5),
 				},
 			]
@@ -134,7 +134,7 @@ export default class MazeGame {
 		game.materials[noGravMaterialRef] = {
 			title: "no-gravity ball material",
 			layers: [ {
-				roughness: 0.5,
+				ruffness: 0.5,
 				diffuse: new SurfaceColor(0.5,0.6,0.8,1),
 			} ]
 		};

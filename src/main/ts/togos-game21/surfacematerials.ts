@@ -16,7 +16,7 @@ type MaterialRemap = Uint8Array;
 
 export const NONE:SurfaceMaterial = { title: "nothing", layers: [] };
 export const UNDEFINED:SurfaceMaterial = { title: "undefined", layers: [
-	{ roughness: 0.5, diffuse: new SurfaceColor(1,0,1,1) }
+	{ ruffness: 0.5, diffuse: new SurfaceColor(1,0,1,1) }
 ] };
 
 export function randomMaterials(count:number):Array<SurfaceMaterial> {
@@ -30,7 +30,7 @@ export function randomMaterials(count:number):Array<SurfaceMaterial> {
 			title: "random material "+i,
 			layers: [
 				{
-					roughness: Math.random(),
+					ruffness: Math.random(),
 					diffuse: new SurfaceColor(	r, g, b ),
 				}
 			]
@@ -85,11 +85,11 @@ export const DEFAULT_MATERIALS:KeyedList<SurfaceMaterial> = {
 		title: "gray steel 0", 
 		layers: [
 			{
-				roughness: 0.5,
+				ruffness: 0.5,
 				diffuse: new SurfaceColor(1.0,1.0,0.9,1.0),
 			},
 			{
-				roughness: 1/8,
+				ruffness: 1/8,
 				diffuse: new SurfaceColor(1.0,1.0,0.9,0.5),
 			},
 		]
@@ -98,11 +98,11 @@ export const DEFAULT_MATERIALS:KeyedList<SurfaceMaterial> = {
 		title: "gray steel 1",
 		layers: [
 			{
-				roughness: 0.5,
+				ruffness: 0.5,
 				diffuse: new SurfaceColor(1.0,0.9,0.9,1.0),
 			},
 			{
-				roughness: 1/8,
+				ruffness: 1/8,
 				diffuse: new SurfaceColor(1.0,0.9,0.9,0.5),
 			},
 		],
@@ -111,7 +111,7 @@ export const DEFAULT_MATERIALS:KeyedList<SurfaceMaterial> = {
 		title: "black steel 0",
 		layers: [
 			{
-				roughness: 1/8,
+				ruffness: 1/8,
 				diffuse: new SurfaceColor(1.0,0.8,0.7,1.0)
 			},
 		],
@@ -120,7 +120,7 @@ export const DEFAULT_MATERIALS:KeyedList<SurfaceMaterial> = {
 		title: "black steel 1",
 		layers: [
 			{
-				roughness: 1/8,
+				ruffness: 1/8,
 				diffuse: new SurfaceColor(1.0,0.7,0.8)
 			}
 		],
@@ -130,11 +130,11 @@ export const DEFAULT_MATERIALS:KeyedList<SurfaceMaterial> = {
 		title: "pink stone 0",
 		layers: [
 			{
-				roughness: 1.0,
+				ruffness: 1.0,
 				diffuse: new SurfaceColor(0.70,0.30,0.2)
 			},
 			{
-				roughness: 1/16,
+				ruffness: 1/16,
 				diffuse: new SurfaceColor(0.70,0.30,0.2,0.2)
 			},
 		],
@@ -143,11 +143,11 @@ export const DEFAULT_MATERIALS:KeyedList<SurfaceMaterial> = {
 		title: "pink stone 1",
 		layers: [
 			{
-				roughness: 1.0,
+				ruffness: 1.0,
 				diffuse: new SurfaceColor(0.65,0.30,0.20)
 			},
 			{
-				roughness: 1/16,
+				ruffness: 1/16,
 				diffuse: new SurfaceColor(0.70,0.30,0.2,0.2)
 			},
 		],
@@ -155,14 +155,14 @@ export const DEFAULT_MATERIALS:KeyedList<SurfaceMaterial> = {
 	[ps2Ref]: {
 		title: "pink stone 2",
 		layers: [ {
-			roughness: 1.0,
+			ruffness: 1.0,
 			diffuse: new SurfaceColor(0.60,0.25,0.15)
 		} ],
 	},
 	[ps3Ref]: {
 		title: "pink stone 3",
 		layers: [ {
-			roughness: 1.0,
+			ruffness: 1.0,
 			diffuse: new SurfaceColor(0.55,0.20,0.15)
 		} ],
 	},
@@ -170,12 +170,11 @@ export const DEFAULT_MATERIALS:KeyedList<SurfaceMaterial> = {
 		title: "foliage 0",
 		layers: [
 			{
-				roughness: 1.0,
+				ruffness: 1.5,
 				diffuse: new SurfaceColor(0.0,0.40,0.00),
-				subsurfaceScattering: 0.5
 			},
 			{
-				roughness: 0.5,
+				ruffness: 0.5,
 				diffuse: new SurfaceColor(0.55,1.00,0.25,0.25)
 			},
 		],

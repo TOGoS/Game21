@@ -402,20 +402,20 @@ export default class ShapeSheetRenderer {
 					}
 					for( let i=matLayers.length-1, layerContrib = 1; layerContrib > 0 && i>=0; --i ) {
 						const layer:SurfaceMaterialLayer = matLayers[i];
-						const sss = layer.subsurfaceScattering == null ? 0 : layer.subsurfaceScattering;
+						const sss = Math.max(0, layer.ruffness - 1.0);
 						const adjustedDotProd = dotProd + sss*(1-dotProd)/2;
 						if( adjustedDotProd < 0 ) continue;
 						const layerColor = layer.diffuse;
-						// Higher roughness spreads out the light more.
-						// Low roughness leads to a very bright spot concentrated toward the light.
+						// Higher ruffness spreads out the light more.
+						// Low ruffness leads to a very bright spot concentrated toward the light.
 						//           dotProd ->
-						// roughness       0  0.5  1.0
+						// ruffness       0  0.5  1.0
 						//  |    0.0       0  0.0  1.0
 						//  v    0.5       0  0.1  0.8
 						//       1.0       0  0.4  0.5
 						const fixFactor = 1.0 / (1 + sss);
-						const roughness = layer.roughness < MIN_ROUGHNESS ? MIN_ROUGHNESS : layer.roughness; 
-						const diffuseAmt = fixFactor * Math.pow(adjustedDotProd, 1/roughness) / Math.pow(roughness, 0.5);
+						const ruffness = Math.max(MIN_ROUGHNESS, Math.min(1.0, layer.ruffness));
+						const diffuseAmt = fixFactor * Math.pow(adjustedDotProd, 1/ruffness) / Math.pow(ruffness, 0.5);
 						const layerAmt = lightLevel * diffuseAmt * layerContrib * layerColor.a;
 						r += layerAmt * lightColor.r * layerColor.r;
 						g += layerAmt * lightColor.g * layerColor.g;
