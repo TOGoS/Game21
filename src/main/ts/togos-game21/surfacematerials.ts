@@ -13,6 +13,12 @@ type MaterialMap = Array<SurfaceMaterial>;
  * (e.g. to turn indicator lights on and off without modifying the image data) */
 type MaterialRemap = Uint8Array;
 
+
+export const NONE:SurfaceMaterial = { title: "nothing", layers: [] };
+export const UNDEFINED:SurfaceMaterial = { title: "undefined", layers: [
+	{ roughness: 0.5, diffuse: new SurfaceColor(1,0,1,1) }
+] };
+
 export function randomMaterials(count:number):Array<SurfaceMaterial> {
 	let r = Math.random();
 	let g = Math.random();
@@ -22,9 +28,12 @@ export function randomMaterials(count:number):Array<SurfaceMaterial> {
 	for( let i=0; i < count; ++i ) {
 		materials.push({
 			title: "random material "+i,
-			diffuse: new SurfaceColor(
-				r, g, b
-			),
+			layers: [
+				{
+					roughness: Math.random(),
+					diffuse: new SurfaceColor(	r, g, b ),
+				}
+			]
 		});
 		r += (Math.random()-0.5)*vari;
 		g += (Math.random()-0.5)*vari;
@@ -35,10 +44,10 @@ export function randomMaterials(count:number):Array<SurfaceMaterial> {
 
 export function randomMaterialMap():Array<SurfaceMaterial> {
 	const map:Array<SurfaceMaterial> = [
-		SurfaceMaterial.NONE,
-		SurfaceMaterial.NONE,
-		SurfaceMaterial.NONE,
-		SurfaceMaterial.NONE,
+		NONE,
+		NONE,
+		NONE,
+		NONE,
 	]
 	for( var i=4; i<256; i += 4 ) {
 		map.splice(map.length, 0, ...randomMaterials(4));
@@ -71,39 +80,91 @@ CHECK OUT THSI AWSUM WEB SIGHT https://www.uuidgenerator.net/;
 */
 
 export const DEFAULT_MATERIALS:KeyedList<SurfaceMaterial> = {
-	[noneRef]: SurfaceMaterial.NONE,
+	[noneRef]: NONE,
 	[steel0Ref]: {
-		title: "steel 0", 
-		diffuse: new SurfaceColor(1.0,1.0,0.9)
+		title: "gray steel 0", 
+		layers: [
+			{
+				roughness: 0.5,
+				diffuse: new SurfaceColor(1.0,1.0,0.9,1.0),
+			},
+			{
+				roughness: 0.125,
+				diffuse: new SurfaceColor(1.0,1.0,0.9,0.5),
+			},
+		]
 	},
 	[steel1Ref]: {
-		title: "steel 1",
-		diffuse: new SurfaceColor(1.0,0.9,0.8)
+		title: "gray steel 1",
+		layers: [
+			{
+				roughness: 0.5,
+				diffuse: new SurfaceColor(1.0,0.9,0.9,1.0),
+			},
+			{
+				roughness: 0.125,
+				diffuse: new SurfaceColor(1.0,0.9,0.9,0.5),
+			},
+		],
 	},
 	[steel2Ref]: {
-		title: "steel 2",
-		diffuse: new SurfaceColor(1.0,0.8,0.7)
+		title: "black steel 0",
+		layers: [
+			{
+				roughness: 0.125,
+				diffuse: new SurfaceColor(1.0,0.8,0.7,1.0)
+			},
+		],
 	},
 	[steel3Ref]: {
-		title: "steel 3",
-		diffuse: new SurfaceColor(1.0,0.7,0.8)
+		title: "black steel 1",
+		layers: [
+			{
+				roughness: 0.125,
+				diffuse: new SurfaceColor(1.0,0.7,0.8)
+			}
+		],
 	},
 	// 8-11 (reddish stone)
 	[ps0Ref]: {
 		title: "pink stone 0",
-		diffuse: new SurfaceColor(0.70,0.30,0.2)
+		layers: [
+			{
+				roughness: 1.0,
+				diffuse: new SurfaceColor(0.70,0.30,0.2)
+			},
+			{
+				roughness: 0.25,
+				diffuse: new SurfaceColor(0.70,0.30,0.2,0.2)
+			},
+		],
 	},
 	[ps1Ref]: {
 		title: "pink stone 1",
-		diffuse: new SurfaceColor(0.65,0.30,0.20)
+		layers: [
+			{
+				roughness: 1.0,
+				diffuse: new SurfaceColor(0.65,0.30,0.20)
+			},
+			{
+				roughness: 0.125,
+				diffuse: new SurfaceColor(0.70,0.30,0.2,0.2)
+			},
+		],
 	},
 	[ps2Ref]: {
 		title: "pink stone 2",
-		diffuse: new SurfaceColor(0.60,0.25,0.15)
+		layers: [ {
+			roughness: 1.0,
+			diffuse: new SurfaceColor(0.60,0.25,0.15)
+		} ],
 	},
 	[ps3Ref]: {
 		title: "pink stone 3",
-		diffuse: new SurfaceColor(0.55,0.20,0.15)
+		layers: [ {
+			roughness: 1.0,
+			diffuse: new SurfaceColor(0.55,0.20,0.15)
+		} ],
 	}
 };
 deepFreeze(DEFAULT_MATERIALS, true);
@@ -111,6 +172,9 @@ deepFreeze(DEFAULT_MATERIALS, true);
 export const DEFAULT_MATERIAL_PALETTE_REF = 'urn:uuid:c05743d0-488c-4ff6-a667-bdca2c6f91d8'; // TODO: should be a urn:sha1:...# dealio
 
 export const DEFAULT_MATERIAL_PALETTE:Array<string> = deepFreeze([
+	noneRef,
+	noneRef,
+	noneRef,
 	noneRef,
 	steel0Ref,
 	steel1Ref,
@@ -132,11 +196,11 @@ export function paletteToMap(palette:Array<string>, materials:KeyedList<SurfaceM
 	const map:Array<SurfaceMaterial> = []; //palette.map( (i) => materials[i] );
 	for( let i=0; i < 256; ++i ) {
 		const matId = palette[i];
-		const mat = matId == null ? SurfaceMaterial.UNDEFINED : materials[matId];
+		const mat = matId == null ? UNDEFINED : materials[matId];
 		if( mat == null ) throw new Error("No such material "+matId+" (while building material map from palette)");
 		map.push(mat);
 	}
-	// while( map.length < 256 ) map.push(SurfaceMaterial.UNDEFINED);
+	// while( map.length < 256 ) map.push(UNDEFINED);
 	return map;
 }
 

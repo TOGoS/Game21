@@ -76,7 +76,7 @@ html, body {
 <?php require_game21_js_libs($inlineResources); ?>
 <script type="text/javascript">
 (function() {
-	var SSIDemo, ssiDemo, materials;
+	var SSIDemo, ssiDemo, surfacematerials;
 	var galleryDiv = document.getElementById('image-gallery');
 	
 	function generateRow() {
@@ -86,7 +86,7 @@ html, body {
 			row.appendChild(ssiDemo.randomShapeImageSlice().sheet);
 		}
 		galleryDiv.appendChild(row);
-		ssiDemo.materials = materials.randomMaterialMap();
+		ssiDemo.surfacematerials = surfacematerials.randomMaterialMap();
 	}
 	
 	function generateSomeImages() {
@@ -101,10 +101,10 @@ html, body {
 		setTimeout(generateRowTimeout);
 	}
 	
-	require(['togos-game21/SSIDemo', 'togos-game21/materials'], function(_SSIDemo, _materials) {
+	require(['togos-game21/SSIDemo', 'togos-game21/surfacematerials'], function(_SSIDemo, _surfacematerials) {
 		SSIDemo = _SSIDemo.default;
 		ssiDemo = new SSIDemo();
-		materials = _materials;
+		surfacematerials = _surfacematerials;
 		generateSomeImages();
 	});
 })();

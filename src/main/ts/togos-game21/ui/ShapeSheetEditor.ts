@@ -300,6 +300,7 @@ const customWords : KeyedList<Word> = {
 			const sgctx:ShapeGeneratorContext = (<ShapeGeneratorContext>ctx);
 			const rad = +ctx.dataStack.pop();
 			tempVec.set(0,0,0);
+			sgctx.shapeSheetUtil.plottedMaterialIndexFunction = () => +sgctx.contextValues["material-index"];
 			sgctx.transform.multiplyVector( tempVec, tempVec );
 			(<ShapeGeneratorContext>ctx).shapeSheetUtil.plotSphere( tempVec.x, tempVec.y, tempVec.z, sgctx.transform.scale * rad );
 		}
@@ -450,13 +451,14 @@ export default class ShapeSheetEditor
 						fuel: 10000,
 						shapeSheetUtil: ssu,
 						contextValues: deepFreeze({
-							t: t
+							't': t,
+							'material-index': 4,
 						}),
 						transform: xf,
 						contextStack: [],
 					}
 					
-					ssu.plottedMaterialIndexFunction = (x,y,z) => 4;
+					ssu.plottedMaterialIndexFunction = (x,y,z) => 8;
 					this.rendering = true;
 					const p = runContext( ctx );
 					if( !isResolved(p) ) {

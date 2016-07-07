@@ -3,7 +3,7 @@ import Rectangle from './Rectangle';
 import ShapeSheet from './ShapeSheet';
 import SurfaceColor from './SurfaceColor';
 import LightColor from './LightColor';
-import SurfaceMaterial from './SurfaceMaterial';
+import SurfaceMaterial, { SurfaceMaterialLayer } from './SurfaceMaterial';
 import Vector3D from './Vector3D';
 import KeyedList from './KeyedList';
 import DirectionalLight from './DirectionalLight';
@@ -351,28 +351,31 @@ export default class ShapeSheetRenderer {
 				throw new Error("No such material #" + cellMaterialIndexes[i]+" (at cell "+x+","+y+"; index "+i+")");
 				//continue;
 			}
+			const matLayers = mat.layers;
 			// Z being 'into' the picture (right-handed coordinate system!)
 			
 			var normalX = cellNormals[i*3+0],
 				normalY = cellNormals[i*3+1],
 				normalZ = cellNormals[i*3+2];
 			
-			var r = 0, g = 0, b = 0, a = mat.diffuse.a * cellCoverages[i] * 0.25;
+			let r = 0, g = 0, b = 0, a = cellCoverages[i] * 0.25;
 			for( l in lights ) {
 				light = lights[l];
-				var dotProd = -(normalX*light.direction.x + normalY*light.direction.y + normalZ*light.direction.z);
+				const lightColor = light.color;
+				const lightDir = light.direction;
+				var dotProd = -(normalX*lightDir.x + normalY*lightDir.y + normalZ*lightDir.z);
 				const shadowDistance = this._shadowDistanceOverride != null ? this._shadowDistanceOverride : light.shadowDistance;
 				let shadist = shadowDistance; // Distance to end of where we care
 				if( dotProd > 0 ) {
-					var diffuseAmt = dotProd; // Yep, that's how you calculate it.
-					if( shadowsEnabled && shadist > 0 && diffuseAmt > 0 ) {
+					if( shadowsEnabled && shadist > 0 && dotProd > 0 ) {
 						var shadowLight = 1;
+						const traceVec = light.traceVector;
 						stx = x + 0.5;
 						sty = y + 0.5;
 						stz = cellAvgDepths[i];
-						stdx = light.traceVector.x;
-						stdy = light.traceVector.y;
-						stdz = light.traceVector.z;
+						stdx = traceVec.x;
+						stdy = traceVec.y;
+						stdz = traceVec.z;
 						if( stdx == 0 && stdy == 0 ) {
 							shadowLight = stdz < 0 ? 1 : 0;
 						} else while( stz > minAvgDepth && stx > 0 && stx < width && sty > 0 && sty < height && shadist >= 0 ) {
@@ -394,9 +397,25 @@ export default class ShapeSheetRenderer {
 						}
 						diffuseAmt *= Math.max(shadowLight, light.minimumShadowLight);
 					}
-					r += diffuseAmt * light.color.r * mat.diffuse.r;
-					g += diffuseAmt * light.color.g * mat.diffuse.g;
-					b += diffuseAmt * light.color.b * mat.diffuse.b;
+					for( let i=matLayers.length-1, layerContrib = 1; layerContrib > 0 && i>=0; --i ) {
+						const layer:SurfaceMaterialLayer = matLayers[i];
+						const layerColor = layer.diffuse;
+						// Higher roughness spreads out the light more.
+						// Low roughness leads to a very bright spot concentrated toward the light.
+						//           dotProd ->
+						// roughness       0  0.5  1.0
+						//  |    0.0       0  0.0  1.0
+						//  v    0.5       0  0.1  0.8
+						//       1.0       0  0.4  0.5
+						const fixFactor = 1.0;
+						const roughness = layer.roughness < 1/16 ? 1/16 : layer.roughness; 
+						var diffuseAmt = fixFactor * Math.pow(dotProd, 1/roughness) / roughness;
+						const layerAmt = layerContrib * layerColor.a * diffuseAmt;
+						r += layerAmt * lightColor.r * layerColor.r;
+						g += layerAmt * lightColor.g * layerColor.g;
+						b += layerAmt * lightColor.b * layerColor.b;
+						layerContrib *= (1-layerColor.a);
+					}
 				}
 			}
 			cellColors[i*4+0] = r;

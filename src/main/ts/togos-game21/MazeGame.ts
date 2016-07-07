@@ -118,13 +118,25 @@ export default class MazeGame {
 		const playerMaterialRef = 'urn:uuid:9ce214f5-7c29-4eff-a749-f74dc9b13201';
 		game.materials[playerMaterialRef] = {
 			title: "player ball material",
-			diffuse: new SurfaceColor(1,0.5,0.5,1),
+			layers: [
+				{
+					roughness: 1.0,
+					diffuse: new SurfaceColor(1,0.5,0.5,1),
+				},
+				{
+					roughness: 0.1,
+					diffuse: new SurfaceColor(1,1,1,0.5),
+				},
+			]
 		};
 		
 		const noGravMaterialRef = 'urn:uuid:91014423-9e91-4285-98f9-cbb0275d1b6f';
 		game.materials[noGravMaterialRef] = {
 			title: "no-gravity ball material",
-			diffuse: new SurfaceColor(0.5,0.6,0.8,1),
+			layers: [ {
+				roughness: 0.5,
+				diffuse: new SurfaceColor(0.5,0.6,0.8,1),
+			} ]
 		};
 		
 		const playerMaterialPaletteRef = 'urn:uuid:b66d6d3c-571f-4579-8d0d-0a9f3d395990';
