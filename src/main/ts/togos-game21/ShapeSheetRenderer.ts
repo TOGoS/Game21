@@ -11,6 +11,7 @@ import {DEFAULT_LIGHTS} from './lights';
 import {DEFAULT_MATERIAL_MAP} from './surfacematerials';
 
 const LARGE_NUMBER = 1000;
+const MIN_ROUGHNESS = 1/128;
 
 function vectorXYLength(vect:Vector3D):number {
 	return Math.sqrt(vect.x*vect.x + vect.y*vect.y);
@@ -408,8 +409,8 @@ export default class ShapeSheetRenderer {
 						//  v    0.5       0  0.1  0.8
 						//       1.0       0  0.4  0.5
 						const fixFactor = 1.0;
-						const roughness = layer.roughness < 1/16 ? 1/16 : layer.roughness; 
-						var diffuseAmt = fixFactor * Math.pow(dotProd, 1/roughness) / roughness;
+						const roughness = layer.roughness < MIN_ROUGHNESS ? MIN_ROUGHNESS : layer.roughness; 
+						var diffuseAmt = fixFactor * Math.pow(dotProd, 1/roughness) / Math.pow(roughness, 0.5);
 						const layerAmt = layerContrib * layerColor.a * diffuseAmt;
 						r += layerAmt * lightColor.r * layerColor.r;
 						g += layerAmt * lightColor.g * layerColor.g;

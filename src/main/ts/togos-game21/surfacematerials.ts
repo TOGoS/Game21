@@ -89,7 +89,7 @@ export const DEFAULT_MATERIALS:KeyedList<SurfaceMaterial> = {
 				diffuse: new SurfaceColor(1.0,1.0,0.9,1.0),
 			},
 			{
-				roughness: 0.125,
+				roughness: 1/8,
 				diffuse: new SurfaceColor(1.0,1.0,0.9,0.5),
 			},
 		]
@@ -102,7 +102,7 @@ export const DEFAULT_MATERIALS:KeyedList<SurfaceMaterial> = {
 				diffuse: new SurfaceColor(1.0,0.9,0.9,1.0),
 			},
 			{
-				roughness: 0.125,
+				roughness: 1/8,
 				diffuse: new SurfaceColor(1.0,0.9,0.9,0.5),
 			},
 		],
@@ -111,7 +111,7 @@ export const DEFAULT_MATERIALS:KeyedList<SurfaceMaterial> = {
 		title: "black steel 0",
 		layers: [
 			{
-				roughness: 0.125,
+				roughness: 1/8,
 				diffuse: new SurfaceColor(1.0,0.8,0.7,1.0)
 			},
 		],
@@ -120,7 +120,7 @@ export const DEFAULT_MATERIALS:KeyedList<SurfaceMaterial> = {
 		title: "black steel 1",
 		layers: [
 			{
-				roughness: 0.125,
+				roughness: 1/8,
 				diffuse: new SurfaceColor(1.0,0.7,0.8)
 			}
 		],
@@ -134,7 +134,7 @@ export const DEFAULT_MATERIALS:KeyedList<SurfaceMaterial> = {
 				diffuse: new SurfaceColor(0.70,0.30,0.2)
 			},
 			{
-				roughness: 0.25,
+				roughness: 1/16,
 				diffuse: new SurfaceColor(0.70,0.30,0.2,0.2)
 			},
 		],
@@ -147,7 +147,7 @@ export const DEFAULT_MATERIALS:KeyedList<SurfaceMaterial> = {
 				diffuse: new SurfaceColor(0.65,0.30,0.20)
 			},
 			{
-				roughness: 0.125,
+				roughness: 1/16,
 				diffuse: new SurfaceColor(0.70,0.30,0.2,0.2)
 			},
 		],
