@@ -66,9 +66,9 @@ const ps0Ref    = 'urn:uuid:09c2feeb-a050-4931-85de-efc4a12aacfb';
 const ps1Ref    = 'urn:uuid:b29bc460-4c9d-43e3-a3d2-f9a4114ac9f9';
 const ps2Ref    = 'urn:uuid:1ba047d0-6fdf-4bd1-bf94-db57c77cfd74';
 const ps3Ref    = 'urn:uuid:624f532a-b37b-43be-aedf-d1d3a361191b';
+const folg0Ref  = 'urn:uuid:c7a19722-d114-4b76-8c6a-51686ccf56aa';
 /*
 CHECK OUT THSI AWSUM WEB SIGHT https://www.uuidgenerator.net/;
-'urn:uuid:c7a19722-d114-4b76-8c6a-51686ccf56aa';
 'urn:uuid:80d1a0c5-d621-40b4-94fd-21453c1d70cd';
 'urn:uuid:f70c6929-68ba-4c4e-9ae9-254b9dcb609e';
 'urn:uuid:d0c90575-fba9-41f1-888b-0339f0f4a498';
@@ -165,7 +165,21 @@ export const DEFAULT_MATERIALS:KeyedList<SurfaceMaterial> = {
 			roughness: 1.0,
 			diffuse: new SurfaceColor(0.55,0.20,0.15)
 		} ],
-	}
+	},
+	[folg0Ref]: {
+		title: "foliage 0",
+		layers: [
+			{
+				roughness: 1.0,
+				diffuse: new SurfaceColor(0.0,0.40,0.00),
+				subsurfaceScattering: 0.5
+			},
+			{
+				roughness: 0.5,
+				diffuse: new SurfaceColor(0.55,1.00,0.25,0.25)
+			},
+		],
+	},
 };
 deepFreeze(DEFAULT_MATERIALS, true);
 
@@ -184,6 +198,7 @@ export const DEFAULT_MATERIAL_PALETTE:Array<string> = deepFreeze([
 	ps1Ref,
 	ps2Ref,
 	ps3Ref,
+	folg0Ref,
 ]);
 
 export const DEFAULT_MATERIAL_MAP:MaterialMap = deepFreeze(paletteToMap(DEFAULT_MATERIAL_PALETTE, DEFAULT_MATERIALS));

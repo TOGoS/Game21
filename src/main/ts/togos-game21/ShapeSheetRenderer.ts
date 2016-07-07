@@ -365,10 +365,12 @@ export default class ShapeSheetRenderer {
 				const lightColor = light.color;
 				const lightDir = light.direction;
 				var dotProd = -(normalX*lightDir.x + normalY*lightDir.y + normalZ*lightDir.z);
-				const shadowDistance = this._shadowDistanceOverride != null ? this._shadowDistanceOverride : light.shadowDistance;
-				let shadist = shadowDistance; // Distance to end of where we care
-				if( dotProd > 0 ) {
-					if( shadowsEnabled && shadist > 0 && dotProd > 0 ) {
+				const minDotProd = -1; // 0 if no subsurface scattering, 1 if there is.  Maybe can cache on material.
+				if( dotProd > minDotProd ) {
+					const shadowDistance = this._shadowDistanceOverride != null ? this._shadowDistanceOverride : light.shadowDistance;
+					let shadist = shadowDistance; // Distance to end of where we care
+					let lightLevel = 1;
+					if( shadowsEnabled && shadist > 0 ) {
 						var shadowLight = 1;
 						const traceVec = light.traceVector;
 						stx = x + 0.5;
@@ -396,10 +398,13 @@ export default class ShapeSheetRenderer {
 							stx += stdx; sty += stdy; stz += stdz;
 							shadist -= light.traceVectorLength;
 						}
-						diffuseAmt *= Math.max(shadowLight, light.minimumShadowLight);
+						lightLevel *= Math.max(shadowLight, light.minimumShadowLight);
 					}
 					for( let i=matLayers.length-1, layerContrib = 1; layerContrib > 0 && i>=0; --i ) {
 						const layer:SurfaceMaterialLayer = matLayers[i];
+						const sss = layer.subsurfaceScattering == null ? 0 : layer.subsurfaceScattering;
+						const adjustedDotProd = dotProd + sss*(1-dotProd)/2;
+						if( adjustedDotProd < 0 ) continue;
 						const layerColor = layer.diffuse;
 						// Higher roughness spreads out the light more.
 						// Low roughness leads to a very bright spot concentrated toward the light.
@@ -408,10 +413,10 @@ export default class ShapeSheetRenderer {
 						//  |    0.0       0  0.0  1.0
 						//  v    0.5       0  0.1  0.8
 						//       1.0       0  0.4  0.5
-						const fixFactor = 1.0;
+						const fixFactor = 1.0 / (1 + sss);
 						const roughness = layer.roughness < MIN_ROUGHNESS ? MIN_ROUGHNESS : layer.roughness; 
-						var diffuseAmt = fixFactor * Math.pow(dotProd, 1/roughness) / Math.pow(roughness, 0.5);
-						const layerAmt = layerContrib * layerColor.a * diffuseAmt;
+						const diffuseAmt = fixFactor * Math.pow(adjustedDotProd, 1/roughness) / Math.pow(roughness, 0.5);
+						const layerAmt = lightLevel * diffuseAmt * layerContrib * layerColor.a;
 						r += layerAmt * lightColor.r * layerColor.r;
 						g += layerAmt * lightColor.g * layerColor.g;
 						b += layerAmt * lightColor.b * layerColor.b;
