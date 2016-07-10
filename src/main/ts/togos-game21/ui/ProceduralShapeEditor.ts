@@ -221,7 +221,7 @@ export default class ProceduralShapeEditor
 	protected scriptBox:HTMLTextAreaElement;
 	protected scriptRefBox:HTMLInputElement;
 	protected messageBox:HTMLElement;
-	protected reloadButton:HTMLButtonElement;
+	protected compileButton:HTMLButtonElement;
 	protected saveButton:HTMLButtonElement; 
 
 	protected viewSet:ShapeViewSet = new ShapeViewSet();
@@ -248,7 +248,7 @@ export default class ProceduralShapeEditor
 	protected get scriptText():string { return this.scriptBox.value; }
 	protected set scriptText(t:string) { this.scriptBox.value = t; }
 	
-	public reloadProgram():void {
+	public compileProgram():void {
 		this.compiler.compileToShape( this.scriptText ).then( (shape) => {
 			this.viewSet.shape = shape;
 		}).catch( (err) => {
@@ -289,7 +289,7 @@ export default class ProceduralShapeEditor
 		}).then( () => {
 			this.scriptBox.disabled = false;
 			this.saveButton.disabled = false;
-			this.reloadButton.disabled = false;
+			this.compileButton.disabled = false;
 		})
 		return loadProm;
 	}
@@ -302,11 +302,11 @@ export default class ProceduralShapeEditor
 		this.scriptBox = <HTMLTextAreaElement>document.getElementById('script-text');
 		this.messageBox = <HTMLElement>document.getElementById('messages');
 		this.scriptRefBox = <HTMLInputElement>document.getElementById('script-ref-box');
-		this.reloadButton = <HTMLButtonElement>document.getElementById('reload-button');
+		this.compileButton = <HTMLButtonElement>document.getElementById('compile-button');
 		this.saveButton = <HTMLButtonElement>document.getElementById('save-button');
 
-		this.reloadButton.addEventListener('click', () => {
-			this.reloadProgram();
+		this.compileButton.addEventListener('click', () => {
+			this.compileProgram();
 		});
 		this.saveButton.addEventListener('click', () => {
 			this.hardSave();
@@ -345,11 +345,11 @@ export default class ProceduralShapeEditor
 		const qsParams = getQueryStringValues();
 		if( qsParams["script-uri"] ) {
 			this.loadScript(qsParams["script-uri"]).then( () => {
-				this.reloadProgram();
+				this.compileProgram();
 			});
 		} else {
 			// Just load the default one...
-			this.reloadProgram();
+			this.compileProgram();
 		}
 
 		const rotatey = this.viewSet.views['rotatey'];

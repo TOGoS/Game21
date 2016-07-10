@@ -258,7 +258,7 @@ t 180 deg2rad * sin 20 * 10 - $flap !
 &lt;ctx 24 horn ctx&gt;
 </textarea>
 <div>
-<button id="reload-button">Reload</button>
+<button id="compile-button">Compile</button>
 <button id="save-button">Save</button>
 <button id="pause-button" title="Pause rendering">&#x23f8;</button>
 <button id="play-button" title="Resume rendering">&#x25b6;</button>

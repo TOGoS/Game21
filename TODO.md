@@ -3,7 +3,7 @@
 - ShapeSheet editor
   * Separate out ForthProceduralShape
   * Save script, show URN
-  - Load script
+  * Load script
   - Show log in message area
   - Draw polygons
   - Drag-to-rotate
