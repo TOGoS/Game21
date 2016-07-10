@@ -276,9 +276,9 @@ t 180 deg2rad * sin 20 * 10 - $flap !
 
 <?php require_game21_js_libs($inlineResources); ?>
 <script type="text/javascript">
-	require(['togos-game21/ui/ShapeSheetEditor'], function(_ShapeSheetEditor) {
-		var ShapeSheetEditor = _ShapeSheetEditor.default;
-		var shapeEditor = new ShapeSheetEditor();
+	require(['togos-game21/ui/ProceduralShapeEditor'], function(_ProceduralShapeEditor) {
+		var ProceduralShapeEditor = _ProceduralShapeEditor.default;
+		var shapeEditor = new ProceduralShapeEditor();
 		shapeEditor.initUi();
 		shapeEditor.runDemo();
 	});
