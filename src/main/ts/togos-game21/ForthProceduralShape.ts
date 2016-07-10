@@ -16,6 +16,8 @@ import {
 	standardWords, makeWordGetter, mergeDicts, parseNumberWord
 } from './forth/rs1words';
 
+export const FORTH_PROCEDURAL_SCRIPT_MAGIC_LINE = '#G21-FPS-1.0';
+
 interface SavableContext {
 	contextValues : KeyedList<any>;
 	transform : TransformationMatrix3D;
@@ -230,6 +232,67 @@ export class ForthProceduralShapeCompiler {
 			});
 		});
 	}
+}
+
+export function extractHeaderValues(scriptText:string):KeyedList<String> {
+	const headerValues:KeyedList<String> = {};
+	fixScriptText(scriptText, headerValues); // Ha ha ha; well, it should owrk.
+	return headerValues;
+}
+
+export function fixScriptText(scriptText:string, headerValues:KeyedList<String>={}):string {
+	let lines:string[] = scriptText.split("\n");
+
+	let headerLines:string[] = [];
+	let scriptLines:string[] = [];
+
+	let state = 0; // 0 = processing headers, 1 = done processing headers
+	for( let l = 0; l < lines.length; ++l ) {
+		const line = lines[l];
+		let match;
+		if( state == 0 && (match = line.match(/^#\S.*/)) ) {
+			let tline = line.trim();
+			if( tline == FORTH_PROCEDURAL_SCRIPT_MAGIC_LINE ) {
+				if( l == 0 ) headerLines.push(tline);
+				// Otherwise ignore it
+			} else if( (match = tline.match(/^#(\S+):\s*(\S.*)$/)) ) {
+				headerValues[match[1]] = match[2];
+				headerLines.push("#"+match[1]+": "+match[2]);
+			} else {
+				headerLines.push(tline);
+			}
+		} else {
+			state = 1;
+			scriptLines.push(line);
+		}
+	}
+
+	if( headerLines.length == 0 || headerLines[0] !== FORTH_PROCEDURAL_SCRIPT_MAGIC_LINE ) {
+		headerLines.unshift(FORTH_PROCEDURAL_SCRIPT_MAGIC_LINE);
+	}
+
+	let firstNEScriptLine = Infinity;
+	let lastNEScriptLine = -Infinity;
+	// Trim excess script lines
+	for( let l=0; l<scriptLines.length; ++l ) {
+		if( !scriptLines[l].match(/^\s*$/) ) {
+			if( l < firstNEScriptLine ) firstNEScriptLine = l;
+			lastNEScriptLine = l;
+		}
+	}
+
+	let fixedText = "";
+	for( let h in headerLines ) {
+		fixedText += headerLines[h]+"\n";
+	}
+	if( firstNEScriptLine < Infinity ) {
+		fixedText += "\n";
+		for( let l = firstNEScriptLine; l <= lastNEScriptLine; ++l ) {
+			fixedText += scriptLines[l]+"\n";
+		}
+	}
+
+	return fixedText;
 }
 
 export default class ScriptProceduralShape implements ProceduralShape, ScriptProceduralShapeData {
