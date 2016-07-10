@@ -142,10 +142,24 @@ html, body {
 	height: 100%;
 	margin: 0;
 	box-sizing: border-box;
+
+	font-family: sans-serif;
+	color: silver;
 }
 * {
 	margin: 0;
 	box-sizing: border-box;
+}
+input {
+	color: white;
+	background: black;
+	border: 1px solid silver;
+}
+.script-ref-bar {
+	padding: 4px 8px;
+}
+input[type="text",readonly="readonly"] {
+	border: 1px solid darkgray;
 }
 .shape-views {
 	margin: 0;
@@ -252,7 +266,12 @@ t 180 deg2rad * sin 20 * 10 - $flap !
 </div>
 
 <div id="right">
-<div class="shape-views">
+<div class="script-ref-bar">
+  <label for="script-ref-box">Script URN</label>
+  <input readonly="readonly" id="script-ref-box" size="50"></input>
+</div>
+
+<div id="shape-views" class="shape-views">
 <canvas id="static-view-canvas2" class="shape-view"
   width="<?php eht($width); ?>" height="<?php eht($height); ?>"
   style="background: #100; width: <?php eht($shapeViewWidth); ?>px; height: <?php eht($shapeViewHeight); ?>px"
@@ -269,16 +288,16 @@ t 180 deg2rad * sin 20 * 10 - $flap !
 ></canvas>
 </div>
 
-<div id="messages">
-</div>
+<div id="messages"></div>
 </div>
 </div>
 
 <?php require_game21_js_libs($inlineResources); ?>
 <script type="text/javascript">
-	require(['togos-game21/ui/ProceduralShapeEditor'], function(_ProceduralShapeEditor) {
+	require(['togos-game21/ClientRegistry','togos-game21/ui/ProceduralShapeEditor'], function(_ClientRegistry,_ProceduralShapeEditor) {
 		var ProceduralShapeEditor = _ProceduralShapeEditor.default;
-		var shapeEditor = new ProceduralShapeEditor();
+		var reg = _ClientRegistry.getDemoRegistry();
+		var shapeEditor = new ProceduralShapeEditor(reg);
 		shapeEditor.initUi();
 		shapeEditor.runDemo();
 	});

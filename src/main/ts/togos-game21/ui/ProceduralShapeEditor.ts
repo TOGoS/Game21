@@ -1,5 +1,6 @@
 import { freeze, deepFreeze, thaw } from '../DeepFreezer';
 import KeyedList from '../KeyedList';
+import ClientRegistry from '../ClientRegistry';
 import DirectionalLight from '../DirectionalLight';
 import SurfaceMaterial from '../SurfaceMaterial';
 import ProceduralShape from '../ProceduralShape';
@@ -14,7 +15,8 @@ import { AnimationType, animationTypeFromName } from '../Animation';
 import { DEFAULT_MATERIAL_MAP } from '../surfacematerials';
 import { DEFAULT_LIGHTS } from '../lights';
 import { Program } from '../forth/rs1'
-import { ForthProceduralShapeCompiler } from '../ForthProceduralShape';
+import { fixScriptText, ForthProceduralShapeCompiler } from '../ForthProceduralShape';
+import { utf8Encode } from '../../tshash/index';
 
 interface ViewAnimationSettings {
 	animationSpeed : number; // change in t per second
@@ -213,8 +215,10 @@ class ShapeViewSet {
 
 export default class ProceduralShapeEditor
 {
+	protected registry:ClientRegistry;
 	protected viewSet:ShapeViewSet = new ShapeViewSet();
 	protected scriptBox:HTMLTextAreaElement;
+	protected scriptRefBox:HTMLInputElement;
 	protected messageBox:HTMLElement;
 	protected program:Program;
 	protected rendering:boolean = false;
@@ -223,7 +227,8 @@ export default class ProceduralShapeEditor
 	protected playButton:HTMLElement;
 	protected pauseButton:HTMLElement;
 
-	constructor() {
+	constructor( reg:ClientRegistry ) {
+		this.registry = reg;
 		this.compiler = new ForthProceduralShapeCompiler();
 	}
 	
@@ -234,23 +239,48 @@ export default class ProceduralShapeEditor
 		this.messageBox.appendChild(elem);
 		this.messageBox.scrollTop = this.messageBox.scrollHeight;
 	}
+
+	protected get scriptText():string { return this.scriptBox.value; }
+	protected set scriptText(t:string) { this.scriptBox.value = t; }
 	
 	public reloadProgram():void {
-		this.compiler.compileToShape( this.scriptBox.value ).then( (shape) => {
+		this.compiler.compileToShape( this.scriptText ).then( (shape) => {
 			this.viewSet.shape = shape;
 		}).catch( (err) => {
 			console.error('Failed to compile!', err);
 		});
 	}
 	
+	protected fixScriptText():string {
+		return this.scriptText = fixScriptText(this.scriptText);
+	}
+
+	protected hardSave():void {
+		const scriptTextBytes:Uint8Array = utf8Encode(this.fixScriptText());
+		const urn = this.registry.datastore.store(scriptTextBytes, (success,errorInfo) => {
+			if( success ) {
+				console.log("Saved "+urn);
+			} else {
+				console.error("Failed to save "+urn, errorInfo);
+			}
+		});
+		console.log("Saving as "+urn+"...")
+		this.scriptRefBox.value = urn;
+	}
+
+	protected scriptTextUpdated():void {
+		this.scriptRefBox.value = '';
+	}
+
 	public initUi():void {
 		this.scriptBox = <HTMLTextAreaElement>document.getElementById('script-text');
 		this.messageBox = <HTMLElement>document.getElementById('messages');
+		this.scriptRefBox = <HTMLInputElement>document.getElementById('script-ref-box');
 		document.getElementById('reload-button').addEventListener('click', () => {
 			this.reloadProgram();
 		});
 		document.getElementById('save-button').addEventListener('click', () => {
-			this.printMessage( "Saving not yet implemented", 'error' );
+			this.hardSave();
 		});
 		
 		this.pauseButton = document.getElementById('pause-button');
@@ -283,6 +313,8 @@ export default class ProceduralShapeEditor
 		static2.setScaleAndRotation( 32, Quaternion.IDENTITY );
 		this.viewSet.addViewFromCanvas( <HTMLCanvasElement>document.getElementById('rotatey-view-canvas'), 'rotatey', 1 );
 		
+		this.reloadProgram();
+
 		const rotatey = this.viewSet.views['rotatey'];
 		
 		rotatey.startAnimation( {

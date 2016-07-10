@@ -2,8 +2,10 @@
 
 - ShapeSheet editor
   * Separate out ForthProceduralShape
-  - Save/load
-  - Polygons
+  * Save script, show URN
+  - Load script
+  - Show log in message area
+  - Draw polygons
 - Simple single-player maze game
 - Single-player game with use of IP packets
 - Client-server game
