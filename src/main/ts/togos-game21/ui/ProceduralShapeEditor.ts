@@ -13,15 +13,8 @@ import ShapeSheetUtil from '../ShapeSheetUtil';
 import { AnimationType, animationTypeFromName } from '../Animation';
 import { DEFAULT_MATERIAL_MAP } from '../surfacematerials';
 import { DEFAULT_LIGHTS } from '../lights';
-import Token, { TokenType } from '../forth/Token';
-import {
-	Word, WordType, Program, RuntimeWord, RuntimeContext, CompilationContext, CompilationWord,
-	compileSource, runContext, atText
-} from '../forth/rs1'
-import {
-	makeWordGetter, standardWords, mergeDicts, parseNumberWord
-} from '../forth/rs1words';
-import { isResolved } from '../promises';
+import { Program } from '../forth/rs1'
+import { ForthProceduralShapeCompiler } from '../ForthProceduralShape';
 
 interface ViewAnimationSettings {
 	animationSpeed : number; // change in t per second
@@ -218,184 +211,6 @@ class ShapeViewSet {
 	}
 }
 
-interface SavableContext {
-	contextValues : KeyedList<any>;
-	transform : TransformationMatrix3D;
-}
-
-interface ShapeGeneratorContext extends RuntimeContext, SavableContext {
-	shapeSheetUtil : ShapeSheetUtil;
-	contextStack : SavableContext[];
-}
-
-const tempVec = new Vector3D;
-const tempXf = new TransformationMatrix3D;
-
-interface ContextVariableRef {
-	variableName : string;
-}
-
-class GetContextValueWord implements RuntimeWord {
-	wordType = WordType.OTHER_RUNTIME;
-	constructor( public name:string ) { }
-	forthRun( ctx:RuntimeContext ):void {
-		--ctx.fuel;
-		ctx.dataStack.push( (<ShapeGeneratorContext>ctx).contextValues[this.name] );
-	}
-}
-
-class GetContextVariableWord implements RuntimeWord {
-	wordType = WordType.OTHER_RUNTIME;
-	constructor( public name:string, public variableRef:ContextVariableRef ) { }
-	forthRun( ctx:RuntimeContext ):void {
-		--ctx.fuel;
-		ctx.dataStack.push( this.variableRef );
-	}
-}
-
-const fetchValueWord : RuntimeWord = {
-	wordType: WordType.OTHER_RUNTIME,
-	name: "@",
-	forthRun( ctx:RuntimeContext ):void {
-		--ctx.fuel;
-		const ref = ctx.dataStack.pop();
-		if( ref == null || !ref.variableName ) {
-			throw new Error(ref+" is not a context varable!");
-		}
-		ctx.dataStack.push( (<ShapeGeneratorContext>ctx).contextValues[ref.variableName] );
-	}
-}
-
-const storeValueWord : RuntimeWord = {
-	wordType: WordType.OTHER_RUNTIME,
-	name: "!",
-	forthRun(ctx:RuntimeContext ):void {
-		--ctx.fuel;
-		const ref = ctx.dataStack.pop();
-		if( ref == null || !ref.variableName ) {
-			throw new Error(ref+" is not a context varable!");
-		}
-		const val = ctx.dataStack.pop();
-		const sgctx = <ShapeGeneratorContext>ctx;
-		if( Object.isFrozen(sgctx.contextValues) ) sgctx.contextValues = thaw(sgctx.contextValues);
-		sgctx.contextValues[ref.variableName] = val;
-	}
-}
-
-function declareContextVariable( ctx:CompilationContext, name:string ):void {
-	ctx.dictionary[name] = new GetContextValueWord(name);
-	ctx.dictionary['$'+name] = new GetContextVariableWord(name, {variableName:name});
-}
-
-function applyTransform( sgctx:ShapeGeneratorContext, xf:TransformationMatrix3D ) {
-	if( Object.isFrozen(sgctx.transform) ) sgctx.transform = sgctx.transform.clone();
-	TransformationMatrix3D.multiply(sgctx.transform, xf, sgctx.transform);
-}
-
-const customWords : KeyedList<Word> = {
-	"plot-sphere": <RuntimeWord> {
-		name: "plot-sphere",
-		wordType: WordType.OTHER_RUNTIME,
-		forthRun: <RuntimeWord> (ctx:RuntimeContext):void => {
-			const sgctx:ShapeGeneratorContext = (<ShapeGeneratorContext>ctx);
-			const rad = +ctx.dataStack.pop();
-			tempVec.set(0,0,0);
-			sgctx.shapeSheetUtil.plottedMaterialIndexFunction = () => +sgctx.contextValues["material-index"];
-			sgctx.transform.multiplyVector( tempVec, tempVec );
-			(<ShapeGeneratorContext>ctx).shapeSheetUtil.plotSphere( tempVec.x, tempVec.y, tempVec.z, sgctx.transform.scale * rad );
-		}
-	},
-	"move": <RuntimeWord> {
-		name: "move",
-		wordType: WordType.OTHER_RUNTIME,
-		forthRun: <RuntimeWord> (ctx:RuntimeContext):void => {
-			const sgctx:ShapeGeneratorContext = (<ShapeGeneratorContext>ctx);
-			const z = sgctx.dataStack.pop();
-			const y = sgctx.dataStack.pop();
-			const x = sgctx.dataStack.pop();
-			applyTransform(sgctx, TransformationMatrix3D.translationXYZ(x,y,z, tempXf));
-		}
-	},
-	"scale": <RuntimeWord> {
-		name: "scale",
-		wordType: WordType.OTHER_RUNTIME,
-		forthRun: <RuntimeWord> (ctx:RuntimeContext):void => {
-			const sgctx:ShapeGeneratorContext = (<ShapeGeneratorContext>ctx);
-			const scale = sgctx.dataStack.pop();
-			applyTransform(sgctx, TransformationMatrix3D.scale(scale, scale, scale, tempXf));
-		}
-	},
-	"deg2rad": <RuntimeWord> {
-		"name": "deg2rad",
-		wordType: WordType.OTHER_RUNTIME,
-		forthRun: <RuntimeWord> (ctx:RuntimeContext):void => {
-			ctx.dataStack.push( ctx.dataStack.pop() * Math.PI / 180 );
-		},
-	},
-	"aarotate": <RuntimeWord> {
-		"name": "aarotate",
-		wordType: WordType.OTHER_RUNTIME,
-		forthRun: <RuntimeWord> (ctx:RuntimeContext):void => {
-			const sgctx:ShapeGeneratorContext = (<ShapeGeneratorContext>ctx);
-			const ang = sgctx.dataStack.pop();
-			const z = sgctx.dataStack.pop();
-			const y = sgctx.dataStack.pop();
-			const x = sgctx.dataStack.pop();
-			applyTransform(sgctx, TransformationMatrix3D.fromXYZAxisAngle(x, y, z, ang, tempXf));
-		}
-	},
-	"save-context": <RuntimeWord> {
-		"name": "save-context",
-		wordType: WordType.OTHER_RUNTIME,
-		forthRun: <RuntimeWord> (ctx:RuntimeContext):void => {
-			const sgctx:ShapeGeneratorContext = (<ShapeGeneratorContext>ctx);
-			sgctx.contextStack.push( {
-				contextValues: deepFreeze(sgctx.contextValues, true),
-				transform: deepFreeze(sgctx.transform, true),
-			} );
-		}
-	},
-	"restore-context": <RuntimeWord> {
-		"name": "restore-context",
-		wordType: WordType.OTHER_RUNTIME,
-		forthRun: <RuntimeWord> (ctx:RuntimeContext):void => {
-			const sgctx:ShapeGeneratorContext = (<ShapeGeneratorContext>ctx);
-			const saved = sgctx.contextStack.pop();
-			if( saved == null ) {
-				console.error("Saved context stack empty; can't restore-context");
-				return;
-			}
-			sgctx.contextValues = saved.contextValues,
-			sgctx.transform = saved.transform;
-		}
-	},
-	"context-variable:": <CompilationWord> {
-		name: "context-variable:",
-		wordType: WordType.OTHER_COMPILETIME,
-		forthCompile: <CompilationWord> (ctx:CompilationContext):void => {
-			ctx.onToken = (nameT:Token) => {
-				switch( nameT.type ) {
-				case TokenType.BAREWORD: case TokenType.SINGLE_QUOTED:
-					ctx.onToken = null;
-					if( nameT.text.charAt(0) != '$' ) {
-						throw new Error("Symbol after 'context-variable:' must start with \"$\""+atText(nameT.sourceLocation));
-					}
-					declareContextVariable(ctx, nameT.text.substr(1));
-					return;
-				case TokenType.END_OF_FILE:
-					throw new Error("Encountered end of file when expecting context variable name "+atText(nameT.sourceLocation));
-				case TokenType.DOUBLE_QUOTED:
-					throw new Error("Encountered quoted string when expecting context variable name "+atText(nameT.sourceLocation));
-				default:
-					throw new Error("Unexpected token type "+nameT.type+" when expecting context variable name "+atText(nameT.sourceLocation));
-				}
-			}
-		}
-	},
-	"!": storeValueWord,
-	"@": fetchValueWord,
-}
-
 export default class ProceduralShapeEditor
 {
 	protected viewSet:ShapeViewSet = new ShapeViewSet();
@@ -403,9 +218,14 @@ export default class ProceduralShapeEditor
 	protected messageBox:HTMLElement;
 	protected program:Program;
 	protected rendering:boolean = false;
+	protected compiler:ForthProceduralShapeCompiler;
 	
 	protected playButton:HTMLElement;
 	protected pauseButton:HTMLElement;
+
+	constructor() {
+		this.compiler = new ForthProceduralShapeCompiler();
+	}
 	
 	protected printMessage( text:string, className:string ) {
 		let elem = document.createElement('p');
@@ -415,57 +235,9 @@ export default class ProceduralShapeEditor
 		this.messageBox.scrollTop = this.messageBox.scrollHeight;
 	}
 	
-	protected compile(script:string) : Promise<CompilationContext> {
-		const ctx : CompilationContext = {
-			dictionary: mergeDicts(standardWords, customWords),
-			fallbackWordGetter: makeWordGetter( parseNumberWord ),
-			program: [],
-			fixups: {},
-			compilingMain: true,
-		};
-		const sLoc = {
-			fileUri: 'new-script',
-			lineNumber: 1,
-			columnNumber: 1,
-		}
-		return compileSource( script, ctx, sLoc );
-	}
-	
 	public reloadProgram():void {
-		this.compile( this.scriptBox.value ).then( (ctx:CompilationContext) => {
-			this.program = ctx.program;
-			console.log("Compiled!", this.program.length+" words");
-			
-			this.viewSet.shape = {
-				animationType: animationTypeFromName("loop"), // TODO: parse from source headers
-				estimateOuterBounds: (t, xf) => new Rectangle( -1, -1, 1, 1 ), // This gets ignored; we just use the whole canvas
-				draw: (ssu, t, xf) => {
-					
-					const prog = this.program == null ? [] : this.program;
-					
-					const ctx : ShapeGeneratorContext = {
-						program: prog,
-						dataStack: [],
-						returnStack: [],
-						ip: 0,
-						fuel: 10000,
-						shapeSheetUtil: ssu,
-						contextValues: deepFreeze({
-							't': t,
-							'material-index': 4,
-						}),
-						transform: xf,
-						contextStack: [],
-					}
-					
-					ssu.plottedMaterialIndexFunction = (x,y,z) => 8;
-					this.rendering = true;
-					const p = runContext( ctx );
-					if( !isResolved(p) ) {
-						console.warn("Script didn't finish immediately; you won't see all the results, or possibly anything");
-					}
-				}
-			}
+		this.compiler.compileToShape( this.scriptBox.value ).then( (shape) => {
+			this.viewSet.shape = shape;
 		}).catch( (err) => {
 			console.error('Failed to compile!', err);
 		});

@@ -1,6 +1,9 @@
 ## Demos
 
 - ShapeSheet editor
+  * Separate out ForthProceduralShape
+  - Save/load
+  - Polygons
 - Simple single-player maze game
 - Single-player game with use of IP packets
 - Client-server game
