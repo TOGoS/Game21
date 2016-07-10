@@ -21,11 +21,13 @@ export const FORTH_PROCEDURAL_SCRIPT_MAGIC_LINE = '#G21-FPS-1.0';
 interface SavableContext {
 	contextValues : KeyedList<any>;
 	transform : TransformationMatrix3D;
+	polygonPoints : number[];
 }
 
 interface ShapeGeneratorContext extends RuntimeContext, SavableContext {
 	shapeSheetUtil : ShapeSheetUtil;
 	contextStack : SavableContext[];
+	polygonPoints : number[];
 }
 
 const tempVec = new Vector3D;
@@ -92,7 +94,52 @@ function applyTransform( sgctx:ShapeGeneratorContext, xf:TransformationMatrix3D 
 	TransformationMatrix3D.multiply(sgctx.transform, xf, sgctx.transform);
 }
 
+function addPolygonPoint( points:number[], xf:TransformationMatrix3D ):void {
+	xf.multiplyVector(Vector3D.ZERO, tempVec);
+	points.push(tempVec.x, tempVec.y, tempVec.z);
+}
+
+function fixMaterialParameters( sgctx:ShapeGeneratorContext ):void {
+	sgctx.shapeSheetUtil.plottedMaterialIndexFunction = () => +sgctx.contextValues["material-index"];
+}
+
 const customWords : KeyedList<Word> = {
+	"open-polygon": <RuntimeWord> {
+		name: "open-polygon",
+		wordType: WordType.OTHER_RUNTIME,
+		forthRun: <RuntimeWord> (ctx:RuntimeContext):void => {
+			const sgctx:ShapeGeneratorContext = (<ShapeGeneratorContext>ctx);
+
+			if( Object.isFrozen(sgctx.polygonPoints) ) sgctx.polygonPoints = [];
+			else sgctx.polygonPoints.length = 0;
+			
+			addPolygonPoint(sgctx.polygonPoints, sgctx.transform);
+		}
+	},
+	"polygon-point": <RuntimeWord> {
+		name: "polygon-point",
+		wordType: WordType.OTHER_RUNTIME,
+		forthRun: <RuntimeWord> (ctx:RuntimeContext):void => {
+			const sgctx:ShapeGeneratorContext = (<ShapeGeneratorContext>ctx);
+
+			if( Object.isFrozen(sgctx.polygonPoints) ) sgctx.polygonPoints = thaw(sgctx.polygonPoints);
+			
+			addPolygonPoint(sgctx.polygonPoints, sgctx.transform);
+		}
+	},
+	"fill-polygon": <RuntimeWord> {
+		name: "fill-polygon",
+		wordType: WordType.OTHER_RUNTIME,
+		forthRun: <RuntimeWord> (ctx:RuntimeContext):void => {
+			const sgctx:ShapeGeneratorContext = (<ShapeGeneratorContext>ctx);
+
+			if( Object.isFrozen(sgctx.polygonPoints) ) sgctx.polygonPoints = thaw(sgctx.polygonPoints);
+			
+			addPolygonPoint(sgctx.polygonPoints, sgctx.transform);
+			fixMaterialParameters(sgctx);
+			sgctx.shapeSheetUtil.plotConvexPolygon(sgctx.polygonPoints);
+		}
+	},
 	"plot-sphere": <RuntimeWord> {
 		name: "plot-sphere",
 		wordType: WordType.OTHER_RUNTIME,
@@ -100,7 +147,7 @@ const customWords : KeyedList<Word> = {
 			const sgctx:ShapeGeneratorContext = (<ShapeGeneratorContext>ctx);
 			const rad = +ctx.dataStack.pop();
 			tempVec.set(0,0,0);
-			sgctx.shapeSheetUtil.plottedMaterialIndexFunction = () => +sgctx.contextValues["material-index"];
+			fixMaterialParameters(sgctx);
 			sgctx.transform.multiplyVector( tempVec, tempVec );
 			(<ShapeGeneratorContext>ctx).shapeSheetUtil.plotSphere( tempVec.x, tempVec.y, tempVec.z, sgctx.transform.scale * rad );
 		}
@@ -152,6 +199,7 @@ const customWords : KeyedList<Word> = {
 			sgctx.contextStack.push( {
 				contextValues: deepFreeze(sgctx.contextValues, true),
 				transform: deepFreeze(sgctx.transform, true),
+				polygonPoints: deepFreeze(sgctx.polygonPoints, true),
 			} );
 		}
 	},
@@ -330,6 +378,7 @@ export default class ScriptProceduralShape implements ProceduralShape, ScriptPro
 			}),
 			transform: xf,
 			contextStack: [],
+			polygonPoints: [],
 		}
 		
 		ssu.plottedMaterialIndexFunction = (x,y,z) => 8;

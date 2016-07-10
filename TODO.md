@@ -4,9 +4,9 @@
   * Separate out ForthProceduralShape
   * Save script, show URN
   * Load script
-  - Show log in message area
-  - Draw polygons
+  * Draw polygons
   - Drag-to-rotate
+  - Show log in message area
   - Occasional 'soft' save to local storage
 - Simple single-player maze game
 - Single-player game with use of IP packets
