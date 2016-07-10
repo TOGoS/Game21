@@ -396,7 +396,7 @@ const customWords : KeyedList<Word> = {
 	"@": fetchValueWord,
 }
 
-export default class ShapeSheetEditor
+export default class ProceduralShapeEditor
 {
 	protected viewSet:ShapeViewSet = new ShapeViewSet();
 	protected scriptBox:HTMLTextAreaElement;

@@ -14,8 +14,6 @@
 
 ## Misc to-do items
 
-ShapeSheetEditor -> ProceduralShapeEditor
-
 For maze game:
 - quantized physics
 - a nicer map editor
