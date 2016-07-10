@@ -16,7 +16,8 @@ import { DEFAULT_MATERIAL_MAP } from '../surfacematerials';
 import { DEFAULT_LIGHTS } from '../lights';
 import { Program } from '../forth/rs1'
 import { fixScriptText, ForthProceduralShapeCompiler } from '../ForthProceduralShape';
-import { utf8Encode } from '../../tshash/index';
+import { utf8Encode, utf8Decode } from '../../tshash/index';
+import { getQueryStringValues } from './windowutils';
 
 interface ViewAnimationSettings {
 	animationSpeed : number; // change in t per second
@@ -216,12 +217,16 @@ class ShapeViewSet {
 export default class ProceduralShapeEditor
 {
 	protected registry:ClientRegistry;
-	protected viewSet:ShapeViewSet = new ShapeViewSet();
+	
 	protected scriptBox:HTMLTextAreaElement;
 	protected scriptRefBox:HTMLInputElement;
 	protected messageBox:HTMLElement;
+	protected reloadButton:HTMLButtonElement;
+	protected saveButton:HTMLButtonElement; 
+
+	protected viewSet:ShapeViewSet = new ShapeViewSet();
+
 	protected program:Program;
-	protected rendering:boolean = false;
 	protected compiler:ForthProceduralShapeCompiler;
 	
 	protected playButton:HTMLElement;
@@ -268,6 +273,27 @@ export default class ProceduralShapeEditor
 		this.scriptRefBox.value = urn;
 	}
 
+	protected loadScript(urn:string):Promise<string> {
+		console.log("Loading from "+urn+"...");
+		this.scriptBox.value = "# Loading from "+urn+"...";
+		this.scriptBox.disabled = true;
+		const loadProm = this.registry.datastore.fetch(urn).then( (scriptTextBytes) => {
+			this.scriptText = utf8Decode(scriptTextBytes);
+			console.log("Loaded "+urn);
+			this.scriptRefBox.value = urn;
+			return this.scriptText;
+		});
+		loadProm.catch( (error) => {
+			console.error("Failed to load "+urn, error);
+			this.scriptText = "# Failed to load "+urn;
+		}).then( () => {
+			this.scriptBox.disabled = false;
+			this.saveButton.disabled = false;
+			this.reloadButton.disabled = false;
+		})
+		return loadProm;
+	}
+
 	protected scriptTextUpdated():void {
 		this.scriptRefBox.value = '';
 	}
@@ -276,10 +302,13 @@ export default class ProceduralShapeEditor
 		this.scriptBox = <HTMLTextAreaElement>document.getElementById('script-text');
 		this.messageBox = <HTMLElement>document.getElementById('messages');
 		this.scriptRefBox = <HTMLInputElement>document.getElementById('script-ref-box');
-		document.getElementById('reload-button').addEventListener('click', () => {
+		this.reloadButton = <HTMLButtonElement>document.getElementById('reload-button');
+		this.saveButton = <HTMLButtonElement>document.getElementById('save-button');
+
+		this.reloadButton.addEventListener('click', () => {
 			this.reloadProgram();
 		});
-		document.getElementById('save-button').addEventListener('click', () => {
+		this.saveButton.addEventListener('click', () => {
 			this.hardSave();
 		});
 		
@@ -313,7 +342,15 @@ export default class ProceduralShapeEditor
 		static2.setScaleAndRotation( 32, Quaternion.IDENTITY );
 		this.viewSet.addViewFromCanvas( <HTMLCanvasElement>document.getElementById('rotatey-view-canvas'), 'rotatey', 1 );
 		
-		this.reloadProgram();
+		const qsParams = getQueryStringValues();
+		if( qsParams["script-uri"] ) {
+			this.loadScript(qsParams["script-uri"]).then( () => {
+				this.reloadProgram();
+			});
+		} else {
+			// Just load the default one...
+			this.reloadProgram();
+		}
 
 		const rotatey = this.viewSet.views['rotatey'];
 		

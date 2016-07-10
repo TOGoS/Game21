@@ -11,8 +11,12 @@ export default class HTTPHashDatastore implements Datastore<Uint8Array> {
 	get( uri:string ):Uint8Array {
 		return null; // We don't keep anything on hand
 	}
-	fetch( uri:string ):Promise<Uint8Array> {
-		return null;
+	fetch( urn:string ):Promise<Uint8Array> {
+		const url = this.n2rUrl+"?"+urn;
+		return http.request('GET', url).then( (res) => {
+			if( res.statusCode == 200 ) return res.content;
+			else return Promise.reject(new Error("GET "+url+" returned "+res.statusCode));
+		});
 	}
 	store( data:Uint8Array, onComplete?:(success:boolean, errorInfo:ErrorInfo)=>void ):string {
 		const urn = sha1Urn(data);
@@ -20,12 +24,12 @@ export default class HTTPHashDatastore implements Datastore<Uint8Array> {
 		let resProm = http.request('PUT', url, {}, data)
 		if( onComplete ) resProm.then( (res) => {
 			if( res.statusCode < 200 || res.statusCode >= 300 ) {
-				onComplete( false, {message: "Received status code "+res.statusCode+" from PUT to "+url} );
+				onComplete( false, new Error("Received status code "+res.statusCode+" from PUT to "+url) );
 			} else {
 				onComplete( true, null );
 			}
 		}).catch( (err) => {
-			onComplete( false, {message: err} );
+			onComplete( false, err );
 		})
 		return urn;
 	}

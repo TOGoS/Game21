@@ -6,6 +6,8 @@
   - Load script
   - Show log in message area
   - Draw polygons
+  - Drag-to-rotate
+  - Occasional 'soft' save to local storage
 - Simple single-player maze game
 - Single-player game with use of IP packets
 - Client-server game
