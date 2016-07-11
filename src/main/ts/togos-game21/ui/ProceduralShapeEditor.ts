@@ -37,7 +37,7 @@ class ShapeView {
 	
 	// Only used when in 'animation mode' to automaticall update _t and _xf
 	protected _animation : ViewAnimationSettings;
-	protected _q : Quaternion;
+	protected _orientation : Quaternion;
 	
 	// Keep in mind...
 	// May want evntually to offload this all to a webworker or something.
@@ -59,12 +59,38 @@ class ShapeView {
 		// no need to tell util about the renderer.
 		this._ssu  = new ShapeSheetUtil( this._ss );
 		
-		this.setScaleAndRotation( this._scale, Quaternion.IDENTITY );
+		this.setScaleAndOrientation( this._scale, Quaternion.IDENTITY );
+		
+		let dragging = false;
+		canvas.addEventListener('mousedown', (ev) => {
+			dragging = true;
+		});
+		canvas.addEventListener('mouseup', (ev) => {
+			dragging = false;
+		});
+		canvas.addEventListener('mousemove', (ev) => {
+			if( dragging && (ev.buttons & 1) ) {
+				const degX = ev.movementX * 90 / canvas.width;
+				const degY = ev.movementY * 90 / canvas.height;
+				const axis = new Vector3D( degY, -degX, 0 );
+				axis.normalize(1, axis);
+				this.rotateBy( Quaternion.fromAxisAngle(axis, Math.sqrt(degX*degX+degY*degY)*Math.PI/180) );
+			}
+		});
 	}
 	
 	public get scale():number { return this._scale; }
 	
-	public setScaleAndRotation( scale:number, q:Quaternion ) {
+	public set orientation( orientation:Quaternion ) {
+		this.setScaleAndOrientation( this._scale, orientation );
+	}
+	
+	public rotateBy( q:Quaternion, amount:number=1 ):void {
+		// Erm why can't we just multiply by q, again?  Maybe we can when amount = 1.
+		this.orientation = Quaternion.slerp( this._orientation, Quaternion.multiply(q, this._orientation), amount, false );
+	}
+	
+	public setScaleAndOrientation( scale:number, q:Quaternion ) {
 		const xforms : TransformationMatrix3D[] = [
 			TransformationMatrix3D.translation( new Vector3D(this._ss.width/2, this._ss.height/2) ),
 			TransformationMatrix3D.scale( scale * this._superSampling ),
@@ -75,7 +101,7 @@ class ShapeView {
 			xf = xf.multiply( xforms[i] );
 		}
 		this._scale = scale;
-		this._q = q;
+		this._orientation = q;
 		this.transform = xf;
 	}
 	
@@ -138,11 +164,7 @@ class ShapeView {
 		
 		this.t = this._t + dt * this._animation.animationSpeed;
 		
-		const rots = this._animation.rotationSpeed * dt;
-		//const newQ = Quaternion.multiply(this._q, this._animation.rotation);
-		const newQ = Quaternion.slerp( this._q, Quaternion.multiply(this._q, this._animation.rotation), rots, false );
-		
-		this.setScaleAndRotation( this._scale, newQ );
+		this.rotateBy( this._animation.rotation, this._animation.rotationSpeed * dt );
 	};
 	
 	public startAnimation( anim:ViewAnimationSettings ) {
@@ -352,7 +374,7 @@ export default class ProceduralShapeEditor
 	public runDemo():void {
 		this.viewSet.addViewFromCanvas( <HTMLCanvasElement>document.getElementById('static-view-canvas'), 'static', 2 );
 		const static2 = this.viewSet.addViewFromCanvas( <HTMLCanvasElement>document.getElementById('static-view-canvas2'), 'static2', 4 );
-		static2.setScaleAndRotation( 32, Quaternion.IDENTITY );
+		static2.setScaleAndOrientation( 32, Quaternion.IDENTITY );
 		this.viewSet.addViewFromCanvas( <HTMLCanvasElement>document.getElementById('rotatey-view-canvas'), 'rotatey', 1 );
 		
 		const qsParams = getQueryStringValues();
