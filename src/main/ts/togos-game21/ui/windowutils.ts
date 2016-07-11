@@ -10,7 +10,7 @@ export function getQueryStringValues(qs:string = window.location.search.substr(1
 		if( kv.length == 1 ) {
 			vals[kv[0]] = kv[0];
 		} else {
-			vals[kv[1]] = kv[1];
+			vals[kv[0]] = kv[1];
 		}
 	}
 	return vals;
