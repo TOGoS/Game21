@@ -223,7 +223,8 @@ export default class ProceduralShapeEditor
 	protected messageBox:HTMLElement;
 	protected compileButton:HTMLButtonElement;
 	protected saveButton:HTMLButtonElement; 
-
+	protected loadButton:HTMLButtonElement;
+	
 	protected viewSet:ShapeViewSet = new ShapeViewSet();
 
 	protected program:Program;
@@ -304,12 +305,24 @@ export default class ProceduralShapeEditor
 		this.scriptRefBox = <HTMLInputElement>document.getElementById('script-ref-box');
 		this.compileButton = <HTMLButtonElement>document.getElementById('compile-button');
 		this.saveButton = <HTMLButtonElement>document.getElementById('save-button');
-
+		this.loadButton = <HTMLButtonElement>document.getElementById('load-button');
+		
+		this.scriptBox.addEventListener('change', () => {
+			this.scriptTextUpdated();
+		});
 		this.compileButton.addEventListener('click', () => {
 			this.compileProgram();
 		});
 		this.saveButton.addEventListener('click', () => {
 			this.hardSave();
+		});
+		this.loadButton.addEventListener('click', () => {
+			const uri = prompt("Script URI (urn:sha1:... or http://....)", "");
+			if( uri === null || uri == "" ) return;
+			
+			this.loadScript(uri).then( () => {
+				this.compileProgram();
+			});
 		});
 		
 		this.pauseButton = document.getElementById('pause-button');

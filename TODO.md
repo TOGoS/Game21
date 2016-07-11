@@ -5,8 +5,10 @@
   * Save script, show URN
   * Load script
   * Draw polygons
+  * Load button/dialog
   - Drag-to-rotate
   - Show log in message area
+  - Allow loading from HTTP URLs
   - Occasional 'soft' save to local storage
 - Simple single-player maze game
 - Single-player game with use of IP packets

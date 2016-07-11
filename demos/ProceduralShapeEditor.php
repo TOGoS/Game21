@@ -260,6 +260,7 @@ t 180 deg2rad * sin 20 * 10 - $flap !
 <div>
 <button id="compile-button">Compile</button>
 <button id="save-button">Save</button>
+<button id="load-button">Load...</button>
 <button id="pause-button" title="Pause rendering">&#x23f8;</button>
 <button id="play-button" title="Resume rendering">&#x25b6;</button>
 </div>
