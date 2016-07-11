@@ -297,7 +297,7 @@ export function fixScriptText(scriptText:string, headerValues:KeyedList<String>=
 	let state = 0; // 0 = processing headers, 1 = done processing headers
 	for( let l = 0; l < lines.length; ++l ) {
 		const line = lines[l];
-		let match;
+		let match:string[];
 		if( state == 0 && (match = line.match(/^#\S.*/)) ) {
 			let tline = line.trim();
 			if( tline == FORTH_PROCEDURAL_SCRIPT_MAGIC_LINE ) {
