@@ -84,7 +84,14 @@ class ShapeView {
 			dragging = false;
 			requestAnimationFrame(dragReleasedTick);
 		}
-
+		canvas.addEventListener('wheel', (ev) => {
+			if( ev.deltaY < 0 ) {
+				this.scale *= 2;
+			} else {
+				this.scale *= 1/2;
+			}
+			ev.preventDefault();
+		}, true);
 		canvas.addEventListener('mousedown', (ev) => {
 			dragging = true;
 		});
@@ -107,6 +114,9 @@ class ShapeView {
 	}
 	
 	public get scale():number { return this._scale; }
+	public set scale(s:number) {
+		this.setScaleAndOrientation(s, this._orientation);
+	}
 	
 	public set orientation( orientation:Quaternion ) {
 		this.setScaleAndOrientation( this._scale, orientation );
