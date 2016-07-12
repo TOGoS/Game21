@@ -49,6 +49,14 @@ $configProperties = [
 		'defaultValue' => false,
 		'affects' => 'pageGeneration',
 	],
+	'demoScripts' => [
+		'valueType' => 'list[string]',
+		'defaultValue' => [
+			'urn:sha1:XQITK7DNBNJI6LEKM4LK2JI754YXV7TW' => 'Wiggly Thing',
+			'urn:sha1:E7ERLU5MZYGQKFOVONDTH2RWN4WMHOHZ' => 'Bumpy Cube',
+			'urn:sha1:2CK4DYFKC5MVUIZDI37YIQIG7DA3357V' => 'Tree',
+		]
+	],
 	
 	# Shape generation
 	'grainSize' => [
@@ -212,12 +220,17 @@ textarea {
 }
 #shape-editor-ui .shape-views {
 	background: #111;
+	flex-grow: 1;
+	flex-shrink: 1;
+	overflow: auto;
 }
 #shape-editor-ui #messages {
-	background: #010;
+	background: #001;
 	color: silver;
 	overflow: auto;
 	flex-grow: 1;
+	flex-shrink: 1;
+	overflow: auto;
 }
 .error {
 	color: red;
@@ -289,7 +302,15 @@ t 180 deg2rad * sin 20 * 10 - $flap !
 ></canvas>
 </div>
 
-<div id="messages"></div>
+<div id="messages">
+<p>Some scripts to try:</p>
+<ul>
+<?php foreach($demoScripts as $uri=>$info) {
+  if( is_string($info) ) $info = ['title'=>$info, 'uri'=>$uri];
+  echo "<li><a href=\"?script-uri=", htmlspecialchars($uri), "\">", htmlspecialchars($info['title']), "</a></li>\n";
+} ?>
+</ul>
+</div>
 </div>
 </div>
 
