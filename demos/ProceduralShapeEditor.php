@@ -53,7 +53,7 @@ $configProperties = [
 		'valueType' => 'list[string]',
 		'defaultValue' => [
 			'urn:sha1:XQITK7DNBNJI6LEKM4LK2JI754YXV7TW' => 'Wiggly Thing',
-			'urn:sha1:E7ERLU5MZYGQKFOVONDTH2RWN4WMHOHZ' => 'Bumpy Cube',
+			'urn:sha1:SZN7TKEMMWHGUK7I5SMBZ7ICBR5CFUCU' => 'Bumpy Cube',
 			'urn:sha1:2CK4DYFKC5MVUIZDI37YIQIG7DA3357V' => 'Tree',
 		]
 	],
