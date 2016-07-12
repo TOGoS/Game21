@@ -62,19 +62,46 @@ class ShapeView {
 		this.setScaleAndOrientation( this._scale, Quaternion.IDENTITY );
 		
 		let dragging = false;
+		let prevDrag = [0,0];
+
+		const axis = new Vector3D( 0, 0, 0 );
+
+		const dragReleasedTick = () => {
+			let [degX,degY] = prevDrag;
+
+			if( Math.abs(degX) < 1 && Math.abs(degY) < 1 ) return;
+
+			degX *= 0.9; degY *= 0.9;
+			axis.set(degY, -degX, 0);
+			axis.normalize(1, axis);
+			this.rotateBy( Quaternion.fromAxisAngle(axis, Math.sqrt(degX*degX+degY*degY)*Math.PI/180) );
+			prevDrag = [degX,degY];
+
+			requestAnimationFrame(dragReleasedTick);
+		}
+
+		const dragReleased = () => {
+			dragging = false;
+			requestAnimationFrame(dragReleasedTick);
+		}
+
 		canvas.addEventListener('mousedown', (ev) => {
 			dragging = true;
 		});
 		canvas.addEventListener('mouseup', (ev) => {
-			dragging = false;
+			dragReleased();
+		});
+		canvas.addEventListener('mouseleave', (ev) => {
+			dragReleased();
 		});
 		canvas.addEventListener('mousemove', (ev) => {
 			if( dragging && (ev.buttons & 1) ) {
 				const degX = ev.movementX * 90 / canvas.width;
 				const degY = ev.movementY * 90 / canvas.height;
-				const axis = new Vector3D( degY, -degX, 0 );
+				axis.set(degY, -degX, 0);
 				axis.normalize(1, axis);
 				this.rotateBy( Quaternion.fromAxisAngle(axis, Math.sqrt(degX*degX+degY*degY)*Math.PI/180) );
+				prevDrag = [degX,degY];
 			}
 		});
 	}
@@ -393,8 +420,8 @@ export default class ProceduralShapeEditor
 	}
 	
 	public runDemo():void {
-		this.viewSet.addViewFromCanvas( <HTMLCanvasElement>document.getElementById('static-view-canvas'), 'static', 2 );
-		const static2 = this.viewSet.addViewFromCanvas( <HTMLCanvasElement>document.getElementById('static-view-canvas2'), 'static2', 4 );
+		this.viewSet.addViewFromCanvas( <HTMLCanvasElement>document.getElementById('static-view-canvas'), 'static', 3 );
+		const static2 = this.viewSet.addViewFromCanvas( <HTMLCanvasElement>document.getElementById('static-view-canvas2'), 'static2', 2 );
 		static2.setScaleAndOrientation( 32, Quaternion.IDENTITY );
 		this.viewSet.addViewFromCanvas( <HTMLCanvasElement>document.getElementById('rotatey-view-canvas'), 'rotatey', 1 );
 		
