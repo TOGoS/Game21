@@ -113,6 +113,15 @@ export const stackWords:KeyedList<Word> = {
 			ctx.dataStack.push(a);
 		}
 	},
+	"pick": <RuntimeWord>{
+		name: "pick",
+		wordType: WordType.OTHER_RUNTIME,
+		forthRun: (ctx:RuntimeContext):void => {
+			--ctx.fuel;
+			const n = ctx.dataStack.pop();
+			ctx.dataStack.push(ctx.dataStack[ctx.dataStack.length-1-n]);
+		}
+	},
 }
 
 export const jumpWords:KeyedList<Word> = {
