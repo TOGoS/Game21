@@ -188,7 +188,8 @@ const customWords : KeyedList<Word> = {
 			const z = sgctx.dataStack.pop();
 			const y = sgctx.dataStack.pop();
 			const x = sgctx.dataStack.pop();
-			applyTransform(sgctx, TransformationMatrix3D.fromXYZAxisAngle(x, y, z, ang, tempXf));
+			const l = Math.sqrt(x*x+y*y+z*z);
+			applyTransform(sgctx, TransformationMatrix3D.fromXYZAxisAngle(x/l, y/l, z/l, ang, tempXf));
 		}
 	},
 	"save-context": <RuntimeWord> {
