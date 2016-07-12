@@ -21,7 +21,7 @@ require_once 'lib.php';
 $configProperties = [
 	'title' => [
 		'valueType' => 'string',
-		'defaultValue' => 'Blobs!',
+		'defaultValue' => 'Procedural Shape Editor',
 		'affects' => 'pageGeneration',
 	],
 	'shapeViewMaxWidth' => [
