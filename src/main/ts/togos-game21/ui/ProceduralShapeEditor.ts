@@ -85,10 +85,18 @@ class ShapeView {
 			requestAnimationFrame(dragReleasedTick);
 		}
 		canvas.addEventListener('wheel', (ev) => {
-			if( ev.deltaY < 0 ) {
-				this.scale *= 2;
-			} else {
-				this.scale *= 1/2;
+			if( ev.deltaY != 0 ) {
+				let amount:number;
+				console.log( ev.deltaMode );
+				switch( ev.deltaMode ) {
+				case 0x00: // DOM_DELTA_PIXEL
+					amount = ev.deltaY; break;
+				default:
+					amount = ev.deltaY < 0 ? -100 : +100;
+					break;
+				}
+				
+				this.scale *= Math.pow(2, -amount/100);
 			}
 			ev.preventDefault();
 		}, true);
