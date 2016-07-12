@@ -158,7 +158,7 @@ input {
 .script-ref-bar {
 	padding: 4px 8px;
 }
-input[type="text",readonly="readonly"] {
+input[type="text"][readonly="readonly"] {
 	border: 1px solid darkgray;
 }
 .shape-views {
