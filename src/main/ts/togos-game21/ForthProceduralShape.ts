@@ -371,7 +371,7 @@ export default class ScriptProceduralShape implements ProceduralShape, ScriptPro
 			dataStack: [],
 			returnStack: [],
 			ip: 0,
-			fuel: 10000,
+			fuel: 100000,
 			shapeSheetUtil: ssu,
 			contextValues: deepFreeze({
 				't': t,
