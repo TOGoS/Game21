@@ -282,7 +282,19 @@ export default class ProceduralShapeEditor
 	protected fixScriptText():string {
 		return this.scriptText = fixScriptText(this.scriptText);
 	}
-
+	
+	protected _oldScriptUrn:string = null;
+	
+	/** Called after the script URN has been changed by a load or save */
+	protected scriptUrnUpdated( newUrn:string, pushState:boolean=true ):void {
+		if( newUrn === this._oldScriptUrn ) return;
+		this.scriptRefBox.value = newUrn;
+		if( pushState && window.history && window.history.pushState ) {
+			window.history.pushState( { scriptUri: newUrn }, "", "?script-uri="+newUrn );
+		}
+		this._oldScriptUrn = newUrn;
+	}
+	
 	protected hardSave():void {
 		const scriptTextBytes:Uint8Array = utf8Encode(this.fixScriptText());
 		const urn = this.registry.datastore.store(scriptTextBytes, (success,errorInfo) => {
@@ -293,18 +305,23 @@ export default class ProceduralShapeEditor
 			}
 		});
 		console.log("Saving as "+urn+"...")
-		this.scriptRefBox.value = urn;
+		this.scriptUrnUpdated(urn);
 	}
 
-	protected loadScript(urn:string):Promise<string> {
+	protected loadScript(urn:string, pushState:boolean=true):Promise<string> {
 		console.log("Loading from "+urn+"...");
 		this.scriptBox.value = "# Loading from "+urn+"...";
 		this.scriptBox.disabled = true;
+		this.scriptRefBox.value = "";
 		const loadProm = this.registry.datastore.fetch(urn).then( (scriptTextBytes) => {
 			this.scriptText = utf8Decode(scriptTextBytes);
 			console.log("Loaded "+urn);
-			this.scriptRefBox.value = urn;
+			this.scriptUrnUpdated(urn, pushState);
 			return this.scriptText;
+		});
+		loadProm.then( () => {
+			// We always want to recompile after loading, right?
+			this.compileProgram();
 		});
 		loadProm.catch( (error) => {
 			console.error("Failed to load "+urn, error);
@@ -342,9 +359,7 @@ export default class ProceduralShapeEditor
 			const uri = prompt("Script URI (urn:sha1:... or http://....)", "");
 			if( uri === null || uri == "" ) return;
 			
-			this.loadScript(uri).then( () => {
-				this.compileProgram();
-			});
+			this.loadScript(uri);
 		});
 		
 		this.pauseButton = document.getElementById('pause-button');
@@ -358,6 +373,12 @@ export default class ProceduralShapeEditor
 		});
 		
 		this.resumeAnimation();
+		
+		window.addEventListener('popstate', (evt) => {
+			if( evt.state.scriptUri ) {
+				this.loadScript(evt.state.scriptUri, false);
+			}
+		});
 	}
 	
 	protected pauseAnimation():void {
@@ -379,9 +400,7 @@ export default class ProceduralShapeEditor
 		
 		const qsParams = getQueryStringValues();
 		if( qsParams["script-uri"] ) {
-			this.loadScript(qsParams["script-uri"]).then( () => {
-				this.compileProgram();
-			});
+			this.loadScript(qsParams["script-uri"]);
 		} else {
 			// Just load the default one...
 			this.compileProgram();
