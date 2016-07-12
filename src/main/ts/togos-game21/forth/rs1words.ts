@@ -343,6 +343,10 @@ export function parseNumberWord( text:string ) : RuntimeWord {
 	if( /^[+-]?\d+(\.\d+)?$/.test(text) ) {
 		return literalValueWord( +text );
 	}
+	let m;
+	if( (m = /^([+-]?\d+)\/(\d+)$/.exec(text)) ) {
+		return literalValueWord(+m[1]/+m[2]);
+	}
 	return null;
 }
 
