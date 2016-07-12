@@ -122,6 +122,13 @@ class ShapeSheetUtil {
 			oldZ2 = cellCornerDepths[idx*4+2],
 			oldZ3 = cellCornerDepths[idx*4+3];
 		
+		const frontness =
+			((z0 < oldZ0) ? 1 : 0) +
+			((z1 < oldZ1) ? 1 : 0) +
+			((z2 < oldZ2) ? 1 : 0) +
+			((z3 < oldZ3) ? 1 : 0);
+
+		/*
 		if( z0 <= oldZ0 ) cellCornerDepths[idx*4+0] = z0;
 		if( z1 <= oldZ1 ) cellCornerDepths[idx*4+1] = z1;
 		if( z2 <= oldZ2 ) cellCornerDepths[idx*4+2] = z2;
@@ -132,11 +139,25 @@ class ShapeSheetUtil {
 			infiniMinus(z1, oldZ1) +
 			infiniMinus(z2, oldZ2) +
 			infiniMinus(z3, oldZ3);
+		*/
 		const minZ = Math.min(z0, z1, z2, z3);
 		const oldMinZ = Math.min(oldZ0, oldZ1, oldZ2, oldZ3);
-		if( materialIndex && (ox < 0 || minZ < oldMinZ) ) {
+		if( materialIndex && frontness >= 2 ) {
 			// Then our new thing is on average in front of the old thing
-			cellMaterialIndexes[idx] = materialIndex;
+			if( cellMaterialIndexes[idx] == materialIndex ) {
+				// 'weld'
+				cellCornerDepths[idx*4+0] = Math.min(z0, oldZ0);
+				cellCornerDepths[idx*4+1] = Math.min(z1, oldZ1);
+				cellCornerDepths[idx*4+2] = Math.min(z2, oldZ2);
+				cellCornerDepths[idx*4+3] = Math.min(z3, oldZ3);
+			} else {
+				// replace
+				cellMaterialIndexes[idx] = materialIndex;
+				cellCornerDepths[idx*4+0] = z0;
+				cellCornerDepths[idx*4+1] = z1;
+				cellCornerDepths[idx*4+2] = z2;
+				cellCornerDepths[idx*4+3] = z3;
+			}
 		}
 	};
 	
@@ -167,85 +188,66 @@ class ShapeSheetUtil {
 		}
 	};
 	
-	plotFlatTBQuad(topY:number, bottomY:number, topX0:number, topZ0:number, topX1:number, topZ1:number, bottomX0:number, bottomZ0:number, bottomX1:number, bottomZ1:number):void {
-		// e.g. topY = 0.5, bottomY = 2, topX0 = topX1 = 2.5, bottomX0 = 1, bottomX1 = 5
-		//
-		//   0        1        2   2.5  3        4        5        6        7
-		//0  +--------+--------+--------+--------+--------+--------+--------+
-		//   |        |        |        |        |        |        |        |
-		//0.5|        |        |    ._  |        |        |        |        |
-		//   |        |        |  _/  \_|_       |        |        |        |
-		//   |        |        |_/      | \__    |        |        |        |
-		//1  +--------+--------x--------x--------+--------+--------+--------+
-		//   |        |      _/|        |    \__ |        |        |        |
-		//   |        |    _/  |        |       \|__      |        |        |
-		//   |        |  _/    |        |        |  \__   |        |        |
-		//   |        |_/      |        |        |     \__|        |        |
-		//2  +--------x--------x--------x--------x--------x--------+--------+
-		//
-		// First thoughts:
-		// Any pixel containing any part of the polygon gets colored with material if average conrer Z < what was there
-		// Only corners lying within or on the edge of the polygon and with Z < current corner Z get depth marked
+	plotFlatTBQuad(y0:number, y2:number, x0:number, z0:number, x1:number, z1:number, x2:number, z2:number, x3:number, z3:number):void {
+		// Points: ____
+		//      0 /    \ 1
+		//       /      \
+		//      /        \
+		//   2 /__________\ 3
 		// 
-		// It might be easier just to plot spheres all over the place...
+		// e.g. y0 = 0.5, y2 = 2, x0 = x1 = 2.5, x2 = 1, x3 = 5
+		//
+		//    0        1        2   2.5  3        4        5        6        7
+		// 0  +--------+--------+--------+--------+--------+--------+--------+
+		//    |        |        |        |        |        |        |        |
+		// 0.5|        |        |    ._  |        |        |        |        |
+		//    |        |        |  _/  \_|_       |        |        |        |
+		//    |        |        |_/      | \__    |        |        |        |
+		// 1  +--------+--------x--------x--------+--------+--------+--------+
+		//    |        |      _/|        |    \__ |        |        |        |
+		//    |        |    _/  |        |       \|__      |        |        |
+		//    |        |  _/    |        |        |  \__   |        |        |
+		//    |        |_/      |        |        |     \__|        |        |
+		// 2  +--------x--------x--------x--------x--------x--------+--------+
 		
+		const minY = Math.round(y0);
+		const maxY = Math.round(y2);
+		if( minY >= maxY ) return;
+
 		var ss = this.shapeSheet;
 		var cellCornerDepths = ss.cellCornerDepths;
 		var cellMaterialIndexes = ss.cellMaterialIndexes;
 		var ssWidth = ss.width;
 		
-		var height = bottomY-topY;
-		var diffX0 = bottomX0-topX0, diffX1 = bottomX1-topX1;
-		var diffZ0 = bottomZ0-topZ0, diffZ1 = bottomZ1-topZ1;
+		if( x1 <= x0 && x3 <= x2 ) return;
+		if( y0 >= y2 ) return;
 		
-		// TODO: Use clip bounds instead of 0,0,ss.width,ss.height
+		const height = y2-y0;
 		
-		var py:number;
-		// Do it in rows!
-		var startY = Math.max(        0, topY              )|0;
-		var endY   = Math.min(ss.height, Math.ceil(bottomY))|0;
-		for( py=startY; py < bottomY; ++py ) {
-			var rowTopY = py, rowBottomY = py+1;
-			var topRatio    = (rowTopY   -topY)/height;
-			var bottomRatio = (rowBottomY-topY)/height;
-			var rowTopX0    = topX0+diffX0*topRatio   , rowTopX1    = topX1+diffX1*topRatio   ;
-			var rowBottomX0 = topX0+diffX0*bottomRatio, rowBottomX1 = topX1+diffX1*bottomRatio;
-			var rowTopZ0    = topZ0+diffZ0*topRatio   , rowTopZ1    = topZ1+diffZ1*topRatio   ;
-			var rowBottomZ0 = topZ0+diffZ0*bottomRatio, rowBottomZ1 = topZ1+diffZ1*bottomRatio;
-			var leftX:number;
-			var startX = Math.max(      0, Math.min(rowTopX0,rowBottomX0))|0;
-			var endX   = Math.min(ssWidth, Math.ceil(Math.max(rowTopX1,rowBottomX1)))|0; // right side of the last pixel of the row
-			var idx:number; // Index into sheet data
-			for( leftX=startX, idx=leftX*ssWidth; leftX < endX; ++leftX, ++idx ) {
-				var rightX = leftX+1;
-				var rowTopDiffZ    = rowTopZ1   -rowTopZ0;
-				var rowBottomDiffZ = rowBottomZ1-rowBottomZ0;
-				var rowTopWidth = (rowTopX1-rowTopX0), rowBottomWidth = rowBottomX1-rowBottomX0; // May be negative!
-				if( rowTopWidth    == 0 ) rowTopWidth    = 1; // Avoid /0 in cases where we can't do anything about it anyway
-				if( rowBottomWidth == 0 ) rowBottomWidth = 1; // Avoid /0 in cases where we can't do anything about it anyway
-				var topRightRatio    = (rightX-   rowTopX0)/rowTopWidth   , topLeftRatio    = (leftX-   rowTopX0)/rowTopWidth   ;
-				var bottomRightRatio = (rightX-rowBottomX0)/rowBottomWidth, bottomLeftRatio = (leftX-rowBottomX0)/rowBottomWidth;
-				
-				var incTop    = rowTopY    >= topY && rowTopY    <= bottomY;
-				var incBottom = rowBottomY >= topY && rowBottomY <= bottomY;
-				
-				var incTopLeft     = leftX  >= rowTopX0    && leftX  <= rowTopX1    && incTop;
-				var incTopRight    = rightX >= rowTopX0    && rightX <= rowTopX1    && incTop;
-				var incBottomLeft  = leftX  >= rowBottomX0 && leftX  <= rowBottomX1 && incBottom;
-				var incBottomRight = rightX >= rowBottomX0 && rightX <= rowBottomX1 && incBottom;
-				
-				var topLeftZ     = incTopLeft     ?    rowTopZ0 +     topLeftRatio*rowTopDiffZ    : Infinity;
-				var topRightZ    = incTopRight    ?    rowTopZ0 +    topRightRatio*rowTopDiffZ    : Infinity;
-				var bottomLeftZ  = incBottomLeft  ? rowBottomZ0 +  bottomLeftRatio*rowBottomDiffZ : Infinity;
-				var bottomRightZ = incBottomRight ? rowBottomZ0 + bottomRightRatio*rowBottomDiffZ : Infinity;
-				
-				this.plotPixel( leftX, rowTopY, topLeftZ, topRightZ, bottomLeftZ, bottomRightZ );
+		// Figure out surface angle so we never have to do it again
+		// (also, calculating it only once will ensure that our polygon appears flat)
+		const dzdx = (x1 - x0) > (x3 - x2) ? (z1-z0)/(x1-x0) : (z3-z2)/(x3-x2);
+		const dzdy = ((z2 + dzdx*(x0-x2)) - z0) / (y2-y0);
+		
+		const diffY  = y2-y0;
+		const diffX0 = x2-x0, diffX1 = x3-x1;
+		const diffZ0 = z2-z0, diffZ1 = z3-z1;
+		
+		const rowCount = maxY-minY;
+		
+		for( let y=minY; y<maxY; ++y ) {
+			const midYRat = (y+0.5-y0)/diffY;
+			const minX = Math.round( x0 + diffX0*midYRat );
+			const maxX = Math.round( x1 + diffX1*midYRat );
+			for( let x=minX; x<maxX; ++x ) {
+				const pz0 = z0 + (x-x0)*dzdx + (y-y0)*dzdy;
+				this.plotPixel( x, y, pz0, pz0+dzdx, pz0+dzdy, pz0+dzdx+dzdy );
 			}
 		}
 		
-		var boundingBoxX0 = Math.min(topX0, bottomX0)|0, boundingBoxX1 = Math.ceil(Math.max(topX1,bottomX1))|0;
+		var boundingBoxX0 = Math.min(x0, x2)|0, boundingBoxX1 = Math.ceil(Math.max(x1,x3))|0;
 		
-		this.dataUpdated(new Rectangle(boundingBoxX0, startY, boundingBoxX1, endY));
+		this.dataUpdated(new Rectangle(boundingBoxX0, minY, boundingBoxX1, maxY));
 	};
 	
 	/**
@@ -430,12 +432,25 @@ class ShapeSheetUtil {
 		
 		for( let y = boundingRect.minY; y < boundingRect.maxY; ++y ) {
 			for( let x = boundingRect.minX; x < boundingRect.maxX; ++x ) {
+				let z0 = sphereDepth(x+0,y+0);
+				let z1 = sphereDepth(x+1,y+0);
+				let z2 = sphereDepth(x+0,y+1);
+				let z3 = sphereDepth(x+1,y+1);
+				// If a whole side is missing, don't try to render it.
+				if( z0 == Infinity && z1 == Infinity ) continue;
+				if( z2 == Infinity && z3 == Infinity ) continue;
+				if( z0 == Infinity && z2 == Infinity ) continue;
+				if( z1 == Infinity && z3 == Infinity ) continue;
+				
+				// Otherwise it's just, like, one corner,
+				// so extrapolate from the other corners.
+				if( z0 == Infinity ) z0 = (z1 + (z1-z3) + z2 + (z2-z3))/2;
+				if( z1 == Infinity ) z1 = (z0 + (z0-z2) + z3 + (z3-z2))/2;
+				if( z2 == Infinity ) z2 = (z3 + (z3-z1) + z0 + (z0-z1))/2;
+				if( z3 == Infinity ) z3 = (z2 + (z2-z0) + z1 + (z1-z0))/2;
+				
 				this.plotPixel(
-					x, y,
-					sphereDepth(x+0,y+0),
-					sphereDepth(x+1,y+0),
-					sphereDepth(x+0,y+1),
-					sphereDepth(x+1,y+1)
+					x, y, z0, z1, z2, z3
 				);
 			}
 		}

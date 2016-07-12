@@ -7,9 +7,9 @@
   * Draw polygons
   * Load button/dialog
   * Drag-to-rotate
-  - Make edges look nicer (always set material if plotting the highest point?)
+  * Change URL when saving/loading
+  * Fix polygon and sphere rendering (avoid generating edge artifacts)
   - Show log in message area
-  - Change URL when saving
   - Allow loading from HTTP URLs
   - Occasional 'soft' save to local storage
 - Simple single-player maze game
