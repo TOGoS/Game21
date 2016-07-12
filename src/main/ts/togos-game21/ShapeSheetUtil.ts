@@ -210,11 +210,12 @@ class ShapeSheetUtil {
 		//    |        |_/      |        |        |     \__|        |        |
 		// 2  +--------x--------x--------x--------x--------x--------+--------+
 		
-		const minY = Math.round(y0);
-		const maxY = Math.round(y2);
+		var ss = this._shapeSheet;
+		
+		const minY = Math.max(0,Math.round(y0))|0;
+		const maxY = Math.min(ss.height,Math.round(y2))|0;
 		if( minY >= maxY ) return;
-
-		var ss = this.shapeSheet;
+		
 		var cellCornerDepths = ss.cellCornerDepths;
 		var cellMaterialIndexes = ss.cellMaterialIndexes;
 		var ssWidth = ss.width;
@@ -237,8 +238,8 @@ class ShapeSheetUtil {
 		
 		for( let y=minY; y<maxY; ++y ) {
 			const midYRat = (y+0.5-y0)/diffY;
-			const minX = Math.round( x0 + diffX0*midYRat );
-			const maxX = Math.round( x1 + diffX1*midYRat );
+			const minX = Math.max(0, Math.round( x0 + diffX0*midYRat ))|0;
+			const maxX = Math.min(ss.width, Math.round( x1 + diffX1*midYRat ));
 			for( let x=minX; x<maxX; ++x ) {
 				const pz0 = z0 + (x-x0)*dzdx + (y-y0)*dzdy;
 				this.plotPixel( x, y, pz0, pz0+dzdx, pz0+dzdy, pz0+dzdx+dzdy );
