@@ -64,6 +64,59 @@ export const arithmeticWords : KeyedList<Word> = {
 	},
 }
 
+export const comparisonWords : KeyedList<Word> = {
+	"<": <RuntimeWord> {
+		name: "<",
+		wordType: WordType.OTHER_RUNTIME,
+		forthRun: (ctx:RuntimeContext):void => {
+			--ctx.fuel;
+			const b = ctx.dataStack.pop();
+			const a = ctx.dataStack.pop();
+			ctx.dataStack.push(a < b ? -1 : 0);
+		}
+	},
+	"<=": <RuntimeWord> {
+		name: "<=",
+		wordType: WordType.OTHER_RUNTIME,
+		forthRun: (ctx:RuntimeContext):void => {
+			--ctx.fuel;
+			const b = ctx.dataStack.pop();
+			const a = ctx.dataStack.pop();
+			ctx.dataStack.push(a <= b ? -1 : 0);
+		}
+	},
+	"=": <RuntimeWord> {
+		name: "=",
+		wordType: WordType.OTHER_RUNTIME,
+		forthRun: (ctx:RuntimeContext):void => {
+			--ctx.fuel;
+			const b = ctx.dataStack.pop();
+			const a = ctx.dataStack.pop();
+			ctx.dataStack.push(a == b ? -1 : 0);
+		}
+	},
+	">=": <RuntimeWord> {
+		name: ">=",
+		wordType: WordType.OTHER_RUNTIME,
+		forthRun: (ctx:RuntimeContext):void => {
+			--ctx.fuel;
+			const b = ctx.dataStack.pop();
+			const a = ctx.dataStack.pop();
+			ctx.dataStack.push(a >= b ? -1 : 0);
+		}
+	},
+	">": <RuntimeWord> {
+		name: ">",
+		wordType: WordType.OTHER_RUNTIME,
+		forthRun: (ctx:RuntimeContext):void => {
+			--ctx.fuel;
+			const b = ctx.dataStack.pop();
+			const a = ctx.dataStack.pop();
+			ctx.dataStack.push(a > b ? -1 : 0);
+		}
+	},
+};
+
 export const trigonometryWords : KeyedList<Word> = {
 	"sin": <RuntimeWord>{
 		name: "sin",
@@ -380,7 +433,7 @@ function defineFixupPlaceholderGeneratorWords( ctx:CompilationContext, name:stri
 }
 
 export const standardWords = mergeDicts(
-	arithmeticWords, trigonometryWords,
+	arithmeticWords, trigonometryWords, comparisonWords,
 	stackWords, jumpWords, rsWords,
 	wordDefinitionWords
 );
