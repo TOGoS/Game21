@@ -24,6 +24,10 @@ $configProperties = [
 		'defaultValue' => 'Procedural Shape Editor',
 		'affects' => 'pageGeneration',
 	],
+	'showInstructions' => [
+		'valueType' => 'boolean',
+		'defaultValue' => true,
+	],
 	'shapeViewMaxWidth' => [
 		'valueType' => 'number',
 		'defaultValue' => 256,
@@ -239,6 +243,10 @@ textarea {
 code {
 	color: yellow;
 }
+samp {
+	font-style: italic;
+	color: lime;
+}
 p, ul {
 	padding-top: 6px;
 	padding-bottom: 6px;
@@ -248,11 +256,16 @@ p, ul {
 </head>
 <body>
 
-<p>I've made a rudimentary Procedural Shape Editor!
+<?php if($showInstructions): ?>
+<p>I've made a Procedural Shape Editor!
 By 'editor' I mean a text area that you can type programs into
-and some canvases to show the result.</p>
+and some canvases to show the result.  It's rudimentary
+but it means that it's at least <em>possible</em> for people
+to come up with some interesting models while I go and work
+on other stuff.</p>
 
 <p>Scroll down for instructions.</p>
+<?php endif; ?>
 
 <!-- Config: <?php echo json_encode($config, JSON_PRETTY_PRINT); ?> -->
 
@@ -339,27 +352,33 @@ t 180 deg2rad * sin 20 * 10 - $flap !
 	});
 </script>
 
+<?php if($showInstructions): ?>
 <p>Shapes are defined using a Forth-like language.
-This way we can re-render them at different rotations and scales and under different lighting conditions.
-Color values are not indicated.  Instead, material indexes are.
-Each pixel ends up with a 'material index' and
-rendering to an RGB image (the colors that end up on your screen) 
-is a separate step from constructing the underlying shape.
-This means we could, for instance, swap out steel for copper
+Defining them as a procedure allows us to re-render them at different rotations and
+scales and under different lighting conditions and at different points in their animation cycle
+(for animated shapes).</p>
+
+<p>The end result of the Forth program is a 'shape sheet',
+which consists of a material index and corner depths for each pixel.
+This shape sheet can then be rendered as an RGB image by providing
+materials for each material index and a set of lights.</p>
+
+<p>This means we could, for instance, swap out steel for copper
 without having to re-run the Forth script.
+<aside>
 Not that that's <em>terribly</em> useful.
-I designed that feature before I decided that most objects would be rendered procedurally anyway.</p>
+I designed that feature before I decided that most objects would be rendered procedurally anyway.
+</aside></p>
 
-<p>This is not a very user-friendly interface for defining shapes, but it gives me a format to build from.
-It's possible to import user-defined shapes, now.
-Not that there's anything to import them into just yet.
-That will come later.</p>
-
-<p>Anyway, the text area on the left is where you write your script.
-Hit 'compile' to...compile it and update the shape views on the right.
+<p>The text area on the left is where you write your script.
+Hit 'compile' to compile it and update the shape views on the right.
+If there are errors they'll be printed to your browser's console.
 You can drag around the shape views to change the rotation,
 use the scroll wheel to zoom in and out,
 and use the '&#x23f8'/'&#x25b6;' button to toggle auto-rotation.</p>
+
+<p>The second preview does 4x supersampling, which is why
+it takes longer to render than the others.</p>
 
 <p>Now I will try to describe the language.</p>
 
@@ -368,7 +387,9 @@ literal numbers push themselves onto the data stack, <code>:</code> starts
 a word definition, <code>dup</code>, <code>drop</code>, <code>swap</code>,
 and <code>pick</code> have their traditional meanings.
 <code>;</code> inserts an <code>exit</code> (return) and marks the end of word definitions;
-anything outside of a function definition is run immediately at the beginning of the program.</p>
+anything outside of a function definition is run immediately at the beginning of the program.
+Rational numbers, e.g. <code>1/5</code>, can also be represented literally
+(though internally they are just floats).</p>
 
 <p><code>!</code> and <code>@</code> store and fetch values to/from a variable, respectively.
 You can define dynamically-scoped variables using the <code>context-variable:</code> word.
@@ -388,16 +409,128 @@ Cursor transformations are always relativeand change to the current coordinate s
 e.g. if you move by 3,0,0, scale by 2, and then move by 0,1,0, the cursor will be at 3,2,0,
 and a sphere plotted with size=1 will actually have radius=2 relative to the original coordinate system.</p>
 
-<p>Some other important words (parameters and -- return values):</p>
+<p>The initial coordinate system is +x = right, +y = down, and +z = into the screen.
+One unit = one meter (I expect standard-sized blocks in the game to be 1m by 1m, with bounds from -0.5,-0.5,-0.5 to +0.5,+0.5,+0.5).</p>
+
+<h3>Words</h3>
+
+<p>Listed with (parameters and -- return values)</p>
+
+<h4>Cursor transformations</h4>
 
 <ul>
 <li><code>move</code> (x y z --) move the 'cursor' by the specified amount.</li>
 <li><code>scale</code> (scale --) scale the cursor by some amount.</li>
 <li><code>aarotate</code> (x y z ang --) rotate the cursor by some amount.</li>
-<li><code>save-context</code> (--) save the current context (transformation, material index, polygon points) to the context stack.</li>
-<li><code>restore-context</code> (--) replace the current context with one popped off the context stack.</li>
 </ul>
 
+<h4>Drawing</h4>
+
+<ul>
+<li>plot-sphere</code> (radius --) plot a sphere of the specified radius at the cursor position.</li>
+<li>open-polygon</code> (--) start drawing a polygon at the cursor position.</li>
+<li>polygon-point</code> (--) add an additional polygon vertex.</li>
+<li>fill-point</code> (--) add an additional point and fill the polygon.</li>
+</ul>
+
+<p>Back sides of polygons will not be drawn.
+The 'front' side is the side that appears to be drawn clockwise.</p>
+
+<h4>Context loading/saving</h4>
+
+<ul>
+<li><code>save-context</code> (--) save the current context (transformation, material index, polygon points) to the context stack.</li>
+<li><code>restore-context</code> (--) replace the current context with one popped off the context stack.</li>
+<li><code>!</code> (value variable --) save a value into a context variable.</li>
+<li><code>@</code> (variable -- value) retrieve a value from a context variable.</li>
+</ul>
+
+<h4>Jumps</h4>
+
+<ul>
+<li><code>jump</code> (location --) jump to the program location popped from the top of the data stack.</li>
+<li><code>call</code> (location --) push the address of the next instruction to the return stack jump to the program location popped from the top of the data stack.</li>
+<li><code>jump-if-zero</code> (value location --) jump to the specified location if value is zero.</li>
+<li><code>jump-if-nonzero</code> (value location --) jump to the specified location if value is not zero.</li>
+<li><code>exit</code> (--) pop the return location off the return stack and jump to it.</li>
+<li><code>&gt;r</code> (value --) pop a value off the data stack and push it onto the return stack.</li>
+<li><code>r&gt;</code> (-- value) pop a value off the return stack onto the data stack.</li>
+</ul>
+
+<p>There will also be <code>jump:<samp>label</samp></code> and <code>$<samp>label</samp></code>
+variants of any user-defined wors that jump to and push the location of any user-defined words.</p>
+
+<p>You can play 2/3 Tower of Hanoi by shuffling data between the data and return stacks.</p>
+
+<h4>Arithmetic</h4>
+
+<ul>
+<li><code>+</code>, <code>-</code>, <code>*</code>, <code>/</code>, <code>**</code> (a b -- c) add, substract, multiply, divide, and exponentiate, respectively.</li>
+</ul>
+
+<h4>Trigonometry</h4>
+
+<ul>
+<li><code>sin</code>, <code>cos</code> (a -- b)</li>
+</ul>
+
+<h4>Comparison</h4>
+
+<ul>
+<li><code>&lt;</code>, <code>&lt;=</code>, <code>=</code>, <code>&gt;=</code>, <code>&gt;</code> (a b -- c) less than, less than or equal, equal, greater or equal, greater.
+<code>-1</code> is pushed onto the stack if true, <code>0</code> otherwise.</li>
+</ul>
+
+<h4>Stack operations</h4>
+
+<ul>
+<li><code>drop</code> (a --) throw away the topmost value on the stack.</li>
+<li><code>dup</code> (a -- a a) duplicate the top stack value.</li>
+<li><code>swap</code> (a b -- b a)</li>
+<li><code>pick</code> (x ... n -- x) duplicate the <samp>n</samp>th value from the stack (n=0 being the value directly under <samp>n</samp>) onto the top of the stack.</li>
+</ul>
+
+<h4>Definition words</h4>
+
+<p>These are interpreted at compile-time rather than run-time, and don't use the stack.
+Any arguments tend to be symbolic and come <samp>after</samp> the word.</p>
+
+<ul>
+<li><code>context-variable: $<samp>variablename</samp></code> - declare a context variable.
+  After this, <code>$<samp>variablename</samp></code> will refer to the variable itself,
+  and <code><samp>variablename</samp></code> can be used as shorthand for getting the variable's value onto the stack.</li>
+<li><code>alias: <samp>newname</samp> <samp>oldname</samp></code> - create an alias for a word.
+  e.g. <code>alias: jump-if-zero jz</code> if you're going to be <code>jump-if-zero</code>ing a lot
+  and get tired of typing it out.</li>
+<li><code>code-label: <samp>label</samp></code> - declare a code label.  This allows you to refer to code labels
+  that aren't yet defined.</li>
+<li><code>: <samp>label</samp></code> - start defining a word or define a code label (they're the same thing).</li>
+<li><code>;</code> - stop defining words and continue defining the top-level program.</li>
+</ul>
+
+<h3>Materials</h3>
+
+<p>There are only a few defined.</p>
+
+<ul>
+<li><code>0</code>-<code>3</code> - reserved for special meanings</li>
+<li><code>4</code>,<code>5</code> - gray steel</li>
+<li><code>6</code> - black steel</li>
+<li><code>8</code>,<code>9</code> - pink stone</li>
+<li><code>12</code>-<code>15</code> - foliage</li>
+<li><code>16</code>-<code>20</code> - tree bark</li>
+</ul>
+
+<p>I usually <code>: mati! $material-index ! ;</code> so that I can just type
+<code><samp>material-number</samp> mati!</code> to set the current material rather
+than the whole <code>$material-index</code> rigamarole.</p>
+
+<p>Eventually one would be able to define custom materials and indicate your preferred
+palette in your script, but that's for another day.</p>
+
+<p>I probably forgot some things.  You can ask me questions if you want.</p>
+
+<?php endif; ?>
 
 </body>
 </html>
