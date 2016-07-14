@@ -319,8 +319,10 @@ export default class ProceduralShapeEditor
 	protected set scriptText(t:string) { this.scriptBox.value = t; }
 	
 	public compileProgram():void {
+		this.console.log("Compiling program...");
 		this.compiler.compileToShape( this.scriptText ).then( (shape) => {
 			this.viewSet.shape = shape;
+			this.console.log("Compiled successfully.");
 		}).catch( (err) => {
 			this.console.error('Failed to compile!', err);
 		});

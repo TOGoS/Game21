@@ -203,8 +203,9 @@ textarea {
 	display: flex;
 	flex-direction: row;
 	width: 100%;
-	height: 90%;
-	margin: 0;
+	/* I'd really like to fix height at 90% of viewport, but 'vh' doesn't seem to work in my browser */
+	height: 600px;
+	margin: 16px 0px;
 	padding: 16px 0px;
 }
 #shape-editor-ui #left {
@@ -226,8 +227,11 @@ textarea {
 #shape-editor-ui .shape-views {
 	background: #111;
 	flex-grow: 1;
-	flex-shrink: 1;
+	flex-shrink: 0;
 	overflow: auto;
+}
+.shape-views > * {
+	margin: 0px 8px;
 }
 #shape-editor-ui #messages {
 	background: #001;
@@ -238,6 +242,7 @@ textarea {
 	overflow: auto;
 	padding: 4px 8px;
 }
+button { margin: 0; }
 .error {
 	color: red;
 }
@@ -365,11 +370,12 @@ This shape sheet can then be rendered as an RGB image by providing
 materials for each material index and a set of lights.</p>
 
 <p>This means we could, for instance, swap out steel for copper
-without having to re-run the Forth script.
+without having to re-run the Forth script.</p>
+
 <aside>
 Not that that's <em>terribly</em> useful.
 I designed that feature before I decided that most objects would be rendered procedurally anyway.
-</aside></p>
+</aside>
 
 <p>The text area on the left is where you write your script.
 Hit 'compile' to compile it and update the shape views on the right.
@@ -406,12 +412,14 @@ when you <code>plot-sphere</code> or <code>fill-polygon</code>.</li>
 </ul>
 
 <p>Drawing is done by transforming the 'cursor' by translating, rotating, and scaling, and plotting spheres or polygons.
-Cursor transformations are always relativeand change to the current coordinate system.
+Cursor transformations are always relative to and alter the current transformation.
 e.g. if you move by 3,0,0, scale by 2, and then move by 0,1,0, the cursor will be at 3,2,0,
 and a sphere plotted with size=1 will actually have radius=2 relative to the original coordinate system.</p>
 
 <p>The initial coordinate system is +x = right, +y = down, and +z = into the screen.
-One unit = one meter (I expect standard-sized blocks in the game to be 1m by 1m, with bounds from -0.5,-0.5,-0.5 to +0.5,+0.5,+0.5).</p>
+One unit = one meter.
+I expect standard-sized blocks in the game to be 1m by 1m, with bounds from -0.5,-0.5,-0.5 to +0.5,+0.5,+0.5,
+so if you want to design a block-sized thing, keep it approximately within those bounds.</p>
 
 <h3>Words</h3>
 
@@ -494,14 +502,14 @@ variants of any user-defined wors that jump to and push the location of any user
 <h4>Definition words</h4>
 
 <p>These are interpreted at compile-time rather than run-time, and don't use the stack.
-Any arguments tend to be symbolic and come <samp>after</samp> the word.</p>
+Any arguments tend to be symbolic and come <em>after</em> the word.</p>
 
 <ul>
 <li><code>context-variable: $<samp>variablename</samp></code> - declare a context variable.
   After this, <code>$<samp>variablename</samp></code> will refer to the variable itself,
   and <code><samp>variablename</samp></code> can be used as shorthand for getting the variable's value onto the stack.</li>
 <li><code>alias: <samp>newname</samp> <samp>oldname</samp></code> - create an alias for a word.
-  e.g. <code>alias: jump-if-zero jz</code> if you're going to be <code>jump-if-zero</code>ing a lot
+  e.g. <code>alias: jz jump-if-zero</code> if you're going to be <code>jump-if-zero</code>ing a lot
   and get tired of typing it out.</li>
 <li><code>code-label: <samp>label</samp></code> - declare a code label.  This allows you to refer to code labels
   that aren't yet defined.</li>
