@@ -18,6 +18,9 @@ import { Program } from '../forth/rs1'
 import { fixScriptText, ForthProceduralShapeCompiler } from '../ForthProceduralShape';
 import { utf8Encode, utf8Decode } from '../../tshash/index';
 import { getQueryStringValues } from './windowutils';
+import MiniConsole from './MiniConsole';
+import MultiConsole from './MultiConsole';
+import HTMLConsole from './HTMLConsole';
 
 interface ViewAnimationSettings {
 	animationSpeed : number; // change in t per second
@@ -87,7 +90,6 @@ class ShapeView {
 		canvas.addEventListener('wheel', (ev) => {
 			if( ev.deltaY != 0 ) {
 				let amount:number;
-				console.log( ev.deltaMode );
 				switch( ev.deltaMode ) {
 				case 0x00: // DOM_DELTA_PIXEL
 					amount = ev.deltaY; break;
@@ -170,7 +172,6 @@ class ShapeView {
 	
 	public set shape( shape:ProceduralShape ) {
 		this._shape = shape; this.updated();
-		console.log("Updated "+this._canv.id, this.transform);
 	}
 	public set t( t:number ) {
 		t -= Math.floor(t);
@@ -291,6 +292,7 @@ export default class ProceduralShapeEditor
 	protected compileButton:HTMLButtonElement;
 	protected saveButton:HTMLButtonElement; 
 	protected loadButton:HTMLButtonElement;
+	protected console:MiniConsole = window.console;
 	
 	protected viewSet:ShapeViewSet = new ShapeViewSet();
 
@@ -320,7 +322,7 @@ export default class ProceduralShapeEditor
 		this.compiler.compileToShape( this.scriptText ).then( (shape) => {
 			this.viewSet.shape = shape;
 		}).catch( (err) => {
-			console.error('Failed to compile!', err);
+			this.console.error('Failed to compile!', err);
 		});
 	}
 	
@@ -344,23 +346,23 @@ export default class ProceduralShapeEditor
 		const scriptTextBytes:Uint8Array = utf8Encode(this.fixScriptText());
 		const urn = this.registry.datastore.store(scriptTextBytes, (success,errorInfo) => {
 			if( success ) {
-				console.log("Saved "+urn);
+				this.console.log("Saved "+urn);
 			} else {
-				console.error("Failed to save "+urn, errorInfo);
+				this.console.error("Failed to save "+urn, errorInfo);
 			}
 		});
-		console.log("Saving as "+urn+"...")
+		this.console.log("Saving as "+urn+"...")
 		this.scriptUrnUpdated(urn);
 	}
 
 	protected loadScript(urn:string, pushState:boolean=true):Promise<string> {
-		console.log("Loading from "+urn+"...");
+		this.console.log("Loading from "+urn+"...");
 		this.scriptBox.value = "# Loading from "+urn+"...";
 		this.scriptBox.disabled = true;
 		this.scriptRefBox.value = "";
 		const loadProm = this.registry.datastore.fetch(urn).then( (scriptTextBytes) => {
 			this.scriptText = utf8Decode(scriptTextBytes);
-			console.log("Loaded "+urn);
+			this.console.log("Loaded "+urn);
 			this.scriptUrnUpdated(urn, pushState);
 			return this.scriptText;
 		});
@@ -369,7 +371,7 @@ export default class ProceduralShapeEditor
 			this.compileProgram();
 		});
 		loadProm.catch( (error) => {
-			console.error("Failed to load "+urn, error);
+			this.console.error("Failed to load "+urn, error);
 			this.scriptText = "# Failed to load "+urn;
 		}).then( () => {
 			this.scriptBox.disabled = false;
@@ -390,6 +392,11 @@ export default class ProceduralShapeEditor
 		this.compileButton = <HTMLButtonElement>document.getElementById('compile-button');
 		this.saveButton = <HTMLButtonElement>document.getElementById('save-button');
 		this.loadButton = <HTMLButtonElement>document.getElementById('load-button');
+		
+		this.console = new MultiConsole( [
+			window.console,
+			new HTMLConsole(this.messageBox),
+		] );
 		
 		this.scriptBox.addEventListener('change', () => {
 			this.scriptTextUpdated();

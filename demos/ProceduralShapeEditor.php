@@ -236,6 +236,7 @@ textarea {
 	flex-grow: 1;
 	flex-shrink: 1;
 	overflow: auto;
+	padding: 4px 8px;
 }
 .error {
 	color: red;
