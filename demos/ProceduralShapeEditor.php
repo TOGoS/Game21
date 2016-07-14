@@ -199,8 +199,9 @@ textarea {
 	display: flex;
 	flex-direction: row;
 	width: 100%;
-	height: 100%;
+	height: 90%;
 	margin: 0;
+	padding: 16px 0px;
 }
 #shape-editor-ui #left {
 	height: 100%;
@@ -235,10 +236,23 @@ textarea {
 .error {
 	color: red;
 }
+code {
+	color: yellow;
+}
+p, ul {
+	padding-top: 6px;
+	padding-bottom: 6px;
+}
 </style>
 <title><?php eht($title); ?></title>
 </head>
 <body>
+
+<p>I've made a rudimentary Procedural Shape Editor!
+By 'editor' I mean a text area that you can type programs into
+and some canvases to show the result.</p>
+
+<p>Scroll down for instructions.</p>
 
 <!-- Config: <?php echo json_encode($config, JSON_PRETTY_PRINT); ?> -->
 
@@ -324,6 +338,66 @@ t 180 deg2rad * sin 20 * 10 - $flap !
 		shapeEditor.runDemo();
 	});
 </script>
+
+<p>Shapes are defined using a Forth-like language.
+This way we can re-render them at different rotations and scales and under different lighting conditions.
+Color values are not indicated.  Instead, material indexes are.
+Each pixel ends up with a 'material index' and
+rendering to an RGB image (the colors that end up on your screen) 
+is a separate step from constructing the underlying shape.
+This means we could, for instance, swap out steel for copper
+without having to re-run the Forth script.
+Not that that's <em>terribly</em> useful.
+I designed that feature before I decided that most objects would be rendered procedurally anyway.</p>
+
+<p>This is not a very user-friendly interface for defining shapes, but it gives me a format to build from.
+It's possible to import user-defined shapes, now.
+Not that there's anything to import them into just yet.
+That will come later.</p>
+
+<p>Anyway, the text area on the left is where you write your script.
+Hit 'compile' to...compile it and update the shape views on the right.
+You can drag around the shape views to change the rotation,
+use the scroll wheel to zoom in and out,
+and use the '&#x23f8'/'&#x25b6;' button to toggle auto-rotation.</p>
+
+<p>Now I will try to describe the language.</p>
+
+<p>Similar to traditional Forth, words are delimited by whitespace,
+literal numbers push themselves onto the data stack, <code>:</code> starts
+a word definition, <code>dup</code>, <code>drop</code>, <code>swap</code>,
+and <code>pick</code> have their traditional meanings.
+<code>;</code> inserts an <code>exit</code> (return) and marks the end of word definitions;
+anything outside of a function definition is run immediately at the beginning of the program.</p>
+
+<p><code>!</code> and <code>@</code> store and fetch values to/from a variable, respectively.
+You can define dynamically-scoped variables using the <code>context-variable:</code> word.
+A few context variables have special meaning, but you still need to declare them
+to use them.</p>
+
+<ul>
+<li><code>$t</code> is the animation phase, a number [0-1) indicating
+the point in the animation that we're currently drawing.  If your thing isn't animated you can ignore it.</li>
+
+<li><code>$material-index</code> is the index of the material that will be plotted
+when you <code>plot-sphere</code> or <code>fill-polygon</code>.</li>
+</ul>
+
+<p>Drawing is done by transforming the 'cursor' by translating, rotating, and scaling, and plotting spheres or polygons.
+Cursor transformations are always relativeand change to the current coordinate system.
+e.g. if you move by 3,0,0, scale by 2, and then move by 0,1,0, the cursor will be at 3,2,0,
+and a sphere plotted with size=1 will actually have radius=2 relative to the original coordinate system.</p>
+
+<p>Some other important words (parameters and -- return values):</p>
+
+<ul>
+<li><code>move</code> (x y z --) move the 'cursor' by the specified amount.</li>
+<li><code>scale</code> (scale --) scale the cursor by some amount.</li>
+<li><code>aarotate</code> (x y z ang --) rotate the cursor by some amount.</li>
+<li><code>save-context</code> (--) save the current context (transformation, material index, polygon points) to the context stack.</li>
+<li><code>restore-context</code> (--) replace the current context with one popped off the context stack.</li>
+</ul>
+
 
 </body>
 </html>
