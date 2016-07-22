@@ -58,9 +58,16 @@ export function registerTestResult( testName:string, res:Promise<TestResult> ):v
 	testHarness.registerTestResult( testName, res );
 }
 
+// TODO: Make this handle uint8arrays, dataviews in a reasonable way,
+// e.g. by hex-encoding them.
+export function toJson( v:any ):string {
+	return JSON.stringify(v, null, "  ");
+}
+
+
 export function assertEqualsPromise( a:any, b:any, msg?:string ):Promise<TestResult> {
-	const aJson = JSON.stringify(a);
-	const bJson = JSON.stringify(b);
+	const aJson = toJson(a);
+	const bJson = toJson(b);
 	if( aJson != bJson ) {
 		return Promise.reject( new Error("Assertion failed: " + aJson + " != " + bJson + (msg ? "; "+msg : "")) );
 	} else {
@@ -79,8 +86,8 @@ export function fail( message:string ):void {
 }
 
 export function assertEquals( a:any, b:any, msg?:string ):void {
-	const aJson = JSON.stringify(a);
-	const bJson = JSON.stringify(b);
+	const aJson = toJson(a);
+	const bJson = toJson(b);
 	if( aJson != bJson ) {
 		fail( "Assertion failed: " + aJson + " != " + bJson + (msg ? "; "+msg : "") );
 	}
