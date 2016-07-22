@@ -1,7 +1,7 @@
 /// <reference path="../node.d.ts"/>
 
 import KeyedList from './KeyedList';
-import IP6Address, {parseIp6Address, stringifyIp6Address} from './IP6Address';
+import IP6Address, {parseIp6Address, stringifyIp6Address} from './inet/IP6Address';
 import WebSocketLike from './WebSocketLike';
 import WSWebSocket from './WSWebSocket';
 import {Request as ExpressRequest, Response as ExpressResponse} from './express';
