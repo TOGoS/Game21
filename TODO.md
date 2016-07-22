@@ -1,17 +1,7 @@
 ## Demos
 
-- ShapeSheet editor
-  * Separate out ForthProceduralShape
-  * Save script, show URN
-  * Load script
-  * Draw polygons
-  * Load button/dialog
-  * Drag-to-rotate
-  * Change URL when saving/loading
-  * Fix polygon and sphere rendering (avoid generating edge artifacts)
-  - Show log in message area
-  - Allow loading from HTTP URLs
-  - Occasional 'soft' save to local storage
+- Image with dynamic (via material map overrides) indicator lights?
+- Small game with signal wires?
 - Simple single-player maze game
 - Single-player game with use of IP packets
 - Client-server game
@@ -24,6 +14,13 @@
 - Visibility calculations
 
 ## Misc to-do items
+
+ShapeSheet editor:
+- Occasional 'soft' save to local storage
+
+ForthProceduralShapes scripts:
+- Allow loading from HTTP URLs
+- Allow importing definitions from other scripts
 
 For maze game:
 - quantized physics
@@ -73,6 +70,19 @@ Possibly outdated but maybe not:
 - Self-shadowing (not useful for tiles, but fun to play with)
 - Serialize all data including preview as PNG
 - Deserialize!
+
+## Past Demos
+
+* ShapeSheet editor (http://www.nuke24.net/plog/11.html)
+  * Separate out ForthProceduralShape
+  * Save script, show URN
+  * Load script
+  * Draw polygons
+  * Load button/dialog
+  * Drag-to-rotate
+  * Change URL when saving/loading
+  * Fix polygon and sphere rendering (avoid generating edge artifacts)
+  * Show log in message area
 
 ## Done!
 
