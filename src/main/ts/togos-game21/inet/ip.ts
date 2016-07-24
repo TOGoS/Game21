@@ -1,6 +1,6 @@
 import PacketDecodeError from './PacketDecodeError';
 
-export interface IPPacketInfo {
+export interface IPMessage {
 	ipVersion : number;
 	sourceAddress : Uint8Array;
 	destAddress : Uint8Array;
@@ -10,26 +10,28 @@ export interface IPPacketInfo {
 	// protocolNumber is the same as IP6's 'next header';
 	// it indicates the meaning and format of the payload
 	protocolNumber : number;
-	payload : DataView;
+	payload : Uint8Array;
 }
 
-export interface IP6PacketInfo extends IPPacketInfo {
+export interface IP6Message extends IPMessage {
 	trafficClass : number;
 	flowLabel : number;
 }
 
-function disassembleIp4Packet( packet:DataView ):IPPacketInfo {
-	throw new Error("IP4 packet disassembly currently unsupported");
+function disassembleIp4Packet( packet:Uint8Array ):IPMessage {
+	throw new PacketDecodeError("IP4 packet disassembly currently unsupported");
 }
 
-function disassembleIp6Packet( packet:DataView ):IP6PacketInfo {
+function disassembleIp6Packet( packet:Uint8Array ):IP6Message {
 	if( packet.byteLength < 40 ) throw new PacketDecodeError("IP6 packet is impossibly short ("+packet.byteLength+" bytes)");
 	
-	const trafficClass = (packet.getUint16(0) >> 4) & 0xFF;
-	const flowLabel = packet.getUint32(0) & 0x00FFFFF;
-	const payloadLength = packet.getUint16(4);
-	const nextHeader = packet.getUint8(6);
-	const hopLimit = packet.getUint8(7);
+	const dv = new DataView(packet.buffer, packet.byteOffset, packet.byteLength);
+
+	const trafficClass = (dv.getUint16(0) >> 4) & 0xFF;
+	const flowLabel = dv.getUint32(0) & 0x00FFFFF;
+	const payloadLength = dv.getUint16(4);
+	const nextHeader = dv.getUint8(6);
+	const hopLimit = dv.getUint8(7);
 	
 	if( payloadLength + 40 > packet.byteLength ) {
 		throw new PacketDecodeError(
@@ -46,12 +48,12 @@ function disassembleIp6Packet( packet:DataView ):IP6PacketInfo {
 		hopLimit:      hopLimit,
 		sourceAddress: new Uint8Array(packet.buffer, packet.byteOffset +  8, 16),
 		destAddress:   new Uint8Array(packet.buffer, packet.byteOffset + 24, 16),
-		payload:       new DataView(packet.buffer, packet.byteOffset + 40, payloadLength),
+		payload:       new Uint8Array(packet.buffer, packet.byteOffset + 40, payloadLength),
 	}
 }
 
-export function disassembleIpPacket( packet:DataView ):IPPacketInfo {
-	const version = (packet.getUint8(0) >> 4);
+export function disassembleIpPacket( packet:Uint8Array ):IPMessage {
+	const version = (packet[0] >> 4);
 	switch( version ) {
 	case 4: return disassembleIp4Packet(packet);
 	case 6: return disassembleIp6Packet(packet);
@@ -60,49 +62,36 @@ export function disassembleIpPacket( packet:DataView ):IPPacketInfo {
 	}
 }
 
-function assembleIp4Packet( info:IPPacketInfo ):DataView {
+function assembleIp4Packet( info:IPMessage ):Uint8Array {
 	throw new Error("IP4 packet assembly not yet supported");
 }
 
-function assembleIp6Packet( info:IP6PacketInfo ):DataView {
-	const packet = new DataView(new ArrayBuffer(40 + info.payload.byteLength));
-	packet.setUint32(0,
+function assembleIp6Packet( info:IP6Message ):Uint8Array {
+	const packet = new Uint8Array(40 + info.payload.byteLength);
+	
+	const dv = new DataView(packet.buffer, packet.byteOffset, packet.byteLength);
+	dv.setUint32(0,
 		(info.ipVersion << 28) |
 		(info.trafficClass << 20) |
 		(info.flowLabel)
 	);
-	packet.setUint32(4,
+	dv.setUint32(4,
 		(info.payload.byteLength << 16) |
 		(info.protocolNumber << 8) |
 		(info.hopLimit)
 	);
-
-	// Someone on StackOverflow said this was the fastest way to copy data
-	// (http://stackoverflow.com/questions/10100798)
-	const u8a = new Uint8Array(packet.buffer, packet.byteOffset);
-	u8a.set( info.sourceAddress, 8 );
-	u8a.set( info.destAddress, 24 );
-	u8a.set( new Uint8Array(info.payload.buffer), 40 );
+	
+	packet.set( info.sourceAddress, 8 );
+	packet.set( info.destAddress, 24 );
+	packet.set( new Uint8Array(info.payload.buffer), 40 );
 	return packet;
 }
 
-export function assembleIpPacket( info:IPPacketInfo ):DataView {
+export function assembleIpPacket( info:IPMessage ):Uint8Array {
 	switch( info.ipVersion ) {
 	case 4: return assembleIp4Packet(info);
-	case 6: return assembleIp6Packet(<IP6PacketInfo>info);
+	case 6: return assembleIp6Packet(<IP6Message>info);
 	default:
 		throw new Error("Unknown IP packet version: "+info.ipVersion);
 	}
-}
-
-// TODO: Move this to some utilities file
-
-import { utf8Encode } from '../../tshash/utils';
-
-export function toDataView( data:(string|DataView|Uint8Array) ):DataView {
-	if( typeof(data) === 'string' ) data = utf8Encode(<string>data);
-	if( data instanceof DataView ) return <DataView>data;
-	if( data instanceof Uint8Array ) return new DataView(
-		(<Uint8Array>data).buffer, (<Uint8Array>data).byteOffset, (<Uint8Array>data).byteLength);
-	throw new Error("Don't know how to convert this thing to a DataView");
 }

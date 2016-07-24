@@ -2,9 +2,9 @@ import { hexEncode } from '../../tshash/utils';
 import { assertEqualsPromise, registerTestResult } from '../testing';
 import { parseIp6Address } from './IP6Address'
 import {
-	IP6PacketInfo, IPPacketInfo, assembleIpPacket, disassembleIpPacket,
-	toDataView
+	IP6Message, IPMessage, assembleIpPacket, disassembleIpPacket
 } from './ip';
+import { utf8Encode } from '../../tshash/utils';
 
 function debug( obj:any ):any {
 	if( typeof(obj) === 'object' ) {
@@ -24,7 +24,7 @@ function debug( obj:any ):any {
 	}
 }
 
-const testPacketInfo:IP6PacketInfo = {
+const testMessage:IP6Message = {
 	ipVersion: 6,
 	trafficClass: 123, // IDK what's supposed to go in here
 	flowLabel: 0xEDCBA, // Any more bits and it would clobber trafficClass
@@ -32,13 +32,13 @@ const testPacketInfo:IP6PacketInfo = {
 	hopLimit: 42,
 	sourceAddress: parseIp6Address('2001::1002'),
 	destAddress: parseIp6Address('2001::1003'),
-	payload: toDataView("Hello, world!")
+	payload: utf8Encode("Hello, world!")
 }
 
 function assertDebequalsPromise( a:any, b:any, msg:string=null ) {
 	return assertEqualsPromise( debug(a), debug(b), msg );
 }
 
-const disassembledPacketInfo = disassembleIpPacket( assembleIpPacket(testPacketInfo) );
+const disassembledMessage = disassembleIpPacket( assembleIpPacket(testMessage) );
 
-registerTestResult( "ip assemble/disassemble", assertDebequalsPromise(testPacketInfo, disassembledPacketInfo) );
+registerTestResult( "ip assemble/disassemble", assertDebequalsPromise(testMessage, disassembledMessage) );
