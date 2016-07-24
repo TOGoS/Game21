@@ -9,7 +9,7 @@ import SHA1 from '../tshash/SHA1';
 const posBuffer0:Vector3D=new Vector3D;
 
 function toArray<T,D extends ArrayLike<T>>(src:ArrayLike<T>, dest:D):D {
-	for( let i=0; i<src.length; ++i ) dest[i] = src[i];
+	for( let i=0; i < src.length; ++i ) (<any>dest)[i] = src[i];
 	return dest;
 }
 function toUint8Array(src:ArrayLike<number>):Uint8Array {

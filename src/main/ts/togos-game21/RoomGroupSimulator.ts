@@ -154,13 +154,15 @@ export default class RoomGroupSimulator {
 				room0Ref, rootObj0Ref, obj0, pos0, vel0,
 				room1Ref, rootObj1Ref, obj1, pos1, vel1 );
 		} else if( obj0.type != PhysicalObjectType.INDIVIDUAL ) {
-			if(true || true) throw new Error("Oh no, trying to find tree-tree collisions, omg why");
+			throw new Error("Oh no, trying to find tree-tree collisions, omg why");
+			/*
 			eachSubObject( obj0, pos0, this.game, (subObj, subPos) => {
 				this._findCollision2(
 					room0Ref, rootObj0Ref, subObj, subPos, vel0,
 					room1Ref, rootObj1Ref, obj1  , pos1  , vel1,
 					callback );
 			}, this);
+			*/
 		} else if( obj1.type != PhysicalObjectType.INDIVIDUAL ) {
 			eachSubObject( obj1, pos1, this.game, (subObj, subPos) => {
 				this._findCollision2(
