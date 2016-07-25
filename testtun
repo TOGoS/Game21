@@ -1,0 +1,18 @@
+#!/bin/bash
+
+set -xeuo pipefail
+
+sudo ./runtun &
+runtun_pid="$!"
+echo "runtun PID: $runtun_pid"
+
+function finish {
+    echo "Killing runtun process $runtun_pid..."
+    sudo kill $runtun_pid
+}
+
+trap finish EXIT
+
+ping6 2001:1015:0000::1
+
+wait "$runtun_pid"

@@ -1,0 +1,22 @@
+#!/bin/bash
+
+# This script gotta be run as root
+
+set -xeuo pipefail
+
+tun2udp -local-address 127.0.0.1:10151 -remote-address 127.0.0.1:10150 -tun -no-pi -dev g21testtap &
+tun2udp_pid="$!"
+echo "tun2udp PID: $tun2udp_pid"
+
+function finish {
+    echo "Killing tun2udp process $tun2udp_pid"
+    kill $tun2udp_pid
+}
+
+trap finish EXIT
+
+#route add -6 2001:1015:0000::1/56 dev g21testtap
+ip addr add 2001:1015:0000::1/56 dev g21testtap
+ip link set g21testtap up
+
+wait "$tun2udp_pid"
