@@ -1,5 +1,6 @@
 ## Demos
 
+- Packet truck
 - Image with dynamic (via material map overrides) indicator lights?
 - Small game with signal wires?
 - Simple single-player maze game
