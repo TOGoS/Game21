@@ -41,7 +41,7 @@ export function stringifyIp6Address(addr:Uint8Array, shorten:boolean=true):strin
 	let currentZeroSpanLength = 0;
 	let longestZeroSpanOffset = -1;
 	let longestZeroSpanLength = 0;
-	const words:DataView = new DataView(addr.buffer);
+	const words:DataView = new DataView(addr.buffer, addr.byteOffset, addr.byteLength);
 	for( let i=0; i < 8; ++i ) {
 		if( shorten && words.getUint16(i << 1) == 0 ) {
 			if( i == currentZeroSpanOffset + currentZeroSpanLength ) {

@@ -58,3 +58,9 @@ function assertEquals( expected:any, actual:any ):void {
 	const addr = parseIp6Address('1::2');
 	assertEquals('1:0:0:0:0:0:0:2', stringifyIp6Address(addr, false));
 }
+
+{
+	const buffre = new Uint8Array( [0,0,0,0,32,1,16,21,0,0,0,0,0,0,0,0,0,0,0,3] );
+	const addr = new Uint8Array( buffre.buffer, 4, 16 );
+	assertEquals("2001:1015::3", stringifyIp6Address(addr,true) );
+}
