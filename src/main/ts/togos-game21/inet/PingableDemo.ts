@@ -12,6 +12,14 @@ import {
 	disassembleIcmp6Packet,
 	calculateIcmp6Checksum
 } from './icmp6';
+import {
+	UDPMessage,
+	calculateUdp6Checksum,
+	disassembleUdpPacket
+} from './udp';
+import {
+	stringifyIp6Address
+} from './IP6Address';
 import { Socket as DgramSocket } from 'dgram';
 
 class UDPTunnel {
@@ -49,8 +57,18 @@ class UDPTunnel {
 const tun = new UDPTunnel( (packet:Uint8Array) => {
 	try {
 		const ipMessage = <IP6Message>disassembleIpPacket(packet);
-		//console.log("Received packet of length "+packet.length, ipMessage);
-		if( ipMessage.protocolNumber == 58 ) {
+		console.log(
+			"Received packet of length "+packet.length+" from "+
+			stringifyIp6Address(ipMessage.sourceAddress)+" to "+
+			stringifyIp6Address(ipMessage.destAddress)+"; protocol "+
+			ipMessage.protocolNumber
+		);
+		if( ipMessage.protocolNumber == 17 ) {
+			console.log("Ping!");
+			const udpMessage = disassembleUdpPacket( ipMessage.payload );
+			const calcChecksum = calculateUdp6Checksum( ipMessage.sourceAddress, ipMessage.destAddress, udpMessage );
+			console.log("Included checksum: "+udpMessage.checksum+", calculated: "+calcChecksum);
+		} else if( ipMessage.protocolNumber == 58 ) {
 			// It's a ping!  Let's respond to it.
 			const icmp6Message = disassembleIcmp6Packet( ipMessage.payload );
 			console.log("Received ICMP6 message; type="+icmp6Message.type+", code="+icmp6Message.code);

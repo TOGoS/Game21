@@ -1,5 +1,5 @@
 import IP6Address from './IP6Address';
-import { InternetChecksumming } from '../../tshash/InternetChecksum';
+import checksumming, { tempDv, tempU8a, uint32ToU8a, initIp6PseudoHeaderChecksumming } from './checksumming';
 
 export const PROTOCOL_NUMBER = 58;
 
@@ -8,16 +8,6 @@ export interface ICMP6Message {
 	code : number
 	checksum? : number
 	payload : Uint8Array
-}
-
-// Temporary buffers used for calculating checksums
-const checksumming = new InternetChecksumming();
-const tempDv = new DataView(new ArrayBuffer(4));
-const tempU8a = new Uint8Array(tempDv.buffer);
-
-function uint32ToU8a( n:number ):Uint8Array {
-	tempDv.setUint32(0, n);
-	return tempU8a;
 }
 
 // ICMPv6 checksum = internetChecksum(
@@ -30,11 +20,7 @@ function uint32ToU8a( n:number ):Uint8Array {
 // )
 
 export function calculateIcmp6Checksum( sourceAddress:IP6Address, destAddress:IP6Address, icmpMessage:ICMP6Message ):number {
-	checksumming.reset();
-	checksumming.update(sourceAddress);
-	checksumming.update(destAddress);
-	checksumming.update(uint32ToU8a(icmpMessage.payload.length + 4));
-	checksumming.update(uint32ToU8a(PROTOCOL_NUMBER));
+	initIp6PseudoHeaderChecksumming( sourceAddress, destAddress, icmpMessage.payload.length + 4, PROTOCOL_NUMBER );
 	checksumming.update(uint32ToU8a((icmpMessage.type << 24) | (icmpMessage.code << 16) | 0));
 	checksumming.update(icmpMessage.payload);
 	return checksumming.digestAsUint16();

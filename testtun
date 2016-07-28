@@ -2,9 +2,12 @@
 
 set -xeuo pipefail
 
+sudo echo 'Sudoed!'
 sudo ./runtun &
 runtun_pid="$!"
 echo "runtun PID: $runtun_pid"
+
+node target/cjs/togos-game21/inet/PingableDemo.js
 
 function finish {
     echo "Killing runtun process $runtun_pid..."
