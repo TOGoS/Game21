@@ -16,6 +16,29 @@
 
 ## Misc to-do items
 
+Idea for simple physics engine:
+- quantized.  1/8m or somesuch.  all movement is one 1/8m square at a time.
+  no collisions are allowed to occur.
+- objects may be 'wiggled' into holes if their center of gravity is not supported
+  (possibly require multiple points to be unsupported before doing this, or results
+   could be surprising)
+
+Idea for better continuous physics:
+- Move all 'moving' objects in some deterministic order where more massive objects go first
+  - some deterministic method for tie-breaking, such as by object position
+- collisions are checked all along an object's path, so e.g. bullets hit things
+- lighter objects may influence collision detection ('movement for this frame ends here'),
+  but do not 'hard-displace' heavier objects
+- on collision
+  - build list of constraints to be applied to the lighter object
+- for each object that has had constraints applied:
+  - find minimum change in position that satisfies all constraints
+  - adjust position to satisfy all constraints
+    - recursively break down object if constraints cannot be met; e.g. the object is being crushed or torn off its tracks
+  - adjust velocities
+  - other affects on objects (damage, notifications, etc)
+- Can this handle complex systems of objects?
+
 ShapeSheet editor:
 - Occasional 'soft' save to local storage
 
@@ -37,6 +60,7 @@ Boring code stuff:
 - noImplicitReturns: true
 
 Infrastructure:
+- distributed bucket maps
 - Better WebSocket demo with packets and IP6Addresses and some options on the page like which URL to connect to
 - Router
 
