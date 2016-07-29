@@ -21,7 +21,7 @@ function saveObject( obj:any ):string {
 	return sha1Urn(json)+"#";
 }
 
-function objectPrototypeRef( op:any, game?:Game ):string {
+function objectPrototypeRef( op?:any, game?:Game ):string|null {
 	if( op == null ) return null;
 	if( typeof op == 'string' ) return op;
 	

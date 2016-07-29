@@ -329,7 +329,7 @@ export const wordDefinitionWords:KeyedList<Word> = {
 		wordType: WordType.OTHER_COMPILETIME,
 		forthCompile: (ctx:CompilationContext) : void|Thenable<CompilationContext> => {
 			if( ctx.compilingMain ) return rejectedPromise(new Error("Weird ';' "+atText(ctx.sourceLocation)));
-
+			
 			ctx.program.push(exitWord);
 			defineLocation( ctx, "(resume main)", ctx.program.length );
 			ctx.compilingMain = true;

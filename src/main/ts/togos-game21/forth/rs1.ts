@@ -33,7 +33,7 @@ export interface RuntimeWord extends Word {
 	forthRun( ctx:RuntimeContext ) : Thenable<RuntimeContext>|void;
 }
 
-type FixupCallback<T> = (value:T, error:Error)=>void;
+type FixupCallback<T> = (value:T, error?:Error)=>void;
 interface Fixup<T> {
 	value : T;
 	placeholder? : T;
@@ -134,7 +134,7 @@ export function compileSource( source:string, compilation:CompilationContext, sL
 	return tokenizer.text( <string>source ).then( () => tokenizer.end() ).then( () => compilation );
 }
 
-export type WordGetter = (text:string)=>Word;
+export type WordGetter = (text:string)=>Word|null;
 
 export function makeWordGetter( words:KeyedList<Word>, ...backups : WordGetter[] ) : WordGetter {
 	return (text:string) => {
