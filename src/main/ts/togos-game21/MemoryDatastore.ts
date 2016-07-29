@@ -10,8 +10,7 @@ export default class MemoryDatastore<T> implements Datastore<T> {
 	protected values:KeyedList<T> = {};
 	
 	constructor( protected identify:(v:T)=>string, protected delay:number=0 ) { }
-	
-	/** Returns the data if immediately available.  Otherwise returns null. */
+
 	public get( uri:string ):T {
 		return this.values[uri];
 	}
@@ -21,15 +20,15 @@ export default class MemoryDatastore<T> implements Datastore<T> {
 				const val = this.values[uri];
 				if( val ) resolve(val);
 				else reject(new Error("Resource "+uri+" not found"));
-			}, this.delay );
+			}, +this.delay );
 		});
 	}
 	public store( data:T, onComplete?:(success:boolean, errorInfo?:ErrorInfo)=>void ):string {
 		const ident = this.identify(data);
-		if( this.delay > 0 ) {
+		if( this.delay >= 0 ) {
 			setTimeout( () => {
 				this.values[ident] = data;
-				setTimeout( () => onComplete(true) );
+				if(onComplete) setTimeout( () => onComplete(true) );
 			}, this.delay );
 		} else {
 			this.values[ident] = data;

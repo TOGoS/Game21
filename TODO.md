@@ -58,6 +58,7 @@ Density function tracer:
 Boring code stuff:
 - noImplicitAny: true
 - noImplicitReturns: true
+- strictNullChecks: true
 
 Infrastructure:
 - distributed bucket maps

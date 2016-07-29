@@ -64,12 +64,15 @@ export function toJson( v:any ):string {
 	return JSON.stringify(v, null, "  ");
 }
 
+export function failPromise( msg:string ):Promise<TestResult> {
+	return Promise.reject( new Error(msg) );
+}
 
 export function assertEqualsPromise( a:any, b:any, msg?:string ):Promise<TestResult> {
 	const aJson = toJson(a);
 	const bJson = toJson(b);
 	if( aJson != bJson ) {
-		return Promise.reject( new Error("Assertion failed: " + aJson + " != " + bJson + (msg ? "; "+msg : "")) );
+		return failPromise( "Assertion failed: " + aJson + " != " + bJson + (msg ? "; "+msg : "") );
 	} else {
 		return Promise.resolve( { } );
 	}
