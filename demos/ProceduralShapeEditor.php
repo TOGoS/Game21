@@ -319,7 +319,7 @@ t 180 deg2rad * sin 20 * 10 - $flap !
 </div>
 
 <div id="shape-views" class="shape-views">
-<canvas id="static-view-canvas2" class="shape-view"
+<canvas id="static2-view" class="shape-view"
   width="<?php eht($width); ?>" height="<?php eht($height); ?>"
   style="background: #100; width: <?php eht($shapeViewWidth); ?>px; height: <?php eht($shapeViewHeight); ?>px"
 ></canvas>

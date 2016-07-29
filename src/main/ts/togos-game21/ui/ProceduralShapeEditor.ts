@@ -446,11 +446,28 @@ export default class ProceduralShapeEditor
 		this.pauseButton.style.display = '';
 	}
 	
+	protected addViewFromCanvasByName( name:string, ss:number=1, init?:(v:ShapeView)=>void ):void {
+		const elemName:string = name+'-view-canvas';
+		let elem:HTMLCanvasElement|null = <HTMLCanvasElement>document.getElementById(elemName)
+		if( elem == null ) {
+			console.warn("No such canvas: "+elemName);
+		}
+		const sv = this.viewSet.addViewFromCanvas(elem, name, ss);
+		if( init ) init(sv);
+	}
+	
 	public runDemo():void {
-		this.viewSet.addViewFromCanvas( <HTMLCanvasElement>document.getElementById('static-view-canvas'), 'static', 2 );
-		const static2 = this.viewSet.addViewFromCanvas( <HTMLCanvasElement>document.getElementById('static-view-canvas2'), 'static2', 1 );
-		static2.setScaleAndOrientation( 32, Quaternion.IDENTITY );
-		this.viewSet.addViewFromCanvas( <HTMLCanvasElement>document.getElementById('rotatey-view-canvas'), 'rotatey', 1 );
+		this.addViewFromCanvasByName('static', 2)
+		this.addViewFromCanvasByName('static2', 2, (static2) => {
+			static2.setScaleAndOrientation( 32, Quaternion.IDENTITY );
+		});
+		this.addViewFromCanvasByName('rotatey', 1, (rotatey) => {
+			rotatey.startAnimation( {
+				animationSpeed: 1,
+				rotation: Quaternion.fromXYZAxisAngle( 0, 1, 0, Math.PI / 2 ),
+				rotationSpeed: 1,
+			} );
+		});
 		
 		const qsParams = getQueryStringValues();
 		if( qsParams["script-uri"] ) {
@@ -459,13 +476,5 @@ export default class ProceduralShapeEditor
 			// Just load the default one...
 			this.compileProgram();
 		}
-
-		const rotatey = this.viewSet.views['rotatey'];
-		
-		rotatey.startAnimation( {
-			animationSpeed: 1,
-			rotation: Quaternion.fromXYZAxisAngle( 0, 1, 0, Math.PI / 2 ),
-			rotationSpeed: 1,
-		} );
 	}
 }
