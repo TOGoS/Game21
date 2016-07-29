@@ -2,7 +2,7 @@ import Datastore from './Datastore';
 import KeyedList from './KeyedList';
 import MemoryDatastore from './MemoryDatastore';
 import { storeValues, fetchValue, emptyNodeUri } from './DistributedBucketMap';
-import { registerTestResult, failPromise, assertEqualsPromise } from './testing';
+import { TestResult, registerTestResult, failPromise, assertEqualsPromise } from './testing';
 
 const testDs:Datastore<Uint8Array> = MemoryDatastore.createSha1Based(1);
 
@@ -24,5 +24,5 @@ registerTestResult(
 	storeValues( {"abc": "urn:lalal", "xyz": "urn:lolol"}, theEmptyNodeUri, testDs, dbmSettings ).then( (lalNodeUri:string) => {
 		return lalNodeUri == theEmptyNodeUri ?
 			failPromise("Updated DBM node should have different URI than the empty one") :
-			Promise.resolve({ });
+			Promise.resolve(<TestResult>{ notes: ["lalNodeUri: "+lalNodeUri] });
 	}));

@@ -40,19 +40,44 @@ export interface TestHarness {
 }
 
 class CommandLineTestHarness implements TestHarness {
+	public verbosity:number = 0;
+	
 	registerTestResult( testName:string, resP:Promise<TestResult> ) {
 		resP.catch( (err) => {
 			return {errors: [err]};
-		}).then( (res) => {
+		}).then( (res:TestResult) => {
 			if( !testPassed(res) ) {
 				console.error("Test '"+testName+"' did not pass", res);
 				setExitCode(1);
 			}
+			if( res.notes && this.verbosity > 0 ) {
+				if( console.group ) console.group("Notes from "+testName);
+				for( let n in res.notes ) {
+					console.log(res.notes[n]);
+				}
+				if( console.groupEnd ) console.groupEnd();
+			}
 		})
+	}
+	
+	static fromEnvironment():CommandLineTestHarness {
+		let verbosity = 0;
+		if( process && process.argv ) {
+			for( let i = 2; i < process.argv.length; ++i ) {
+				if( process.argv[i] == '-v' ) {
+					verbosity = 1;
+				} else {
+					throw new Error("Unrecognized argument to test system: "+process.argv[i]);
+				}
+			}
+		}
+		let th = new CommandLineTestHarness();
+		th.verbosity = verbosity;
+		return th;
 	}
 }
 
-export var testHarness = new CommandLineTestHarness();
+export var testHarness = CommandLineTestHarness.fromEnvironment();
 
 export function registerTestResult( testName:string, res:Promise<TestResult> ):void {
 	testHarness.registerTestResult( testName, res );

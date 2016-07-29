@@ -64,6 +64,8 @@ run-unit-tests: target/cjs
 	@# (A) FreeBSD (i.e. Mac OS X) doesn't have it, and
 	@# (B) There should always be some tests.
 	cd target/cjs && (find . -iname '*Test.js' | xargs -n 1 ${node})
+run-unit-tests-verbosely: target/cjs
+	cd target/cjs && (find . -iname '*Test.js' | xargs -n 1 -I'{}' ${node} '{}' -v)
 
 run-router: target/cjs
 	node target/cjs/togos-game21/Router.js
