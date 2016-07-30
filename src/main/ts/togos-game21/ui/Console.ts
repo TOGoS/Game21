@@ -12,7 +12,7 @@ function logStringify(thing:any):string {
 class ConsoleProcess {
 	public document:HTMLDocument;
 	public outputDiv:HTMLElement;
-	public exitCode:number = null;
+	public exitCode:number|null = null;
 	
 	public printLine(fh:number, text:string) {
 		const line = this.document.createElement('p');

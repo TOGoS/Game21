@@ -25,15 +25,11 @@ export default class MemoryDatastore<T> implements Datastore<T> {
 	}
 	public store( data:T, onComplete?:(success:boolean, errorInfo?:ErrorInfo)=>void ):string {
 		const ident = this.identify(data);
-		if( this.delay >= 0 ) {
-			setTimeout( () => {
-				this.values[ident] = data;
-				if(onComplete) setTimeout( () => onComplete(true) );
-			}, this.delay );
-		} else {
+		const onCompleat = onComplete;
+		setTimeout( () => {
 			this.values[ident] = data;
-			if( onComplete ) onComplete(true);
-		}
+			if(onCompleat) setTimeout( () => onCompleat(true), this.delay );
+		}, this.delay );
 		return ident;
 	}
 	

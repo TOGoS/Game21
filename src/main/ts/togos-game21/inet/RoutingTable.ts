@@ -33,9 +33,9 @@ export default class RoutingTable<Iface> {
 			if( this.routes[r].destination == dest ) delete this.routes[r];
 		}
 	}
-	public findDestination( addr:Uint8Array ):Iface {
+	public findDestination( addr:Uint8Array ):Iface|null {
 		let longestMatchingPrefixLength = 0;
-		let closest:Iface = null;
+		let closest:Iface|null = null;
 		routeLoop: for( let r in this.routes ) {
 			const route = this.routes[r];
 			const rPl = route.prefixLength;

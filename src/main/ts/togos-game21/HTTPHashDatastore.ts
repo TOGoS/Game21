@@ -8,7 +8,7 @@ export default class HTTPHashDatastore implements Datastore<Uint8Array> {
 	}
 	
 	/** Returns the data if immediately available.  Otherwise returns null. */
-	get( uri:string ):Uint8Array {
+	get( uri:string ):Uint8Array|null {
 		return null; // We don't keep anything on hand
 	}
 	fetch( urn:string ):Promise<Uint8Array> {
@@ -22,11 +22,12 @@ export default class HTTPHashDatastore implements Datastore<Uint8Array> {
 		const urn = sha1Urn(data);
 		const url = this.n2rUrl+"?"+urn;
 		let resProm = http.request('PUT', url, {}, data)
-		if( onComplete ) resProm.then( (res) => {
+		const onCompleat = onComplete;
+		if( onCompleat ) resProm.then( (res) => {
 			if( res.statusCode < 200 || res.statusCode >= 300 ) {
-				onComplete( false, new Error("Received status code "+res.statusCode+" from PUT to "+url) );
+				onCompleat( false, new Error("Received status code "+res.statusCode+" from PUT to "+url) );
 			} else {
-				onComplete( true, null );
+				onCompleat( true );
 			}
 		}).catch( (err) => {
 			onComplete( false, err );

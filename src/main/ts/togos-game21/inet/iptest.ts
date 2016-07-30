@@ -35,7 +35,7 @@ const testMessage:IP6Message = {
 	payload: utf8Encode("Hello, world!")
 }
 
-function assertDebequalsPromise( a:any, b:any, msg:string=null ) {
+function assertDebequalsPromise( a:any, b:any, msg?:string ) {
 	return assertEqualsPromise( debug(a), debug(b), msg );
 }
 

@@ -9,8 +9,9 @@ function assertEquals( expected:any, actual:any, message?:string ) {
 	}
 }
 
-let tokens : Token[];
-let tokenizer : Tokenizer;
+// Assign some initial values to trick the compiler a little bit.
+let tokens : Token[] = [];
+let tokenizer : Tokenizer = new Tokenizer( (t:Token) => { } );
 	
 function reset() {
 	tokens = [];

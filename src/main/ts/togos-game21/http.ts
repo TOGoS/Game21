@@ -19,14 +19,14 @@ export interface Request {
 	method : string;
 	uri : string;
 	headers : KeyedList<string>;
-	content : Uint8Array;
+	content? : Uint8Array|null;
 }
 
 export interface Response {
 	statusCode : number;
 	statusText : string;
 	headers : KeyedList<string>;
-	content : Uint8Array;
+	content? : Uint8Array|null;
 }
 
 export interface Client {
@@ -121,7 +121,7 @@ export function getClient() {
 	return _client;
 }
 
-export function makeRequest( method:string, uri:string, headers:KeyedList<string>={}, content?:Uint8Array ):Request {
+export function makeRequest( method:string, uri:string, headers:KeyedList<string>={}, content?:Uint8Array|null ):Request {
 	return { method: method, uri: uri, headers: headers, content: content };
 }
 

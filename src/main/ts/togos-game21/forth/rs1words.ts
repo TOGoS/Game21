@@ -392,11 +392,11 @@ export function jumpWord( location:number, targetName:string ) : RuntimeWord {
 	return new JumpWord("jump:"+targetName, location);
 }
 
-export function parseNumberWord( text:string ) : RuntimeWord {
+export function parseNumberWord( text:string ) : RuntimeWord|null {
 	if( /^[+-]?\d+(\.\d+)?$/.test(text) ) {
 		return literalValueWord( +text );
 	}
-	let m:string[];
+	let m:string[]|null;
 	if( (m = /^([+-]?\d+)\/(\d+)$/.exec(text)) ) {
 		return literalValueWord(+m[1]/+m[2]);
 	}

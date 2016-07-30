@@ -190,7 +190,7 @@ declare namespace NodeJS {
     export interface ReadableStream extends EventEmitter {
         readable: boolean;
         read(size?: number): string|Buffer;
-        setEncoding(encoding: string): void;
+        setEncoding(encoding: string|null): void;
         pause(): void;
         resume(): void;
         pipe<T extends WritableStream>(destination: T, options?: { end?: boolean; }): T;
@@ -1186,7 +1186,7 @@ declare module "net" {
         connect(port: number, host?: string, connectionListener?: Function): void;
         connect(path: string, connectionListener?: Function): void;
         bufferSize: number;
-        setEncoding(encoding?: string): void;
+        setEncoding(encoding?: string|null): void;
         write(data: any, encoding?: string, callback?: Function): void;
         destroy(): void;
         pause(): void;
@@ -1934,7 +1934,7 @@ declare module "stream" {
         constructor(opts?: ReadableOptions);
         _read(size: number): void;
         read(size?: number): any;
-        setEncoding(encoding: string): void;
+        setEncoding(encoding: string|null): void;
         pause(): void;
         resume(): void;
         pipe<T extends NodeJS.WritableStream>(destination: T, options?: { end?: boolean; }): T;
@@ -1987,7 +1987,7 @@ declare module "stream" {
         _transform(chunk: any, encoding: string, callback: Function): void;
         _flush(callback: Function): void;
         read(size?: number): any;
-        setEncoding(encoding: string): void;
+        setEncoding(encoding: string|null): void;
         pause(): void;
         resume(): void;
         pipe<T extends NodeJS.WritableStream>(destination: T, options?: { end?: boolean; }): T;

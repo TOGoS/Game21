@@ -270,9 +270,9 @@ export const DEFAULT_MATERIAL_PALETTE:Array<string> = deepFreeze([
 	bark2Ref,
 	bark3Ref,
 	bark4Ref,
-	null,
-	null,
-	null
+   // 21
+   // 22
+   // 23
 ]);
 
 export const DEFAULT_MATERIAL_MAP:MaterialMap = deepFreeze(paletteToMap(DEFAULT_MATERIAL_PALETTE, DEFAULT_MATERIALS));
@@ -297,8 +297,8 @@ export function paletteToMap(palette:Array<string>, materials:KeyedList<SurfaceM
  * Think of this kind of like matrix multiplcation.
  * material map * material remap = material map with additional transformations
  */
-export function remap(map:Array<SurfaceMaterial>, remap:MaterialRemap, dest:Array<SurfaceMaterial>=null):Array<SurfaceMaterial> {
-	if( dest == null ) {
+export function remap(map:Array<SurfaceMaterial>, remap:MaterialRemap, dest?:Array<SurfaceMaterial>):Array<SurfaceMaterial> {
+	if( !dest ) {
 		// Then we can shortcut if there's nothing to do.
 		if( remap == IDENTITY_MATERIAL_REMAP ) return map;
 		// Otherwise make it so we can fill it in.

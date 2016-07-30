@@ -33,10 +33,11 @@ export interface RuntimeWord extends Word {
 	forthRun( ctx:RuntimeContext ) : Thenable<RuntimeContext>|void;
 }
 
-type FixupCallback<T> = (value:T, error?:Error)=>void;
+type FixupCallback<T> = (value:T, error?:Error|null)=>void;
 interface Fixup<T> {
-	value : T;
-	placeholder? : T;
+	value : T|null;
+	// Why does the fixup need to track the placeholder?
+	//placeholder? : T;
 	references : FixupCallback<T>[];
 }
 
@@ -44,11 +45,11 @@ export type TokenHandler = (token:Token) => void|Promise<CompilationContext>;
 
 export interface CompilationContext {
 	/** Source location of the token being processed */
-	sourceLocation? : SourceLocation;
+	sourceLocation : SourceLocation;
 	program : Program;
 	dictionary : KeyedList<Word>;
 	fallbackWordGetter : (text:string) => Word;
-	onToken? : TokenHandler;
+	onToken : TokenHandler|null;
 	fixups : KeyedList<Fixup<RuntimeWord>>
 	compilingMain : boolean;
 }
@@ -127,8 +128,8 @@ export function compileTokens( tokens:Token[], compilation:CompilationContext, s
 export function compileSource( source:string, compilation:CompilationContext, sLoc:SourceLocation ) : Promise<CompilationContext> {
 	const tokenizer = new Tokenizer( (token:Token):void|Thenable<void> => {
 		const p = compileToken( token, compilation );
-		if( p ) return (<Promise<CompilationContext>>p).then( () => null );
-		return null;
+		if( p ) return (<Promise<CompilationContext>>p).then( () => undefined );
+		return undefined;
 	} );
 	tokenizer.sourceLocation = sLoc;
 	return tokenizer.text( <string>source ).then( () => tokenizer.end() ).then( () => compilation );
@@ -182,10 +183,10 @@ export function pushFixupPlaceholder( ctx:CompilationContext, name:string, place
 	let fixup:Fixup<RuntimeWord>;
 	if( (fixup = ctx.fixups[name]) == null ) fixup = ctx.fixups[name] = {
 		value: null,
-		placeholder: placeholderWord,
+		//placeholder: placeholderWord,
 		references: []
 	};
-	ctx.program.push( fixup.placeholder )
+	ctx.program.push( placeholderWord )
 	fixup.references.push( (w:RuntimeWord) => ctx.program[loc] = w );
 }
 

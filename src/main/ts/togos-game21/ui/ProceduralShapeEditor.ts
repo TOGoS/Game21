@@ -69,7 +69,10 @@ class ShapeView {
 
 		const axis = new Vector3D( 0, 0, 0 );
 
-		const dragReleasedTick = () => {
+		// Have to do this to trick the TS compiler
+		// into allowing the reference to dragReleasedTick from within its definition.
+		let dragReleasedTick = () => {};
+		dragReleasedTick = () => {
 			let [degX,degY] = prevDrag;
 
 			if( Math.abs(degX) < 1 && Math.abs(degY) < 1 ) return;
@@ -217,7 +220,9 @@ class ShapeView {
 		this._animation = anim;
 		this.autoRender = false; // We'll make it happen ourselves!
 		let curTime = Date.now();
-		const animCallback = () => {
+		
+		let animCallback = () => {}; // To reassure the TS compiler
+		animCallback = () => {
 			const prevTime = curTime;
 			curTime = Date.now();
 			
@@ -332,7 +337,7 @@ export default class ProceduralShapeEditor
 		return this.scriptText = fixScriptText(this.scriptText);
 	}
 	
-	protected _oldScriptUrn:string = null;
+	protected _oldScriptUrn:string|null = null;
 	
 	/** Called after the script URN has been changed by a load or save */
 	protected scriptUrnUpdated( newUrn:string, pushState:boolean=true ):void {
@@ -346,7 +351,8 @@ export default class ProceduralShapeEditor
 	
 	protected hardSave():void {
 		const scriptTextBytes:Uint8Array = utf8Encode(this.fixScriptText());
-		const urn = this.registry.datastore.store(scriptTextBytes, (success,errorInfo) => {
+		let urn = "Holy crap that got saved too fast!";
+		urn = this.registry.datastore.store(scriptTextBytes, (success,errorInfo) => {
 			if( success ) {
 				this.console.log("Saved "+urn);
 			} else {
