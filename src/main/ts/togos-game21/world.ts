@@ -69,10 +69,10 @@ export interface Room {
 
 export interface Game {
 	materials: KeyedList<SurfaceMaterial>;
-	materialPalettes: KeyedList<Array<string>>;
+	materialPalettes: KeyedList<Array<string|undefined>>;
 	maObjectVisuals: KeyedList<MAObjectVisual>;
 	objectVisuals: KeyedList<ObjectVisual>;
-	tilePalettes: KeyedList<Array<string>>;
+	tilePalettes: KeyedList<Array<string|undefined>>;
 	objectPrototypes: KeyedList<PhysicalObject>;
 	rooms: KeyedList<Room>;
 	time: number; // Current time in the world

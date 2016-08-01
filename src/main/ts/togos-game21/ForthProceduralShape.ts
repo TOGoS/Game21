@@ -12,6 +12,7 @@ import {
 	Program, RuntimeContext, CompilationContext, Word, RuntimeWord, CompilationWord, WordType,
 	atText, compileSource, runContext
 } from './forth/rs1';
+import SourceLocation from './forth/SourceLocation';
 import {
 	standardWords, makeWordGetter, mergeDicts, parseNumberWord
 } from './forth/rs1words';
@@ -249,48 +250,50 @@ export interface ScriptProceduralShapeData {
 	animationType : AnimationType;
 	languageName : string; // "G21-FPS-1.0"
 	maxRadius? : number;
-	scriptText : string;
-	program? : Program;
+	programSource : string;
+}
+
+export interface ForthProceduralShapeData extends ScriptProceduralShapeData {
+	program : Program;
 }
 
 export class ForthProceduralShapeCompiler {
-	public compileProgram(script:string) : Promise<CompilationContext> {
+	public compileProgram(script:string, sourceLocation:SourceLocation = {
+		fileUri:'anynymous source', lineNumber:1, columnNumber:1
+	}) : Promise<CompilationContext> {
 		const ctx : CompilationContext = {
+			sourceLocation: sourceLocation,
 			dictionary: mergeDicts(standardWords, customWords),
 			fallbackWordGetter: makeWordGetter( parseNumberWord ),
+			onToken: null,
 			program: [],
 			fixups: {},
 			compilingMain: true,
 		};
-		const sLoc = {
-			fileUri: 'new-script',
-			lineNumber: 1,
-			columnNumber: 1,
-		}
-		return compileSource( script, ctx, sLoc );
+		return compileSource( script, ctx, sourceLocation );
 	}
-
-	public compileToShape(script:string):Promise<ScriptProceduralShape> {
+	
+	public compileToShape(script:string):Promise<ForthProceduralShape> {
 		return this.compileProgram(script).then( (ctx) => {
-			return new ScriptProceduralShape({
+			return new ForthProceduralShape({
 				languageName: "G21-FPS-1.0", // TODO: parse from headers
 				animationType: animationTypeFromName("loop"), // TODO: parse from source headers
 				maxRadius: 8, // TODO: parse from headers
-				scriptText: script,
+				programSource: script,
 				program: ctx.program,
 			});
 		});
 	}
 }
 
-export function extractHeaderValues(scriptText:string):KeyedList<String> {
+export function extractHeaderValues(programSource:string):KeyedList<String> {
 	const headerValues:KeyedList<String> = {};
-	fixScriptText(scriptText, headerValues); // Ha ha ha; well, it should owrk.
+	fixScriptText(programSource, headerValues); // Ha ha ha; well, it should owrk.
 	return headerValues;
 }
 
-export function fixScriptText(scriptText:string, headerValues:KeyedList<String>={}):string {
-	let lines:string[] = scriptText.split("\n");
+export function fixScriptText(programSource:string, headerValues:KeyedList<String>={}):string {
+	let lines:string[] = programSource.split("\n");
 
 	let headerLines:string[] = [];
 	let scriptLines:string[] = [];
@@ -298,7 +301,7 @@ export function fixScriptText(scriptText:string, headerValues:KeyedList<String>=
 	let state = 0; // 0 = processing headers, 1 = done processing headers
 	for( let l = 0; l < lines.length; ++l ) {
 		const line = lines[l];
-		let match:string[];
+		let match : string[] | null;
 		if( state == 0 && (match = line.match(/^#\S.*/)) ) {
 			let tline = line.trim();
 			if( tline == FORTH_PROCEDURAL_SCRIPT_MAGIC_LINE ) {
@@ -344,24 +347,24 @@ export function fixScriptText(scriptText:string, headerValues:KeyedList<String>=
 	return fixedText;
 }
 
-export default class ScriptProceduralShape implements ProceduralShape, ScriptProceduralShapeData {
+export default class ForthProceduralShape implements ProceduralShape, ForthProceduralShapeData {
 	public animationType : AnimationType;
 	public languageName : string;
-	public maxRadius : number;
-	public scriptText : string;
+	public maxRadius? : number;
+	public programSource : string;
 	public program : Program;
 	
-	public constructor( public data:ScriptProceduralShapeData ) {
+	public constructor( public data:ForthProceduralShapeData ) {
 		this.animationType = data.animationType;
 		this.languageName = data.languageName;
 		this.maxRadius = data.maxRadius;
-		this.scriptText = data.scriptText;
+		this.programSource = data.programSource;
 		this.program = data.program;
 	}
 	
 	public estimateOuterBounds( t:number, xf:TransformationMatrix3D ):Rectangle {
 		const s = xf.scale;
-		const xfRad = s*this.maxRadius;
+		const xfRad = s*(this.maxRadius == null ? 16 : 16);
 		return new Rectangle( -xfRad, -xfRad, +xfRad, +xfRad );
 	}
 

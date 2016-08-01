@@ -105,7 +105,7 @@ export function deepFreeze<T>(obj:T, allowInPlace:boolean=false):T {
 	// If it ain't /deep frozen/ we're going to have
 	// to thaw it at least to add the deepFrozen property.
 	obj = thaw(allowInPlace ? obj : clone(obj));
-	_map( obj, obj, deepFreeze, allowInPlace );
+	_map<T,boolean>( obj, obj, deepFreeze, allowInPlace );
 	(<any>obj)[deepFrozen] = ++lastFreezeId;
 	if( isObjectFreezable(obj) ) Object.freeze(obj);
 	return obj;

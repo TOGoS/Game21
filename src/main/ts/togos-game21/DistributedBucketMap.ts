@@ -28,18 +28,32 @@ interface DistributedBucketMapSettings {
 
 export default DistributedBucketMap;
 
-function _fetchValue<T>( valueName:string, node:DistributedBucketMap<T>, datastore:Datastore<Uint8Array> ):Promise<T|null> {
+function invalidNodeError<T>(node:DistributedBucketMap<T>, msg:string):Error {
+	return new Error(msg+": "+JSON.stringify(node, null, "\t"));
+}
+
+function missingValuesError<T>(node:DistributedBucketMap<T>):Error {
+	return invalidNodeError(node, "Node without prefix length should have values but does not");
+}
+
+function missingSubBucketUrisError<T>(node:DistributedBucketMap<T>):Error {
+	return invalidNodeError(node, "Node with prefix length should have sub-bucket URIs but does not");
+}
+
+function _fetchValue<T>( valueName:string, node:DistributedBucketMap<T>, datastore:Datastore<Uint8Array> ):Promise<T|undefined> {
 	if( node.prefixLength == null ) {
+		if( !node.values ) throw missingValuesError(node);
 		return Promise.resolve( node.values[valueName] );
 	} else {
 		const prefix = valueName.substr(0, node.prefixLength);
+		if( !node.subBucketUris ) throw missingSubBucketUrisError(node)
 		const subBucketUri = node.subBucketUris[prefix];
-		if( subBucketUri == null ) return Promise.resolve(null);
+		if( subBucketUri == null ) return Promise.resolve(undefined);
 		return fetchValue(valueName, subBucketUri, datastore);
 	}
 }
 
-export function fetchValue<T>( valueName:string, nodeUri:string|DistributedBucketMap<T>, datastore:Datastore<Uint8Array> ):Promise<T|null> {
+export function fetchValue<T>( valueName:string, nodeUri:string|DistributedBucketMap<T>, datastore:Datastore<Uint8Array> ):Promise<T|undefined> {
 	if( typeof(nodeUri) === 'string' ) {
 		return fetchObject(nodeUri, datastore).then( (obj:any) => {
 			return _fetchValue(valueName, <DistributedBucketMap<T>>obj, datastore);
@@ -84,6 +98,7 @@ export function _storeValues<T>(
 ):Promise<string> {
 	let newValues:KeyedList<T>;
 	if( node.prefixLength == null ) {
+		if( !node.values ) throw missingValuesError(node);
 		let anythingChanged = false;
 		for( let k in updates ) {
 			const newVal = updates[k];
@@ -93,7 +108,7 @@ export function _storeValues<T>(
 		
 		node = leafNode(updateValues( node.values, updates ));
 	} else {
-		throw new Error("Blah");
+		throw new Error("Updating non-leaf node not implemented");
 	}
 	
 	// TODO: split up if violating size constraints

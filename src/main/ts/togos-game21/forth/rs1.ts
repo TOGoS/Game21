@@ -43,12 +43,14 @@ interface Fixup<T> {
 
 export type TokenHandler = (token:Token) => void|Promise<CompilationContext>;
 
+export type WordGetter = (text:string)=>Word|null;
+
 export interface CompilationContext {
 	/** Source location of the token being processed */
 	sourceLocation : SourceLocation;
 	program : Program;
 	dictionary : KeyedList<Word>;
-	fallbackWordGetter : (text:string) => Word;
+	fallbackWordGetter : WordGetter;
 	onToken : TokenHandler|null;
 	fixups : KeyedList<Fixup<RuntimeWord>>
 	compilingMain : boolean;
@@ -134,8 +136,6 @@ export function compileSource( source:string, compilation:CompilationContext, sL
 	tokenizer.sourceLocation = sLoc;
 	return tokenizer.text( <string>source ).then( () => tokenizer.end() ).then( () => compilation );
 }
-
-export type WordGetter = (text:string)=>Word|null;
 
 export function makeWordGetter( words:KeyedList<Word>, ...backups : WordGetter[] ) : WordGetter {
 	return (text:string) => {

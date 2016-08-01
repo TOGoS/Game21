@@ -18,7 +18,7 @@ export default class HTTPHashDatastore implements Datastore<Uint8Array> {
 			else return Promise.reject(new Error("GET "+url+" returned "+res.statusCode));
 		});
 	}
-	store( data:Uint8Array, onComplete?:(success:boolean, errorInfo:ErrorInfo)=>void ):string {
+	store( data:Uint8Array, onComplete?:(success:boolean, errorInfo?:ErrorInfo)=>void ):string {
 		const urn = sha1Urn(data);
 		const url = this.n2rUrl+"?"+urn;
 		let resProm = http.request('PUT', url, {}, data)
@@ -30,7 +30,7 @@ export default class HTTPHashDatastore implements Datastore<Uint8Array> {
 				onCompleat( true );
 			}
 		}).catch( (err) => {
-			onComplete( false, err );
+			onCompleat( false, err );
 		})
 		return urn;
 	}

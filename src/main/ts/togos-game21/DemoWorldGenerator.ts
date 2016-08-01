@@ -112,7 +112,6 @@ export default class DemoWorldGenerator {
 		
 		const brickPrototypeId = newUuidRef();
 		game.objectPrototypes[brickPrototypeId] = {
-			position: null,
 			orientation: Quaternion.IDENTITY,
 			type: PhysicalObjectType.INDIVIDUAL,
 			isInteractive: true,
@@ -129,7 +128,6 @@ export default class DemoWorldGenerator {
 		
 		const blockPrototypeId = newUuidRef();
 		game.objectPrototypes[blockPrototypeId] = {
-			position: null,
 			orientation: Quaternion.IDENTITY,
 			type: PhysicalObjectType.INDIVIDUAL,
 			isInteractive: true,
@@ -146,12 +144,12 @@ export default class DemoWorldGenerator {
 		
 		const tileTreeLeafPaletteRef = newUuidRef();
 		game.tilePalettes[tileTreeLeafPaletteRef] = [
-			null,
+			undefined,
 			brickPrototypeId
 		];
 		
 		const tileTree0Ref = makeTileTreeRef( [
-			null,
+			undefined,
 			brickPrototypeId,
 			blockPrototypeId,
 		], 4, 4, 1, [
@@ -162,7 +160,7 @@ export default class DemoWorldGenerator {
 		], game);
 		
 		const tileTree1Ref = makeTileTreeRef( [
-			null,
+			undefined,
 			brickPrototypeId,
 			blockPrototypeId,
 		], 4, 4, 1, [
@@ -173,7 +171,7 @@ export default class DemoWorldGenerator {
 		], game);
 		
 		const tileTree1bRef = makeTileTreeRef( [
-			null,
+			undefined,
 			brickPrototypeId,
 			blockPrototypeId,
 		], 4, 4, 1, [
@@ -184,7 +182,7 @@ export default class DemoWorldGenerator {
 		], game);
 		
 		const tileTree1cRef = makeTileTreeRef( [
-			null,
+			undefined,
 			brickPrototypeId,
 			blockPrototypeId,
 		], 4, 4, 1, [
@@ -195,7 +193,7 @@ export default class DemoWorldGenerator {
 		], game);
 
 		const tileTree2Ref = makeTileTreeRef( [
-			null,
+			undefined,
 			tileTree0Ref,
 			tileTree1Ref,
 		], 4, 4, 1, [
@@ -206,7 +204,7 @@ export default class DemoWorldGenerator {
 		], game);
 		
 		const tileTree2bRef = makeTileTreeRef( [
-			null,
+			undefined,
 			tileTree0Ref,
 			tileTree1bRef,
 		], 4, 4, 1, [
@@ -217,7 +215,7 @@ export default class DemoWorldGenerator {
 		], game);
 		
 		const tileTree2cRef = makeTileTreeRef( [
-			null,
+			undefined,
 			tileTree1cRef,
 		], 4, 4, 1, [
 			1,1,1,1,
@@ -227,7 +225,7 @@ export default class DemoWorldGenerator {
 		], game);
 		
 		const tileTree2dRef = makeTileTreeRef( [
-			null,
+			undefined,
 			tileTree1cRef,
 		], 4, 4, 1, [
 			1,1,1,1,
@@ -237,7 +235,7 @@ export default class DemoWorldGenerator {
 		], game);
 
 		const tileTree3Ref = makeTileTreeRef( [
-			null,
+			undefined,
 			tileTree2Ref,
 		], 8, 8, 1, [
 			1,1,1,1,1,1,1,1,
@@ -251,7 +249,7 @@ export default class DemoWorldGenerator {
 		], game);
 		
 		const tileTree4Ref = makeTileTreeRef( [
-			null,
+			undefined,
 			tileTree2bRef,
 			tileTree2cRef,
 			tileTree2dRef
@@ -285,7 +283,7 @@ export default class DemoWorldGenerator {
 		};
 		
 		const backgroundTree0Ref = makeTileTreeRef( [
-			null,
+			undefined,
 			bigBlockPrototypeRef
 		], 4,4,4, [
 			0, 1, 0, 1,
@@ -309,7 +307,7 @@ export default class DemoWorldGenerator {
 			0, 1, 1, 1,			
 		], game);
 		const backgroundTree1Ref = makeTileTreeRef( [
-			null,
+			undefined,
 			backgroundTree0Ref
 		], 4,4,1, [
 			1, 0, 0, 0,

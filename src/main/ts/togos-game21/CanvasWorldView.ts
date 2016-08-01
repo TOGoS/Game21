@@ -38,8 +38,8 @@ enum VisibilityMaskingMode {
 }
 
 class DrawCommand {
-	public image:HTMLImageElement;
-	public special:(ctx:CanvasRenderingContext2D)=>void;
+	public image?:HTMLImageElement;
+	public special?:(ctx:CanvasRenderingContext2D)=>void;
 	public sx:number;
 	public sy:number;
 	public sw:number;
@@ -52,24 +52,24 @@ class DrawCommand {
 	
 	public setImage(image:HTMLImageElement, sx:number, sy:number, sw:number, sh:number, dx:number, dy:number, dw:number, dh:number, depth:number) {
 		this.image = image;
-		this.special = null;
+		this.special = undefined;
 		this.sx = sx; this.sy = sy; this.sw = sw; this.sh = sh;
 		this.dx = dx; this.dy = dy; this.dw = dw; this.dh = dh;
 		this.depth = depth;
 	}
 	
 	public setSpecial(f:(ctx:CanvasRenderingContext2D)=>void, depth:number) {
-		this.image = null;
+		this.image = undefined;
 		this.special = f;
 		this.depth = depth;
 	}
 }
 
 export default class CanvasWorldView {
-	protected _canvas:HTMLCanvasElement;
-	protected canvasContext:CanvasRenderingContext2D;
-	protected objectImageManager:ObjectImageManager;
-	protected drawCommandBuffer:Array<DrawCommand> = [];
+	protected _canvas : HTMLCanvasElement|null = null;
+	protected canvasContext : CanvasRenderingContext2D|null = null;
+	protected objectImageManager : ObjectImageManager|null = null;
+	protected drawCommandBuffer : Array<DrawCommand> = [];
 	protected drawCommandCount = 0;
 	
 	protected _game:Game;
@@ -88,7 +88,7 @@ export default class CanvasWorldView {
 		this.objectImageManager = new ObjectImageManager(g);
 	}
 	
-	public get canvas():HTMLCanvasElement { return this._canvas; }
+	public get canvas():HTMLCanvasElement|null { return this._canvas; }
 	
 	protected nextDrawCommand():DrawCommand {
 		const dcb = this.drawCommandBuffer;
@@ -134,14 +134,24 @@ export default class CanvasWorldView {
 	protected drawTime:number; // Timestamp for current drawing
 	
 	protected get unitPpm():number {
+		if( !this._canvas ) return 16;
 		// TODO: configure somehow based on FoV
 		return Math.max(this._canvas.width, this._canvas.height)/2;
 	}
 	
 	protected drawIndividualObject( obj:PhysicalObject, pos:Vector3D ):void {
+		if( !obj.visualRef ) return;
+		if( this.game == null ) {
+			console.log("No game; can't look up object visuals");
+			return;
+		}
 		let visual = this.game.objectVisuals[obj.visualRef];
 		if( visual == null ) {
 			console.log("Object visual "+obj.visualRef+" not loaded; can't draw");
+			return;
+		}
+		if( !this.objectImageManager ) {
+			console.log("No object image manager; can't render object visuals");
 			return;
 		}
 		
@@ -154,7 +164,8 @@ export default class CanvasWorldView {
 		const screenY = this.screenCenterY + scale * pos.y;
 		const reso = 16; // TODO: Should depend on scale, but not just be scale; maybe largest **2 <= scale and <= 32?
 		
-		const imgSlice = this.objectImageManager.objectVisualImage(visual, obj.stateFlags, this.drawTime, obj.orientation, reso);
+		const orientation = obj.orientation ? obj.orientation : Quaternion.IDENTITY;
+		const imgSlice = this.objectImageManager.objectVisualImage(visual, obj.stateFlags, this.drawTime, orientation, reso);
 		const pixScale = scale/imgSlice.resolution;
 		this.addImageDrawCommand(
 			imgSlice.sheet,
@@ -185,6 +196,9 @@ export default class CanvasWorldView {
 	protected drawRoom( room:Room, pos:Vector3D ):void {
 		for( let o in room.objects ) {
 			const obj = room.objects[o];
+			if( !obj.position ) {
+				throw new Error("Object '"+o+"' in room has no position");
+			}
 			this.drawObject(obj, Vector3D.add(pos, obj.position, posBuffer0));
 		}
 	}
@@ -202,12 +216,13 @@ export default class CanvasWorldView {
 	}
 	
 	protected shadeImages:HTMLImageElement[] = [];
-	protected getShadeImage(shadeData:number) {
+	protected getShadeImage(shadeData:number) : HTMLImageElement {
 		if( this.shadeImages[shadeData] == null ) {
 			const canv = <HTMLCanvasElement>document.createElement('canvas');
 			canv.width = 8;
 			canv.height = 8;
 			const ctx = canv.getContext('2d');
+			if( !ctx ) throw new Error("No 2d context on canvas; can't generate shade image");
 			const id:ImageData = ctx.createImageData(8, 8);
 			const idd=id.data;
 			const opacityTL = 1 - ((shadeData >> 6) & 0x3) / 3;
@@ -233,14 +248,21 @@ export default class CanvasWorldView {
 	}
 	
 	public drawScene( roomId:string, pos:Vector3D, time:number ):void {
+		if( !this._canvas ) {
+			console.log("No canas; can't draw scene");
+			return;
+		}
+		
+		const canv = this._canvas;
+		
 		this.drawTime = time;
 		
 		// Make pos a little more manageable
 		// so that math doesn't screw up due to rounding errors
 		pos = pos.roundToGrid(1/64, 1/64, 1/64);
 		
-		this.screenCenterX = this._canvas.width/2;
-		this.screenCenterY = this._canvas.height/2;
+		this.screenCenterX = canv.width/2;
+		this.screenCenterY = canv.height/2;
 		
 		const focusScale = this.unitPpm/this.focusDistance;
 		
@@ -252,7 +274,7 @@ export default class CanvasWorldView {
 		const shadePos = Vector3D.ZERO;
 		
 		if( this.visibilityMaskingMode == VisibilityMaskingMode.NONE ) {
-			this.clip.set(0, 0, this.canvas.width, this.canvas.height);
+			this.clip.set(0, 0, canv.width, canv.height);
 		} else {
 			// Set shade origin such that the shade corner matches up to an integer coordinate in the world
 			opacityRaster.originX = (opacityRaster.width /opacityRaster.resolution/2) + (Math.round(pos.x) - pos.x);
@@ -337,8 +359,8 @@ export default class CanvasWorldView {
 				}
 			}
 			
-			const cw = this._canvas.width;
-			const ch = this._canvas.height;
+			const cw = canv.width;
+			const ch = canv.height;
 			
 			ctx.fillStyle = '#000';
 			ctx.fillRect(0, 0, cw, this.clip.minY);
@@ -351,6 +373,10 @@ export default class CanvasWorldView {
 	}
 	
 	public clear() {
+		if( !this._canvas || !this.canvasContext ) {
+			console.log("No canvas; nothing to clear");
+			return;
+		}
 		this.canvasContext.clearRect(0,0,this._canvas.width,this._canvas.height);
 	}
 	

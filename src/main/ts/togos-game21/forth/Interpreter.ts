@@ -106,7 +106,7 @@ interface BytecodeProgramState extends ProgramState {
  * Any machine controlled by a program.
  */
 interface Machine {
-	dataBanks:DataBank[];
+	dataBanks:(DataBank|null)[];
 	getRegisterValue(registerId:number):number;
 	setRegisterValue(registerId:number, value:number):void;
 }
@@ -196,8 +196,10 @@ class BytecodeProgramInterpreter {
 			const bankId = (state.pc >> INTRABANK_BITS);
 			const position = (state.pc & INTRABANK_MASK);
 			const bank = banks[bankId];
+			if( !bank ) throw new Error("No such bank as "+bankId);
 			if( !bank.isExecutable ) throw new Error("Bank "+bankId+" not executable!");
 			let bytecode = bank.data;
+			if( !bytecode ) throw new Error("Bank "+bankId+" bytecode not loaded.");
 			if( position >= bytecode.length ) throw new Error("Ran off bytecode end: "+position);
 			const inst = bytecode[position];
 			state = this.doInstruction(inst, state, machine, banks);
@@ -269,7 +271,7 @@ function singleInstructionBytecode(instr:number):Int8Array {
 }
 
 const numRe = /^\d+$/;
-export function numberDynamicWord( text:string ):Word {
+export function numberDynamicWord( text:string ):Word|null {
 	if( numRe.exec(text) == null ) return null;
 	
 	const num = parseFloat(text);
@@ -300,7 +302,11 @@ for( let n in bytecodeInstructions ) {
 	bytecodeWords[n] = instructionWord(bytecodeInstructions[n]);
 };
 
-function _encodeNumber(n:number, buf:Int8Array, offset:number):number {
+/**
+ * Encodes a number into buf at offset and returns the number of bytes written.
+ * If buf is not specified, the number of bytes that would be written is returned.
+ */
+function _encodeNumber(n:number, buf?:Int8Array, offset:number=0):number {
 	let septets = 1;
 	for( let m=n; m >= 0x40 || m < -0x40; m >>= 7, ++septets );
 	if( septets == 1 ) {
@@ -330,7 +336,7 @@ function _encodeNumber(n:number, buf:Int8Array, offset:number):number {
 }
 
 function encodedNumberSize(n:number):number {
-	return _encodeNumber(n, null, 0);
+	return _encodeNumber(n);
 }
 
 function encodeNumber(n:number):Int8Array {
@@ -340,7 +346,7 @@ function encodeNumber(n:number):Int8Array {
 	return codes;
 }
 
-function encodeAbsCall(n:number, buf:Int8Array=null, offset:number=0):Int8Array {
+function encodeAbsCall(n:number, buf?:Int8Array, offset:number=0):Int8Array {
 	if( buf == null ) {
 		const size = encodedNumberSize(n) + 1;
 		buf = new Int8Array(size);
@@ -374,9 +380,9 @@ export default class Interpreter {
 	public bytecodeProgramInterpreter:BytecodeProgramInterpreter = new BytecodeProgramInterpreter();
 	public machine:Machine;
 	public isCompiling:boolean = false;
-	public onToken:(t:Token, interp:Interpreter)=>void;
+	public onToken : null | ((t:Token, interp:Interpreter)=>void);
 	public words:KeyedList<Word> = {};
-	public dynamicWords:KeyedList<(text:string)=>Word> = {}
+	public dynamicWords:KeyedList<(text:string)=>Word|null> = {}
 	
 	public token(t:Token):void {
 		// TODO: onToken can return a promise, so token needs to, too

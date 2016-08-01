@@ -34,7 +34,7 @@ function evalu(source:string):any {
 		]
 	}
 	interp.programBuilder = new ProgramBuilder(
-		interp.machine.dataBanks[11].data,
+		interp.machine.dataBanks[11]!.data,
 		11 << INTRABANK_BITS
 	);
 	interp.dynamicWords['number'] = numberDynamicWord;

@@ -104,8 +104,10 @@ export default class MazeGame {
 		const playerRef = this.playerRef = newUuidRef();
 		
 		const game = new DemoWorldGenerator().makeCrappyGame();
-		let roomId:string;
+		let roomId:string = ""; // Fake out compiler
 		for( roomId in game.rooms ); // Just find one; whatever.
+		if( roomId == "" ) throw new Error("Failed to pick a room; it's as if there aren't any.");
+		
 		// Put player in it!
 		
 		const ballMaVisualRef = 'urn:uuid:f68c8cb4-1c01-4683-b726-6bf9cd9efc5c';
@@ -140,10 +142,10 @@ export default class MazeGame {
 		};
 		
 		const playerMaterialPaletteRef = 'urn:uuid:b66d6d3c-571f-4579-8d0d-0a9f3d395990';
-		game.materialPalettes[playerMaterialPaletteRef] = [null,null,null,null,playerMaterialRef];
+		game.materialPalettes[playerMaterialPaletteRef] = [undefined,undefined,undefined,undefined,playerMaterialRef];
 		
 		const noGravMaterialPaletteRef = 'urn:uuid:1d34436b-cfd5-4a38-b299-19f58439ed1a';
-		game.materialPalettes[noGravMaterialPaletteRef] = [null,null,null,null,noGravMaterialRef];
+		game.materialPalettes[noGravMaterialPaletteRef] = [undefined,undefined,undefined,undefined,noGravMaterialRef];
 		
 		const ballVisualRef = 'urn:uuid:63c6e0a7-58a3-4b73-aa63-5f5a48aab96e';
 		game.objectVisuals[ballVisualRef] = {
@@ -212,14 +214,15 @@ export default class MazeGame {
 		
 		let ts = Date.now();
 		this.worldView.focusDistance = 16;
-		const animCallback = () => {
+		let animCallback = () => {}; // Trick the compiler
+		animCallback = () => {
 			const player = sim.getObject(playerRef);
 			const playerRoomRef = sim.objectRoomRef(player);
 			playerRoomRef == null ? null : this._game.rooms[playerRoomRef].objects[playerRef];
 			if( player == null ) return;
 			
 			const pp = player.position;
-			
+			if( pp == null ) throw new Error("Player lacks position");
 			this.worldView.clear();
 			this.worldView.drawScene(playerRoomRef, new Vector3D(-pp.x, -pp.y, this.worldView.focusDistance-pp.z), sim.time);
 			
@@ -281,6 +284,7 @@ export default class MazeGame {
 		const mouseUpdated = () => {
 			if( mouseIsDown ) {
 				const canv = this.worldView.canvas;
+				if( !canv ) return;
 				const px = mouseX * (canv.width  / canv.clientWidth ),
 					py = mouseY * (canv.height / canv.clientHeight);
 				// TODO
@@ -297,7 +301,7 @@ export default class MazeGame {
 				const roomId = sim.objectRoomRef(player);
 				sim.addObject(roomId,  <PhysicalObject>{
 					debugLabel: "user-created extra ball",
-					position: Vector3D.add(player.position, wp),
+					position: Vector3D.add(player.position ? player.position : Vector3D.ZERO, wp),
 					orientation: Quaternion.IDENTITY,
 					type: PhysicalObjectType.INDIVIDUAL,
 					tilingBoundingBox: playerBb,
@@ -309,12 +313,15 @@ export default class MazeGame {
 					bounciness: 0.9,
 					stateFlags: 0,
 					visualRef: grav ? ballVisualRef : noGravBallVisualRef,
-					velocity: player.velocity,
+					velocity: player.velocity ? player.velocity : Vector3D.ZERO,
 					mass: 20,
 				});
 			}
 		};
 		
+		if( this.worldView.canvas == null ) {
+			throw new Error("No canvas on worldView; can't initialize listeners!");
+		}
 		this.worldView.canvas.addEventListener('mousemove', (ev:MouseEvent) => {
 			mouseX = ev.offsetX;
 			mouseY = ev.offsetY;
