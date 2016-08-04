@@ -119,8 +119,7 @@ export default class RailDemo {
 				this.shapeSheetUtil.plottedMaterialIndexFunction = rail.surfaceMaterialIndexFunction;
 				this.shapeSheetUtil.plotLine(
 					prevRailPosition.x, prevRailPosition.y, prevRailPosition.z, rail.radius,
-					nextRailPosition.x, nextRailPosition.y, nextRailPosition.z, rail.radius,
-					null
+					nextRailPosition.x, nextRailPosition.y, nextRailPosition.z, rail.radius
 				)
 			}
 			let tempTransform     = prevTransform    ; prevTransform     = nextTransform    ; nextTransform     = tempTransform    ;
@@ -194,8 +193,7 @@ export default class RailDemo {
 			
 			this.shapeSheetUtil.plotLine(
 				tep0.x, tep0.y, tep0.z, tie.radius,
-				tep1.x, tep1.y, tep1.z, tie.radius,
-				null
+				tep1.x, tep1.y, tep1.z, tie.radius
 			);
 			
 			let tempTransform     = prevTransform    ; prevTransform     = nextTransform    ; nextTransform     = tempTransform    ;

@@ -11,7 +11,7 @@ import ShapeSheetRenderer from './ShapeSheetRenderer';
 import ShapeSheetUtil from './ShapeSheetUtil';
 import SurfaceMaterial from './SurfaceMaterial';
 import { Game } from './world';
-import { remap, paletteToMap as materialPaletteToMap } from './surfacematerials';
+import { remap, IDENTITY_MATERIAL_REMAP, paletteToMap as materialPaletteToMap } from './surfacematerials';
 import {DEFAULT_LIGHTS} from './lights';
 
 function compressQuaternionComponent( c:number ):number {
@@ -109,10 +109,10 @@ function phase( time:number, length:number ) {
 export default class ObjectImageManager {
 	public resolution:number = 16;
 	protected lights = DEFAULT_LIGHTS;
-	public game:Game;
+	public game?:Game;
 	protected _superSampling:number = 2;
 	
-	constructor(game:Game) {
+	constructor(game?:Game) {
 		this.game = game;
 	}
 	
@@ -144,7 +144,7 @@ export default class ObjectImageManager {
 		const sup = this._superSampling;
 		const image:HTMLImageElement = ShapeSheetRenderer.shapeSheetToImage(
 			croppedSheet.sheet,
-			remap(materials, ov.materialRemap),
+			ov.materialRemap == null ? materials : remap(materials, ov.materialRemap),
 			this.lights,
 			sup
 		)
@@ -153,7 +153,7 @@ export default class ObjectImageManager {
 			croppedSheet.bounds.scale(1/sup));
 	}
 	
-	public objectVisualState(visual:MAObjectVisual, flags:number, orientation:Quaternion):ObjectVisualState {
+	public objectVisualState(visual:MAObjectVisual, flags:number, orientation:Quaternion):ObjectVisualState|undefined {
 		if( visual.states.length == 1 ) return visual.states[0];
 		
 		// Find the closest match flag-wise,
@@ -162,7 +162,7 @@ export default class ObjectImageManager {
 			
 		let minFlagDifference = 65; // max flag difference is 64; this needs to be at least one higher
 		let minOrientationDifference = 1;
-		let closestState:ObjectVisualState = null;
+		let closestState:ObjectVisualState|undefined = undefined;
 		for( let s in visual.states ) {
 			const state = visual.states[s];
 			const d = flagDiff(state.applicabilityFlagsMin, flags, state.applicabilityFlagsMax);
@@ -197,6 +197,8 @@ export default class ObjectImageManager {
 	}
 	
 	protected frame<T>(animation:Animation<T>, t:number ):T {
+		if( animation.frames.length == 0 ) throw new Error("Animation has no frames");
+		
 		if( animation.length === Infinity ) return animation.frames[0];
 		
 		const frameNumber = Math.floor(t * animation.frames.length);
@@ -208,14 +210,22 @@ export default class ObjectImageManager {
 	protected materialMaps:KeyedList<Array<SurfaceMaterial>> = {};
 	protected getMaterialMap(materialPaletteRef:string):Array<SurfaceMaterial> {
 		if( this.materialMaps[materialPaletteRef] == null ) {
-			const pal:Array<string> = this.game.materialPalettes[materialPaletteRef];
+			if( !this.game ) throw new Error("No game data; can't look up material palette by ref");
+			const pal:Array<string|undefined> = this.game.materialPalettes[materialPaletteRef];
 			if( pal == null ) throw new Error("No such material palette: "+materialPaletteRef);
 			this.materialMaps[materialPaletteRef] = materialPaletteToMap( pal, this.game.materials );
 		}
 		return this.materialMaps[materialPaletteRef];
 	}
 	
-	public objectVisualImage(visual:ObjectVisual, flags:number, time:number, orientation:Quaternion, preferredResolution:number=this.resolution):ImageSlice<HTMLImageElement> {
+	protected getMaObjectVisual(ref:string):MAObjectVisual {
+		if( !this.game ) throw new Error("No game data; can't look up material-agnostic object visual by ref");
+		const viz = this.game.maObjectVisuals[ref];
+		if( viz == null ) throw new Error("No such object visual as "+ref);
+		return viz;
+	}
+	
+	public objectVisualImage(visual:ObjectVisual, flags:number, time:number, orientation:Quaternion, preferredResolution:number=this.resolution):ImageSlice<HTMLImageElement>|undefined {
 		// TODO: Caching up the wazoo, at least for common cases (single state, identity orientation).
 		// this function's going to be called for each object for each frame, so it's gotta be fast
 		// and not do any real work or allocations 99% of the time.
@@ -237,19 +247,24 @@ export default class ObjectImageManager {
 			visual.materialMap ? visual.materialMap :
 			visual.materialPaletteRef ? this.getMaterialMap(visual.materialPaletteRef) :
 			null;
-		if( materialMap == null ) {
+		if( !materialMap ) {
 			throw new Error("Couldn't resolve material map from visual :(");
 		}
 		
 		const maVisual =
 			visual.maVisual ? visual.maVisual :
-			visual.maVisualRef ? this.game.maObjectVisuals[visual.maVisualRef] :
+			visual.maVisualRef ? this.getMaObjectVisual(visual.maVisualRef) :
 			null;
+		if( maVisual == null ) return undefined;
 		
 		const state = this.objectVisualState(maVisual, flags, orientation);
+		if( state == null ) return undefined;
+		if( state.animation == null ) return undefined;
+		
 		const frame = this.frame(state.animation, time);
 		const t = this.animationPhase(state.animation, time);
-		const imageSlice = this.frameToImageSlice(frame, remap(materialMap, state.materialRemap), t, orientation, preferredResolution);
+		const finalMaterialMap = state.materialRemap ? remap(materialMap, state.materialRemap) : materialMap;
+		const imageSlice = this.frameToImageSlice(frame, finalMaterialMap, t, orientation, preferredResolution);
 		(<any>visual)[LAST_REQUESTED] = <LastRequestedCache>{
 			flags: maVisual.states.length == 0 ? null : flags,
 			animationLength: state.animation.length,

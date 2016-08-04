@@ -66,12 +66,12 @@ const findSurfaceZ = function( df:DensityFunction3D, x:number, y:number, z0:numb
 
 class ShapeSheetUtil {
 	protected _shapeSheet:ShapeSheet;
-	protected _renderer:ShapeSheetRenderer;
+	protected _renderer:ShapeSheetRenderer|undefined;
 	public plottedMaterialIndexFunction:PlottedMaterialIndexFunction;
 	public plottedDepthFunction:PlottedDepthFunction;
 	public plotMode:PlotMode;
 	
-	constructor(shapeSheet:ShapeSheet, renderer:ShapeSheetRenderer=null) {
+	constructor(shapeSheet:ShapeSheet, renderer?:ShapeSheetRenderer) {
 		this._shapeSheet = shapeSheet;
 		this._renderer = renderer;
 		this.plottedMaterialIndexFunction = function(x, y, z, z0, z1, z2, z3) {
@@ -82,7 +82,7 @@ class ShapeSheetUtil {
 	}
 	
 	get shapeSheet():ShapeSheet { return this._shapeSheet; }
-	get renderer():ShapeSheetRenderer { return this._renderer; }
+	get renderer():ShapeSheetRenderer|undefined { return this._renderer; }
 	
 	// TODO: Mind plotMode
 	protected plotPixel(x:number, y:number, z0:number, z1:number, z2:number, z3:number, materialIndex?:number):void {
@@ -175,13 +175,15 @@ class ShapeSheetUtil {
 		var ss = this.shapeSheet;
 		var i:number;
 		var cellCornerDepths = ss.cellCornerDepths;
-		var cellAverageDepths = this.renderer.cellAverageDepths;
 		
 		for( i=ss.width*ss.height*4-1; i>=0; --i ) {
 			cellCornerDepths[i] += diff;
 		}
-		for( i=ss.width*ss.height-1; i>=0; --i ) {
-			cellAverageDepths[i] += diff;
+		if( this.renderer ) {
+			var cellAverageDepths = this.renderer.cellAverageDepths;
+			for( i=ss.width*ss.height-1; i>=0; --i ) {
+				cellAverageDepths[i] += diff;
+			}
 		}
 		if( this.renderer && this.renderer.shaders.length > 0 ) {
 			this.renderer.dataUpdated(this._shapeSheet.bounds, false, true);
@@ -458,8 +460,8 @@ class ShapeSheetUtil {
 		this.dataUpdated(boundingRect);
 	};
 	
-	plotLine( x0:number, y0:number, z0:number, r0:number, x1:number, y1:number, z1:number, r1:number, plotFunc:PlotFunction=null ) {
-		if( plotFunc == null ) plotFunc = this.plotSphere;
+	plotLine( x0:number, y0:number, z0:number, r0:number, x1:number, y1:number, z1:number, r1:number, plotFunc?:PlotFunction ) {
+		if( !plotFunc ) plotFunc = this.plotSphere;
 		
 		if( x0 == x1 && y0 == y1 ) {
 			var z = Math.min(z0, z1);

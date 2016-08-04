@@ -281,7 +281,7 @@ export const IDENTITY_MATERIAL_REMAP:MaterialRemap = new Uint8Array(256);
 for( let i=0; i<256; ++i ) IDENTITY_MATERIAL_REMAP[i] = i;
 deepFreeze(IDENTITY_MATERIAL_REMAP, true);
 
-export function paletteToMap(palette:Array<string>, materials:KeyedList<SurfaceMaterial>):Array<SurfaceMaterial> {
+export function paletteToMap(palette:Array<string|undefined>, materials:KeyedList<SurfaceMaterial|undefined>):Array<SurfaceMaterial> {
 	const map:Array<SurfaceMaterial> = []; //palette.map( (i) => materials[i] );
 	for( let i=0; i < 256; ++i ) {
 		const matId = palette[i];

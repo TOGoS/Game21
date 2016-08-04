@@ -11,16 +11,16 @@ function evalu(source:string):any {
 		getRegisterValue: (regId:number) => 0,
 		setRegisterValue: (regId:number, value:number) => 0,
 		dataBanks: [
-			null,
-			null,
-			null,
-			null,
-			null,
-			null,
-			null,
-			null,
-			null,
-			null,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
 			{
 				isWritable: true,
 				isExecutable: false,
@@ -34,7 +34,7 @@ function evalu(source:string):any {
 		]
 	}
 	interp.programBuilder = new ProgramBuilder(
-		interp.machine.dataBanks[11]!.data,
+		interp.machine.dataBanks[11]!.data!,
 		11 << INTRABANK_BITS
 	);
 	interp.dynamicWords['number'] = numberDynamicWord;

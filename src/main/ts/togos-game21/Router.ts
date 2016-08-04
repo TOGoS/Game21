@@ -63,7 +63,7 @@ class RouteList {
 		delete routeList[prefix.toString()];
 	}
 	
-	public route(addr:IP6Address):LinkID {
+	public route(addr:IP6Address):LinkID|undefined {
 		for( let prefixLength = 128; prefixLength >= 0; --prefixLength ) {
 			const routes = this.routesByPrefixLength[prefixLength];
 			for( const r in routes ) {
@@ -72,7 +72,7 @@ class RouteList {
 			}
 		}
 		// If there is a default route (anything in ::/0 ), then it should have been returned already.
-		return null;
+		return undefined;
 	}
 };
 
@@ -133,13 +133,13 @@ class Router {
 			console.log("packetInfo.destAddressString not a string; packetInfo = "+JSON.stringify(packetInfo));
 			return;
 		}
-		const destLinkId:LinkID = this.routes.route(destAddress);
-		if( destLinkId == null ) {
+		const destLinkId:LinkID|undefined = this.routes.route(destAddress);
+		if( !destLinkId ) {
 			console.log("Packet could not be routed; no route for "+stringifyIp6Address(destAddress));
 			return;
 		}
 		const destLink = this.links[destLinkId];
-		if( destLink == null ) {
+		if( !destLink ) {
 			console.log("Packet could not be routed to "+stringifyIp6Address(destAddress)+"; link '"+destLinkId+"' does not exist.");
 			return;
 		}

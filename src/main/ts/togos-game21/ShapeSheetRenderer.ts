@@ -32,7 +32,7 @@ function calcOpacity4(z0:number, z1:number, z2:number, z3:number):number {
 	if( z3 === Infinity ) opac -= 0.25;
 	return opac;
 };
-function calcSlope2(z0:number,z1:number):number {
+function calcSlope2(z0:number,z1:number):number|null {
 	if( z0 === z1 && (z0 === Infinity || z0 === -Infinity) ) return null; // Indicate to caller not to use this value
 	if( z0 === Infinity ) return -Infinity;
 	if( z1 === Infinity ) return +Infinity;
@@ -44,9 +44,9 @@ function calcSlope4(z0:number,z1:number,z2:number,z3:number):number {
 	if( s0 === null && s1 === null ) {
 		return 0; // Should be completely transparent so this won't really matter
 	} else if( s0 === null ) {
-		return s1;
+		return s1 === null ? 0 : s1;
 	} else if( s1 === null ) {
-		return s0;
+		return s0 === null ? 0 : s0;
 	} else if( s0 === Infinity ) {
 		if( s1 === Infinity ) {
 			return LARGE_NUMBER;
@@ -85,7 +85,7 @@ function processRectangleUpdates(rectangleList:Array<Rectangle>, updater:(rect:R
 	return anythingUpdated;
 };
 
-function maybeCombineRectangle(r0:Rectangle, r1:Rectangle):Rectangle {
+function maybeCombineRectangle(r0:Rectangle, r1:Rectangle):Rectangle|null {
 	const rS = Rectangle.intersection(r0, r1);
 	const overlapFactor = rS.area / Math.min(r0.area, r1.area);
 	if( overlapFactor > 0 ) {
@@ -128,7 +128,7 @@ export default class ShapeSheetRenderer {
 	public shadowsEnabled:boolean = true;
 	public shaders:Array<Shader> = [];
 	public updateRectanglesVisible:boolean = false;
-	protected _shadowDistanceOverride:number = null;
+	protected _shadowDistanceOverride:number|undefined;
 	protected _materials:Array<SurfaceMaterial>;
 	protected _lights:KeyedList<DirectionalLight>;
 
@@ -205,9 +205,8 @@ export default class ShapeSheetRenderer {
 	};
 	
 	get shadowDistanceOverride() { return this._shadowDistanceOverride; }
-	set shadowDistanceOverride(sdo:number) {
-		if( sdo === undefined ) sdo = null;
-		if( sdo !== null && typeof(sdo) != 'number' ) {
+	set shadowDistanceOverride(sdo:number|undefined) {
+		if( sdo != undefined && typeof(sdo) != 'number' ) {
 			throw new Error("Non-number provided for shadowDistanceOverride: "+JSON.stringify(sdo));
 		}
 		if( this._shadowDistanceOverride === sdo ) return; // no-op!
@@ -524,6 +523,7 @@ export default class ShapeSheetRenderer {
 		if( this.canvas === null ) return;
 		
 		var ctx = this.canvas.getContext('2d');
+		if( !ctx ) throw new Error("No '2d' context from my canvas!");
 		var encodeColorValue = function(i:number):number {
 			var c = Math.pow(i, 0.45);
 			if( c > 1 ) return 255;
@@ -532,6 +532,7 @@ export default class ShapeSheetRenderer {
 		var cellColors = this.cellColors;
 		
 		var imgData = ctx.getImageData(destMinX, destMinY, destW, destH);
+		if( !imgData ) throw new Error("ctx.getImageData returned null");
 		var imgDataData = imgData.data;
 		
 		ShapeSheetRenderer.toUint8Rgba(cellColors, (minY*width+minX)*4, 4*width, imgDataData, (destMinY*destW+destMinX)*4, 4*destW, destMaxX-destMinX, destMaxY-destMinY, sup);
@@ -571,8 +572,8 @@ export default class ShapeSheetRenderer {
 	
 	////
 	
-	dataUpdated(region:Rectangle=null, shouldRecalculateNormals:boolean=true, shouldRecalculateColors:boolean=true):void {
-		if( region == null ) region = this.shapeSheet.bounds;
+	dataUpdated(region?:Rectangle, shouldRecalculateNormals:boolean=true, shouldRecalculateColors:boolean=true):void {
+		if( !region ) region = this.shapeSheet.bounds;
 		//console.log("Updated "+JSON.stringify(region));
 		region = region.growToIntegerBoundaries();
 		var ss = this.shapeSheet;

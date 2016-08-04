@@ -50,7 +50,7 @@ class CoilShape implements ProceduralShape {
 }
 
 export default class SSIDemo {
-	protected objectImageManager:ObjectImageManager = new ObjectImageManager(null);
+	protected objectImageManager:ObjectImageManager = new ObjectImageManager;
 		
 	public randomObjectVisualFrame():ObjectVisualFrame {
 		const shape:CoilShape = new CoilShape();
@@ -84,6 +84,8 @@ export default class SSIDemo {
 		};
 	}	
 	public randomShapeImageSlice():ImageSlice<HTMLImageElement> {
-		return this.objectImageManager.objectVisualImage(this.randomObjectVisual(), 0, 0, Quaternion.random());
+		const slice = this.objectImageManager.objectVisualImage(this.randomObjectVisual(), 0, 0, Quaternion.random());
+		if( !slice ) throw new Error("Failed to generate image slice from visual!");
+		return slice;
 	};
 }

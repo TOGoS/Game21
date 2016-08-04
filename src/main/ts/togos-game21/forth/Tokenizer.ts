@@ -1,7 +1,7 @@
 import KeyedList from '../KeyedList';
 import SourceLocation from './SourceLocation';
 import Token, {TokenType} from './Token';
-import { resolvedPromise, vopToPromise, shortcutThen } from '../promises';
+import { resolvedPromise, RESOLVED_VOID_PROMISE, vopToPromise, shortcutThen } from '../promises';
 
 export type TokenListener = (t:Token) => Promise<void>|void;
 
@@ -229,7 +229,7 @@ export default class Tokenizer {
 				return (<Promise<void>>p).then( () => this.text(text, i+1) );
 			}
 		}
-		return resolvedPromise(null);
+		return RESOLVED_VOID_PROMISE;
 	}
 	public end() : Thenable<void> {
 		if( this.handlingBackslashEscape ) {

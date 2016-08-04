@@ -16,7 +16,7 @@ declare class WebSocket implements WebSocketLike {
 };
 
 export default class WebSocketClient {
-	public connection:WebSocket;
+	public connection:WebSocket|undefined;
 	public packetEncodingMode:string;
 	public enqueuedMessages:any[];
 	public localAddress:string;
@@ -25,7 +25,7 @@ export default class WebSocketClient {
 	public console:ConsoleLike;
 	
 	constructor() {
-		this.connection = null;
+		this.connection = undefined;
 		this.packetEncodingMode = "JSON";
 		this.enqueuedMessages = [];
 		// placeholders!
@@ -40,7 +40,7 @@ export default class WebSocketClient {
 			this.connection.binaryType = 'arraybuffer';
 			this.connection.onopen = this.onOpen.bind(this);
 			this.connection.onerror = (error) => {
-				this.connection = null;
+				this.connection = undefined;
 				this.console.log("Websocket Error:", error, "; disconnected");
 			};
 			this.connection.onmessage = this.onMessage.bind(this);
@@ -50,6 +50,7 @@ export default class WebSocketClient {
 	}
 	protected onOpen() {
 		this.console.log('Connected!');
+		if( !this.connection ) throw new Error("But somehow connection not set in onOpen!");
 		for( var i=0; i < this.enqueuedMessages.length; ++i ) {
 			this.connection.send(this.enqueuedMessages[i]);
 		}
@@ -58,7 +59,7 @@ export default class WebSocketClient {
 	protected checkConnection() {
 		if( this.connection && this.connection.readyState > 1 ) {
 			// Connection closed!
-			this.connection = null;
+			this.connection = undefined;
 		}
 	};
 	protected onMessage(messageEvent:any):void {

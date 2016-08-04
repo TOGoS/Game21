@@ -12,6 +12,8 @@ const STATESYM = Symbol("resolved");
 const VALUESYM = Symbol("value");
 const ERRORSYM = Symbol("value");
 
+export const RESOLVED_VOID_PROMISE:Promise<void> = resolvedPromise(undefined);
+
 export function resolvedPromise<T>( value:T ) : Thenable<T> {
     const p = Promise.resolve(value);
     (<any>p)[VALUESYM] = value;

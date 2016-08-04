@@ -15,6 +15,7 @@ function coalesce<T>(v:T, v1:T):T {
 
 function defreezeItem<T>( c:any, k:any, o?:T ):T {
 	if( o == null ) o = c[k];
+	if( o == null ) throw new Error("Failed to defreeze something["+k+"] because it's null");
 	if( isDeepFrozen(o) ) c[k] = o = thaw(o);
 	return o;
 }
@@ -179,12 +180,16 @@ export default class RoomGroupSimulator {
 			if( obj1Ref == obj0Ref ) continue;
 			
 			const obj1 = room1.objects[obj1Ref];
-			
+			if( !obj1 ) throw new Error("No such object "+obj1Ref+" in room "+room1Ref);
+			const obj1Position = obj1.position;
+			//if( !obj1Position ) throw new Error("Object "+obj1Ref+" has no position");
 			const obj0Position = obj0.position;
+			//if( !obj0Position ) throw new Error("Object "+obj0Ref+" has no position");
+				
 			obj1RelativePosition.set(
-				room1Pos.x + obj1.position.x - obj0Position.x,
-				room1Pos.y + obj1.position.y - obj0Position.y,
-				room1Pos.z + obj1.position.z - obj0Position.z
+				room1Pos.x + obj1Position.x - obj0Position.x,
+				room1Pos.y + obj1Position.y - obj0Position.y,
+				room1Pos.z + obj1Position.z - obj0Position.z
 			);
 			displacedCuboid(obj1.physicalBoundingBox, obj1RelativePosition, obj1RelativeCuboid);
 						
@@ -223,15 +228,17 @@ export default class RoomGroupSimulator {
 			if( !oldRoom.bounds.containsVector(obj.position) ) for( const n in oldRoom.neighbors ) {
 				const neighbor = oldRoom.neighbors[n];
 				displacedCuboid(neighbor.bounds, neighbor.offset, neighborRelativeCuboid);
-				if( obj.position.x < neighborRelativeCuboid.minX ) continue;
-				if( obj.position.y < neighborRelativeCuboid.minY ) continue;
-				if( obj.position.z < neighborRelativeCuboid.minZ ) continue;
-				if( obj.position.x > neighborRelativeCuboid.maxX ) continue;
-				if( obj.position.y > neighborRelativeCuboid.maxY ) continue;
-				if( obj.position.z > neighborRelativeCuboid.maxZ ) continue;
+				const objPos = obj.position;
+				//if( !objPos ) throw new Error("Object "+objRef+" has no position");
+				if( objPos.x < neighborRelativeCuboid.minX ) continue;
+				if( objPos.y < neighborRelativeCuboid.minY ) continue;
+				if( objPos.z < neighborRelativeCuboid.minZ ) continue;
+				if( objPos.x > neighborRelativeCuboid.maxX ) continue;
+				if( objPos.y > neighborRelativeCuboid.maxY ) continue;
+				if( objPos.z > neighborRelativeCuboid.maxZ ) continue;
 				// ooh, we're in it!
 				obj = defreezeItem(oldRoom.objects, objRef, obj);
-				obj.position = Vector3D.subtract(obj.position, neighbor.offset);
+				obj.position = Vector3D.subtract(objPos, neighbor.offset);
 				if( neighbor.roomRef != roomRef ) {
 					roomRef = neighbor.roomRef;
 					delete oldRoom.objects[objRef];
@@ -421,6 +428,7 @@ export default class RoomGroupSimulator {
 						
 						{
 							const op = obj.position;
+							//if( !op ) throw new Error("Object "+o+" has no position");
 							obj.position = new Vector3D( op.x + ov.x*stepSize, op.y+ov.y*stepSize, op.z+ov.z*stepSize );
 							this.objectUpdated(obj, o);
 						}

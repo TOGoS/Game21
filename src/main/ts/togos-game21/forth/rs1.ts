@@ -71,7 +71,7 @@ export function atText( sl:SourceLocation ) {
 	return "at "+sl.fileUri+":"+sl.lineNumber+","+sl.columnNumber;
 }
 
-export function getWord( ctx:CompilationContext, text:string ):Word {
+export function getWord( ctx:CompilationContext, text:string ):Word|null {
 	let w = ctx.dictionary[text];
 	if( w ) return ctx.dictionary[text];
 	return ctx.fallbackWordGetter(text);

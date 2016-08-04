@@ -48,6 +48,12 @@ function registerResultStackTest( name:string, s:any[], source:string ) {
 		fallbackWordGetter: wordGetter,
 		fixups: {},
 		compilingMain: true,
+		onToken: null,
+		sourceLocation: {
+			fileUri: 'registerResultStackTest',
+			lineNumber: 1,
+			columnNumber: 1
+		}
 	};
 	
 	const res:Promise<TestResult> = compileSource(source, compileCtx, {fileUri:"test:"+name, lineNumber:1, columnNumber:1} ).

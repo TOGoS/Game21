@@ -166,6 +166,7 @@ export default class CanvasWorldView {
 		
 		const orientation = obj.orientation ? obj.orientation : Quaternion.IDENTITY;
 		const imgSlice = this.objectImageManager.objectVisualImage(visual, obj.stateFlags, this.drawTime, orientation, reso);
+		if( !imgSlice ) return;
 		const pixScale = scale/imgSlice.resolution;
 		this.addImageDrawCommand(
 			imgSlice.sheet,

@@ -35,8 +35,8 @@ class ArrowShape implements ProceduralShape {
 }
 
 export default class QuaternionDemo {
-	protected objectImageManager:ObjectImageManager = new ObjectImageManager(null);
-		
+	protected objectImageManager:ObjectImageManager = new ObjectImageManager;
+	
 	public generateObjectVisualFrame():ObjectVisualFrame {
 		const shape:ArrowShape = new ArrowShape();
 		return {
@@ -70,7 +70,9 @@ export default class QuaternionDemo {
 	}	
 	
 	public generateImageSlice( q:Quaternion ):ImageSlice<HTMLImageElement> {
-		return this.objectImageManager.objectVisualImage(this.generateObjectVisual(), 0, 0, q, 32);
+		const slice = this.objectImageManager.objectVisualImage(this.generateObjectVisual(), 0, 0, q, 32);
+		if( !slice ) throw new Error("Failed to generate image slice!");
+		return slice;
 	}
 	
 	public static snap( q:Quaternion ):Quaternion {

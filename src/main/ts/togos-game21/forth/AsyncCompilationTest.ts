@@ -86,6 +86,7 @@ const words : KeyedList<Word> = {
 			if( prevWord.wordType == WordType.PUSH_URI_REF ) {
 				compilation.program.pop(); // We're going to replace it!
 				// Compile that thing,
+				if( !prevWord.valueUri ) throw new Error("PUSH_URI_REF word lacks valueUri!");
 				return compileRef( { uri: prevWord.valueUri }, compilation );
 			} else {
 				return Promise.reject("Expected word before 'eval' to have a valueUri, but it does not.");
@@ -100,6 +101,11 @@ function makeCompilationContext( dictionary:KeyedList<Word>, backup:(text:string
 let compileCtx:CompilationContext = {
 	program: [],
 	dictionary: words,
+	sourceLocation: {
+		fileUri: "AsymcCompilationTest",
+		lineNumber: 1,
+		columnNumber: 1,
+	},
 	fallbackWordGetter: makeWordGetter( words, (text:string) => {
 		if( /^urn:/.test(text) ) {
 			return {
@@ -112,7 +118,8 @@ let compileCtx:CompilationContext = {
 		return null;
 	}),
 	fixups: {},
-	compilingMain:true,
+	onToken: null,
+	compilingMain: true,
 };
 registerTestResult('AsyncCompilationTest - urn:file2 eval', compileRef( {uri: 'urn:file1'}, compileCtx ).then( (compileCtx) => {
 	return runProgram( compileCtx.program );

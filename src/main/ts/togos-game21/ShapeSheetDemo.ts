@@ -10,8 +10,8 @@ import ShapeSheetUtil, {NOOP_PLOTTED_DEPTH_FUNCTION} from './ShapeSheetUtil';
 import SimplexNoise from '../SimplexNoise';
 import DensityFunction3D, {makeDensityFunction} from './DensityFunction3D';
 
-export function betterParseNumber(n:any, emptyValue:number=0):number {
-	if( n == null ) return null;
+export function betterParseNumber<T>(n:any, emptyValue:number|T=0):number|T {
+	if( n == null ) return emptyValue;
 	if( typeof(n) == 'number' ) return n;
 	if( typeof(n) == 'string' ) {
 		n = n.trim();
@@ -21,8 +21,8 @@ export function betterParseNumber(n:any, emptyValue:number=0):number {
 	throw new Error("Don't know how to parse "+typeof(n)+" as number");
 }
 
-export function betterParseBoolean(n:any, emptyValue:boolean=false):boolean {
-	if( n == null ) return null;
+export function betterParseBoolean<T>(n:any, emptyValue:boolean|T=false):boolean|T {
+	if( n == null ) return emptyValue;
 	if( typeof(n) == 'boolean' ) return n;
 	if( typeof(n) == 'number' ) return n > 0;
 	if( typeof(n) == 'string' ) {
@@ -43,7 +43,7 @@ class ShapeSheetDemo {
 	public simplexScale:number=1;
 	public simplexOctaves:number=1;
 	public densityFunctionIterations:number=20;
-	protected densityFunctionStartZ:number=null;
+	protected densityFunctionStartZ:number;
 	
 	// Animation parameters
 	public lightRotationEnabled:boolean = true;
@@ -59,10 +59,20 @@ class ShapeSheetDemo {
 	get shapeSheet() { return this.shapeSheetUtil.shapeSheet; }
 	get renderer() { return this.shapeSheetUtil.renderer; }
 	
-	get updateRectanglesVisible() { return this.renderer.updateRectanglesVisible; }
-	set updateRectanglesVisible(d:boolean) { this.renderer.updateRectanglesVisible = d; }
-	get shadowDistanceOverride() { return this.renderer.shadowDistanceOverride; }
-	set shadowDistanceOverride(sdo:number) { this.renderer.shadowDistanceOverride = sdo; }
+	get updateRectanglesVisible() {
+		return this.renderer ? this.renderer.updateRectanglesVisible : false;
+	}
+	set updateRectanglesVisible(d:boolean) {
+		if( !this.renderer ) throw new Error("Can't set update rectangles visible; no renderer.");
+		this.renderer.updateRectanglesVisible = d;
+	}
+	get shadowDistanceOverride():number|undefined {
+		return this.renderer ? this.renderer.shadowDistanceOverride : undefined;
+	}
+	set shadowDistanceOverride(sdo:number|undefined) {
+		if( !this.renderer ) throw new Error("Can't set shadow distance override; no renderer.");
+		this.renderer.shadowDistanceOverride = sdo;
+	}
 	
 	/*
 	get densityFunctionStartZ() { return this._densityFunctionStartZ; }
@@ -156,7 +166,7 @@ class ShapeSheetDemo {
 			const grainIdx = (grain(x,y,z) * 4)|0;
 			return z + ((grainIdx) == 0 ? +0.3 : 0);
 		};
-		const frontCutoff:number = this.densityFunctionStartZ == null ? plotZ-rad*4 : this.densityFunctionStartZ;
+		const frontCutoff:number = this.densityFunctionStartZ == undefined ? plotZ-rad*4 : this.densityFunctionStartZ;
 		const smallBounds = new Cuboid(plotX-rad*2, plotY-rad*2, plotZ-rad*2, plotX+rad*2, plotY+rad*2, plotZ+rad*2);
 		const fullBounds = new Cuboid(0, 0, frontCutoff, w, h, +plotZ+rad*4);
 		this.shapeSheetUtil.plotDensityFunction(df, fullBounds, +this.densityFunctionIterations);
@@ -217,6 +227,10 @@ class ShapeSheetDemo {
 	}
 	
 	public randomizeLights() {
+		if( !this.renderer ) {
+			console.warn("No renderer; randomLights is useless!");
+			return;
+		}
 		var lights = thaw(this.renderer.lights);
 		lights["primary"] = new DirectionalLight(
 			new Vector3D(Math.random()-0.5, Math.random()-0.5, Math.random()-0.5),
@@ -233,12 +247,13 @@ class ShapeSheetDemo {
 	}
 	
 	public startLightAnimation() {
-		var renderer = this.renderer;
+		const renderer = this.renderer;
+		if( !renderer ) throw new Error("No renderer; can't animate!");
 		var bolts:KeyedList<number> = {lightning0:-Infinity, lightning1:-Infinity, lightning2:-Infinity};
 		
 		var f = 0;
 		return setInterval( () => {
-			let lights = this.renderer.lights;
+			let lights = renderer.lights;
 			
 			if( this.lightRotationEnabled ) {
 				lights = thaw(lights);
@@ -295,7 +310,7 @@ class ShapeSheetDemo {
 				}
 			}
 			
-			this.renderer.lights = lights;
+			renderer.lights = lights;
 			
 			this.triggerEventHandler('lightTick');
 			renderer.requestCanvasUpdate();
@@ -312,7 +327,7 @@ class ShapeSheetDemo {
 			if( !this.lavaLampEnabled ) return;
 			
 			const util:ShapeSheetUtil = this.shapeSheetUtil;
-			const renderer:ShapeSheetRenderer = util.renderer;
+			const renderer:ShapeSheetRenderer|undefined = util.renderer;
 			const ss:ShapeSheet = this.shapeSheet;
 			const width:number = ss.width;
 			const height:number = ss.height;
@@ -358,7 +373,7 @@ class ShapeSheetDemo {
 			util.plotDensityFunction(df, new Cuboid(plotX-rad*2, plotY-rad*2, plotZ-rad*2, plotX+rad*2, plotY+rad*2, plotZ+rad*2));
 			*/
 			
-			renderer.requestCanvasUpdate();
+			if( renderer ) renderer.requestCanvasUpdate();
 			
 			ang += Math.PI / 16;
 			++i;
@@ -376,8 +391,14 @@ export function buildShapeDemo(canv:HTMLCanvasElement) {
 	const shapeSheetUtil = new ShapeSheetUtil(shapeSheet, shapeSheetRenderer);
 	const shapeSheetDemo = new ShapeSheetDemo(shapeSheetUtil);
 	
-	const fpsUpdater = new FPSUpdater(function() { return shapeSheetRenderer.canvasUpdateCount; }, document.getElementById('fps-counter').firstChild );
-	fpsUpdater.start();
+	const fpsCounterElement = document.getElementById('fps-counter');
+	const fpsCounterTextNode = fpsCounterElement ? fpsCounterElement.firstChild : null;
+	if( fpsCounterTextNode ) {
+		const fpsUpdater = new FPSUpdater(function() { return shapeSheetRenderer.canvasUpdateCount; }, fpsCounterTextNode );
+		fpsUpdater.start();
+	} else {
+		console.log("No #fps-counter found, so no FPS counter for you.");
+	}
 	
 	return shapeSheetDemo;
 }

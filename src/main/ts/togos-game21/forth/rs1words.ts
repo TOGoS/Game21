@@ -273,7 +273,9 @@ export const wordDefinitionWords:KeyedList<Word> = {
 		forthCompile: (ctx:CompilationContext):void => {
 			ctx.onToken = waitForWordToken( (newName:string) => {
 				ctx.onToken = waitForWordToken( (oldName:string) => {
-					ctx.dictionary[newName] = getWord( ctx, oldName );
+					const oldWord = getWord( ctx, oldName );
+					if( oldWord == null ) throw new Error("Can't alias to '"+oldName+"' because it is not defined!");
+					ctx.dictionary[newName] = oldWord;
 					ctx.onToken = null;
 				});
 			});

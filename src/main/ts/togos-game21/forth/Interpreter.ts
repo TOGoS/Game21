@@ -106,7 +106,7 @@ interface BytecodeProgramState extends ProgramState {
  * Any machine controlled by a program.
  */
 interface Machine {
-	dataBanks:(DataBank|null)[];
+	dataBanks:(DataBank|undefined)[];
 	getRegisterValue(registerId:number):number;
 	setRegisterValue(registerId:number, value:number):void;
 }
@@ -126,7 +126,7 @@ class BytecodeProgramInterpreter {
 		return state;
 	}
 	
-	public doInstruction(inst:number, state:BytecodeProgramState, machine:Machine, banks:DataBank[]):BytecodeProgramState {
+	public doInstruction(inst:number, state:BytecodeProgramState, machine:Machine, banks:(DataBank|undefined)[]):BytecodeProgramState {
 		if( inst < 0x40 && inst >= -0x40 ) {
 			state.dataStack.push(inst);
 			++state.pc;
@@ -188,7 +188,7 @@ class BytecodeProgramInterpreter {
 		}
 	}
 	
-	public run(state:BytecodeProgramState, machine:Machine, banks:DataBank[], maxSteps:number):BytecodeProgramState {
+	public run(state:BytecodeProgramState, machine:Machine, banks:(DataBank|undefined)[], maxSteps:number):BytecodeProgramState {
 		// TODO: potentially unfreeze state
 		// TODO: Load bytecode from cache if state indicates ref instead of actual bytecode
 		

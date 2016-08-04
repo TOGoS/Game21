@@ -54,7 +54,8 @@ class UDPTunnel {
 	}
 }
 
-const tun = new UDPTunnel( (packet:Uint8Array) => {
+let tun = new UDPTunnel( (packet:Uint8Array) => {} ); // Fake out TypeScript compiler
+tun = new UDPTunnel( (packet:Uint8Array) => {
 	try {
 		const ipMessage = <IP6Message>disassembleIpPacket(packet);
 		console.log(
