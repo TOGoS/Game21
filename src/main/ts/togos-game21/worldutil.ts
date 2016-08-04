@@ -118,7 +118,7 @@ export function makeTileTreeNode( palette:any, w:number, h:number, d:number, _in
 		// These don't really make sense to have to have on a tile tree
 		isAffectedByGravity: false,
 		stateFlags: 0,
-		visualRef: null,
+		visualRef: undefined,
 		opacity: totalOpacity/(w*h*d),
 	}
 }

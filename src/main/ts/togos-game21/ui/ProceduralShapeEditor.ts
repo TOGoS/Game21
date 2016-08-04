@@ -22,6 +22,11 @@ import MiniConsole from './MiniConsole';
 import MultiConsole from './MultiConsole';
 import HTMLConsole from './HTMLConsole';
 
+function ensureNotNull<T>( name:string, val:T|null|undefined ):T {
+	if( val == null ) throw new Error(name+" is null!");
+	return val;
+}
+
 interface ViewAnimationSettings {
 	animationSpeed : number; // change in t per second
 	rotation : Quaternion; // unit rotation
@@ -422,8 +427,8 @@ export default class ProceduralShapeEditor
 			this.loadScript(uri);
 		});
 		
-		this.pauseButton = document.getElementById('pause-button');
-		this.playButton = document.getElementById('play-button');
+		this.pauseButton = ensureNotNull('#pause-button', document.getElementById('pause-button'));
+		this.playButton = ensureNotNull('#play-button', document.getElementById('play-button'));
 		
 		this.pauseButton.addEventListener('click', () => {
 			this.pauseAnimation();
@@ -457,6 +462,7 @@ export default class ProceduralShapeEditor
 		let elem:HTMLCanvasElement|null = <HTMLCanvasElement>document.getElementById(elemName)
 		if( elem == null ) {
 			console.warn("No such canvas: "+elemName);
+			return;
 		}
 		const sv = this.viewSet.addViewFromCanvas(elem, name, ss);
 		if( init ) init(sv);
