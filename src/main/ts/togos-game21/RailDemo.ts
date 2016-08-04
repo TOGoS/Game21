@@ -315,7 +315,7 @@ export default class RailDemo {
 			const trackSeg = trackSegments[ts];
 			this.drawTrack(trackSeg.type, trackSeg.start, trackSeg.end);
 		}
-		this.shapeSheetUtil.renderer.requestCanvasUpdate();
+		if( this.shapeSheetUtil.renderer ) this.shapeSheetUtil.renderer.requestCanvasUpdate();
 		console.log("Rail demo...");
 	}
 }

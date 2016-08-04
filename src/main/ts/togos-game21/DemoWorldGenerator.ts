@@ -68,7 +68,7 @@ export default class DemoWorldGenerator {
 			objectVisuals: {},
 			rooms: {},
 			tilePalettes: {},
-			objectPrototypes: {},
+			protoObjects: {},
 			time: 0,
 		}
 		
@@ -111,14 +111,12 @@ export default class DemoWorldGenerator {
 		const blockCuboid = new Cuboid(-0.5, -0.5, -0.5, 0.5, 0.5, 0.5);
 		
 		const brickPrototypeId = newUuidRef();
-		game.objectPrototypes[brickPrototypeId] = {
-			orientation: Quaternion.IDENTITY,
+		game.protoObjects[brickPrototypeId] = {
 			type: PhysicalObjectType.INDIVIDUAL,
 			isInteractive: true,
 			isRigid: true,
 			bounciness: 0.5,
 			isAffectedByGravity: false,
-			stateFlags: 0,
 			visualRef: crappyBrickVisualRef,
 			tilingBoundingBox: blockCuboid,
 			physicalBoundingBox: blockCuboid,
@@ -127,14 +125,12 @@ export default class DemoWorldGenerator {
 		}
 		
 		const blockPrototypeId = newUuidRef();
-		game.objectPrototypes[blockPrototypeId] = {
-			orientation: Quaternion.IDENTITY,
+		game.protoObjects[blockPrototypeId] = {
 			type: PhysicalObjectType.INDIVIDUAL,
 			isInteractive: true,
 			isRigid: true,
 			bounciness: 0.5,
 			isAffectedByGravity: false,
-			stateFlags: 0,
 			visualRef: crappyBlockVisualRef,
 			tilingBoundingBox: blockCuboid,
 			physicalBoundingBox: blockCuboid,
@@ -266,16 +262,13 @@ export default class DemoWorldGenerator {
 		
 		const bigBlockBb = new Cuboid(-4, -4, -4, 4, 4, 4);
 		const bigBlockPrototypeRef = newUuidRef();
-		game.objectPrototypes[bigBlockPrototypeRef] = {
-			position: new Vector3D((Math.random()-0.5)*128, (Math.random()-0.5)*64, 10+16*Math.random()-0.5),
-			orientation: Quaternion.IDENTITY,
+		game.protoObjects[bigBlockPrototypeRef] = {
 			type: PhysicalObjectType.INDIVIDUAL,
 			isInteractive: true,
 			isRigid: true,
 			bounciness: 0.5,
 			isAffectedByGravity: false,
 			mass: 8,
-			stateFlags: 0,
 			visualRef: bigBlockVisualRef,
 			tilingBoundingBox: bigBlockBb,
 			physicalBoundingBox: bigBlockBb,
@@ -315,28 +308,41 @@ export default class DemoWorldGenerator {
 			0, 0, 1, 0,
 			1, 1, 1, 1,
 		], game);
-		//roomObjects[newUuidRef()] = game.objectPrototypes[tileTree3Ref]; 
+		//roomObjects[newUuidRef()] = game.protoObjects[tileTree3Ref]; 
 		
 		const crappyRoom0Id = newUuidRef();
 		const crappyRoom1Id = newUuidRef();
 		
-		const backgroundTree = clone(game.objectPrototypes[backgroundTree1Ref]);
-		backgroundTree.position = new Vector3D(0,0,20);
-		
 		game.rooms[crappyRoom0Id] = {
 			objects: {
-				[newUuidRef()]: game.objectPrototypes[tileTree3Ref],
-				[newUuidRef()]: backgroundTree,
+				[newUuidRef()]: {
+					position: Vector3D.ZERO,
+					stateFlags: 0,
+					prototypeRef: tileTree3Ref,
+				},
+				[newUuidRef()]: {
+					position: new Vector3D(0,0,20),
+					stateFlags: 0,
+					prototypeRef: backgroundTree1Ref,
+				}
 			},
-			bounds: game.objectPrototypes[tileTree3Ref].tilingBoundingBox,
+			bounds: game.protoObjects[tileTree3Ref].tilingBoundingBox,
 			neighbors: {}
 		};
 		game.rooms[crappyRoom1Id] = {
 			objects: {
-				[newUuidRef()]: game.objectPrototypes[tileTree4Ref],
-				[newUuidRef()]: backgroundTree,
+				[newUuidRef()]: {
+					position: Vector3D.ZERO,
+					stateFlags: 0,
+					prototypeRef: tileTree4Ref,
+				},
+				[newUuidRef()]: {
+					position: new Vector3D(0,0,40),
+					stateFlags: 0,
+					prototypeRef: backgroundTree1Ref,
+				},
 			},
-			bounds: game.objectPrototypes[tileTree4Ref].tilingBoundingBox,
+			bounds: game.protoObjects[tileTree4Ref].tilingBoundingBox,
 			neighbors: {}
 		};
 		

@@ -22,19 +22,7 @@ export enum PhysicalObjectType {
 	INDIVIDUAL
 }
 
-export interface PhysicalObject {
-	debugLabel? : string;
-	position? : Vector3D; // Ignored (and should be null) for tiles/prototypes
-	velocity? : Vector3D;
-	orientation? : Quaternion;
-	
-	prototypeRef?:string; // If indicated, the following properties are defined by the template
-	// In theory an object's properties just default to those of its prototype.
-	// Position, velocity, and orientation are relative.
-	// In practice I may make assumptions that only the object or its prototype
-	// may specify any given property and it's ~undefined behavior condition~
-	// for certain properties or sets of properties to be specified on both.
-	
+export interface ProtoObject {
 	type:PhysicalObjectType;
 	
 	// Bounding boxes are relative to the object's position (whether indicated externally or internally)
@@ -48,12 +36,24 @@ export interface PhysicalObject {
 	opacity?:number; // For space-filling trees, this should be something like the average of contained items' opacities
 	bounciness?:number;
 	mass?:number;
-	stateFlags:number;
 	
 	visualRef? : string;
 }
 
-export interface TileTree extends PhysicalObject {
+export interface PhysicalObject {
+	debugLabel? : string;
+	position : Vector3D; // Ignored (and should be null) for tiles/prototypes
+	
+	// Assumed 0,0,0 if undefined
+	velocity? : Vector3D;
+	// Assumed identify if undefined
+	orientation? : Quaternion;
+	
+	prototypeRef : string;
+	stateFlags : number;
+}
+
+export interface TileTree extends ProtoObject {
 	xDivisions:number;
 	yDivisions:number;
 	zDivisions:number;
@@ -73,7 +73,7 @@ export interface Game {
 	maObjectVisuals: KeyedList<MAObjectVisual>;
 	objectVisuals: KeyedList<ObjectVisual>;
 	tilePalettes: KeyedList<Array<string|undefined>>;
-	objectPrototypes: KeyedList<PhysicalObject>;
+	protoObjects: KeyedList<ProtoObject>;
 	rooms: KeyedList<Room>;
 	time: number; // Current time in the world
 }

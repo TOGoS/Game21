@@ -10,7 +10,7 @@ import KeyedList from './KeyedList';
 import { DEFAULT_MATERIAL_PALETTE, DEFAULT_MATERIAL_PALETTE_REF, DEFAULT_MATERIAL_MAP, IDENTITY_MATERIAL_REMAP } from './surfacematerials';
 import CanvasWorldView from './CanvasWorldView';
 import DemoWorldGenerator, { newUuidRef, simpleObjectVisualShape } from './DemoWorldGenerator';
-import { PhysicalObjectType, PhysicalObject, TileTree, Room, Game, HUNIT_CUBE } from './world';
+import { PhysicalObjectType, PhysicalObject, ProtoObject, TileTree, Room, Game, HUNIT_CUBE } from './world';
 import { deepFreeze, isDeepFrozen, thaw } from './DeepFreezer';
 import RoomGroupSimulator from './RoomGroupSimulator';
 import SurfaceColor from './SurfaceColor';
@@ -37,11 +37,6 @@ class WorldSimulator {
 
 class PlayerSpecs {
 	maxWalkSpeed:number;
-}
-
-class PlayerBrain {
-	desiredMoveDirection:number; // Angle, in degrees
-	desiredMoveSpeed:number; // How fast he wants to move
 }
 
 class KeyWatcher {
@@ -102,6 +97,7 @@ export default class MazeGame {
 	
 	public runDemo() {
 		const playerRef = this.playerRef = newUuidRef();
+		const playerPrototypeRef = newUuidRef();
 		
 		const game = new DemoWorldGenerator().makeCrappyGame();
 		let roomId:string = ""; // Fake out compiler
@@ -164,48 +160,66 @@ export default class MazeGame {
 			maVisualRef: ballMaVisualRef
 		};
 		
-		const playerBb:Cuboid = new Cuboid(-0.5,-0.5,-0.5,0.5,0.5,0.5);
+		const ballBoundingBox:Cuboid = new Cuboid(-0.5,-0.5,-0.5,0.5,0.5,0.5);
 		
-		game.rooms[roomId].objects[playerRef] = <PhysicalObject>{
-			debugLabel: "player ball",
-			position: Vector3D.ZERO,
-			orientation: Quaternion.IDENTITY,
+		game.protoObjects[playerPrototypeRef] = <ProtoObject>{
 			type: PhysicalObjectType.INDIVIDUAL,
-			tilingBoundingBox: playerBb,
-			physicalBoundingBox: playerBb,
-			visualBoundingBox: playerBb,
+			tilingBoundingBox: ballBoundingBox,
+			physicalBoundingBox: ballBoundingBox,
+			visualBoundingBox: ballBoundingBox,
 			isAffectedByGravity: true,
 			isInteractive: true,
 			isRigid: true,
 			bounciness: 0.9,
-			stateFlags: 0,
 			visualRef: playerVisualRef,
 			velocity: new Vector3D(0,0,0),
 			mass: 20,
-			brain: <PlayerBrain>{
-				desiredMoveDirection: 0,
-				desiredMoveSpeed: 0
-			}
 		}
+		game.rooms[roomId].objects[playerRef] = {
+			debugLabel: "player ball",
+			stateFlags: 0,
+			position: Vector3D.ZERO,
+			orientation: Quaternion.IDENTITY,
+			prototypeRef: playerPrototypeRef,
+		}
+
+		const gravBallPrototypeRef = newUuidRef();
+		game.protoObjects[gravBallPrototypeRef] = {
+			type: PhysicalObjectType.INDIVIDUAL,
+			tilingBoundingBox: ballBoundingBox,
+			physicalBoundingBox: ballBoundingBox,
+			visualBoundingBox: ballBoundingBox,
+			isAffectedByGravity: true,
+			isInteractive: true,
+			isRigid: true,
+			bounciness: 0.9,
+			visualRef: ballVisualRef,
+			mass: 20,
+		};
+		const noGravBallPrototypeRef = newUuidRef();
+		game.protoObjects[noGravBallPrototypeRef] = {
+			type: PhysicalObjectType.INDIVIDUAL,
+			tilingBoundingBox: ballBoundingBox,
+			physicalBoundingBox: ballBoundingBox,
+			visualBoundingBox: ballBoundingBox,
+			isAffectedByGravity: false,
+			isInteractive: true,
+			isRigid: true,
+			bounciness: 0.9,
+			visualRef: noGravBallVisualRef,
+			mass: 20,
+		};
+		
 		const extraBallCount = 5;
 		for( let i=0; i < extraBallCount; ++i ) {
 			const grav = Math.random() < 0.5;
-			game.rooms[roomId].objects[newUuidRef()] = <PhysicalObject>{
+			game.rooms[roomId].objects[newUuidRef()] = {
 				debugLabel: "extra ball "+i,
 				position: new Vector3D((Math.random()-0.5)*10, (Math.random()-0.5)*10, 0),
-				orientation: Quaternion.IDENTITY,
-				type: PhysicalObjectType.INDIVIDUAL,
-				tilingBoundingBox: playerBb,
-				physicalBoundingBox: playerBb,
-				visualBoundingBox: playerBb,
-				isAffectedByGravity: grav,
-				isInteractive: true,
-				isRigid: true,
-				bounciness: 0.9,
-				stateFlags: 0,
-				visualRef: grav ? ballVisualRef : noGravBallVisualRef,
 				velocity: new Vector3D(0,0,0),
-				mass: 20,
+				orientation: Quaternion.IDENTITY,
+				stateFlags: 0,
+				prototypeRef: grav ? gravBallPrototypeRef : noGravBallPrototypeRef,
 			}
 		}
 		
@@ -299,22 +313,12 @@ export default class MazeGame {
 				const grav:boolean = Math.random() < 0.5;
 				const player = sim.getObject(playerRef);
 				const roomId = sim.objectRoomRef(player);
-				sim.addObject(roomId,  <PhysicalObject>{
+				sim.addObject(roomId, {
 					debugLabel: "user-created extra ball",
 					position: Vector3D.add(player.position ? player.position : Vector3D.ZERO, wp),
 					orientation: Quaternion.IDENTITY,
-					type: PhysicalObjectType.INDIVIDUAL,
-					tilingBoundingBox: playerBb,
-					physicalBoundingBox: playerBb,
-					visualBoundingBox: playerBb,
-					isAffectedByGravity: grav,
-					isInteractive: true,
-					isRigid: true,
-					bounciness: 0.9,
 					stateFlags: 0,
-					visualRef: grav ? ballVisualRef : noGravBallVisualRef,
-					velocity: player.velocity ? player.velocity : Vector3D.ZERO,
-					mass: 20,
+					prototypeRef: grav ? gravBallPrototypeRef : noGravBallPrototypeRef,
 				});
 			}
 		};

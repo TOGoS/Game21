@@ -18,7 +18,7 @@ import {DEFAULT_LIGHTS} from './lights';
 import {DEFAULT_MATERIAL_MAP, IDENTITY_MATERIAL_REMAP, makeRemap, remap} from './surfacematerials';
 import Rectangle from './Rectangle';
 import { newType4Uuid, uuidUrn } from '../tshash/uuids';
-import { Game, Room, PhysicalObject, PhysicalObjectType, TileTree } from './world';
+import { Game, Room, PhysicalObject, ProtoObject, PhysicalObjectType, TileTree } from './world';
 import { eachSubObject } from './worldutil';
 import DemoWorldGenerator from './DemoWorldGenerator';
 import SceneShader, { ShadeRaster } from './SceneShader';
@@ -139,15 +139,13 @@ export default class CanvasWorldView {
 		return Math.max(this._canvas.width, this._canvas.height)/2;
 	}
 	
-	protected drawIndividualObject( obj:PhysicalObject, pos:Vector3D ):void {
-		if( !obj.visualRef ) return;
-		if( this.game == null ) {
-			console.log("No game; can't look up object visuals");
+	protected drawIndividualObject( proto:ProtoObject, stateFlags:number, pos:Vector3D, orientation:Quaternion ):void {
+		if( !proto || !proto.visualRef ) {
 			return;
 		}
-		let visual = this.game.objectVisuals[obj.visualRef];
+		let visual = this.game.objectVisuals[proto.visualRef];
 		if( visual == null ) {
-			console.log("Object visual "+obj.visualRef+" not loaded; can't draw");
+			console.log("Object visual "+proto.visualRef+" not loaded; can't draw");
 			return;
 		}
 		if( !this.objectImageManager ) {
@@ -164,8 +162,7 @@ export default class CanvasWorldView {
 		const screenY = this.screenCenterY + scale * pos.y;
 		const reso = 16; // TODO: Should depend on scale, but not just be scale; maybe largest **2 <= scale and <= 32?
 		
-		const orientation = obj.orientation ? obj.orientation : Quaternion.IDENTITY;
-		const imgSlice = this.objectImageManager.objectVisualImage(visual, obj.stateFlags, this.drawTime, orientation, reso);
+		const imgSlice = this.objectImageManager.objectVisualImage(visual, stateFlags, this.drawTime, orientation, reso);
 		if( !imgSlice ) return;
 		const pixScale = scale/imgSlice.resolution;
 		this.addImageDrawCommand(
@@ -177,8 +174,8 @@ export default class CanvasWorldView {
 	}
 	
 	/** Object's .position should already be taken into account in 'pos' */
-	protected drawObject( obj:PhysicalObject, pos:Vector3D ):void {
-		const vbb = obj.visualBoundingBox;
+	protected drawObject( proto:ProtoObject, stateFlags:number, pos:Vector3D, orientation:Quaternion ):void {
+		const vbb = proto.visualBoundingBox;
 		const backZ = vbb.maxZ + pos.z;
 		if( backZ <= 1 ) return;
 		const backScale = this.unitPpm / backZ;
@@ -187,11 +184,11 @@ export default class CanvasWorldView {
 		if( this.screenCenterY + backScale * (vbb.maxY + pos.y) <= this.clip.minY ) return;
 		if( this.screenCenterY + backScale * (vbb.minY + pos.y) >= this.clip.maxY ) return;
 		
-		if( obj.visualRef != null ) {
-			this.drawIndividualObject(obj, pos);
+		if( proto.visualRef != null ) {
+			this.drawIndividualObject(proto, stateFlags, pos, orientation);
 		}
 		
-		eachSubObject( obj, pos, this._game, this.drawObject, this, posBuffer0 );
+		eachSubObject( proto, pos, this._game, this.drawObject, this, posBuffer0 );
 	}
 	
 	protected drawRoom( room:Room, pos:Vector3D ):void {
@@ -200,7 +197,10 @@ export default class CanvasWorldView {
 			if( !obj.position ) {
 				throw new Error("Object '"+o+"' in room has no position");
 			}
-			this.drawObject(obj, Vector3D.add(pos, obj.position, posBuffer0));
+			const proto = this.game.protoObjects[obj.prototypeRef];
+			if( proto == null ) continue;
+			const orientation = obj.orientation ? obj.orientation : Quaternion.IDENTITY;
+			this.drawObject(proto, obj.stateFlags, Vector3D.add(pos, obj.position, posBuffer0), orientation);
 		}
 	}
 	

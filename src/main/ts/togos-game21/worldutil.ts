@@ -48,11 +48,15 @@ function paletteRef( palette:any, game:Game ):string {
 
 // 'game' is used to look up tile palettes/object prototypes by UUID.
 // Could be replaced with some accessor thingy, possibly asynchronous.
-export function eachSubObject( obj:PhysicalObject, pos:Vector3D, game:Game, callback:(subObj:PhysicalObject, pos:Vector3D)=>void, callbackThis:any=null, posBuffer:Vector3D=posBuffer0 ) {
-	if( obj.type == PhysicalObjectType.INDIVIDUAL ) {
+export function eachSubObject(
+	proto:ProtoObject, pos:Vector3D, game:Game,
+	callback:(subObj:ProtoObject, stateFlats:number, pos:Vector3D, orientation:Quaternion)=>void,
+	callbackThis:any=null, posBuffer:Vector3D=posBuffer0
+) {
+	if( proto.type == PhysicalObjectType.INDIVIDUAL ) {
 		// No sub-objects!
-	} else if( obj.type == PhysicalObjectType.TILE_TREE ) {
-		const tt:TileTree = <TileTree>obj;
+	} else if( proto.type == PhysicalObjectType.TILE_TREE ) {
+		const tt:TileTree = <TileTree>proto;
 		const tilePaletteIndexes = tt.childObjectIndexes;
 		const tilePalette = game.tilePalettes[tt.childObjectPaletteRef];
 		const objectPrototypes = game.objectPrototypes;
@@ -70,7 +74,7 @@ export function eachSubObject( obj:PhysicalObject, pos:Vector3D, game:Game, call
 			}
 		}
 	} else {
-		throw new Error("Unrecognized physical object type: "+obj.type);
+		throw new Error("Unrecognized physical object type: "+ptoto.type);
 	}
 }
 
