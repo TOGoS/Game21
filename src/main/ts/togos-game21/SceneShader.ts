@@ -1,8 +1,9 @@
 import Vector3D from './Vector3D';
+import Quaternion from './Quaternion';
 import Rectangle, {RectangularBounds} from './Rectangle';
 import Cuboid from './Cuboid';
-import { eachSubObject } from './worldutil';
-import { Game, Room, PhysicalObject, PhysicalObjectType, TileTree } from './world';
+import { eachSubObject, objectVelocity, objectOrientation } from './worldutil';
+import { Game, Room, PhysicalObject, ProtoObject, PhysicalObjectType, TileTree } from './world';
 
 /*
  * Opactity map gives opacity of each cell
@@ -48,8 +49,15 @@ export default class SceneShader {
 	protected destBounds:Cuboid = new Cuboid;
 	protected game:Game;
 	
-	protected applyObjectToOpacityRaster( obj:PhysicalObject, pos:Vector3D ):void {
-		const vbb = obj.visualBoundingBox;
+	// TODO: Move this into GameDataAccessor or something
+	protected objectPrototype( obj:PhysicalObject ):ProtoObject {
+		const proto = this.game.protoObjects[obj.prototypeRef];
+		if( !proto ) throw new Error("No prototype "+obj.prototypeRef );
+		return proto;
+	}
+	
+	protected applyObjectToOpacityRaster( proto:ProtoObject, stateFlags:number, pos:Vector3D, orientation:Quaternion ):void {
+		const vbb = proto.visualBoundingBox;
 		const destBounds = this.destBounds;
 		if( pos.x + vbb.maxX <= destBounds.minX ) return;
 		if( pos.y + vbb.maxY <= destBounds.minY ) return;
@@ -57,14 +65,15 @@ export default class SceneShader {
 		if( pos.x + vbb.minY >= destBounds.maxY ) return;
 		if( pos.z + vbb.maxZ <= destBounds.minZ ) return;
 		
-		if( obj.opacity != null && obj.opacity == 1 ) {
+		if( proto.opacity != null && proto.opacity == 1 ) {
 			const destMap = this.destShadeMap;
+			const tbb = proto.tilingBoundingBox;
 			// It fills its entire tilingBoundingBox, so mark that as opaque!
 			// CX/CY = cellX/cellY; i.e. cell x, y, resolution and origin already taken into account.
-			const minCX = Math.max(0             , Math.ceil(  (obj.tilingBoundingBox.minX + pos.x + destMap.originX) * destMap.resolution));
-			const minCY = Math.max(0             , Math.ceil(  (obj.tilingBoundingBox.minY + pos.y + destMap.originY) * destMap.resolution));
-			const maxCX = Math.min(destMap.width , Math.floor( (obj.tilingBoundingBox.maxX + pos.x + destMap.originX) * destMap.resolution));
-			const maxCY = Math.min(destMap.height, Math.floor( (obj.tilingBoundingBox.maxY + pos.y + destMap.originY) * destMap.resolution));
+			const minCX = Math.max(0             , Math.ceil(  (tbb.minX + pos.x + destMap.originX) * destMap.resolution));
+			const minCY = Math.max(0             , Math.ceil(  (tbb.minY + pos.y + destMap.originY) * destMap.resolution));
+			const maxCX = Math.min(destMap.width , Math.floor( (tbb.maxX + pos.x + destMap.originX) * destMap.resolution));
+			const maxCY = Math.min(destMap.height, Math.floor( (tbb.maxY + pos.y + destMap.originY) * destMap.resolution));
 			for( let cy = minCY; cy < maxCY; ++cy ) {
 				for( let cx = minCX, ci = cy*destMap.width + cx; cx < maxCX; ++cx, ++ci ) {
 					destMap.data[ci] = 255;
@@ -73,7 +82,7 @@ export default class SceneShader {
 			return;
 		}
 		
-		eachSubObject(obj, pos, this.game, this.applyObjectToOpacityRaster, this);
+		eachSubObject(proto, pos, this.game, this.applyObjectToOpacityRaster, this);
 	}
 	
 	/**
@@ -82,8 +91,11 @@ export default class SceneShader {
 	protected applyRoomToOpacityRaster( room:Room, pos:Vector3D, game:Game ):void {
 		for( let o in room.objects ) {
 			const obj = room.objects[o];
+			const proto = this.objectPrototype(obj);			
 			Vector3D.add(pos, obj.position, objPosBuf);
-			this.applyObjectToOpacityRaster( obj, objPosBuf );
+			// If we really cared about orientation (and assuming rooms can have them),
+			// we'd do the same thing to it.
+			this.applyObjectToOpacityRaster( proto, obj.stateFlags, objPosBuf, objectOrientation(obj) );
 		}
 	}
 	

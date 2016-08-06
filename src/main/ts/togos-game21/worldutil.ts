@@ -5,6 +5,7 @@ import { Game, ProtoObject, PhysicalObject, PhysicalObjectType, TileTree } from 
 import { deepFreeze } from './DeepFreezer';
 import { hash, sha1Urn, base32Encode } from '../tshash/index';
 import SHA1 from '../tshash/SHA1';
+import { coalesce2 } from './util';
 
 const posBuffer0:Vector3D=new Vector3D;
 
@@ -147,4 +148,11 @@ export function connectRooms( game:Game, room0Ref:string, room1Ref:string, offse
 		bounds: room0.bounds,
 	}
 	return neighborKey;
+}
+
+export function objectVelocity(obj:PhysicalObject):Vector3D {
+	return coalesce2(obj.velocity, Vector3D.ZERO);
+}
+export function objectOrientation(obj:PhysicalObject):Quaternion {
+	return coalesce2(obj.orientation, Quaternion.IDENTITY);
 }

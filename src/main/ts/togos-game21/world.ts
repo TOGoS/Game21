@@ -17,11 +17,19 @@ export interface RoomNeighbor {
 	roomRef:string;
 }
 
+// TODO: Separate into:
+// - RoomGameObject (object + position)
+// - GameObject (object class reference + state)
+// - GameObjectClass (currently 'ProtoObject')
+
 export enum PhysicalObjectType {
 	TILE_TREE,
 	INDIVIDUAL
 }
 
+/**
+ * These should be considered immutable.
+ */
 export interface ProtoObject {
 	type:PhysicalObjectType;
 	

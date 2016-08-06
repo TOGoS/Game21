@@ -2,16 +2,13 @@ import ProceduralShape from './ProceduralShape';
 import Rectangle from './Rectangle';
 import Cuboid from './Cuboid';
 import Vector3D from './Vector3D';
+import Quaternion from './Quaternion';
 import KeyedList from './KeyedList';
 import { newUuidRef } from './DemoWorldGenerator';
-import { PhysicalObjectType, PhysicalObject, TileTree, Room, Game, HUNIT_CUBE } from './world';
+import { PhysicalObjectType, PhysicalObject, ProtoObject, TileTree, Room, Game, HUNIT_CUBE } from './world';
 import { eachSubObject } from './worldutil';
 import { deepFreeze, isDeepFrozen, thaw } from './DeepFreezer';
-
-function coalesce<T>(v:T, v1:T):T {
-	if( v != null ) return v;
-	return v1;
-}
+import { coalesce2 } from './util';
 
 function defreezeItem<T>( c:any, k:any, o?:T ):T {
 	if( o == null ) o = c[k];
@@ -60,8 +57,8 @@ function displacedCuboid( c:Cuboid, d:Vector3D, dest:Cuboid ):Cuboid {
 declare function Symbol(name:string):symbol;
 
 type CollisionCallback = (
-	room0Ref:string, rootObj0Ref:string, obj0:PhysicalObject, pos0:Vector3D, vel0:Vector3D,
-	room1Ref:string, rootObj1Ref:string, obj1:PhysicalObject, pos1:Vector3D, vel1:Vector3D
+	room0Ref:string, rootObj0Ref:string, proto0:ProtoObject, pos0:Vector3D, vel0:Vector3D,
+	room1Ref:string, rootObj1Ref:string, proto1:ProtoObject, pos1:Vector3D, vel1:Vector3D
 ) => void;
 
 const obj1RelativePosition = new Vector3D;
@@ -83,9 +80,15 @@ export default class RoomGroupSimulator {
 		this.game = game;
 	}
 	
+	protected prototype( obj:PhysicalObject ) {
+		const proto = this.game.protoObjects[obj.prototypeRef];
+		if( proto == undefined ) throw new Error("Failed to find prototype "+obj.prototypeRef);
+		return proto;
+	}
+	
 	protected objectIsActive( obj:PhysicalObject ) {
 		if( obj.velocity != null && !obj.velocity.isZero ) return true;
-		if( obj.isAffectedByGravity ) return true;
+		if( this.prototype(obj).isAffectedByGravity ) return true;
 		// Potentially other things!
 		return false;
 	}
@@ -126,8 +129,8 @@ export default class RoomGroupSimulator {
 	}
 	
 	protected _findCollision2(
-		room0Ref:string, rootObj0Ref:string, obj0:PhysicalObject, pos0:Vector3D, vel0:Vector3D,
-		room1Ref:string, rootObj1Ref:string, obj1:PhysicalObject, pos1:Vector3D, vel1:Vector3D,
+		room0Ref:string, rootObj0Ref:string, proto0:ProtoObject, pos0:Vector3D, vel0:Vector3D,
+		room1Ref:string, rootObj1Ref:string, proto1:ProtoObject, pos1:Vector3D, vel1:Vector3D,
 		callback:CollisionCallback
 	):void {
 		obj1RelativePosition.set(
@@ -135,9 +138,10 @@ export default class RoomGroupSimulator {
 			pos1.y - pos0.y,
 			pos1.z - pos0.z
 		);
-		displacedCuboid(obj1.physicalBoundingBox, obj1RelativePosition, obj1RelativeCuboid);
 		
-		const obj0Cuboid = obj0.physicalBoundingBox;
+		displacedCuboid(proto1.physicalBoundingBox, obj1RelativePosition, obj1RelativeCuboid);
+		
+		const obj0Cuboid = proto0.physicalBoundingBox;
 		// Touching at the edge counts as a collision because we'll want to figure friction, etc
 		if( obj1RelativeCuboid.minX > obj0Cuboid.maxX ) return;
 		if( obj1RelativeCuboid.minY > obj0Cuboid.maxY ) return;
@@ -146,28 +150,28 @@ export default class RoomGroupSimulator {
 		if( obj1RelativeCuboid.maxY < obj0Cuboid.minY ) return;
 		if( obj1RelativeCuboid.maxZ < obj0Cuboid.minZ ) return;
 		
-		if( obj0.isInteractive && obj1.isInteractive ) { // Or interactive in some way that we care about!
+		if( proto0.isInteractive && proto1.isInteractive ) { // Or interactive in some way that we care about!
 			// Well there's your collision right there!
 			// (unless I add more detailed shapes in the future)
 			//const relativePosition = deepFreeze(obj1RelativePosition);
 			//const relativeVelocity = deepFreeze(new Vector3D(vel1.x-vel0.x, vel1.y-vel0.y, vel1.z-vel0.z));
 			callback(
-				room0Ref, rootObj0Ref, obj0, pos0, vel0,
-				room1Ref, rootObj1Ref, obj1, pos1, vel1 );
-		} else if( obj0.type != PhysicalObjectType.INDIVIDUAL ) {
+				room0Ref, rootObj0Ref, proto0, pos0, vel0,
+				room1Ref, rootObj1Ref, proto1, pos1, vel1 );
+		} else if( proto0.type != PhysicalObjectType.INDIVIDUAL ) {
 			throw new Error("Oh no, trying to find tree-tree collisions, omg why");
 			/*
-			eachSubObject( obj0, pos0, this.game, (subObj, subPos) => {
+			eachSubObject( proto0, pos0, this.game, (subObj, subPos) => {
 				this._findCollision2(
 					room0Ref, rootObj0Ref, subObj, subPos, vel0,
-					room1Ref, rootObj1Ref, obj1  , pos1  , vel1,
+					room1Ref, rootObj1Ref, proto1  , pos1  , vel1,
 					callback );
 			}, this);
 			*/
-		} else if( obj1.type != PhysicalObjectType.INDIVIDUAL ) {
-			eachSubObject( obj1, pos1, this.game, (subObj, subPos) => {
+		} else if( proto1.type != PhysicalObjectType.INDIVIDUAL ) {
+			eachSubObject( proto1, pos1, this.game, (subObj:ProtoObject, statef:number, subPos:Vector3D, orientation:Quaternion) => {
 				this._findCollision2(
-					room0Ref, rootObj0Ref, obj0  , pos0  , vel0,
+					room0Ref, rootObj0Ref, proto0  , pos0  , vel0,
 					room1Ref, rootObj1Ref, subObj, subPos, vel1,
 					callback );
 			}, this);
@@ -176,6 +180,7 @@ export default class RoomGroupSimulator {
 	
 	protected _findCollisions( room0Ref:string, obj0Ref:string, obj0:PhysicalObject, room1Ref:string, room1Pos:Vector3D, callback:CollisionCallback ):void {
 		const room1 = this.game.rooms[room1Ref];
+		const proto0 = this.prototype(obj0);
 		for( const obj1Ref in room1.objects ) {
 			if( obj1Ref == obj0Ref ) continue;
 			
@@ -185,15 +190,17 @@ export default class RoomGroupSimulator {
 			//if( !obj1Position ) throw new Error("Object "+obj1Ref+" has no position");
 			const obj0Position = obj0.position;
 			//if( !obj0Position ) throw new Error("Object "+obj0Ref+" has no position");
-				
+			
+			const proto1 = this.prototype(obj1);
+			
 			obj1RelativePosition.set(
 				room1Pos.x + obj1Position.x - obj0Position.x,
 				room1Pos.y + obj1Position.y - obj0Position.y,
 				room1Pos.z + obj1Position.z - obj0Position.z
 			);
-			displacedCuboid(obj1.physicalBoundingBox, obj1RelativePosition, obj1RelativeCuboid);
+			displacedCuboid(proto1.physicalBoundingBox, obj1RelativePosition, obj1RelativeCuboid);
 						
-			const obj0Cuboid = obj0.physicalBoundingBox;
+			const obj0Cuboid = proto0.physicalBoundingBox;
 			// Touching at the edge counts as a collision because we'll want to figure friction, etc
 			if( obj1RelativeCuboid.minX > obj0Cuboid.maxX ) continue;
 			if( obj1RelativeCuboid.minY > obj0Cuboid.maxY ) continue;
@@ -203,8 +210,8 @@ export default class RoomGroupSimulator {
 			if( obj1RelativeCuboid.maxZ < obj0Cuboid.minZ ) continue;
 			
 			this._findCollision2(
-				room0Ref, obj0Ref, obj0, Vector3D.ZERO, obj0.velocity ? obj0.velocity : Vector3D.ZERO,
-				room1Ref, obj1Ref, obj1, obj1RelativePosition, obj1.velocity ? obj1.velocity : Vector3D.ZERO,
+				room0Ref, obj0Ref, proto0, Vector3D.ZERO, obj0.velocity ? obj0.velocity : Vector3D.ZERO,
+				room1Ref, obj1Ref, proto1, obj1RelativePosition, obj1.velocity ? obj1.velocity : Vector3D.ZERO,
 				callback
 			);
 		}
@@ -266,19 +273,27 @@ export default class RoomGroupSimulator {
 		return objId;
 	}
 	
+	protected getRoomObject( roomRef:string, objRef:string ):PhysicalObject {
+		const room = this.game.rooms[roomRef];
+		if( room == null ) throw new Error("No such room as '"+roomRef+"'");
+		const obj = room.objects[objRef];
+		if( obj == null ) throw new Error("No such object as '"+objRef+"' in room '"+roomRef+"'");
+		return obj;
+	}
+	
 	// New, better!  (maybe)
 	/**
 	 * Return true if this should stop obj0 from moving for this tick
 	 */
 	protected handleCollision(
-		room0Ref:string, rootObj0Ref:string, obj0:PhysicalObject, pos0:Vector3D, vel0:Vector3D,
-		room1Ref:string, rootObj1Ref:string, obj1:PhysicalObject, pos1:Vector3D, vel1:Vector3D
+		room0Ref:string, rootObj0Ref:string, proto0:ProtoObject, pos0:Vector3D, vel0:Vector3D,
+		room1Ref:string, rootObj1Ref:string, proto1:ProtoObject, pos1:Vector3D, vel1:Vector3D
 	):boolean {
-		if( obj0.velocity == null ) return false; // let's say for now that null velocity means immobile
-		if( !obj0.isRigid || !obj1.isRigid ) return false;
+		if( vel0 == null ) return false; // let's say for now that null velocity means immobile
+		if( !proto0.isRigid || !proto1.isRigid ) return false;
 		
 		const relPos = Vector3D.subtract(pos1, pos0);
-		const otherBbRel = displacedCuboid(obj1.physicalBoundingBox, relPos, new Cuboid);
+		const otherBbRel = displacedCuboid(proto1.physicalBoundingBox, relPos, new Cuboid);
 		//console.log("Collision; relative position = "+vectorStr(relPos), "otherBbRel", otherBbRel);
 		
 		// TODO: bouncing spheres?  Or other odd shapes?  Calculate different!
@@ -288,19 +303,19 @@ export default class RoomGroupSimulator {
 		// Bouncing is based on object's center line(s) intersecting the other object.
 		// This isn't exactly right but works okay for 'regularish shapes'
 		if( otherBbRel.minX <= 0 && otherBbRel.maxX >= 0 ) {
-			if( otherBbRel.minY > 0 && obj0.physicalBoundingBox.maxY > otherBbRel.minY ) {
-				overlapBottom = Math.max(obj0.physicalBoundingBox.maxY - otherBbRel.minY);
+			if( otherBbRel.minY > 0 && proto0.physicalBoundingBox.maxY > otherBbRel.minY ) {
+				overlapBottom = Math.max(proto0.physicalBoundingBox.maxY - otherBbRel.minY);
 			}
-			if( otherBbRel.maxY < 0 && obj0.physicalBoundingBox.minY < otherBbRel.maxY ) {
-				overlapTop = Math.max(overlapTop, otherBbRel.maxY - obj0.physicalBoundingBox.minY);
+			if( otherBbRel.maxY < 0 && proto0.physicalBoundingBox.minY < otherBbRel.maxY ) {
+				overlapTop = Math.max(overlapTop, otherBbRel.maxY - proto0.physicalBoundingBox.minY);
 			}
 		}
 		if( otherBbRel.minY <= 0 && otherBbRel.maxY >= 0 ) {
-			if( otherBbRel.minX > 0 && obj0.physicalBoundingBox.maxX > otherBbRel.minX ) {
-				overlapRight = Math.max(overlapRight, obj0.physicalBoundingBox.maxX - otherBbRel.minX);
+			if( otherBbRel.minX > 0 && proto0.physicalBoundingBox.maxX > otherBbRel.minX ) {
+				overlapRight = Math.max(overlapRight, proto0.physicalBoundingBox.maxX - otherBbRel.minX);
 			}
-			if( otherBbRel.maxX < 0 && obj0.physicalBoundingBox.minX < otherBbRel.maxX ) {
-				overlapLeft = Math.max(overlapLeft, otherBbRel.maxX - obj0.physicalBoundingBox.minX);
+			if( otherBbRel.maxX < 0 && proto0.physicalBoundingBox.minX < otherBbRel.maxX ) {
+				overlapLeft = Math.max(overlapLeft, otherBbRel.maxX - proto0.physicalBoundingBox.minX);
 			}
 		}
 		
@@ -314,10 +329,13 @@ export default class RoomGroupSimulator {
 		
 		//console.log("bounce (post-cancel)", bounceUp, bounceDown, bounceLeft, bounceRight);
 		
-		const obj0Mass = coalesce(obj0.mass, Infinity);
+		const obj0 = this.getRoomObject(room0Ref,rootObj0Ref);
+		const obj1 = this.getRoomObject(room1Ref,rootObj1Ref);
+		
+		const obj0Mass = coalesce2(proto0.mass, Infinity);
 		if( obj0Mass == Infinity ) throw new Error("Moving object has null/infinite mass");
-		const obj1Mass = obj1.velocity == null ? Infinity : coalesce(obj1.mass, Infinity);
-		const obj1FakeMass = obj1Mass == Infinity ? obj0.mass*1000 : obj1.mass;
+		const obj1Mass = coalesce2(proto1.mass, Infinity);
+		const obj1FakeMass = obj1Mass == Infinity ? proto0.mass*1000 : proto1.mass;
 		const totalMass = obj0Mass + obj1FakeMass;
 		
 		const cmX:number = (pos0.x*obj0Mass + pos1.x*obj1FakeMass)/totalMass;
@@ -333,8 +351,8 @@ export default class RoomGroupSimulator {
 		
 		let updatedObj0 = false;
 		let updatedObj1 = false;
-		
-		if( obj0.position && obj0Mass != Infinity && displace0Factor > 0 ) {
+				
+		if( obj0Mass != Infinity && displace0Factor > 0 ) {
 			obj0.position = new Vector3D(
 				obj0.position.x + displaceX * displace0Factor,
 				obj0.position.y + displaceY * displace0Factor,
@@ -366,7 +384,7 @@ export default class RoomGroupSimulator {
 		
 		// Relative (to obj0's) velocity of the center of mass
 		
-		const bounciness = coalesce(obj0.bounciness, 0.5)*coalesce(obj1.bounciness, 0.5);
+		const bounciness = coalesce2(proto0.bounciness, 0.5)*coalesce2(proto1.bounciness, 0.5);
 		
 		if( obj0.velocity ) {
 			const relTotal0Vx = totalVx - vel0.x;
@@ -403,8 +421,9 @@ export default class RoomGroupSimulator {
 		for( const o in this.activeObjects ) {
 			let obj = this.activeObjects[o];
 			const room = rooms[objRoomRef(obj)];
+			const proto = this.prototype(obj);
 			
-			if( obj.isAffectedByGravity ) {
+			if( proto.isAffectedByGravity ) {
 				obj = defreezeItem<PhysicalObject>(room.objects, o, obj);
 				const ov = obj.velocity ? obj.velocity : Vector3D.ZERO;
 				obj.velocity = new Vector3D( ov.x, ov.y, ov.z );
@@ -415,8 +434,8 @@ export default class RoomGroupSimulator {
 				let ov = obj.velocity;
 				if( ov && !ov.isZero ) {
 					obj = defreezeItem<PhysicalObject>(room.objects, o, obj);
-					ov = obj.velocity = fitVectorToBoundingBox( ov, obj.physicalBoundingBox, 10/interval );
-					const invStepCount = vectorToBoundingBoxFitScale( ov, obj.physicalBoundingBox, 0.875/interval );
+					ov = obj.velocity = fitVectorToBoundingBox( ov, proto.physicalBoundingBox, 10/interval );
+					const invStepCount = vectorToBoundingBoxFitScale( ov, proto.physicalBoundingBox, 0.875/interval );
 					const stepCount = Math.ceil( 1 / invStepCount );
 					//if( stepCount > 10 ) console.log("Lots of steps! "+stepCount);
 					const stepSize = interval/stepCount;
@@ -434,12 +453,12 @@ export default class RoomGroupSimulator {
 						}
 							
 						this.findCollisions(objRoomRef(obj), o, (
-							cRoom0Ref:string, cRootObj0Ref:string, cObj0:PhysicalObject, cPos0:Vector3D, cVel0:Vector3D,
-							cRoom1Ref:string, cRootObj1Ref:string, cObj1:PhysicalObject, cPos1:Vector3D, cVel1:Vector3D
+							cRoom0Ref:string, cRootObj0Ref:string, cProto0:ProtoObject, cPos0:Vector3D, cVel0:Vector3D,
+							cRoom1Ref:string, cRootObj1Ref:string, cProto1:ProtoObject, cPos1:Vector3D, cVel1:Vector3D
 						) => {
 							if( this.handleCollision(
-								cRoom0Ref, cRootObj0Ref, cObj0, cPos0, cVel0,
-								cRoom1Ref, cRootObj1Ref, cObj1, cPos1, cVel1
+								cRoom0Ref, cRootObj0Ref, cProto0, cPos0, cVel0,
+								cRoom1Ref, cRootObj1Ref, cProto1, cPos1, cVel1
 							) ) foundCollisions = true; // Do we even really need this?  We can look at new velocity.
 						});
 					}

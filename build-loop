@@ -1,0 +1,8 @@
+#!/bin/bash
+
+set -x
+
+while true ; do
+      make build.log
+      sleep 4
+done

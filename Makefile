@@ -69,3 +69,7 @@ run-unit-tests-verbosely: target/cjs
 
 run-router: target/cjs
 	node target/cjs/togos-game21/Router.js
+
+build.log: $(shell find src)
+	-${MAKE} run-unit-tests >build2.log 2>&1
+	mv build2.log build.log
