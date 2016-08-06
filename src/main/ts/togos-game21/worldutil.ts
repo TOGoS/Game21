@@ -1,7 +1,7 @@
 import Vector3D from './Vector3D';
 import Quaternion from './Quaternion';
 import Cuboid from './Cuboid';
-import { Game, PhysicalObject, PhysicalObjectType, TileTree } from './world';
+import { Game, ProtoObject, PhysicalObject, PhysicalObjectType, TileTree } from './world';
 import { deepFreeze } from './DeepFreezer';
 import { hash, sha1Urn, base32Encode } from '../tshash/index';
 import SHA1 from '../tshash/SHA1';
@@ -28,7 +28,7 @@ function objectPrototypeRef( op?:any, game?:Game ):string|null {
 	if( game == null ) throw new Error("Can't generate object prototype ref without game object"); // Well, really we should be able to for hash URN things eventually
 	
 	const ref:string = saveObject(op);
-	game.objectPrototypes[ref] = op;
+	game.protoObjects[ref] = op;
 	return ref;
 }
 
@@ -59,7 +59,7 @@ export function eachSubObject(
 		const tt:TileTree = <TileTree>proto;
 		const tilePaletteIndexes = tt.childObjectIndexes;
 		const tilePalette = game.tilePalettes[tt.childObjectPaletteRef];
-		const objectPrototypes = game.objectPrototypes;
+		const protoObjects = game.protoObjects;
 		const xd = tt.tilingBoundingBox.width/tt.xDivisions;
 		const yd = tt.tilingBoundingBox.height/tt.yDivisions;
 		const zd = tt.tilingBoundingBox.depth/tt.zDivisions;
@@ -69,12 +69,12 @@ export function eachSubObject(
 		for( let i=0, z=0; z < tt.zDivisions; ++z ) for( let y=0; y < tt.yDivisions; ++y ) for( let x=0; x < tt.xDivisions; ++x, ++i ) {
 			const childId = tilePalette[tilePaletteIndexes[i]];
 			if( childId != null ) {
-				const child = objectPrototypes[childId];
+				const child = protoObjects[childId];
 				callback.call( callbackThis, child, posBuffer.set(x0+x*xd, y0+y*yd, z0+z*zd) );
 			}
 		}
 	} else {
-		throw new Error("Unrecognized physical object type: "+ptoto.type);
+		throw new Error("Unrecognized physical object type: "+proto.type);
 	}
 }
 
@@ -90,7 +90,7 @@ export function makeTileTreeNode( palette:any, w:number, h:number, d:number, _in
 	for( let t in tilePalette ) {
 		const tileRef = tilePalette[t];
 		if( tileRef == null ) continue;
-		const tile = game.objectPrototypes[tileRef];
+		const tile = game.protoObjects[tileRef];
 		if( tile == null ) throw new Error("Couldn't find tile "+tileRef+" while calculating size for tile tree; given palette: "+JSON.stringify(palette)+"; "+JSON.stringify(tilePalette));
 		tileW = Math.max(tile.tilingBoundingBox.width , tileW);
 		tileH = Math.max(tile.tilingBoundingBox.height, tileH);
@@ -101,15 +101,13 @@ export function makeTileTreeNode( palette:any, w:number, h:number, d:number, _in
 	for( let i = w*d*h-1; i >= 0; --i ) {
 		const tileRef = tilePalette[indexes[i]];
 		if( tileRef == null ) continue;
-		const tile = game.objectPrototypes[tileRef];
+		const tile = game.protoObjects[tileRef];
 		totalOpacity += tile.opacity ? tile.opacity : 0;
 	}
 	
 	const tilingBoundingBox = new Cuboid(-tileW*w/2, -tileH*h/2, -tileD*d/2, +tileW*w/2, +tileH*h/2, +tileD*d/2);
 	
 	return {
-		position: Vector3D.ZERO,
-		orientation: Quaternion.IDENTITY,
 		visualBoundingBox: tilingBoundingBox, // TODO: potentially different!
 		physicalBoundingBox: tilingBoundingBox, // TODO: potentially different!
 		type: PhysicalObjectType.TILE_TREE,
@@ -121,7 +119,6 @@ export function makeTileTreeNode( palette:any, w:number, h:number, d:number, _in
 		childObjectIndexes: indexes,
 		// These don't really make sense to have to have on a tile tree
 		isAffectedByGravity: false,
-		stateFlags: 0,
 		visualRef: undefined,
 		opacity: totalOpacity/(w*h*d),
 	}
@@ -130,7 +127,7 @@ export function makeTileTreeNode( palette:any, w:number, h:number, d:number, _in
 export function makeTileTreeRef( palette:any, w:number, h:number, d:number, indexes:any, game:Game ):string {
 	const tt:TileTree = makeTileTreeNode(palette, w, h, d, indexes, game);
 	const ref:string = saveObject(tt);
-	game.objectPrototypes[ref] = tt;
+	game.protoObjects[ref] = tt;
 	return ref;
 }
 
