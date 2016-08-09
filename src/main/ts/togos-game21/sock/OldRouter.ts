@@ -1,9 +1,9 @@
 // Deprecated; use RouterCLI instead
-/// <reference path="../node.d.ts"/>
-/// <reference path="../express.d.ts"/>
+/// <reference path="../../node.d.ts"/>
+/// <reference path="../../express.d.ts"/>
 
-import KeyedList from './KeyedList';
-import IP6Address, {parseIp6Address, stringifyIp6Address} from './inet/IP6Address';
+import KeyedList from '../KeyedList';
+import IP6Address, {parseIp6Address, stringifyIp6Address} from '../inet/IP6Address';
 import WebSocketLike from './WebSocketLike';
 import WSWebSocket from './WSWebSocket';
 

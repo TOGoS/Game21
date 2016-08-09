@@ -9,11 +9,11 @@ import {
 	Server as HTTPServer,
 	createServer as createHttpServer
 } from 'http';
-import WebSocketLike from '../WebSocketLike';
-import WSWebSocket from '../WSWebSocket';
+import WebSocketLike from './WebSocketLike';
+import WSWebSocket from './WSWebSocket';
 import Express, {Request as ExpressRequest, Response as ExpressResponse} from 'express';
 
-import Router from './Router';
+import Router from '../inet/Router';
 
 function setExitCode( c:number ):void {
 	if( typeof(process) == 'object' ) process.exitCode = c;

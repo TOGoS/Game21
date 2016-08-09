@@ -1,4 +1,4 @@
-/// <reference path="../express.d.ts"/>
+/// <reference path="../../express.d.ts"/>
 
 import WebSocketLike from './WebSocketLike';
 import {Request as ExpressRequest} from 'express';
