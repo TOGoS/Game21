@@ -9,6 +9,9 @@ import {
 	Server as HTTPServer,
 	createServer as createHttpServer
 } from 'http';
+import WebSocketLike from '../WebSocketLike';
+import WSWebSocket from '../WSWebSocket';
+import Express, {Request as ExpressRequest, Response as ExpressResponse} from 'express';
 
 import Router from './Router';
 
