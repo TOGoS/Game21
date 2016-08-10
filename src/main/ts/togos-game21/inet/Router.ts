@@ -1,9 +1,23 @@
 import RoutingTable from './RoutingTable';
-import { IPMessage, disassembleIpPacket } from './ip';
+import {
+	IPMessage,
+	assembleIpPacket,
+	disassembleIpPacket
+} from './ip';
+import { stringifyIp6Address } from './IP6Address';
+import {
+	ICMP_PROTOCOL_NUMBER,
+	ICMP_TYPE_PING,
+	ICMP_TYPE_PONG,
+	ICMPMessage,
+	calculateIcmp6Checksum,
+	assembleIcmp6Packet,
+	disassembleIcmp6Packet
+} from './icmp6';
 import PacketDecodeError from './PacketDecodeError';
 import KeyedList from '../KeyedList';
 
-type PacketHandler = (packet:Uint8Array)=>void;
+export type PacketHandler = (packet:Uint8Array)=>void;
 
 export interface Link {
 	/** Incoming packets should be passed to handler */
@@ -14,7 +28,7 @@ export interface Link {
 	send(packet:Uint8Array):void;
 }
 
-type LinkID = string;
+export type LinkID = string;
 
 export default class Router
 {
@@ -23,20 +37,63 @@ export default class Router
 	protected links : KeyedList<Link> = {}
 	public routerAddress? : Uint8Array;
 	public shouldRespondToPings : boolean = false;
-	public shouldSendUnreachablilityMessages : boolean = false;
+	public shouldSendUnreachabilityMessages : boolean = false;
 	
 	public newLinkId(pfx?:string) {
 		if( !pfx ) pfx = "link";
 		return pfx+this.nextLinkId++;
 	}
 	
-	public handlePacket( packet:Uint8Array, sourceLinkId?:LinkID ) {
+	protected isRouterAddress( address:Uint8Array ):boolean {
+		const ra = this.routerAddress
+		if( !ra ) return false;
+		if( address.length != ra.length ) return false;
+		for( let i = address.length-1; i >= 0; --i ) {
+			if( ra[i] != address[i] ) return false;
+		}
+		return true;
+	}
+	
+	protected handleOwnIcmpMessage( icmpMessage:ICMPMessage, ipMessage:IPMessage, sourceLinkId?:LinkID ):void {
+		if( !this.shouldRespondToPings ) return;
+		if( icmpMessage.type != ICMP_TYPE_PING ) return;
+
+		const calcChecksum = calculateIcmp6Checksum( ipMessage.sourceAddress, ipMessage.destAddress, icmpMessage );
+		if( calcChecksum != icmpMessage.checksum ) {
+			console.log("Bad ICMP checksum "+icmpMessage.checksum+" != expected "+calcChecksum);
+			return;
+		}
+		
+		const responseMessage:IPMessage = {
+			ipVersion: 6,
+			sourceAddress: ipMessage.destAddress,
+			destAddress: ipMessage.sourceAddress,
+			protocolNumber: ICMP_PROTOCOL_NUMBER,
+			hopLimit: 64,
+			payload: assembleIcmp6Packet({
+				type: ICMP_TYPE_PONG,
+				code: 0,
+				payload: icmpMessage.payload,
+			}, ipMessage.destAddress, ipMessage.sourceAddress)
+		};
+		const responsePacket = assembleIpPacket(responseMessage);
+		this.route( responsePacket, responseMessage );
+	}
+	
+	protected handleOwnIpMessage( ipMessage:IPMessage, sourceLinkId?:LinkID ):void {
+		if( ipMessage.protocolNumber == ICMP_PROTOCOL_NUMBER ) {
+			const icmpMessage = disassembleIcmp6Packet(ipMessage.payload);
+			this.handleOwnIcmpMessage(icmpMessage, ipMessage, sourceLinkId);
+		}
+	}
+	
+	public handlePacket( packet:Uint8Array, sourceLinkId?:LinkID ):void {
 		let ipMessage:IPMessage;
 		try {
 			ipMessage = disassembleIpPacket(packet);
 		} catch( e ) {
 			if( e instanceof PacketDecodeError ) {
-				console.log("Failed to decode packet from "+sourceLinkId+": "+e.message);
+				console.log("Failed to disassemble packet from "+sourceLinkId+": "+e.message);
 				return;
 			} else {
 				console.error("Error while decoding packet from "+sourceLinkId+": "+e.message);
@@ -44,9 +101,25 @@ export default class Router
 			}
 		}
 		
+		if( this.isRouterAddress(ipMessage.destAddress) ) {
+			this.handleOwnIpMessage(ipMessage, sourceLinkId);
+		} else {
+			this.route( packet, ipMessage, sourceLinkId );
+		}
+	}
+	
+	public route( packet:Uint8Array, ipMessage:IPMessage, sourceLinkId?:LinkID ):void {
 		const destId = this.routingTable.findDestination(ipMessage.destAddress);
 		if( destId == null ) {
 			// TODO: send 'unreachable' message?
+			console.warn("Failed to find destination link for address "+stringifyIp6Address(ipMessage.destAddress));
+			return;
+		}
+		if( destId == sourceLinkId ) {
+			// Don't participate in loops
+			console.warn(
+				"Refusing to route packet from "+sourceLinkId+" back to itself (destination "+
+					stringifyIp6Address(ipMessage.destAddress));
 			return;
 		}
 		const destLink = this.links[destId];

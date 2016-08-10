@@ -383,7 +383,7 @@ declare namespace NodeJS {
 /**
  * @deprecated
  */
-interface NodeBuffer {
+interface NodeBuffer extends Uint8Array {
     [index: number]: number;
     write(string: string, offset?: number, length?: number, encoding?: string): number;
     toString(encoding?: string, start?: number, end?: number): string;
@@ -429,7 +429,7 @@ interface NodeBuffer {
     writeFloatBE(value: number, offset: number, noAssert?: boolean): number;
     writeDoubleLE(value: number, offset: number, noAssert?: boolean): number;
     writeDoubleBE(value: number, offset: number, noAssert?: boolean): number;
-    fill(value: any, offset?: number, end?: number): Buffer;
+    fill(value: any, offset?: number, end?: number): this;
     indexOf(value: string | number | Buffer, byteOffset?: number): number;
 }
 

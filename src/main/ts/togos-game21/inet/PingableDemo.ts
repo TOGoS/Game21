@@ -7,10 +7,13 @@ import {
 	IPMessage, IP6Message, disassembleIpPacket, assembleIpPacket
 } from './ip';
 import {
-	ICMP6Message,
+	ICMPMessage,
 	assembleIcmp6Packet,
 	disassembleIcmp6Packet,
-	calculateIcmp6Checksum
+	calculateIcmp6Checksum,
+	ICMP_PROTOCOL_NUMBER,
+	ICMP_TYPE_PING,
+	ICMP_TYPE_PONG
 } from './icmp6';
 import {
 	UDPMessage,
@@ -65,12 +68,11 @@ tun = new UDPTunnel( (packet:Uint8Array) => {
 			ipMessage.protocolNumber
 		);
 		if( ipMessage.protocolNumber == 17 ) {
-			console.log("Ping!");
+			console.log("UDP!");
 			const udpMessage = disassembleUdpPacket( ipMessage.payload );
 			const calcChecksum = calculateUdp6Checksum( ipMessage.sourceAddress, ipMessage.destAddress, udpMessage );
 			console.log("Included checksum: "+udpMessage.checksum+", calculated: "+calcChecksum);
-		} else if( ipMessage.protocolNumber == 58 ) {
-			// It's a ping!  Let's respond to it.
+		} else if( ipMessage.protocolNumber == ICMP_PROTOCOL_NUMBER ) {
 			const icmp6Message = disassembleIcmp6Packet( ipMessage.payload );
 			console.log("Received ICMP6 message; type="+icmp6Message.type+", code="+icmp6Message.code);
 			const calculatedChecksum = calculateIcmp6Checksum(ipMessage.sourceAddress, ipMessage.destAddress, icmp6Message);
@@ -78,9 +80,10 @@ tun = new UDPTunnel( (packet:Uint8Array) => {
 				console.log("Received ICMP6 packet with invalid checksum; dropping.");
 				return;
 			}
-			if( icmp6Message.type == 128 ) {
-				const responseMessage:ICMP6Message = {
-					type: 129,
+			if( icmp6Message.type == ICMP_TYPE_PING ) {
+				// It's a ping!  Let's respond to it.
+				const responseMessage:ICMPMessage = {
+					type: ICMP_TYPE_PONG,
 					code: 0,
 					payload: icmp6Message.payload
 				};

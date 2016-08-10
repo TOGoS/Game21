@@ -21,7 +21,7 @@ export function parseIp6Address(addrText:string):IP6Address {
 			}
 		}
 	}
-	if( wordTexts.length != 8 && !implicitBlanks ) {
+	if( wordTexts.length < 8 && !implicitBlanks ) {
 		throw new Error("IP6 address doesn't have enough digit groups: "+addrText);
 	}
 	

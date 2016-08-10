@@ -1,9 +1,11 @@
 import IP6Address from './IP6Address';
 import checksumming, { tempDv, tempU8a, uint32ToU8a, initIp6PseudoHeaderChecksumming } from './checksumming';
 
-export const PROTOCOL_NUMBER = 58;
+export const ICMP_PROTOCOL_NUMBER = 58;
+export const ICMP_TYPE_PING = 128;
+export const ICMP_TYPE_PONG = 129;
 
-export interface ICMP6Message {
+export interface ICMPMessage {
 	type : number
 	code : number
 	checksum? : number
@@ -19,14 +21,14 @@ export interface ICMP6Message {
 //   icmp6 payload                                          /             /
 // )
 
-export function calculateIcmp6Checksum( sourceAddress:IP6Address, destAddress:IP6Address, icmpMessage:ICMP6Message ):number {
-	initIp6PseudoHeaderChecksumming( sourceAddress, destAddress, icmpMessage.payload.length + 4, PROTOCOL_NUMBER );
+export function calculateIcmp6Checksum( sourceAddress:IP6Address, destAddress:IP6Address, icmpMessage:ICMPMessage ):number {
+	initIp6PseudoHeaderChecksumming( sourceAddress, destAddress, icmpMessage.payload.length + 4, ICMP_PROTOCOL_NUMBER );
 	checksumming.update(uint32ToU8a((icmpMessage.type << 24) | (icmpMessage.code << 16) | 0));
 	checksumming.update(icmpMessage.payload);
 	return checksumming.digestAsUint16();
 }
 
-export function assembleIcmp6Packet( icmpMessage:ICMP6Message, sourceAddress:IP6Address, destAddress:IP6Address ):Uint8Array {
+export function assembleIcmp6Packet( icmpMessage:ICMPMessage, sourceAddress:IP6Address, destAddress:IP6Address ):Uint8Array {
 	if( icmpMessage.checksum == null ) {
 		icmpMessage.checksum = calculateIcmp6Checksum( sourceAddress, destAddress, icmpMessage );
 	}
@@ -39,7 +41,7 @@ export function assembleIcmp6Packet( icmpMessage:ICMP6Message, sourceAddress:IP6
 	return packet;
 }
 
-export function disassembleIcmp6Packet( packet:Uint8Array ):ICMP6Message {
+export function disassembleIcmp6Packet( packet:Uint8Array ):ICMPMessage {
 	return {
 		type : packet[0],
 		code : packet[1],
