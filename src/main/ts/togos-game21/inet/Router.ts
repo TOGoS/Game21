@@ -16,6 +16,7 @@ import {
 } from './icmp6';
 import PacketDecodeError from './PacketDecodeError';
 import KeyedList from '../KeyedList';
+import { compareByteArrays } from '../util';
 
 export type PacketHandler = (packet:Uint8Array)=>void;
 
@@ -47,11 +48,7 @@ export default class Router
 	protected isRouterAddress( address:Uint8Array ):boolean {
 		const ra = this.routerAddress
 		if( !ra ) return false;
-		if( address.length != ra.length ) return false;
-		for( let i = address.length-1; i >= 0; --i ) {
-			if( ra[i] != address[i] ) return false;
-		}
-		return true;
+		return compareByteArrays(ra, address) == 0;
 	}
 	
 	protected handleOwnIcmpMessage( icmpMessage:ICMPMessage, ipMessage:IPMessage, sourceLinkId?:LinkID ):void {
