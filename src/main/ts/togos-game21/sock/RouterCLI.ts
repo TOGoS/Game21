@@ -19,15 +19,69 @@ import {
 	RemoteInfo
 } from 'dgram';
 import {
+	Request as ExpressRequest,
+	Response as ExpressResponse,
+	App as ExpressApp,
+	AppCreationFunction as ExpressAppCreationFunction
+} from 'express';
+const createExpressApp = <ExpressAppCreationFunction>require('express');
+import { WebSocket, Server as WebSocketServer } from 'ws';
+import { parse as parseUrl } from 'url';
+
+import { utf8Encode } from '../../tshash/utils';
+import Router, { LinkID, Link, PacketHandler } from '../inet/Router';
+import {
 	parseIp6Address
 } from '../inet/IP6Address';
-import Express, {Request as ExpressRequest, Response as ExpressResponse} from 'express';
-import { WebSocket, Server as WebSocketServer } from 'ws';
-
-import Router, { LinkID, Link, PacketHandler } from '../inet/Router';
 
 function setExitCode( c:number ):void {
 	if( typeof(process) == 'object' ) process.exitCode = c;
+}
+
+class WebSocketLink implements Link {
+	protected handler? : PacketHandler;
+	
+	constructor(protected conn:WebSocketLike) {
+		conn.onmessage = (messageEvent:MessageEvent) => {
+			if( !this.handler ) return;
+			
+			let data = messageEvent.data;
+			
+			if( data instanceof Uint8Array ) {
+			} else if( data instanceof ArrayBuffer ) {
+				data = new Uint8Array(data);
+			} if( ArrayBuffer.isView(data) ) {
+				data = new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
+			} else if( typeof data == 'string' ) {
+				data = utf8Encode(data);
+			} else {
+				console.error("Received weird data from websocket.");
+				return;
+			}
+			
+			this.handler(data);
+		};
+	}
+	
+	/*
+	public attached(router:Router, name:LinkID) { }
+	public detached(router:Router, name:LinkID) { }
+	public send<T>(packetInfo:IPPacketInfo<T>) {
+		this.conn.send(JSON.stringify(packetInfo));
+	}
+	*/
+
+	public send( packet:Uint8Array ) {
+		this.conn.send( packet );
+	}
+	
+	public setUp( handler : PacketHandler ) {
+		this.handler = handler;
+	}
+	
+	public setDown() {
+		this.handler = undefined;
+	}
 }
 
 class UDPTunnelLink implements Link {
@@ -92,16 +146,33 @@ export default class RouterCLI {
 	}
 	
 	protected httpServer? : HTTPServer;
+	protected expressApp? : ExpressApp;
+	protected webSocketServer? : WebSocketServer;
 	protected getOrCreateWebServer():HTTPServer {
 		if( this.httpServer ) return this.httpServer;
 		
 		this.httpServer = createHttpServer();
+		this.expressApp = createExpressApp(); //require('express')();
+		this.expressApp.use( (req:ExpressRequest, res:ExpressResponse) => {
+			res.send("Hi.  Maybe ye want to Upgrade: websocket?\n");
+		});
+		this.httpServer.on('request', this.expressApp);
+		this.webSocketServer = new WebSocketServer({ server: this.httpServer });
+		function getRequestClientAddress(req:ExpressRequest) {
+			return req.ip || req.connection.remoteAddress;
+		}
+		this.webSocketServer.on('connection', (ws:WebSocket) => {
+			console.log("Received WebSocket connection from "+getRequestClientAddress(ws.upgradeReq));
+			
+			const location = parseUrl(ws.upgradeReq.url, true);
+			const linkId = this.router.newLinkId();
+			const link = new WebSocketLink(ws);			
+		});
 		return this.httpServer;
 	}
 	
 	protected openTunWebSocketServerPort( port:number ) {
 		const httpServer = this.getOrCreateWebServer();
-		// TODO: attach express app, web socket thinger, etc
 		httpServer.listen(port, () => console.log("Listening for HTTP requests on port "+port));
 	}
 	

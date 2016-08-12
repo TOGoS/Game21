@@ -18,6 +18,10 @@ declare module 'ws' {
 		server: http.Server
 	}
 	
+	interface SendOptions {
+		binary? : boolean;
+	}
+	
 	class WebSocket implements WebSocketLike {
 		public upgradeReq: express.Request; // It's some kind of HTTP request object
 
@@ -29,11 +33,12 @@ declare module 'ws' {
 		public onmessage : (event:any)=>void;
 		
 		public on(eventName:'message', listener:(data:any)=>void ):void;
+		public send(data:string|NodeBuffer|ArrayBuffer|ArrayBufferView, options?:SendOptions, callback?:(error?:any)=>void):void;
 	}
 	
 	class Server {
 		constructor( opts:ServerOpts );
 		
-		public on( event:"message", listener:(data:any)=>void ):void;
+		public on( event:"connection", listener:(ws:WebSocket)=>void ):void;
 	}
 }

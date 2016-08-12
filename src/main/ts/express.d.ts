@@ -9,6 +9,11 @@ declare module 'express' {
 		send(data:string|Buffer|Array<string|Buffer>):void;
 	}
 	
-	const Express : any;
-	export default Express;
+	export interface App {
+		(req:Request, res:Response):void;
+		use( ware:(req:Request, res:Response)=>void ):void;
+	}
+	
+	/** The thing actually returned by require('express') */
+	export type AppCreationFunction = () => App;
 }

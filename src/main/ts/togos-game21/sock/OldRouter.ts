@@ -6,7 +6,11 @@
 import KeyedList from '../KeyedList';
 import IP6Address, {parseIp6Address, stringifyIp6Address} from '../inet/IP6Address';
 
-import Express, {Request as ExpressRequest, Response as ExpressResponse} from 'express';
+import {
+	AppCreationFunction as ExpressAppCreationFunction,
+	Request as ExpressRequest,
+	Response as ExpressResponse
+} from 'express';
 import { WebSocket, Server as WebSocketServer } from 'ws';
 
 type LinkID = string;
@@ -151,7 +155,7 @@ class Router {
 		const httpServer = require('http').createServer();
 		const	URL = require('url');
 		const WebSocketServer = require('ws').Server;
-		const Express = require('express');
+		const createExpressApp = <ExpressAppCreationFunction>require('express');
 		
 		const webSocketServer = new WebSocketServer({ server: httpServer });
 		const port = 4080;
@@ -205,7 +209,7 @@ class Router {
 			});
 		});
 		
-		const exrpessApp = Express();
+		const exrpessApp = createExpressApp();
 		exrpessApp.use(function (req:ExpressRequest, res:ExpressResponse) {
 			res.send("Hi.  Maybe you want to Upgrade: websocket?");
 		});
