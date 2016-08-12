@@ -5,6 +5,10 @@
 
 // Node stuff
 /// <reference path="../../node.d.ts"/>
+/// <reference path="../../express.d.ts"/>
+/// <reference path="../../ws.d.ts"/>
+
+
 import {
 	Server as HTTPServer,
 	createServer as createHttpServer
@@ -17,9 +21,8 @@ import {
 import {
 	parseIp6Address
 } from '../inet/IP6Address';
-import WebSocketLike from './WebSocketLike';
-import WSWebSocket from './WSWebSocket';
 import Express, {Request as ExpressRequest, Response as ExpressResponse} from 'express';
+import { WebSocket, Server as WebSocketServer } from 'ws';
 
 import Router, { LinkID, Link, PacketHandler } from '../inet/Router';
 

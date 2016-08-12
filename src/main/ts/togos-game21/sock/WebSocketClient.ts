@@ -1,4 +1,4 @@
-import WebSocketLike from './WebSocketLike';
+/// <reference path="../../ws.d.ts"/>
 
 interface ConsoleLike {
 	log(...stuff:string[]):void;
