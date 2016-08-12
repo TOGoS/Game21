@@ -1,13 +1,13 @@
 // Deprecated; use RouterCLI instead
 /// <reference path="../../node.d.ts"/>
 /// <reference path="../../express.d.ts"/>
+/// <reference path="../../ws.d.ts"/>
 
 import KeyedList from '../KeyedList';
 import IP6Address, {parseIp6Address, stringifyIp6Address} from '../inet/IP6Address';
-import WebSocketLike from './WebSocketLike';
-import WSWebSocket from './WSWebSocket';
 
 import Express, {Request as ExpressRequest, Response as ExpressResponse} from 'express';
+import { WebSocket, Server as WebSocketServer } from 'ws';
 
 type LinkID = string;
 
@@ -86,10 +86,6 @@ abstract class Link {
 	abstract send<T>(packetInfo:IPPacketInfo<T>):void;
 }
 
-interface WebSocketServer {
-	on<EventType>(eventName:string, callback:(event:EventType)=>void ):void;
-}
-
 class WebSocketLink extends Link {
 	constructor(protected conn:WebSocketLike) {
 		super();
@@ -157,12 +153,10 @@ class Router {
 		const WebSocketServer = require('ws').Server;
 		const Express = require('express');
 		
-		const webSocketServer = <WebSocketServer>new WebSocketServer({ server: httpServer });
+		const webSocketServer = new WebSocketServer({ server: httpServer });
 		const port = 4080;
 		
-		webSocketServer.on('connection', _ws => {
-			const ws = <WSWebSocket>_ws;
-			
+		webSocketServer.on('connection', (ws:WebSocket) => {
 			console.log("Received WebSocket connection from "+getRequestClientAddress(ws.upgradeReq));
 			
 			const location = URL.parse(ws.upgradeReq.url, true);
