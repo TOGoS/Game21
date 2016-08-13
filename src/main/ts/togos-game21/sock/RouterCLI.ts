@@ -77,7 +77,12 @@ class WebSocketLink implements Link {
 	*/
 
 	public send( packet:Uint8Array ) {
-		this.conn.send( packet );
+		try {
+			this.conn.send( packet );
+		} catch( e ) {
+			console.log("Failed to send packet");
+			// TODO: refactor so that links can disconnect themselves.
+		}
 	}
 	
 	public setUp( handler : PacketHandler ) {
@@ -176,10 +181,8 @@ export default class RouterCLI {
 			const location = parseUrl(ws.upgradeReq.url, true);
 			const linkId = this.router.newLinkId('ws');
 			const link = new WebSocketLink(ws);
-			// For now just route 2001:4978:2ed:4::0/80
-			// to the most recently connected link
 			this.router.addLink( link, linkId );
-			this.router.addRoute( parseIp6Address('2001:4978:2ed:4::0'), 80, linkId );
+			// No routes automatically added!
 		});
 		return this.httpServer;
 	}
@@ -218,6 +221,15 @@ export default class RouterCLI {
 		}
 	}
 	
+	protected addAutoRoutePrefixFromString( autoRouteStr:string ):void {
+		const arParts = autoRouteStr.split('/', 3);
+		if( arParts.length == 1 ) throw new Error("Must include trigger prefix length in auto-route string");
+		const address = parseIp6Address(arParts[0]);
+		const triggerPrefixLength = parseInt(arParts[1]);
+		const routePrefixLength = arParts.length > 2 ? parseInt(arParts[3]) : 128;
+		this.router.addAutoRoutePrefix( address, triggerPrefixLength, routePrefixLength );
+	}
+	
 	public doCommand( command:string[] ):Promise<number> {
 		if( command.length == 0 ) {
 			throw new Error("Invalid (because zero-length) command given");
@@ -254,8 +266,8 @@ export default class RouterCLI {
 					throw new Error("Must include port after "+command[0]);
 				}
 				const port = parseInt(portStr);
-				const routeStr = command[2];
 				const linkId = this.openTunUdpPort(port);
+				const routeStr = command[2];
 				if( routeStr ) {
 					this.addRouteFromString( linkId, routeStr );
 				}
@@ -267,6 +279,15 @@ export default class RouterCLI {
 				console.log( stringifyIp6Address(prefix)+"/"+len+" via "+dest );
 			});
 			console.log("# End route list");
+			return NORMAL_COMMAND_RESULT_PROMISE;
+		case 'auto-route':
+			{
+				const autoRouteStr = command[1];
+				if( !autoRouteStr ) {
+					throw new Error("Must include auto route string (<address>/<trigger prefix>[/<route prefix>]) to "+command[0]);
+				}
+				this.addAutoRoutePrefixFromString(autoRouteStr);
+			}
 			return NORMAL_COMMAND_RESULT_PROMISE;
 		case 'exit':
 			this.stop();

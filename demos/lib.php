@@ -3,8 +3,36 @@
 // If rp's not set, assume we're in the demos/ directory.
 if( !isset($rp) ) $rp = '..';
 
+function load_dotenv($filename=null) {
+	if( $filename === null ) $filename = __DIR__.'/../.env';
+	$vals = array();
+	if( !file_exists($filename) ) return $vals;
+	$fh = @fopen($filename, 'rb');
+	if( $fh === false ) throw new Exception("Failed to open $filename");
+	while( ($line = fgets($fh)) ) {
+		$line = trim($line);
+		if( $line == '' or $line[0] == '#' ) continue;
+		$kv = explode("=", $line, 2);
+		if( count($kv) != 2 ) continue;
+		$vals[$kv[0]] = $kv[1];
+	}
+	fclose($fh);
+	return $vals;
+}
+
+function load_dotenv_transformed() {
+	$rez = array();
+	foreach( load_dotenv() as $k=>$v ) {
+		$kp = explode('_', $k);
+		$rk = $kp[0];
+		for( $i=1; $i<count($kp); ++$i ) $rk .= ucfirst($kp[$i]);
+	}
+	return $rez;
+};
+
 function config_from_env(array $properties, array $input=array()) {
 	$config = array();
+	$envVals = load_dotenv_transformed();
 	foreach( $properties as $k=>$prop ) {
 		if( !is_array($prop) ) {
 			$prop = [
@@ -19,6 +47,7 @@ function config_from_env(array $properties, array $input=array()) {
 		
 		if( isset($_REQUEST[$k]) ) $config[$k] = $_REQUEST[$k];
 		else if( isset($input[$k]) ) $config[$k] = $input[$k];
+		else if( isset($envVals[$k]) ) $config[$k] = $envVals[$k];
 		else if( is_callable($default) ) $config[$k] = call_user_func($default, $config);
 		else $config[$k] = $default;
 		
@@ -131,3 +160,14 @@ function find_ts_test_modules( $dir='src/main/ts', $modPfx='', array &$modules=[
 	}
 	return $modules;
 }
+
+function ezdie() {
+	header('Status: 500 ezdied');
+	header('HTTP/1.0 500 ezdied');
+	header('Content-Type: text/plain');
+	$args = func_get_args();
+	foreach( $args as $a ) {
+		print_r($a);
+	}
+	exit(1);
+};

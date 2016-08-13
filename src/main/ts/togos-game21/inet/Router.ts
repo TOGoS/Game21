@@ -4,7 +4,6 @@ import {
 	assembleIpPacket,
 	disassembleIpPacket
 } from './ip';
-import { stringifyIp6Address } from './IP6Address';
 import {
 	ICMP_PROTOCOL_NUMBER,
 	ICMP_TYPE_PING,
@@ -17,6 +16,7 @@ import {
 import PacketDecodeError from './PacketDecodeError';
 import KeyedList from '../KeyedList';
 import { compareByteArrays } from '../util';
+import IPAddress, { prefixMatches, clearNonPrefixBits, stringifyIpAddress } from './IPAddress';
 
 export type PacketHandler = (packet:Uint8Array)=>void;
 
@@ -31,6 +31,12 @@ export interface Link {
 
 export type LinkID = string;
 
+interface AutoRoutePrefix {
+	address : IPAddress;
+	triggerPrefixLength : number;
+	routePrefixLength : number;
+}
+
 export default class Router
 {
 	protected nextLinkId:number = 1;
@@ -39,6 +45,7 @@ export default class Router
 	public routerAddress? : Uint8Array;
 	public shouldRespondToPings : boolean = false;
 	public shouldSendUnreachabilityMessages : boolean = false;
+	protected autoRoutePrefixes:AutoRoutePrefix[] = [];
 	
 	public newLinkId(pfx?:string) {
 		if( !pfx ) pfx = "link";
@@ -102,9 +109,27 @@ export default class Router
 			}
 		}
 		
+		if( sourceLinkId ) {
+			const sourceAddr = ipMessage.sourceAddress;
+			// TODO: Maybe move core of auto routing code to RoutingTable
+			autoRouteTriggerSearch: for( let i in this.autoRoutePrefixes ) {
+				const arp = this.autoRoutePrefixes[i];
+				const triggerPrefixLength = arp.triggerPrefixLength;
+				const triggerAddr = arp.address;
+				if( !prefixMatches(sourceAddr, triggerAddr, triggerPrefixLength) ) continue autoRouteTriggerSearch;
+				// Ooh, triggered!
+				const routePrefixLength = arp.routePrefixLength;
+				const routeAddr = clearNonPrefixBits(sourceAddr, routePrefixLength);
+				if( !this.routingTable.routeExistsFor(routeAddr, routePrefixLength) ) {
+					this.routingTable.addRoute( routeAddr, routePrefixLength, sourceLinkId );
+				}
+			}
+		}
+		
 		if( this.isRouterAddress(ipMessage.destAddress) ) {
 			this.handleOwnIpMessage(ipMessage, sourceLinkId);
 		} else {
+			// TODO: Reduce ttl!
 			this.route( packet, ipMessage, sourceLinkId );
 		}
 	}
@@ -113,14 +138,14 @@ export default class Router
 		const destId = this.routingTable.findDestination(ipMessage.destAddress);
 		if( destId == null ) {
 			// TODO: send 'unreachable' message?
-			console.warn("Failed to find destination link for address "+stringifyIp6Address(ipMessage.destAddress));
+			console.warn("Failed to find destination link for address "+stringifyIpAddress(ipMessage.destAddress));
 			return;
 		}
 		if( destId == sourceLinkId ) {
 			// Don't participate in loops
 			console.warn(
 				"Refusing to route packet from "+sourceLinkId+" back to itself (destination "+
-					stringifyIp6Address(ipMessage.destAddress)+")");
+					stringifyIpAddress(ipMessage.destAddress)+")");
 			return;
 		}
 		const destLink = this.links[destId];
@@ -130,8 +155,8 @@ export default class Router
 		}
 		console.log(
 			"Routing packet from "+
-			stringifyIp6Address(ipMessage.sourceAddress)+" to "+
-			stringifyIp6Address(ipMessage.destAddress)+" ("+
+			stringifyIpAddress(ipMessage.sourceAddress)+" to "+
+			stringifyIpAddress(ipMessage.destAddress)+" ("+
 			sourceLinkId+" to "+destId+")"
 		);
 		destLink.send(packet);
@@ -144,6 +169,21 @@ export default class Router
 		link.setUp( (packet:Uint8Array) => this.handlePacket( packet, linkId ) );
 		return linkId;
 	}
+	
+	/**
+	 * Add an 'auto route prefix'.
+	 * Any packet with source address matching add/triggerPrefixLength will be added to the routing table
+	 * so that packets with destination addresses matching addr/routePrefixLength will then be routed
+	 * back to the triggering interface.
+	 * 
+	 * e.g. lets say all users are under 1111:2222:3333:4444::/64,
+	 * we have an auto route prefix 1111:2222:3333:4444:: triggerPrefixLength=64, routePrefixLength=96;
+	 * a packet comes in from interface if123, address 1111:2222:3333:4444:5555:6666:7777:8888.
+	 * Any future packets with destination matching 1111:2222:3333:4444:5555:6666::/96 will be routed to if123.
+	 */
+	public addAutoRoutePrefix( addr:Uint8Array, triggerPrefixLength:number, routePrefixLength:number=128 ) {
+		this.autoRoutePrefixes.push({ address:addr, triggerPrefixLength:triggerPrefixLength, routePrefixLength:routePrefixLength });
+	};
 	
 	public addRoute( addr:Uint8Array, prefixLength:number, linkId:LinkID ) {
 		const link = this.links[linkId];

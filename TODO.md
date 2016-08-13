@@ -113,3 +113,7 @@ Possibly outdated but maybe not:
 ## Done!
 
 * s/Material/SurfaceMaterial/
+* Ping he.net from browser and receive pong
+* Centralize address configuration in .env
+* Allocate IP address for each browser connected
+* Have 2 browsers ping each other

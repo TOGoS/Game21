@@ -1,11 +1,8 @@
 type IP6Address = Uint8Array; 
 
 export function parseIp6Address(addrText:string):IP6Address {
-	var wordTexts:string[] = addrText.split(':');
-	if( wordTexts.length > 8 ) {
-		throw new Error("Too many digit groups in IPv6 address: "+addrText);
-	}
-	var i:number, j:number, implicitBlanks:boolean=false;
+	let wordTexts:string[] = addrText.split(':');
+	let i:number, j:number, implicitBlanks:boolean=false, nonEmptyGroupCount=0;
 	for( i=0; i < wordTexts.length; ++i ) {
 		if( wordTexts[i] == '' ) {
 			if( implicitBlanks ) {
@@ -19,9 +16,14 @@ export function parseIp6Address(addrText:string):IP6Address {
 			} else {
 				implicitBlanks = true;
 			}
+		} else {
+			++nonEmptyGroupCount;
 		}
 	}
-	if( wordTexts.length < 8 && !implicitBlanks ) {
+	if( nonEmptyGroupCount > 8 ) {
+		throw new Error("Too many digit groups in IPv6 address: "+addrText);
+	}
+	if( nonEmptyGroupCount < 8 && !implicitBlanks ) {
 		throw new Error("IP6 address doesn't have enough digit groups: "+addrText);
 	}
 	

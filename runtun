@@ -15,9 +15,11 @@ function finish {
 
 trap finish EXIT
 
+. .env
+
 # TODO: put these prefixes in some .env file or something
-route add -6 2001:4978:2ed:3::/64 dev g21testtap # Router
-route add -6 2001:4978:2ed:4::/64 dev g21testtap # Browsers
+route add -6 $router_virtual_network dev g21testtap
+route add -6 $browser_virtual_network dev g21testtap
 ip link set g21testtap up
 
 wait "$tun2udp_pid"

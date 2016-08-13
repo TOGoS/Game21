@@ -1,4 +1,51 @@
-<?php require_once 'lib.php'; ?>
+<?php
+
+ini_set('display_errors','On');
+error_reporting(E_ALL|E_STRICT);
+
+$config = [];
+
+if( isset($argv) ) for( $i=1; $i<count($argv); ++$i ) {
+	if( $argv[$i] == '--inline-resources' ) {
+		$config['inlineResources'] = true;
+	} else if( preg_match('/^(.*?)=(.*)$/', $argv[$i], $bif) ) {
+		$config[$bif[1]] = $bif[2];
+	} else {
+		fwrite(STDERR, "Unrecognized argument: {$argv[$i]}\n");
+		exit(1);
+	}
+}
+
+require_once 'lib.php';
+
+$configProperties = [
+	'inlineResources' => [
+		'valueType' => 'boolean',
+		'defaultValue' => false,
+		'affects' => 'pageGeneration',
+	],
+	'browserVirtualNetwork' => [
+		'defaultValue' => '2001:4978:2ed:4::/64',
+		'valueType' => 'string',
+		'affects' => 'pageGeneration',
+	],
+];
+
+$config = config_from_env($configProperties, $config);
+extract($config, EXTR_SKIP|EXTR_REFS);
+
+function randAddressPostfix() {
+	$parts = [];
+	for( $i=0; $i<4; ++$i ) {
+		$parts[] = dechex(mt_rand(0,65536));
+	}
+	return implode(':', $parts);
+}
+
+list($vnPrefix,$vnPrefixLength) = explode('/', $browserVirtualNetwork);
+$browserVirtualAddress = $vnPrefix.randAddressPostfix();
+
+?>
 <!DOCTYPE html>
 <html>
 <head>
@@ -43,12 +90,12 @@
 <body>
 
 <form onsubmit="return false" id="the-form">
-<label>Server Address <input type="text" name="wsServerAddress" value="ws://<?php echo $_SERVER['SERVER_NAME']; ?>:4080/router" title="Router WebSocket address"/></label><br />
+<label>Server Address <input type="text" name="wsServerAddress" size="80" value="ws://<?php eht($_SERVER['SERVER_NAME']); ?>:4080/router" title="Router WebSocket address"/></label><br />
 
 <hr />
 
-<label>Our address <input type="text" name="clientIpAddress" value="2001:4978:2ed:4::3" title="Our [virtual] IP address"/></label><br />
-<label>Ping target <input type="text" name="pingTargetIpAddress" value="" title="Ping target IP address"/></label><br />
+<label>Our address <input type="text" name="clientIpAddress" size="50" value="<?php eht($browserVirtualAddress); ?>" title="Our [virtual] IP address"/></label><br />
+<label>Ping target <input type="text" name="pingTargetIpAddress" size="50" value="" title="Ping target IP address"/></label><br />
 
 <p>Some targets</p>
 <ul>
