@@ -14,6 +14,13 @@ function addrAndPrefixLengthToString( address:Uint8Array, prefixLength:number ) 
 export default class RoutingTable<Iface> {
 	protected routes:KeyedList<Route<Iface>> = {};
 	
+	public eachRoute( callback:(prefix:Uint8Array, prefixLen:number, dest:Iface)=>void ) {
+		for( let i in this.routes ) {
+			const route = this.routes[i];
+			callback( route.address, route.prefixLength, route.destination );
+		}
+	}
+	
 	public addRoute( addr:Uint8Array, prefixLen:number, dest:Iface ) {
 		if( prefixLen % 8 != 0 ) {
 			// TODO: write the comparison stuff so it doesn't have to be

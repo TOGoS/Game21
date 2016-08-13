@@ -43,8 +43,18 @@
 <body>
 
 <form onsubmit="return false" id="the-form">
-<label>Server Address <input type="text" name="serverAddress" value="ws://localhost:4080/router" title="Router WebSocket address"/></label><br />
-<label>Binary packets <input type="checkbox" name="binary"/></label><br />
+<label>Server Address <input type="text" name="wsServerAddress" value="ws://<?php echo $_SERVER['SERVER_NAME']; ?>:4080/router" title="Router WebSocket address"/></label><br />
+
+<hr />
+
+<label>Our address <input type="text" name="clientIpAddress" value="2001:4978:2ed:4::3" title="Our [virtual] IP address"/></label><br />
+<label>Ping target <input type="text" name="pingTargetIpAddress" value="" title="Ping target IP address"/></label><br />
+
+<p>Some targets</p>
+<ul>
+<li>he.net 2001:470:0:76::2</li>
+</ul>
+
 <button onclick="wsClientPage.sendPing()">Send Ping</button>
 </form>
 
@@ -53,7 +63,15 @@
 
 <?php require_game21_js_libs($inlineResources); ?>
 <script type="text/javascript">
-	require(['togos-game21/WebSocketClient', 'togos-game21/ui/Console'], function(_WebSocketClient, _Console) {
+	require([
+		'togos-game21/sock/WebSocketClient',
+		'togos-game21/ui/Console',
+		'togos-game21/inet/IP6Address'
+	], function(
+		_WebSocketClient,
+		_Console,
+		_IP6Address
+	) {
 		var shell = new _Console.ShellProcess();
 		shell.document = document;
 		shell.defineCommand('echo', function(argv, proc) {
@@ -66,20 +84,24 @@
 		var WebSocketClient = _WebSocketClient.default;
 		var wsClient = new WebSocketClient();
 		wsClient.console = shellProc;
-				
+		
 		var WSClientPage = function(form) {
 			this.form = form;
 		};
 		WSClientPage.prototype.connectIfNotConnected = function() {
-			wsClient.connectIfNotConnected(this.form.serverAddress.value);
-			wsClient.packetEncodingMode = this.form.binary.checked ? "TUN" : "JSON";
+			wsClient.connectIfNotConnected(this.form.wsServerAddress.value);
 			return wsClient;
 		}
 		WSClientPage.prototype.connect = function() {
 			this.connectIfNotConnected();
 		}
 		WSClientPage.prototype.sendPing = function(form) {
-			this.connectIfNotConnected().ping();
+			var wsClient = this.connectIfNotConnected();
+			var clientIpStr = this.form.clientIpAddress.value;
+			wsClient.localAddress = _IP6Address.parseIp6Address(clientIpStr);
+			var targetIpStr = this.form.pingTargetIpAddress.value;
+			var targetIp = _IP6Address.parseIp6Address(targetIpStr);
+			wsClient.ping(targetIp);
 		}
 		
 		window.wsClientPage = new WSClientPage(document.getElementById('the-form'));

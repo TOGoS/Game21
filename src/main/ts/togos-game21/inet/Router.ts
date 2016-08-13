@@ -45,6 +45,10 @@ export default class Router
 		return pfx+this.nextLinkId++;
 	}
 	
+	public eachRoute( callback:(prefix:Uint8Array, prefixLen:number, dest:LinkID)=>void ) {
+		this.routingTable.eachRoute( callback );
+	}
+
 	protected isRouterAddress( address:Uint8Array ):boolean {
 		const ra = this.routerAddress
 		if( !ra ) return false;
@@ -116,7 +120,7 @@ export default class Router
 			// Don't participate in loops
 			console.warn(
 				"Refusing to route packet from "+sourceLinkId+" back to itself (destination "+
-					stringifyIp6Address(ipMessage.destAddress));
+					stringifyIp6Address(ipMessage.destAddress)+")");
 			return;
 		}
 		const destLink = this.links[destId];
@@ -124,6 +128,12 @@ export default class Router
 			// Well that shouldn't happen.
 			console.error("Somehow routing table returned an unassociated link ID");
 		}
+		console.log(
+			"Routing packet from "+
+			stringifyIp6Address(ipMessage.sourceAddress)+" to "+
+			stringifyIp6Address(ipMessage.destAddress)+" ("+
+			sourceLinkId+" to "+destId+")"
+		);
 		destLink.send(packet);
 	}
 	
@@ -148,5 +158,11 @@ export default class Router
 		link.setDown();
 		this.routingTable.removeRoutesTo( linkId );
 		delete this.links[linkId];
+	}
+	
+	public shutDownAllLinks():void {
+		for( let l in this.links ) {
+			this.removeLink(l);
+		}
 	}
 }

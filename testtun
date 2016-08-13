@@ -7,8 +7,6 @@ sudo ./runtun &
 runtun_pid="$!"
 echo "runtun PID: $runtun_pid"
 
-node target/cjs/togos-game21/inet/PingableDemo.js
-
 function finish {
     echo "Killing runtun process $runtun_pid..."
     sudo kill $runtun_pid
@@ -16,6 +14,14 @@ function finish {
 
 trap finish EXIT
 
-ping6 2001:1015:0000::1
+#node target/cjs/togos-game21/inet/PingableDemo.js
+node target/cjs/togos-game21/sock/RouterCLI.js \
+    +listen-tun-wss 4080 2001:4978:2ed:4::0/80 \
+    +listen-tun-udp 10150 default \
+    +set-router-address 2001:4978:2ed:3::2
+
+#ping6 2001:1015:0000::1
+ping6 2001:4978:2ed:3::2 # ping the router
+ping6 2001:4978:2ed:4::3 # ping the browser
 
 wait "$runtun_pid"

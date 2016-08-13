@@ -3,6 +3,7 @@
 
 interface WebSocketLike {
 	binaryType : string;
+	close():void;
 	send(data:string|ArrayBuffer):void;
 	onopen : (event:any)=>void;
 	onerror : (event:any)=>void;
@@ -26,6 +27,7 @@ declare module 'ws' {
 		public upgradeReq: express.Request; // It's some kind of HTTP request object
 
 		public binaryType : string;
+		public close():void;
 		public send(data:string|ArrayBuffer):void;
 		public onopen : (event:any)=>void;
 		public onerror : (event:any)=>void;

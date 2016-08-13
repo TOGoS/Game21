@@ -27,12 +27,17 @@ import {
 const createExpressApp = <ExpressAppCreationFunction>require('express');
 import { WebSocket, Server as WebSocketServer } from 'ws';
 import { parse as parseUrl } from 'url';
+import { ReadLine } from 'readline';
 
 import { utf8Encode } from '../../tshash/utils';
 import Router, { LinkID, Link, PacketHandler } from '../inet/Router';
 import {
-	parseIp6Address
+	parseIp6Address,
+	stringifyIp6Address
 } from '../inet/IP6Address';
+import {
+	resolvedPromise
+} from '../promises';
 
 function setExitCode( c:number ):void {
 	if( typeof(process) == 'object' ) process.exitCode = c;
@@ -81,6 +86,7 @@ class WebSocketLink implements Link {
 	
 	public setDown() {
 		this.handler = undefined;
+		this.conn.close();
 	}
 }
 
@@ -112,8 +118,11 @@ class UDPTunnelLink implements Link {
 	
 	public setDown() {
 		this.handler = undefined;
+		this.sock.close();
 	}
 }
+
+const NORMAL_COMMAND_RESULT_PROMISE = resolvedPromise(0);
 
 export default class RouterCLI {
 	protected router:Router = new Router();
@@ -165,8 +174,12 @@ export default class RouterCLI {
 			console.log("Received WebSocket connection from "+getRequestClientAddress(ws.upgradeReq));
 			
 			const location = parseUrl(ws.upgradeReq.url, true);
-			const linkId = this.router.newLinkId();
-			const link = new WebSocketLink(ws);			
+			const linkId = this.router.newLinkId('ws');
+			const link = new WebSocketLink(ws);
+			// For now just route 2001:4978:2ed:4::0/80
+			// to the most recently connected link
+			this.router.addLink( link, linkId );
+			this.router.addRoute( parseIp6Address('2001:4978:2ed:4::0'), 80, linkId );
 		});
 		return this.httpServer;
 	}
@@ -194,7 +207,18 @@ export default class RouterCLI {
 		return linkId;
 	}
 	
-	public doCommand( command:string[] ):void {
+	protected addRouteFromString( linkId:LinkID, routeStr:string ):void {
+		if( routeStr == 'default' ) {
+			this.router.addRoute( parseIp6Address('::'), 0, linkId );
+		} else {
+			const rp = routeStr.split('/', 2);
+			const routeAddress = parseIp6Address(rp[0]);
+			const routePrefixLength = parseInt(rp[1]);
+			this.router.addRoute( routeAddress, routePrefixLength, linkId );
+		}
+	}
+	
+	public doCommand( command:string[] ):Promise<number> {
 		if( command.length == 0 ) {
 			throw new Error("Invalid (because zero-length) command given");
 		}
@@ -206,13 +230,13 @@ export default class RouterCLI {
 				const addr = parseIp6Address(addrString);
 				this.router.routerAddress = addr;
 			}
-			break;
+			return NORMAL_COMMAND_RESULT_PROMISE;
 		case 'enable-ping-response':
 			this.router.shouldRespondToPings = true;
-			break;
+			return NORMAL_COMMAND_RESULT_PROMISE;
 		case 'enable-unreachablity-notifications':
 			this.router.shouldSendUnreachabilityMessages = true;
-			break;
+			return NORMAL_COMMAND_RESULT_PROMISE;
 		case 'listen-tun-wss':
 			{
 				const portStr = command[1];
@@ -221,7 +245,8 @@ export default class RouterCLI {
 				}
 				const port = parseInt(portStr);
 				this.openTunWebSocketServerPort(port);
-			}; break;
+			}
+			return NORMAL_COMMAND_RESULT_PROMISE;
 		case 'listen-tun-udp':
 			{
 				const portStr = command[1];
@@ -232,23 +257,69 @@ export default class RouterCLI {
 				const routeStr = command[2];
 				const linkId = this.openTunUdpPort(port);
 				if( routeStr ) {
-					const rp = routeStr.split('/', 2);
-					const routeAddress = parseIp6Address(rp[0]);
-					const routePrefixLength = parseInt(rp[1]);
-					this.router.addRoute( routeAddress, routePrefixLength, linkId );
+					this.addRouteFromString( linkId, routeStr );
 				}
-			}; break;
+			}
+			return NORMAL_COMMAND_RESULT_PROMISE;
+		case 'print-routes':
+			console.log("# Begin route list");
+			this.router.eachRoute( (prefix:Uint8Array, len:number, dest:LinkID) => {
+				console.log( stringifyIp6Address(prefix)+"/"+len+" via "+dest );
+			});
+			console.log("# End route list");
+			return NORMAL_COMMAND_RESULT_PROMISE;
+		case 'exit':
+			this.stop();
+			return NORMAL_COMMAND_RESULT_PROMISE;
 		default:
 			throw new Error("Invalid command: "+command[0]);
 		}
 	}
 	
+	protected doCommandLine(line:string):Promise<number> {
+		line = line.trim();
+		if( line.length == 0 ) return NORMAL_COMMAND_RESULT_PROMISE;
+		if( line[0] == '#' ) return NORMAL_COMMAND_RESULT_PROMISE;
+		const cmd:string[] = line.split(/\s+/);
+		try {
+			return this.doCommand(cmd);
+		} catch( e ) {
+			console.error(e);
+			return resolvedPromise(1);
+		}
+	}
+	
+	protected rl : ReadLine;
+	
+	protected stopping = false;
 	public stop():void {
-		for( let s in this.socks ) this.socks[s].close();
+		if( this.stopping ) return;
+		this.stopping = true;
+		this.router.shutDownAllLinks();
+		this.rl.close();
 	}
 	
 	public start():void {
 		console.log("Router CLI started");
+		const rl = require('readline').createInterface({
+			input: process.stdin,
+			output: process.stdout
+		});
+		rl.setPrompt('router> ');
+		rl.prompt();
+		rl.on('close', () => {
+			this.stop();
+			console.log("Goodbye");
+		});
+		rl.on('line', (line:string) => {
+			rl.pause();
+			this.doCommandLine(line).then( (res:number) => {
+				if( this.stopping ) return;
+				rl.resume();
+				rl.prompt();
+			});
+		});
+		this.rl = rl;
 	}
 	
 	public static createAndStart(options:RouterCLIOptions):RouterCLI {
