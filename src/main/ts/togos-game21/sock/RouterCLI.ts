@@ -127,7 +127,7 @@ class UDPTunnelLink implements Link {
 	}
 }
 
-const NORMAL_COMMAND_RESULT_PROMISE = resolvedPromise(0);
+const NORMAL_COMMAND_RESULT_PROMISE = resolvedPromise(undefined);
 
 export default class RouterCLI {
 	protected router:Router = new Router();
@@ -136,6 +136,7 @@ export default class RouterCLI {
 	public static parseOptions(argv:string[]):RouterCLIOptions {
 		let currCommand:string[]|null = null;
 		let commands:string[][] = [];
+		let interactive:boolean = false;
 		function flushCommand() {
 			if( currCommand != null ) {
 				commands.push(currCommand);
@@ -144,7 +145,9 @@ export default class RouterCLI {
 		}
 		for( let i = 2; i < argv.length; ++i ) {
 			const arg = argv[i];
-			if( arg[0] == '+' ) {
+			if( arg == '-i' ) {
+				interactive = true;
+			} else if( arg[0] == '+' ) {
 				flushCommand();
 				currCommand = [arg.substr(1)];
 			} else if( currCommand != null ) {
@@ -155,6 +158,7 @@ export default class RouterCLI {
 		}
 		flushCommand();
 		return {
+			interactive: interactive,
 			commands: commands,
 		}
 	}
@@ -230,7 +234,7 @@ export default class RouterCLI {
 		this.router.addAutoRoutePrefix( address, triggerPrefixLength, routePrefixLength );
 	}
 	
-	public doCommand( command:string[] ):Promise<number> {
+	public _doCommand( command:string[] ):Promise<any> {
 		if( command.length == 0 ) {
 			throw new Error("Invalid (because zero-length) command given");
 		}
@@ -297,17 +301,20 @@ export default class RouterCLI {
 		}
 	}
 	
-	protected doCommandLine(line:string):Promise<number> {
+	protected doCommand(command:string[]):Promise<any> {
+		try {
+			return this._doCommand(command);
+		} catch( e ) {
+			return Promise.reject( e );
+		}
+	}
+	
+	protected doCommandLine(line:string):Promise<any> {
 		line = line.trim();
 		if( line.length == 0 ) return NORMAL_COMMAND_RESULT_PROMISE;
 		if( line[0] == '#' ) return NORMAL_COMMAND_RESULT_PROMISE;
 		const cmd:string[] = line.split(/\s+/);
-		try {
-			return this.doCommand(cmd);
-		} catch( e ) {
-			console.error(e);
-			return resolvedPromise(1);
-		}
+		return this.doCommand(cmd);
 	}
 	
 	protected rl : ReadLine;
@@ -320,7 +327,7 @@ export default class RouterCLI {
 		this.rl.close();
 	}
 	
-	public start():void {
+	public startInteractivePrompt() {
 		console.log("Router CLI started");
 		const rl = require('readline').createInterface({
 			input: process.stdin,
@@ -338,25 +345,42 @@ export default class RouterCLI {
 				if( this.stopping ) return;
 				rl.resume();
 				rl.prompt();
+			}, (err:any) => {
+				console.error(err);
+				rl.resume();
+				rl.prompt();
 			});
 		});
 		this.rl = rl;
 	}
 	
+	protected _start(commands:string[][], offset:number, options:RouterCLIOptions):Promise<void> {
+		if( commands.length > offset ) {
+			return this.doCommand(commands[offset]).then( () => {
+				this._start(commands, offset+1, options);
+			}, (err) => {
+				console.error(err);
+				console.log("Attempting to quit...");
+				this.stop();
+			});
+		}
+		if( options.interactive ) this.startInteractivePrompt();
+		return NORMAL_COMMAND_RESULT_PROMISE;
+	}
+	
 	public static createAndStart(options:RouterCLIOptions):RouterCLI {
 		const rcli = new RouterCLI();
-		for( let c in options.commands ) {
-			rcli.doCommand(options.commands[c]);
-		}
-		rcli.start();
+		rcli._start(options.commands, 0, options);
 		return rcli;
 	}
 }
 
 export interface RouterCLIOptions {
-	commands:string[][];
+	interactive : boolean;
+	commands : string[][];
 }
 
 if( require.main === module ) {
 	RouterCLI.createAndStart( RouterCLI.parseOptions(process.argv) );
+	// TODO: Set process exit code
 }

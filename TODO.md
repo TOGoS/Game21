@@ -18,6 +18,9 @@
 
 Networking:
 - Use DHCP to get address
+- Multi-component simulation in browser
+  - Maybe grid-based?  To make editing easier.
+  - Use game21 renderign system for images!
 
 Idea for simple physics engine:
 - quantized.  1/8m or somesuch.  all movement is one 1/8m square at a time.
