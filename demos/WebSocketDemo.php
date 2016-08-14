@@ -29,6 +29,11 @@ $configProperties = [
 		'valueType' => 'string',
 		'affects' => 'pageGeneration',
 	],
+	'webSocketUrl' => [
+		'defaultValue' => "ws://{$_SERVER['SERVER_NAME']}:4080/router",
+		'valueType' => 'string',
+		'affects' => 'pageGeneration'
+	],
 ];
 
 $config = config_from_env($configProperties, $config);
@@ -90,7 +95,7 @@ $browserVirtualAddress = $vnPrefix.randAddressPostfix();
 <body>
 
 <form onsubmit="return false" id="the-form">
-<label>Server Address <input type="text" name="wsServerAddress" size="80" value="ws://<?php eht($_SERVER['SERVER_NAME']); ?>:4080/router" title="Router WebSocket address"/></label><br />
+<label>Server Address <input type="text" name="wsServerAddress" size="80" value="<?php eht($webSocketUrl); ?>" title="Router WebSocket address"/></label><br />
 
 <hr />
 

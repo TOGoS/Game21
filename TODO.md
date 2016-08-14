@@ -16,9 +16,13 @@
 
 ## Misc to-do items
 
+Networking:
+- Use DHCP to get address
+
 Idea for simple physics engine:
 - quantized.  1/8m or somesuch.  all movement is one 1/8m square at a time.
   no collisions are allowed to occur.
+  - Or quantized based on object size, so small objects do smaller steps than large ones?
 - objects may be 'wiggled' into holes if their center of gravity is not supported
   (possibly require multiple points to be unsupported before doing this, or results
    could be surprising)
