@@ -45,6 +45,7 @@ export default class Router
 	public routerAddress? : Uint8Array;
 	public shouldRespondToPings : boolean = false;
 	public shouldSendUnreachabilityMessages : boolean = false;
+	public internalLinkId = "internal";
 	protected autoRoutePrefixes:AutoRoutePrefix[] = [];
 	
 	public newLinkId(pfx?:string) {
@@ -85,7 +86,7 @@ export default class Router
 			}, ipMessage.destAddress, ipMessage.sourceAddress)
 		};
 		const responsePacket = assembleIpPacket(responseMessage);
-		this.route( responsePacket, responseMessage );
+		this.route( responsePacket, responseMessage, this.internalLinkId );
 	}
 	
 	protected handleOwnIpMessage( ipMessage:IPMessage, sourceLinkId?:LinkID ):void {
