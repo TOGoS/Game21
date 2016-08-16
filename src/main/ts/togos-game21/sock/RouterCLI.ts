@@ -54,7 +54,7 @@ function setExitCode( c:number ):void {
 class WebSocketLink implements Link {
 	protected handler? : PacketHandler;
 	
-	constructor(protected conn:WebSocketLike, protected logger:Logger) {
+	constructor(protected conn:WebSocketLike, protected _logger:Logger) {
 		conn.onmessage = (messageEvent:MessageEvent) => {
 			if( !this.handler ) return;
 			
@@ -68,7 +68,7 @@ class WebSocketLink implements Link {
 			} else if( typeof data == 'string' ) {
 				data = utf8Encode(data);
 			} else {
-				this.logger.error("Received weird data from websocket.");
+				this._logger.error("Received weird data from websocket.");
 				return;
 			}
 			
@@ -88,7 +88,7 @@ class WebSocketLink implements Link {
 		try {
 			this.conn.send( packet );
 		} catch( e ) {
-			this.logger.log("Failed to send packet");
+			this._logger.log("Failed to send packet");
 			// TODO: refactor so that links can disconnect themselves.
 		}
 	}
@@ -140,7 +140,7 @@ const NORMAL_COMMAND_RESULT_PROMISE = resolvedPromise(undefined);
 export default class RouterCLI {
 	protected router:Router = new Router();
 	protected socks:DgramSocket[] = [];
-	public logger:Logger = console;
+	public _logger:Logger = console;
 	
 	public static parseOptions(argv:string[]):RouterCLIOptions {
 		let currCommand:string[]|null = null;
@@ -199,7 +199,7 @@ export default class RouterCLI {
 			return req.ip || req.connection.remoteAddress;
 		}
 		this.webSocketServer.on('connection', (ws:WebSocket) => {
-			this.logger.log("Received WebSocket connection from "+getRequestClientAddress(ws.upgradeReq));
+			this._logger.log("Received WebSocket connection from "+getRequestClientAddress(ws.upgradeReq));
 			
 			const location = parseUrl(ws.upgradeReq.url, true);
 			const linkId = this.router.newLinkId('ws');
@@ -210,9 +210,17 @@ export default class RouterCLI {
 		return this.httpServer;
 	}
 	
+	public set logger(logger:Logger) {
+		this.router.logger = logger;
+		this._logger = logger;
+	}
+	public set verbosity(v:number) {
+		this.router.verbosity = v;
+	}
+	
 	protected openTunWebSocketServerPort( port:number ) {
 		const httpServer = this.getOrCreateWebServer();
-		httpServer.listen(port, () => this.logger.log("Listening for HTTP requests on port "+port));
+		httpServer.listen(port, () => this._logger.log("Listening for HTTP requests on port "+port));
 	}
 	
 	protected openTunUdpPort( port:number, address?:string ):LinkID {
@@ -221,10 +229,10 @@ export default class RouterCLI {
 		
 		const sock = createDgramSocket('udp4'); // TODO: Not necessarily v4
 		sock.on('error', (err:any) => {
-			this.logger.error("Error opening datagram server on port "+port, err);
+			this._logger.error("Error opening datagram server on port "+port, err);
 		});
 		sock.on('listening', () => {
-			this.logger.log("Listening for UDP packets on port "+port);
+			this._logger.log("Listening for UDP packets on port "+port);
 		});
 		sock.bind( port, address );
 		this.socks.push(sock);
@@ -300,11 +308,11 @@ export default class RouterCLI {
 			}
 			return NORMAL_COMMAND_RESULT_PROMISE;
 		case 'print-routes':
-			this.logger.log("# Begin route list");
+			this._logger.log("# Begin route list");
 			this.router.eachRoute( (prefix:Uint8Array, len:number, dest:LinkID) => {
-				this.logger.log( stringifyIp6Address(prefix)+"/"+len+" via "+dest );
+				this._logger.log( stringifyIp6Address(prefix)+"/"+len+" via "+dest );
 			});
-			this.logger.log("# End route list");
+			this._logger.log("# End route list");
 			return NORMAL_COMMAND_RESULT_PROMISE;
 		case 'auto-route':
 			{
@@ -350,7 +358,7 @@ export default class RouterCLI {
 	}
 	
 	public startInteractivePrompt() {
-		this.logger.log("Router CLI started");
+		this._logger.log("Router CLI started");
 		const rl = require('readline').createInterface({
 			input: process.stdin,
 			output: process.stdout
@@ -359,7 +367,7 @@ export default class RouterCLI {
 		rl.prompt();
 		rl.on('close', () => {
 			this.stop();
-			this.logger.log("Goodbye");
+			this._logger.log("Goodbye");
 		});
 		rl.on('line', (line:string) => {
 			rl.pause();
@@ -368,7 +376,7 @@ export default class RouterCLI {
 				rl.resume();
 				rl.prompt();
 			}, (err:any) => {
-				this.logger.error(err);
+				this._logger.error(err);
 				rl.resume();
 				rl.prompt();
 			});
@@ -381,8 +389,8 @@ export default class RouterCLI {
 			return this.doCommand(commands[offset]).then( () => {
 				this._start(commands, offset+1, options);
 			}, (err) => {
-				this.logger.error(err);
-				this.logger.log("Attempting to quit...");
+				this._logger.error(err);
+				this._logger.log("Attempting to quit...");
 				this.stop();
 			});
 		}
@@ -392,7 +400,14 @@ export default class RouterCLI {
 	
 	public static createAndStart(options:RouterCLIOptions):RouterCLI {
 		const rcli = new RouterCLI();
-		rcli.logger = new LevelFilteringLogger(console, options.verbosity);
+		if( !console.debug ) console.debug = console.log;
+		const logger = new LevelFilteringLogger(console, options.verbosity);
+		// Logger will filter on verbosity,
+		// but sometimes to avoid the call to the logger
+		// (which may involve expensively constructing messages)
+		// we want to know the verbosity ourself, too.
+		rcli.logger = logger;
+		rcli.verbosity = options.verbosity;
 		rcli._start(options.commands, 0, options);
 		return rcli;
 	}

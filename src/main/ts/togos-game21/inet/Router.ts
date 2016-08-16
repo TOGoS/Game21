@@ -37,11 +37,21 @@ interface AutoRoutePrefix {
 	routePrefixLength : number;
 }
 
+import Logger, {
+	VERBOSITY_SILENT,
+	VERBOSITY_ERRORS,
+	VERBOSITY_WARNINGS,
+	VERBOSITY_INFO,
+	VERBOSITY_DEBUG,
+} from '../Logger';
+
 export default class Router
 {
 	protected nextLinkId:number = 1;
 	protected routingTable:RoutingTable<LinkID>= new RoutingTable<LinkID>();
 	protected links : KeyedList<Link> = {}
+	public logger : Logger;
+	public verbosity : number = VERBOSITY_WARNINGS;
 	public routerAddress? : Uint8Array;
 	public shouldRespondToPings : boolean = false;
 	public shouldSendUnreachabilityMessages : boolean = false;
@@ -69,7 +79,7 @@ export default class Router
 
 		const calcChecksum = calculateIcmp6Checksum( ipMessage.sourceAddress, ipMessage.destAddress, icmpMessage );
 		if( calcChecksum != icmpMessage.checksum ) {
-			console.log("Bad ICMP checksum "+icmpMessage.checksum+" != expected "+calcChecksum);
+			this.logger.log("Bad ICMP checksum "+icmpMessage.checksum+" != expected "+calcChecksum);
 			return;
 		}
 		
@@ -102,10 +112,10 @@ export default class Router
 			ipMessage = disassembleIpPacket(packet);
 		} catch( e ) {
 			if( e instanceof PacketDecodeError ) {
-				console.log("Failed to disassemble packet from "+sourceLinkId+": "+e.message);
+				this.logger.log("Failed to disassemble packet from "+sourceLinkId+": "+e.message);
 				return;
 			} else {
-				console.error("Error while decoding packet from "+sourceLinkId+": "+e.message);
+				this.logger.error("Error while decoding packet from "+sourceLinkId+": "+e.message);
 				return;
 			}
 		}
@@ -139,12 +149,12 @@ export default class Router
 		const destId = this.routingTable.findDestination(ipMessage.destAddress);
 		if( destId == null ) {
 			// TODO: send 'unreachable' message?
-			console.warn("Failed to find destination link for address "+stringifyIpAddress(ipMessage.destAddress));
+			this.logger.warn("Failed to find destination link for address "+stringifyIpAddress(ipMessage.destAddress));
 			return;
 		}
 		if( destId == sourceLinkId ) {
 			// Don't participate in loops
-			console.warn(
+			this.logger.warn(
 				"Refusing to route packet from "+sourceLinkId+" back to itself (destination "+
 					stringifyIpAddress(ipMessage.destAddress)+")");
 			return;
@@ -152,14 +162,16 @@ export default class Router
 		const destLink = this.links[destId];
 		if( destLink == null ) {
 			// Well that shouldn't happen.
-			console.error("Somehow routing table returned an unassociated link ID");
+			this.logger.error("Somehow routing table returned an unassociated link ID");
 		}
-		console.log(
-			"Routing packet from "+
-			stringifyIpAddress(ipMessage.sourceAddress)+" to "+
-			stringifyIpAddress(ipMessage.destAddress)+" ("+
-			sourceLinkId+" to "+destId+")"
-		);
+		if( this.verbosity >= VERBOSITY_DEBUG ) {
+			this.logger.debug(
+				"Routing packet from "+
+				stringifyIpAddress(ipMessage.sourceAddress)+" to "+
+				stringifyIpAddress(ipMessage.destAddress)+" ("+
+				sourceLinkId+" to "+destId+")"
+			);
+		}
 		destLink.send(packet);
 	}
 	
