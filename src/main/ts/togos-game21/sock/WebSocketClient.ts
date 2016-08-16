@@ -1,11 +1,17 @@
 /// <reference path="../../ws.d.ts"/>
 
-import IP6Address, { parseIp6Address, stringifyIp6Address } from '../inet/IP6Address';
+import IP6Address, {
+	parseIp6Address,
+	stringifyIp6Address,
+	UNSPECIFIED_ADDRESS,
+	ALL_NODES_ADDRESS
+} from '../inet/IP6Address';
 import { IPMessage, assembleIpPacket, disassembleIpPacket } from '../inet/ip';
 import {
 	ICMP_PROTOCOL_NUMBER,
 	ICMP_TYPE_PING,
 	ICMP_TYPE_PONG,
+	ICMP_TYPE_ROUTER_ADVERTISEMENT,
 	ICMPMessage,
 	calculateIcmp6Checksum,
 	assembleIcmp6Packet,
@@ -16,7 +22,7 @@ import {
 } from '../inet/Router';
 import { compareByteArrays } from '../util';
 import { hexDecode } from '../../tshash/utils';
-import MiniConsole from '../ui/MiniConsole';
+import Logger from '../Logger';
 
 declare class WebSocket implements WebSocketLike {
 	constructor(wsUrl:string);
@@ -30,42 +36,54 @@ declare class WebSocket implements WebSocketLike {
 	onmessage : (event:any)=>void;
 };
 
+function randomLinkLocalAddress():IP6Address {
+	const arr = new Uint8Array(16);
+	arr[0] = 0xfe;
+	arr[1] = 0x80;
+	for( let i=8; i<16; ++i ) {
+		arr[i] = Math.random()*256;
+	}
+	return arr;
+}
+
 export default class WebSocketClient {
 	public connection:WebSocket|undefined;
 	public enqueuedMessages:Uint8Array[];
-	public localAddress:IP6Address;
+	public myLinkAddress:IP6Address;
+	public myGlobalAddress:IP6Address;
 	public nextPingSequenceNumber:number=0;
-	public console:MiniConsole;
+	public logger:Logger;
 	
 	constructor() {
 		this.connection = undefined;
 		this.enqueuedMessages = [];
 		// placeholders!
-		this.localAddress = parseIp6Address("fe80::1");
-		this.console = window.console;
+		this.myLinkAddress = randomLinkLocalAddress();
+		this.myGlobalAddress = UNSPECIFIED_ADDRESS;
+		this.logger = window.console;
 	}
 	public connectIfNotConnected(wsUrl:string):WebSocketClient {
 		if( this.connection == null ) {
-			this.console.log("Attempting to connect to "+wsUrl);
+			this.logger.log("Attempting to connect to "+wsUrl);
 			this.connection = new WebSocket(wsUrl);
 			this.connection.binaryType = 'arraybuffer';
 			this.connection.onopen = this.onOpen.bind(this);
 			this.connection.onerror = (error) => {
 				this.connection = undefined;
-				this.console.log("Websocket Error:", error, "; disconnected");
+				this.logger.log("Websocket Error:", error, "; disconnected");
 			};
 			this.connection.onmessage = this.onMessage.bind(this);
-			this.console.log("Connecting...");
+			this.logger.log("Connecting...");
 		}
 		return this;
 	}
 	protected onOpen() {
-		this.console.log('Connected!');
+		this.logger.log('Connected!');
 		if( !this.connection ) throw new Error("But somehow connection not set in onOpen!");
 		for( var i=0; i < this.enqueuedMessages.length; ++i ) {
 			this.connection.send(this.enqueuedMessages[i]);
 		}
-		this.console.log("Sent "+this.enqueuedMessages.length+" queued messages.");
+		this.logger.log("Sent "+this.enqueuedMessages.length+" queued messages.");
 	};
 	protected checkConnection() {
 		if( this.connection && this.connection.readyState > 1 ) {
@@ -78,22 +96,18 @@ export default class WebSocketClient {
 		var data = messageEvent.data;
 		var logData:any;
 		if( !(data instanceof ArrayBuffer) ) {
-			this.console.error("Received non-ArrayBuffer from socket");
+			this.logger.error("Received non-ArrayBuffer from socket");
 		}
 		const packet = new Uint8Array(data);
 		this.receivePacket(packet);
 	};
 	
 	protected shouldRespondToPings = true;
-	protected handleOwnIcmpMessage( icmpMessage:ICMPMessage, ipMessage:IPMessage, sourceLinkId?:LinkID ):void {
+	
+	// TODO: Embed some kind of Host or Router object and have it deal with this stuff
+	
+	protected handleOwnPing( icmpMessage:ICMPMessage, ipMessage:IPMessage, sourceLinkId?:LinkID ):void {
 		if( !this.shouldRespondToPings ) return;
-		if( icmpMessage.type != ICMP_TYPE_PING ) return;
-
-		const calcChecksum = calculateIcmp6Checksum( ipMessage.sourceAddress, ipMessage.destAddress, icmpMessage );
-		if( calcChecksum != icmpMessage.checksum ) {
-			console.log("Bad ICMP checksum "+icmpMessage.checksum+" != expected "+calcChecksum);
-			return;
-		}
 		
 		const responseMessage:IPMessage = {
 			ipVersion: 6,
@@ -111,6 +125,32 @@ export default class WebSocketClient {
 		this.enqueuePacket( responsePacket );
 	}
 	
+	protected handleOwnRouterAdvertisement( icmpMessage:ICMPMessage, ipMessage:IPMessage, sourceLinkId?:LinkID ):void {
+		// TODO
+		this.logger.log("Received a router advertisement!");
+	}
+	
+	protected handleOwnIcmpMessage( icmpMessage:ICMPMessage, ipMessage:IPMessage, sourceLinkId?:LinkID ):void {
+		const calcChecksum = calculateIcmp6Checksum( ipMessage.sourceAddress, ipMessage.destAddress, icmpMessage );
+		if( calcChecksum != icmpMessage.checksum ) {
+			this.logger.warn("Bad ICMP checksum "+icmpMessage.checksum+" != expected "+calcChecksum);
+			return;
+		}
+		
+		this.logger.log("ICMP message type: "+icmpMessage.type);
+		
+		switch( icmpMessage.type ) {
+		case ICMP_TYPE_PING:
+			this.handleOwnPing(icmpMessage, ipMessage, sourceLinkId);
+			break;
+		case ICMP_TYPE_ROUTER_ADVERTISEMENT:
+			this.handleOwnRouterAdvertisement(icmpMessage, ipMessage, sourceLinkId);
+			break;
+		default:
+			this.logger.log("Unrecognized ICMP message type: "+icmpMessage.type);
+		}
+	}
+	
 	protected handleOwnIpMessage( ipMessage:IPMessage, sourceLinkId?:LinkID ):void {
 		if( ipMessage.protocolNumber == ICMP_PROTOCOL_NUMBER ) {
 			const icmpMessage = disassembleIcmp6Packet(ipMessage.payload);
@@ -123,15 +163,19 @@ export default class WebSocketClient {
 		try {
 			ipMessage = disassembleIpPacket(packet);
 		} catch( e ) {
-			this.console.error(e);
+			this.logger.error(e);
 			return;
 		}
-		this.console.log(
+		this.logger.log(
 			"Received packet from "+
 				stringifyIp6Address(ipMessage.sourceAddress)+" to "+
 				stringifyIp6Address(ipMessage.destAddress)+", protocol number "+
 				ipMessage.protocolNumber);
-		if( compareByteArrays(ipMessage.destAddress, this.localAddress) == 0 ) {
+		if(
+			compareByteArrays(ipMessage.destAddress, this.myGlobalAddress) == 0 ||
+			compareByteArrays(ipMessage.destAddress, ALL_NODES_ADDRESS) == 0
+		) {
+			this.logger.log("This packet is for me!");
 			this.handleOwnIpMessage(ipMessage);
 		}
 	}
@@ -139,10 +183,10 @@ export default class WebSocketClient {
 	protected enqueuePacket(data:Uint8Array):void {
 		this.checkConnection();
 		if( this.connection != null && this.connection.readyState == 1 ) {
-			this.console.log("Sending message now");
+			this.logger.log("Sending message now");
 			this.connection.send(data);
 		} else {
-			this.console.log("Not yet connected; enqueing message.");
+			this.logger.log("Not yet connected; enqueing message.");
 			this.enqueuedMessages.push(data);
 		}
 	};
@@ -150,7 +194,7 @@ export default class WebSocketClient {
 	protected ping(peerAddress:IP6Address) {
 		this.enqueuePacket( assembleIpPacket({
 			ipVersion: 6,
-			sourceAddress: this.localAddress,
+			sourceAddress: this.myGlobalAddress,
 			destAddress: peerAddress,
 			hopLimit: 64,
 			protocolNumber: ICMP_PROTOCOL_NUMBER,
@@ -158,7 +202,7 @@ export default class WebSocketClient {
 				type: ICMP_TYPE_PING,
 				code: 0,
 				payload: hexDecode('01234567'),
-			}, this.localAddress, peerAddress)
+			}, this.myGlobalAddress, peerAddress)
 		}));
 	}
 }

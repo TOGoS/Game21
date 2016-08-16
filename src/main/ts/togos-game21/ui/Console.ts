@@ -1,3 +1,4 @@
+import Logger from '../Logger';
 import KeyedList from '../KeyedList';
 
 function logStringify(thing:any):string {
@@ -9,10 +10,9 @@ function logStringify(thing:any):string {
 	return JSON.stringify(thing, null, "\t");
 }
 
-class ConsoleProcess {
+export class DOMLogger implements Logger {
 	public document:HTMLDocument;
 	public outputDiv:HTMLElement;
-	public exitCode:number|null = null;
 	
 	public printLine(fh:number, text:string) {
 		const line = this.document.createElement('p');
@@ -29,6 +29,15 @@ class ConsoleProcess {
 		console.log("Logging:", ...stuff);
 		this.outputDiv.appendChild(pre);
 	}
+	// TODO: make diff colors or classes something
+	public error(...stuff:any[]) { this.log(...stuff); }
+	public warn(...stuff:any[]) { this.log(...stuff); }
+	public debug(...stuff:any[]) { this.log(...stuff); }
+}
+
+// TODO: should have a logger, not be one.
+class ConsoleProcess extends DOMLogger {
+	public exitCode:number|null = null;
 	public exit(code:number) {
 		if( typeof code != 'number' ) code = 1;
 		this.exitCode = code;

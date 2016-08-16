@@ -34,17 +34,13 @@ export function calculateIcmp6Checksum( sourceAddress:IP6Address, destAddress:IP
 	return checksumming.digestAsUint16();
 }
 
-export function calculateIcmp6PacketChecksum( sourceAddress:IP6Address, destAddress:IP6Address, icmpPacket:Uint8Array ):number {
+/** In-place checksum calculation. */
+function fixIcmp6PacketChecksum( icmpPacket:Uint8Array, sourceAddress:IP6Address, destAddress:IP6Address ):void {
 	initIp6PseudoHeaderChecksumming( sourceAddress, destAddress, icmpPacket.length, ICMP_PROTOCOL_NUMBER );
 	icmpPacket[2] = 0;
 	icmpPacket[3] = 0;
 	checksumming.update(icmpPacket);
-	return checksumming.digestAsUint16();
-}
-
-/** In-place checksum calculation. */
-function fixIcmp6PacketChecksum( icmpPacket:Uint8Array, sourceAddress:IP6Address, destAddress:IP6Address ):void {
-	const checksum = calculateIcmp6PacketChecksum( icmpPacket, sourceAddress, destAddress );
+	const checksum = checksumming.digestAsUint16();
 	icmpPacket[2] = checksum >> 8;
 	icmpPacket[3] = checksum >> 0;
 }

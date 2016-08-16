@@ -135,7 +135,7 @@ $browserVirtualAddress = $vnPrefix.randAddressPostfix();
 		
 		var WebSocketClient = _WebSocketClient.default;
 		var wsClient = new WebSocketClient();
-		wsClient.console = shellProc;
+		wsClient.logger = shellProc;
 		
 		var WSClientPage = function(form) {
 			this.form = form;
