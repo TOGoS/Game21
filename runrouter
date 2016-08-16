@@ -5,6 +5,7 @@ set -xeuo pipefail
 . .env
 
 exec node target/cjs/togos-game21/sock/RouterCLI.js \
+    "$@" \
     +listen-tun-wss 4080 $browser_virtual_network \
     +listen-tun-udp 10150 default \
     +auto-route $browser_virtual_network \

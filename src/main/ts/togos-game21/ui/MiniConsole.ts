@@ -1,3 +1,4 @@
+// This is just a copy of Logger.  TODO: delete
 interface MiniConsole {
    log(message?: any, ...optionalParams: any[]): void;
    warn(message?: any, ...optionalParams: any[]): void;

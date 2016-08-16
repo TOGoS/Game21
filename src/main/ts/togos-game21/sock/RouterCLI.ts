@@ -38,6 +38,14 @@ import {
 import {
 	resolvedPromise
 } from '../promises';
+import Logger, {
+	VERBOSITY_SILENT,
+	VERBOSITY_ERRORS,
+	VERBOSITY_WARNINGS,
+	VERBOSITY_INFO,
+	VERBOSITY_DEBUG,
+	LevelFilteringLogger
+} from '../Logger';
 
 function setExitCode( c:number ):void {
 	if( typeof(process) == 'object' ) process.exitCode = c;
@@ -46,7 +54,7 @@ function setExitCode( c:number ):void {
 class WebSocketLink implements Link {
 	protected handler? : PacketHandler;
 	
-	constructor(protected conn:WebSocketLike) {
+	constructor(protected conn:WebSocketLike, protected logger:Logger) {
 		conn.onmessage = (messageEvent:MessageEvent) => {
 			if( !this.handler ) return;
 			
@@ -60,7 +68,7 @@ class WebSocketLink implements Link {
 			} else if( typeof data == 'string' ) {
 				data = utf8Encode(data);
 			} else {
-				console.error("Received weird data from websocket.");
+				this.logger.error("Received weird data from websocket.");
 				return;
 			}
 			
@@ -80,7 +88,7 @@ class WebSocketLink implements Link {
 		try {
 			this.conn.send( packet );
 		} catch( e ) {
-			console.log("Failed to send packet");
+			this.logger.log("Failed to send packet");
 			// TODO: refactor so that links can disconnect themselves.
 		}
 	}
@@ -132,11 +140,13 @@ const NORMAL_COMMAND_RESULT_PROMISE = resolvedPromise(undefined);
 export default class RouterCLI {
 	protected router:Router = new Router();
 	protected socks:DgramSocket[] = [];
+	public logger:Logger = console;
 	
 	public static parseOptions(argv:string[]):RouterCLIOptions {
 		let currCommand:string[]|null = null;
 		let commands:string[][] = [];
 		let interactive:boolean = false;
+		let verbosity:number = VERBOSITY_WARNINGS;
 		function flushCommand() {
 			if( currCommand != null ) {
 				commands.push(currCommand);
@@ -145,19 +155,28 @@ export default class RouterCLI {
 		}
 		for( let i = 2; i < argv.length; ++i ) {
 			const arg = argv[i];
-			if( arg == '-i' ) {
-				interactive = true;
-			} else if( arg[0] == '+' ) {
+			if( arg[0] == '+' ) {
 				flushCommand();
 				currCommand = [arg.substr(1)];
 			} else if( currCommand != null ) {
 				currCommand.push(arg);
+			} else if( arg == '-i' ) {
+				interactive = true;
+			} else if( arg == '-s' ) {
+				verbosity = VERBOSITY_SILENT;
+			} else if( arg == '-q' ) {
+				verbosity = VERBOSITY_ERRORS;
+			} else if( arg == '-v' ) {
+				verbosity = VERBOSITY_INFO;
+			} else if( arg == '-debug' ) {
+				verbosity = VERBOSITY_DEBUG;
 			} else {
 				throw new Error("Unrecognized argument: "+arg);
 			}
 		}
 		flushCommand();
 		return {
+			verbosity: verbosity,
 			interactive: interactive,
 			commands: commands,
 		}
@@ -180,11 +199,11 @@ export default class RouterCLI {
 			return req.ip || req.connection.remoteAddress;
 		}
 		this.webSocketServer.on('connection', (ws:WebSocket) => {
-			console.log("Received WebSocket connection from "+getRequestClientAddress(ws.upgradeReq));
+			this.logger.log("Received WebSocket connection from "+getRequestClientAddress(ws.upgradeReq));
 			
 			const location = parseUrl(ws.upgradeReq.url, true);
 			const linkId = this.router.newLinkId('ws');
-			const link = new WebSocketLink(ws);
+			const link = new WebSocketLink(ws, this.logger);
 			this.router.addLink( link, linkId );
 			// No routes automatically added!
 		});
@@ -193,16 +212,19 @@ export default class RouterCLI {
 	
 	protected openTunWebSocketServerPort( port:number ) {
 		const httpServer = this.getOrCreateWebServer();
-		httpServer.listen(port, () => console.log("Listening for HTTP requests on port "+port));
+		httpServer.listen(port, () => this.logger.log("Listening for HTTP requests on port "+port));
 	}
 	
 	protected openTunUdpPort( port:number, address?:string ):LinkID {
 		// Conceivably we could have more than one tunnel per UDP socket
 		// and forwarding to different handlers based on remote address/port.
 		
-		const sock = createDgramSocket('udp4');
+		const sock = createDgramSocket('udp4'); // TODO: Not necessarily v4
 		sock.on('error', (err:any) => {
-			console.error("Error opening datagram server on port "+port, err);
+			this.logger.error("Error opening datagram server on port "+port, err);
+		});
+		sock.on('listening', () => {
+			this.logger.log("Listening for UDP packets on port "+port);
 		});
 		sock.bind( port, address );
 		this.socks.push(sock);
@@ -278,11 +300,11 @@ export default class RouterCLI {
 			}
 			return NORMAL_COMMAND_RESULT_PROMISE;
 		case 'print-routes':
-			console.log("# Begin route list");
+			this.logger.log("# Begin route list");
 			this.router.eachRoute( (prefix:Uint8Array, len:number, dest:LinkID) => {
-				console.log( stringifyIp6Address(prefix)+"/"+len+" via "+dest );
+				this.logger.log( stringifyIp6Address(prefix)+"/"+len+" via "+dest );
 			});
-			console.log("# End route list");
+			this.logger.log("# End route list");
 			return NORMAL_COMMAND_RESULT_PROMISE;
 		case 'auto-route':
 			{
@@ -328,7 +350,7 @@ export default class RouterCLI {
 	}
 	
 	public startInteractivePrompt() {
-		console.log("Router CLI started");
+		this.logger.log("Router CLI started");
 		const rl = require('readline').createInterface({
 			input: process.stdin,
 			output: process.stdout
@@ -337,7 +359,7 @@ export default class RouterCLI {
 		rl.prompt();
 		rl.on('close', () => {
 			this.stop();
-			console.log("Goodbye");
+			this.logger.log("Goodbye");
 		});
 		rl.on('line', (line:string) => {
 			rl.pause();
@@ -346,7 +368,7 @@ export default class RouterCLI {
 				rl.resume();
 				rl.prompt();
 			}, (err:any) => {
-				console.error(err);
+				this.logger.error(err);
 				rl.resume();
 				rl.prompt();
 			});
@@ -359,8 +381,8 @@ export default class RouterCLI {
 			return this.doCommand(commands[offset]).then( () => {
 				this._start(commands, offset+1, options);
 			}, (err) => {
-				console.error(err);
-				console.log("Attempting to quit...");
+				this.logger.error(err);
+				this.logger.log("Attempting to quit...");
 				this.stop();
 			});
 		}
@@ -370,12 +392,14 @@ export default class RouterCLI {
 	
 	public static createAndStart(options:RouterCLIOptions):RouterCLI {
 		const rcli = new RouterCLI();
+		rcli.logger = new LevelFilteringLogger(console, options.verbosity);
 		rcli._start(options.commands, 0, options);
 		return rcli;
 	}
 }
 
 export interface RouterCLIOptions {
+	verbosity : number;
 	interactive : boolean;
 	commands : string[][];
 }
