@@ -317,14 +317,14 @@ export default class RouterCLI {
 		return this.doCommand(cmd);
 	}
 	
-	protected rl : ReadLine;
+	protected rl? : ReadLine;
 	
 	protected stopping = false;
 	public stop():void {
 		if( this.stopping ) return;
 		this.stopping = true;
 		this.router.shutDownAllLinks();
-		this.rl.close();
+		if( this.rl ) this.rl.close();
 	}
 	
 	public startInteractivePrompt() {
