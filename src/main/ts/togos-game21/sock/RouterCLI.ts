@@ -250,7 +250,7 @@ export default class RouterCLI {
 		case 'enable-ping-response':
 			this.router.shouldRespondToPings = true;
 			return NORMAL_COMMAND_RESULT_PROMISE;
-		case 'enable-unreachablity-notifications':
+		case 'enable-unreachability-notifications':
 			this.router.shouldSendUnreachabilityMessages = true;
 			return NORMAL_COMMAND_RESULT_PROMISE;
 		case 'listen-tun-wss':
