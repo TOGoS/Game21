@@ -204,7 +204,7 @@ export default class RouterCLI {
 			const location = parseUrl(ws.upgradeReq.url, true);
 			const linkId = this.router.newLinkId('ws');
 			const link = new WebSocketLink(ws, this.logger);
-			this.router.addLink( link, linkId );
+			this.router.addLink( link, linkId, { sendRouterAdvertisements:true } ); // TODO: configure
 			// No routes automatically added!
 		});
 		return this.httpServer;

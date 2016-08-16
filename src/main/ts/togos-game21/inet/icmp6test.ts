@@ -2,7 +2,7 @@ import { hexEncode } from '../../tshash/utils';
 import { assertEqualsPromise, registerTestResult } from '../testing';
 import { parseIp6Address } from './IP6Address'
 import {
-	assembleRouterAdvertisementPacket,
+	assembleRouterAdvertisementIcmp6Packet,
 	PrefixInformation,
 	RouterAdvertisement
 } from './icmp6';
@@ -18,7 +18,7 @@ registerTestResult("icmp6test: simple router advertisement", new Promise( (resol
 	const routerAddress = parseIp6Address('fe80:0002::1');
 	const hostAddress   = parseIp6Address('fe80:0002::2');
 	
-	const raIcmpPacket = assembleRouterAdvertisementPacket(ra, routerAddress, hostAddress);
+	const raIcmpPacket = assembleRouterAdvertisementIcmp6Packet(ra, routerAddress, hostAddress);
 	if( raIcmpPacket.length == 0 ) {
 		resolve({errors:[new Error("Assembled packet has zero length!")]});
 		return;

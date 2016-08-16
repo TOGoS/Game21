@@ -85,6 +85,7 @@ export const ND_OPTION_MTU = 5;
 
 export interface PrefixInformation {
 	prefixLength : number;
+	/** The addresses covered by this prefix are (all?) on-link */
 	onLink : boolean;
 	/** Indicates that this link can be used for stateless address configuration (see RFC 4682) */
 	autonomousAddressConfiguration : boolean;
@@ -94,6 +95,7 @@ export interface PrefixInformation {
 	prefix : Uint8Array;
 }
 
+// See RFC 3861
 export interface RouterAdvertisement {
 	/** Hop limit to use when sending packets; undefined encoded as 0 */
 	hopLimit : number;
@@ -154,7 +156,9 @@ function encodePrefixInformationOption(pi:PrefixInformation, buffer:Uint8Array, 
 	return offset+32;
 }
 
-export function assembleRouterAdvertisementPacket( ra:RouterAdvertisement, sourceAddress:Uint8Array, destAddress:Uint8Array ):Uint8Array {
+export function assembleRouterAdvertisementIcmp6Packet(
+	ra:RouterAdvertisement, sourceAddress:Uint8Array, destAddress:Uint8Array
+):Uint8Array {
 	let totalLength = 16; // including ICMP header
 	if( ra.sourceLinkLayerAddress ) totalLength += optSize(2+ra.sourceLinkLayerAddress.length);
 	if( ra.mtu != null ) totalLength += 8;

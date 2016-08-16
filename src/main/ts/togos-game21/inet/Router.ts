@@ -11,12 +11,16 @@ import {
 	ICMPMessage,
 	calculateIcmp6Checksum,
 	assembleIcmp6Packet,
-	disassembleIcmp6Packet
+	disassembleIcmp6Packet,
+	RouterAdvertisement,
+	PrefixInformation,
+	assembleRouterAdvertisementIcmp6Packet
 } from './icmp6';
 import PacketDecodeError from './PacketDecodeError';
 import KeyedList from '../KeyedList';
 import { compareByteArrays } from '../util';
 import IPAddress, { prefixMatches, clearNonPrefixBits, stringifyIpAddress } from './IPAddress';
+import { ALL_NODES_ADDRESS, UNSPECIFIED_ADDRESS } from './IP6Address';
 
 export type PacketHandler = (packet:Uint8Array)=>void;
 
@@ -30,6 +34,7 @@ export interface Link {
 }
 
 export type LinkID = string;
+export type SubnetPoolID = string;
 
 interface AutoRoutePrefix {
 	address : IPAddress;
@@ -44,6 +49,18 @@ import Logger, {
 	VERBOSITY_INFO,
 	VERBOSITY_DEBUG,
 } from '../Logger';
+
+interface SubnetPool {
+	prefix : Uint8Array;
+	prefixLength : number;
+	/** Number of bits after the prefix to identify each subnet */
+	subnetBits : number;
+}
+
+interface LinkOptions {
+	sendRouterAdvertisements? : boolean;
+	// subnetPoolId? : SubnetPoolID; // not implemented!
+}
 
 export default class Router
 {
@@ -175,10 +192,62 @@ export default class Router
 		destLink.send(packet);
 	}
 	
-	public addLink( link:Link, linkId:LinkID ):LinkID {
+	protected sendRouterAdvertisement( linkId:LinkID ):void {
+		let prefixInformation : PrefixInformation|undefined = undefined;
+		
+		const link = this.links[linkId];
+		if( link == null ) {
+			this.logger.error("Can't send router advert on link ‹"+linkId+"› because no such link exists!");
+			return;
+		}
+		
+		// TODO: allow configuration of prefixes for each link
+		// instead of assuming we want to use some autoRoutePrefix
+		for( let i in this.autoRoutePrefixes ) {
+			const arp = this.autoRoutePrefixes[i];
+			
+			prefixInformation = {
+				prefix: arp.address,
+				onLink: false, // Since the prefix is shared among multiple links
+				prefixLength: arp.triggerPrefixLength,
+				autonomousAddressConfiguration: true,
+				validLifetime: Infinity, // TODO
+				preferredLifetime: Infinity, // TODO
+			}
+			break;
+		}
+		
+		const ra : RouterAdvertisement = {
+			hopLimit: 42, // TODO configure
+			hasManagedAddressConfiguration: false,
+			hasOtherConfiguration: false,
+			prefixInformation: prefixInformation,
+			// TODO: include source link layer address?
+		};
+		
+		const sourceAddress = this.routerAddress || UNSPECIFIED_ADDRESS;
+		const destAddress   = ALL_NODES_ADDRESS;
+		const raIcmpPacket = assembleRouterAdvertisementIcmp6Packet(ra, sourceAddress, destAddress);
+		const raIpMessage = {
+			ipVersion: 6,
+			sourceAddress: sourceAddress,
+			destAddress: destAddress,
+			protocolNumber: ICMP_PROTOCOL_NUMBER,
+			hopLimit: 64,
+			payload: raIcmpPacket
+		}
+		const raIpPacket = assembleIpPacket( raIpMessage );
+		
+		link.send(raIpPacket);
+	}
+	
+	public addLink( link:Link, linkId:LinkID, opts:LinkOptions={} ):LinkID {
 		if( this.links[linkId] ) throw new Error("Link '"+linkId+"' already exists");
 		this.links[linkId] = link;
 		link.setUp( (packet:Uint8Array) => this.handlePacket( packet, linkId ) );
+		if( opts.sendRouterAdvertisements ) {
+			this.sendRouterAdvertisement( linkId );
+		}
 		return linkId;
 	}
 	

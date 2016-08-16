@@ -83,3 +83,7 @@ export function stringifyIp6Address(addr:Uint8Array, shorten:boolean=true):strin
 }
 
 export default IP6Address;
+
+export const ALL_NODES_ADDRESS = parseIp6Address('ff02::1');
+export const ALL_ROUTERS_ADDRESS = parseIp6Address('ff02::2');
+export const UNSPECIFIED_ADDRESS = parseIp6Address('::');
