@@ -175,8 +175,7 @@ export default class Router
 		destLink.send(packet);
 	}
 	
-	public addLink( link:Link, linkId?:LinkID, pfx?:string ):LinkID {
-		if( !linkId ) linkId = this.newLinkId(pfx);
+	public addLink( link:Link, linkId:LinkID ):LinkID {
 		if( this.links[linkId] ) throw new Error("Link '"+linkId+"' already exists");
 		this.links[linkId] = link;
 		link.setUp( (packet:Uint8Array) => this.handlePacket( packet, linkId ) );
