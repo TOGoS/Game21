@@ -1,5 +1,7 @@
 ## Demos
 
+- Browser-based ping w/ SLAAC
+- Conveyor belts
 - Packet truck
 - Image with dynamic (via material map overrides) indicator lights?
 - Small game with signal wires?
@@ -17,10 +19,27 @@
 ## Misc to-do items
 
 Networking:
+- Use SLAAC to get address
+  - explicitly bridge interfaces in Router
+  - prefix belongs to bridge rather than to individual links
+  - broadcast packets are broadcasted to all links on bridge
 - Use DHCP to get address
+- Use ethernet as universal packet framing (ethertype)
 - Multi-component simulation in browser
   - Maybe grid-based?  To make editing easier.
   - Use game21 renderign system for images!
+
+Conveyor belts:
+- Same mechanism (with slight variations) can implement
+  - network links
+  - pneumatic tubes (taking the role of belts in Factorio)
+- onCollide = destroyAll, destroyLater, blockLater
+- splitters can select send input to one output or all at once
+  (copying only makes sense for signals, not physical objects)
+  - collision logic would not apply to signal being copied
+- belt segments are divided into 'subsegments', which are the 'physical' part
+  that are attached to the world
+- Could probably build a fun game entirely using the tube system
 
 Idea for simple physics engine:
 - quantized.  1/8m or somesuch.  all movement is one 1/8m square at a time.
