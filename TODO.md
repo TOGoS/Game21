@@ -44,6 +44,10 @@ Conveyor belts:
   that are attached to the world
 - Could probably build a fun game entirely using the tube system
 
+Tube graphics:
+- Render front, back half of tubes separately
+- For translucent surfaces, dither in shapesheet; will be AAd to translucency when rendered.
+
 Idea for simple physics engine:
 - quantized.  1/8m or somesuch.  all movement is one 1/8m square at a time.
   no collisions are allowed to occur.
