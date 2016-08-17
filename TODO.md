@@ -37,6 +37,9 @@ Conveyor belts:
 - splitters can select send input to one output or all at once
   (copying only makes sense for signals, not physical objects)
   - collision logic would not apply to signal being copied
+- To simplify physics calculation, since items are 'pushed', mergers do not prioritize inputs
+  - (assuming 'push'-based physics; pull-based might be interesting, too)
+  - but a smart device before the merger could throttle input belts
 - belt segments are divided into 'subsegments', which are the 'physical' part
   that are attached to the world
 - Could probably build a fun game entirely using the tube system
