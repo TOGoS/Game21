@@ -3,6 +3,9 @@ import { assertEqualsPromise, registerTestResult } from '../testing';
 import { parseIp6Address } from './IP6Address'
 import {
 	assembleRouterAdvertisementIcmp6Packet,
+	disassembleIcmp6Packet,
+	extractIcmp6Checksum,
+	calculateIcmp6Checksum,
 	PrefixInformation,
 	RouterAdvertisement
 } from './icmp6';
@@ -23,6 +26,20 @@ registerTestResult("icmp6test: simple router advertisement", new Promise( (resol
 		resolve({errors:[new Error("Assembled packet has zero length!")]});
 		return;
 	}
+	
+	const raIcmpMessage = disassembleIcmp6Packet( raIcmpPacket );
+	
+	const calcChecksum = calculateIcmp6Checksum( routerAddress, hostAddress, raIcmpMessage );
+	const extractedChecksum = extractIcmp6Checksum( raIcmpPacket );
+	if( extractedChecksum != raIcmpMessage.checksum ) {
+		resolve({errors:[new Error("extracted checksum different ways is different! "+extractedChecksum+" != "+raIcmpMessage.checksum)]});
+		return;
+	}
+	if( calcChecksum != extractedChecksum ) {
+		resolve({errors:[new Error("calculated and extracted checksums didn't match: "+calcChecksum+" != "+extractedChecksum)]});
+		return;
+	}
+	
 	// TODO: Parse packet, make sure everything's the same.
 	resolve({});
 }));

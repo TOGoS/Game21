@@ -34,6 +34,10 @@ export function calculateIcmp6Checksum( sourceAddress:IP6Address, destAddress:IP
 	return checksumming.digestAsUint16();
 }
 
+export function extractIcmp6Checksum( icmpPacket:Uint8Array ) {
+	return new DataView(icmpPacket.buffer, icmpPacket.byteOffset, icmpPacket.byteLength).getUint16(2);
+}
+
 /** In-place checksum calculation. */
 function fixIcmp6PacketChecksum( icmpPacket:Uint8Array, sourceAddress:IP6Address, destAddress:IP6Address ):void {
 	initIp6PseudoHeaderChecksumming( sourceAddress, destAddress, icmpPacket.length, ICMP_PROTOCOL_NUMBER );
