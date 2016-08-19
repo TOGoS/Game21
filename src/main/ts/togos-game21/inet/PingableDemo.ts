@@ -17,8 +17,8 @@ import {
 } from './icmp6';
 import {
 	UDPMessage,
-	calculateUdp6Checksum,
-	disassembleUdpPacket
+	disassembleUdpPacket,
+	verifyUdp6PacketChecksum
 } from './udp';
 import {
 	stringifyIp6Address
@@ -70,8 +70,6 @@ tun = new UDPTunnel( (packet:Uint8Array) => {
 		if( ipMessage.protocolNumber == 17 ) {
 			console.log("UDP!");
 			const udpMessage = disassembleUdpPacket( ipMessage.payload );
-			const calcChecksum = calculateUdp6Checksum( ipMessage.sourceAddress, ipMessage.destAddress, udpMessage );
-			console.log("Included checksum: "+udpMessage.checksum+", calculated: "+calcChecksum);
 		} else if( ipMessage.protocolNumber == ICMP_PROTOCOL_NUMBER ) {
 			const icmp6Message = disassembleIcmp6Packet( ipMessage.payload );
 			console.log("Received ICMP6 message; type="+icmp6Message.type+", code="+icmp6Message.code);

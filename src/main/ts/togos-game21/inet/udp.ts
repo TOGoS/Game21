@@ -1,6 +1,6 @@
-import checksumming, { tempDv, tempU8a, uint32ToU8a, initIp6PseudoHeaderChecksumming } from './checksumming';
+import { verifyIp6PacketChecksum } from './checksumming';
 
-export const PROTOCOL_NUMBER = 17;
+export const UDP_PROTOCOL_NUMBER = 17;
 
 export interface UDPMessage {
 	sourcePort : number;
@@ -26,11 +26,6 @@ export function disassembleUdpPacket( packet:Uint8Array ):UDPMessage {
 	};
 }
 
-/** @deprecated */
-export function calculateUdp6Checksum( sourceAddress:Uint8Array, destAddress:Uint8Array, udpMessage:UDPMessage ):number {
-	initIp6PseudoHeaderChecksumming( sourceAddress, destAddress, udpMessage.payload.length + 8, PROTOCOL_NUMBER );
-	checksumming.update(uint32ToU8a((udpMessage.sourcePort << 16) | (udpMessage.destPort)));
-	checksumming.update(uint32ToU8a((udpMessage.length << 16) | 0));
-	checksumming.update(udpMessage.payload);
- 	return checksumming.digestAsUint16();
+export function verifyUdp6PacketChecksum( sourceAddress:Uint8Array, destAddress:Uint8Array, ipPayload:Uint8Array ):boolean {
+	return verifyIp6PacketChecksum( sourceAddress, destAddress, UDP_PROTOCOL_NUMBER, ipPayload );
 }
