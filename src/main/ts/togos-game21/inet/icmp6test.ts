@@ -6,6 +6,7 @@ import {
 	disassembleIcmp6Packet,
 	extractIcmp6Checksum,
 	calculateIcmp6Checksum,
+	verifyIcmp6PacketChecksum,
 	PrefixInformation,
 	RouterAdvertisement
 } from './icmp6';
@@ -37,6 +38,11 @@ registerTestResult("icmp6test: simple router advertisement", new Promise( (resol
 	}
 	if( calcChecksum != extractedChecksum ) {
 		resolve({errors:[new Error("calculated and extracted checksums didn't match: "+calcChecksum+" != "+extractedChecksum)]});
+		return;
+	}
+	const verified = verifyIcmp6PacketChecksum( routerAddress, hostAddress, raIcmpPacket );
+	if( !verified ) {
+		resolve({errors:[new Error("ICMP6 packet checksum did not verify")]});
 		return;
 	}
 	

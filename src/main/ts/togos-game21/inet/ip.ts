@@ -1,5 +1,7 @@
 import PacketDecodeError from './PacketDecodeError';
 
+type IPPayload = Uint8Array;
+
 export interface IPMessage {
 	ipVersion : number;
 	sourceAddress : Uint8Array;
@@ -10,7 +12,7 @@ export interface IPMessage {
 	// protocolNumber is the same as IP6's 'next header';
 	// it indicates the meaning and format of the payload
 	protocolNumber : number;
-	payload : Uint8Array;
+	payload : IPPayload;
 }
 
 export interface IP6Message extends IPMessage {

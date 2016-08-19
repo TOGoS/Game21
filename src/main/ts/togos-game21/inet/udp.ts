@@ -26,6 +26,7 @@ export function disassembleUdpPacket( packet:Uint8Array ):UDPMessage {
 	};
 }
 
+/** @deprecated */
 export function calculateUdp6Checksum( sourceAddress:Uint8Array, destAddress:Uint8Array, udpMessage:UDPMessage ):number {
 	initIp6PseudoHeaderChecksumming( sourceAddress, destAddress, udpMessage.payload.length + 8, PROTOCOL_NUMBER );
 	checksumming.update(uint32ToU8a((udpMessage.sourcePort << 16) | (udpMessage.destPort)));
