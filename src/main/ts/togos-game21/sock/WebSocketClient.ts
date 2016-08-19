@@ -13,7 +13,7 @@ import {
 	ICMP_TYPE_PONG,
 	ICMP_TYPE_ROUTER_ADVERTISEMENT,
 	ICMPMessage,
-	calculateIcmp6Checksum,
+	verifyIcmp6PacketChecksum,
 	assembleIcmp6Packet,
 	disassembleIcmp6Packet
 } from '../inet/icmp6';
@@ -131,9 +131,8 @@ export default class WebSocketClient {
 	}
 	
 	protected handleOwnIcmpMessage( icmpMessage:ICMPMessage, ipMessage:IPMessage, sourceLinkId?:LinkID ):void {
-		const calcChecksum = calculateIcmp6Checksum( ipMessage.sourceAddress, ipMessage.destAddress, icmpMessage );
-		if( calcChecksum != icmpMessage.checksum ) {
-			this.logger.warn("Bad ICMP checksum "+icmpMessage.checksum+" != expected "+calcChecksum);
+		if( !verifyIcmp6PacketChecksum(ipMessage.sourceAddress, ipMessage.destAddress, ipMessage.payload ) ) {
+			this.logger.warn("Bad ICMP checksum; dropping packet.");
 			return;
 		}
 		

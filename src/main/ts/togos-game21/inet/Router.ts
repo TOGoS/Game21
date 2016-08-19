@@ -9,7 +9,7 @@ import {
 	ICMP_TYPE_PING,
 	ICMP_TYPE_PONG,
 	ICMPMessage,
-	calculateIcmp6Checksum,
+	verifyIcmp6PacketChecksum,
 	assembleIcmp6Packet,
 	disassembleIcmp6Packet,
 	RouterAdvertisement,
@@ -93,10 +93,9 @@ export default class Router
 	protected handleOwnIcmpMessage( icmpMessage:ICMPMessage, ipMessage:IPMessage, sourceLinkId?:LinkID ):void {
 		if( !this.shouldRespondToPings ) return;
 		if( icmpMessage.type != ICMP_TYPE_PING ) return;
-
-		const calcChecksum = calculateIcmp6Checksum( ipMessage.sourceAddress, ipMessage.destAddress, icmpMessage );
-		if( calcChecksum != icmpMessage.checksum ) {
-			this.logger.log("Bad ICMP checksum "+icmpMessage.checksum+" != expected "+calcChecksum);
+		
+		if( !verifyIcmp6PacketChecksum( ipMessage.sourceAddress, ipMessage.destAddress, ipMessage.payload ) ) {
+			this.logger.log("Bad ICMP checksum; dropping packet");
 			return;
 		}
 		

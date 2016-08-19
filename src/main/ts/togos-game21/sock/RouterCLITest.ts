@@ -18,7 +18,7 @@ import {
 	ICMP_PROTOCOL_NUMBER,
 	ICMP_TYPE_PING,
 	ICMP_TYPE_PONG,
-	calculateIcmp6Checksum,
+	verifyIcmp6PacketChecksum,
 	assembleIcmp6Packet,
 	disassembleIcmp6Packet
 } from '../inet/icmp6';
@@ -78,13 +78,8 @@ registerTestResult("ping", new Promise( (resolve,reject) => {
 	};
 	const pingPacket = assembleIcmp6Packet( pingMessage, clientAddress, routerAddress );
 	
-	{
-		const calcChecksum = calculateIcmp6Checksum( clientAddress, routerAddress, pingMessage );
-		const _pingMessage = disassembleIcmp6Packet(pingPacket);
-		if( _pingMessage.checksum != calcChecksum ) {
-			console.log(pingMessage, _pingMessage);
-			throw new Error("I messed up making this ping packet; "+_pingMessage.checksum+" != "+calcChecksum);
-		}
+	if( !verifyIcmp6PacketChecksum( clientAddress, routerAddress, pingPacket ) ) {
+		throw new Error("I messed up making this ping packet; its checksum doesn't seem right.");
 	}
 	
 	const pingIpPacket = assembleIpPacket( {

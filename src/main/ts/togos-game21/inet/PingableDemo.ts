@@ -10,7 +10,7 @@ import {
 	ICMPMessage,
 	assembleIcmp6Packet,
 	disassembleIcmp6Packet,
-	calculateIcmp6Checksum,
+	verifyIcmp6PacketChecksum,
 	ICMP_PROTOCOL_NUMBER,
 	ICMP_TYPE_PING,
 	ICMP_TYPE_PONG
@@ -75,8 +75,7 @@ tun = new UDPTunnel( (packet:Uint8Array) => {
 		} else if( ipMessage.protocolNumber == ICMP_PROTOCOL_NUMBER ) {
 			const icmp6Message = disassembleIcmp6Packet( ipMessage.payload );
 			console.log("Received ICMP6 message; type="+icmp6Message.type+", code="+icmp6Message.code);
-			const calculatedChecksum = calculateIcmp6Checksum(ipMessage.sourceAddress, ipMessage.destAddress, icmp6Message);
-			if( icmp6Message.checksum != calculatedChecksum ) {
+			if( !verifyIcmp6PacketChecksum( ipMessage.sourceAddress, ipMessage.destAddress, ipMessage.payload ) ) {
 				console.log("Received ICMP6 packet with invalid checksum; dropping.");
 				return;
 			}
@@ -88,12 +87,6 @@ tun = new UDPTunnel( (packet:Uint8Array) => {
 					payload: icmp6Message.payload
 				};
 				const responseIcmpPacket:Uint8Array = assembleIcmp6Packet( responseMessage, ipMessage.destAddress, ipMessage.sourceAddress );
-				
-				const calcResponseChecksum = calculateIcmp6Checksum( ipMessage.destAddress, ipMessage.sourceAddress, responseMessage );
-				const storedResponseChecksum = new DataView(responseIcmpPacket.buffer, responseIcmpPacket.byteOffset, responseIcmpPacket.byteLength).getUint16(2);
-				if( calcResponseChecksum != storedResponseChecksum ) {
-					console.log("Chxas", calcResponseChecksum, storedResponseChecksum );
-				}
 				
 				const responseIpPacket = assembleIpPacket( <IP6Message>{
 					ipVersion: 6,

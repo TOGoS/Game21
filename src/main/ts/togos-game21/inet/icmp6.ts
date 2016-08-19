@@ -1,7 +1,6 @@
 import IP6Address from './IP6Address';
 import PacketDecodeError from './PacketDecodeError';
-import checksumming, {
-	uint32ToU8a, initIp6PseudoHeaderChecksumming, // TODO: Remove these (and 'checksumming') when deprecated function removed
+import {
 	calculateIp6PacketChecksum,
 	verifyIp6PacketChecksum
 } from './checksumming';
@@ -35,14 +34,6 @@ export type ICMPPacket = Uint8Array;
 //   icmp6 payload                                          /             /
 // )
 
-/** @deprecated */
-export function calculateIcmp6Checksum( sourceAddress:IP6Address, destAddress:IP6Address, icmpMessage:ICMPMessage ):number {
-	initIp6PseudoHeaderChecksumming( sourceAddress, destAddress, icmpMessage.payload.length + 4, ICMP_PROTOCOL_NUMBER );
-	checksumming.update(uint32ToU8a((icmpMessage.type << 24) | (icmpMessage.code << 16) | 0));
-	checksumming.update(icmpMessage.payload);
-	return checksumming.digestAsUint16();
-}
-
 /**
  * The Internet Checksum is defined in such a way that including the checksum
  * in data being checksummed (on a 16-bit boundary, at least)
@@ -71,15 +62,11 @@ function fixIcmp6PacketChecksum( icmpPacket:Uint8Array, sourceAddress:IP6Address
  * and then calculating the checksum with fixIcmp6PacketChecksum.
  */
 export function assembleIcmp6Packet( icmpMessage:ICMPMessage, sourceAddress:IP6Address, destAddress:IP6Address ):Uint8Array {
-	if( icmpMessage.checksum == null ) {
-		icmpMessage.checksum = calculateIcmp6Checksum( sourceAddress, destAddress, icmpMessage );
-	}
 	const packet = new Uint8Array(4 + icmpMessage.payload.length);
 	packet[0] = icmpMessage.type;
 	packet[1] = icmpMessage.code;
-	packet[2] = icmpMessage.checksum >> 8;
-	packet[3] = icmpMessage.checksum >> 0;
 	packet.set(icmpMessage.payload, 4);
+	fixIcmp6PacketChecksum( packet, sourceAddress, destAddress );
 	return packet;
 }
 
