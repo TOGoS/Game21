@@ -44,12 +44,12 @@ export function verifyIcmp6PacketChecksum( sourceAddress:IP6Address, destAddress
 	return verifyIp6PacketChecksum( sourceAddress, destAddress, ICMP_PROTOCOL_NUMBER, icmpPacket );
 }
 
-export function extractIcmp6Checksum( icmpPacket:Uint8Array ) {
+export function extractIcmp6Checksum( icmpPacket:ICMPPacket ) {
 	return new DataView(icmpPacket.buffer, icmpPacket.byteOffset, icmpPacket.byteLength).getUint16(2);
 }
 
 /** In-place checksum calculation. */
-function fixIcmp6PacketChecksum( icmpPacket:Uint8Array, sourceAddress:IP6Address, destAddress:IP6Address ):void {
+function fixIcmp6PacketChecksum( icmpPacket:ICMPPacket, sourceAddress:IP6Address, destAddress:IP6Address ):void {
 	icmpPacket[2] = 0;
 	icmpPacket[3] = 0;
 	const checksum = calculateIp6PacketChecksum( sourceAddress, destAddress, ICMP_PROTOCOL_NUMBER, icmpPacket );
@@ -61,7 +61,7 @@ function fixIcmp6PacketChecksum( icmpPacket:Uint8Array, sourceAddress:IP6Address
  * Probably less efficient than building the packet in-place
  * and then calculating the checksum with fixIcmp6PacketChecksum.
  */
-export function assembleIcmp6Packet( icmpMessage:ICMPMessage, sourceAddress:IP6Address, destAddress:IP6Address ):Uint8Array {
+export function assembleIcmp6Packet( icmpMessage:ICMPMessage, sourceAddress:IP6Address, destAddress:IP6Address ):ICMPPacket {
 	const packet = new Uint8Array(4 + icmpMessage.payload.length);
 	packet[0] = icmpMessage.type;
 	packet[1] = icmpMessage.code;
@@ -70,7 +70,7 @@ export function assembleIcmp6Packet( icmpMessage:ICMPMessage, sourceAddress:IP6A
 	return packet;
 }
 
-export function disassembleIcmp6Packet( packet:Uint8Array ):ICMPMessage {
+export function disassembleIcmp6Packet( packet:ICMPPacket ):ICMPMessage {
 	return {
 		type : packet[0],
 		code : packet[1],
@@ -102,7 +102,7 @@ export interface PrefixInformation {
 // See RFC 3861
 export interface RouterAdvertisement {
 	/** Hop limit to use when sending packets; undefined encoded as 0 */
-	hopLimit : number;
+	hopLimit? : number;
 	/** Addresses are available via DHCPv6.  Meaningless if hasOtherConfiguration. */
 	hasManagedAddressConfiguration : boolean;
 	/** Other configuration is available via DHCPv6, including addresses */
@@ -123,10 +123,13 @@ function optSize( len:number ) {
 	return 8 * Math.ceil(len/8);
 }
 
-function encodeOptSize( len:number ) {
+function encodeOptSize( len:number ):number {
 	const v = Math.ceil(len/8);
 	if( v > 255 ) throw new Error("Can't encode option size; it is too big! "+len);
 	return v;
+}
+function decodeOptSize( encoded:number ):number {
+	return encoded*8;
 }
 
 function infToInt32( a:number ):number {
@@ -135,6 +138,9 @@ function infToInt32( a:number ):number {
 
 function undefToZero( a:number|undefined ):number {
 	return a == undefined ? 0 : a;
+}
+function zeroToUndef( a:number ):number|undefined {
+	return a == 0 ? undefined : a;
 }
 
 function encodeLinkLayerAddressOption( type:number, address:Uint8Array, buffer:Uint8Array, dv:DataView, offset:number ):number {
@@ -162,7 +168,7 @@ function encodePrefixInformationOption(pi:PrefixInformation, buffer:Uint8Array, 
 
 export function assembleRouterAdvertisementIcmp6Packet(
 	ra:RouterAdvertisement, sourceAddress:Uint8Array, destAddress:Uint8Array
-):Uint8Array {
+):ICMPPacket {
 	let totalLength = 16; // including ICMP header
 	if( ra.sourceLinkLayerAddress ) totalLength += optSize(2+ra.sourceLinkLayerAddress.length);
 	if( ra.mtu != null ) totalLength += 8;
@@ -173,7 +179,7 @@ export function assembleRouterAdvertisementIcmp6Packet(
 	packet[0] = ICMP_TYPE_ROUTER_ADVERTISEMENT;
 	packet[1] = 0;
 	// checksum will go here
-	packet[4] = ra.hopLimit;
+	packet[4] = undefToZero(ra.hopLimit);
 	packet[5] = (ra.hasManagedAddressConfiguration ? 0x80 : 0) | (ra.hasOtherConfiguration ? 0x40 : 0);
 	v.setUint16( 6, undefToZero(ra.routerLifetime));
 	v.setUint32( 8, undefToZero(ra.reachableTime));
@@ -191,6 +197,60 @@ export function assembleRouterAdvertisementIcmp6Packet(
 	
 	fixIcmp6PacketChecksum( packet, sourceAddress, destAddress );
 	return packet;
+}
+
+function decodePrefixInformationOption(packet:ICMPPacket, dv:DataView, offset:number, optSize:number):PrefixInformation {
+	if( optSize < 32 ) throw new PacketDecodeError("Prefix information option too small at only "+optSize+" of expected 32 bytes");
+	
+	return {
+		prefixLength     : packet[offset+2],
+		onLink: (packet[offset+3] & 0x80) != 0,
+		autonomousAddressConfiguration: (packet[offset+3] & 0x40) != 0,
+		validLifetime    : dv.getUint32(offset+4),
+		preferredLifetime: dv.getUint32(offset+8),
+		prefix: Uint8Array.from(packet.slice(offset+16, offset+32)),
+	};
+}
+
+export function disassembleRouterAdvertisementIcmp6Packet(
+	icmpPacket:ICMPPacket
+):RouterAdvertisement {
+	if( icmpPacket.length < 16 ) throw new PacketDecodeError("ICMP packet too short to be router advertisement: "+icmpPacket.length);
+	
+	const dv = new DataView(icmpPacket.buffer, icmpPacket.byteOffset, icmpPacket.byteLength);
+	
+	const ra:RouterAdvertisement = {
+		hopLimit: zeroToUndef(icmpPacket[4]),
+		hasManagedAddressConfiguration: (icmpPacket[5] & 0x80) != 0,
+		hasOtherConfiguration: (icmpPacket[5] & 0x40) != 0,
+		routerLifetime: zeroToUndef(dv.getUint16( 6)),
+		reachableTime:  zeroToUndef(dv.getUint32( 8)),
+		retransTime:    zeroToUndef(dv.getUint32(12)),
+	};
+	let offset = 16;
+	while( offset <= icmpPacket.length+2 ) {
+		const optType = icmpPacket[offset];
+		const optSize = decodeOptSize(icmpPacket[offset+1]);
+		if( optSize + offset > icmpPacket.length ) {
+			throw new PacketDecodeError(
+				"Option at "+offset+" (size="+optSize+
+					") extends past end of ICMP packet (size="+icmpPacket.length+")");
+		}
+		switch( optType ) {
+		case ND_OPTION_PREFIX_INFORMATION:
+			ra.prefixInformation = decodePrefixInformationOption(icmpPacket, dv, offset, optSize);
+			break;
+		case ND_OPTION_MTU:
+			if( optSize < 8 ) throw new PacketDecodeError("MTU option too small at only "+optSize+" of expected 8 bytes");
+			ra.mtu = dv.getUint32(offset+4);
+			break;
+		default:
+			// don't care; deal with it when needed
+			break;
+		}
+		offset += optSize;
+	}
+	return ra;
 }
 
 /*

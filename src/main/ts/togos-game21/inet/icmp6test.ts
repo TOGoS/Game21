@@ -1,9 +1,10 @@
 import { hexEncode } from '../../tshash/utils';
-import { assertEqualsPromise, registerTestResult } from '../testing';
+import { assertEqualsPromise, registerTestResult, assertEquals } from '../testing';
 import { parseIp6Address } from './IP6Address'
 import {
 	assembleRouterAdvertisementIcmp6Packet,
 	disassembleIcmp6Packet,
+	disassembleRouterAdvertisementIcmp6Packet,
 	extractIcmp6Checksum,
 	verifyIcmp6PacketChecksum,
 	PrefixInformation,
@@ -17,6 +18,7 @@ registerTestResult("icmp6test: simple router advertisement", new Promise( (resol
 		hasManagedAddressConfiguration: false,
 		hasOtherConfiguration: false,
 	}
+	// TODO: include prefix information and stuff
 	
 	const routerAddress = parseIp6Address('fe80:0002::1');
 	const hostAddress   = parseIp6Address('fe80:0002::2');
@@ -40,6 +42,9 @@ registerTestResult("icmp6test: simple router advertisement", new Promise( (resol
 		resolve({errors:[new Error("ICMP6 packet checksum did not verify")]});
 		return;
 	}
+	
+	const disassembledRa = disassembleRouterAdvertisementIcmp6Packet(raIcmpPacket);
+	assertEquals(ra, disassembledRa);
 	
 	// TODO: Parse packet, make sure everything's the same.
 	resolve({});
