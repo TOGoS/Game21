@@ -17,6 +17,14 @@ registerTestResult("icmp6test: simple router advertisement", new Promise( (resol
 		hopLimit: 24,
 		hasManagedAddressConfiguration: false,
 		hasOtherConfiguration: false,
+		prefixInformation: {
+			prefixLength: 96,
+			onLink: false,
+			autonomousAddressConfiguration: true,
+			validLifetime: Infinity,
+			preferredLifetime: Infinity,
+			prefix: parseIp6Address('fe80:0001:0002:0003:0004:0005::'),
+		}
 	}
 	// TODO: include prefix information and stuff
 	

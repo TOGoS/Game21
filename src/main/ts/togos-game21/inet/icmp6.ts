@@ -135,6 +135,9 @@ function decodeOptSize( encoded:number ):number {
 function infToInt32( a:number ):number {
 	return a == Infinity ? 0xFFFFFFFF : a;
 }
+function int32ToInf( a:number ):number {
+	return a == 0xFFFFFFFF ? Infinity : a;
+}
 
 function undefToZero( a:number|undefined ):number {
 	return a == undefined ? 0 : a;
@@ -162,7 +165,7 @@ function encodePrefixInformationOption(pi:PrefixInformation, buffer:Uint8Array, 
 	buffer[offset+3] = (pi.onLink ? 0x80 : 0) | (pi.autonomousAddressConfiguration ? 0x40 : 0);
 	dv.setUint32( offset+4, infToInt32(pi.validLifetime) );
 	dv.setUint32( offset+8, infToInt32(pi.preferredLifetime) );
-	buffer.set(pi.prefix, 16);
+	buffer.set(pi.prefix, offset+16);
 	return offset+32;
 }
 
@@ -206,8 +209,8 @@ function decodePrefixInformationOption(packet:ICMPPacket, dv:DataView, offset:nu
 		prefixLength     : packet[offset+2],
 		onLink: (packet[offset+3] & 0x80) != 0,
 		autonomousAddressConfiguration: (packet[offset+3] & 0x40) != 0,
-		validLifetime    : dv.getUint32(offset+4),
-		preferredLifetime: dv.getUint32(offset+8),
+		validLifetime    : int32ToInf(dv.getUint32(offset+4)),
+		preferredLifetime: int32ToInf(dv.getUint32(offset+8)),
 		prefix: Uint8Array.from(packet.slice(offset+16, offset+32)),
 	};
 }
@@ -233,7 +236,7 @@ export function disassembleRouterAdvertisementIcmp6Packet(
 		const optSize = decodeOptSize(icmpPacket[offset+1]);
 		if( optSize + offset > icmpPacket.length ) {
 			throw new PacketDecodeError(
-				"Option at "+offset+" (size="+optSize+
+				"Option at "+offset+" (type="+optType+", size="+optSize+
 					") extends past end of ICMP packet (size="+icmpPacket.length+")");
 		}
 		switch( optType ) {
