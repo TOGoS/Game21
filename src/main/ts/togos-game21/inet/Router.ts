@@ -24,6 +24,9 @@ import { ALL_NODES_ADDRESS, UNSPECIFIED_ADDRESS } from './IP6Address';
 
 export type PacketHandler = (packet:Uint8Array)=>void;
 
+// TODO: Allow links to be added to a bridge
+// and forward link broadcast packets across them
+
 export interface Link {
 	/** Incoming packets should be passed to handler */
 	setUp(handler:PacketHandler):void;
