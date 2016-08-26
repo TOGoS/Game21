@@ -96,21 +96,22 @@ $browserVirtualAddress = '::'; //$vnPrefix.randAddressPostfix();
 </head>
 <body>
 
+<h2>IP6 over WebSocket</h2>
+
 <form onsubmit="return false" id="the-form">
-<label>Server Address <input type="text" name="wsServerAddress" size="80" value="<?php eht($webSocketUrl); ?>" title="Router WebSocket address"/></label>
+<label>Tunnel Server Address <input type="text" name="wsServerAddress" size="60" value="<?php eht($webSocketUrl); ?>" title="Router WebSocket address"/></label>
 <button onclick="wsClientPage.connect()">Connect</button>
 <br />
 
 <hr />
 
-<label>Our address <input type="text" name="clientIpAddress" size="50" value="<?php eht($browserVirtualAddress); ?>" title="Our [virtual] IP address"/></label><br />
 <label>Ping target <input type="text" name="pingTargetIpAddress" size="50" value="2001:470:0:76::2" title="Ping target IP address"/></label>
 <button onclick="wsClientPage.sendPing()">Send Ping</button><br />
 
-<p>Some targets</p>
+<!-- p>Some targets</p>
 <ul>
 <li>he.net 2001:470:0:76::2</li>
-</ul>
+</ul -->
 
 </form>
 
@@ -177,8 +178,6 @@ $browserVirtualAddress = '::'; //$vnPrefix.randAddressPostfix();
 		}
 		WSClientPage.prototype.sendPing = function() {
 			var wsClient = this.connectIfNotConnected();
-			var clientIpStr = this.form.clientIpAddress.value;
-			wsClient.localAddress = _IP6Address.parseIp6Address(clientIpStr);
 			var targetIpStr = this.form.pingTargetIpAddress.value;
 			var targetIp = _IP6Address.parseIp6Address(targetIpStr);
 			wsClient.ping(targetIp);

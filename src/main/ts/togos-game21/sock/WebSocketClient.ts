@@ -136,13 +136,15 @@ export default class WebSocketClient {
 	
 	protected handleOwnRouterAdvertisement( icmpMessage:ICMPMessage, ipMessage:IPMessage, sourceLinkId?:LinkID ):void {
 		// TODO
-		this.logger.log("Received a router advertisement!");
+		//this.logger.log("Received a router advertisement!");
 		const ra = disassembleRouterAdvertisementIcmp6Packet(ipMessage.payload);
-		this.logger.log(ra.prefixInformation ? "Has prefix info!" : "No prefix info");
+		//this.logger.log(ra.prefixInformation ? "Has prefix info!" : "No prefix info");
 		if( ra.prefixInformation ) {
-			this.logger.log( "Prefix: "+stringifyIp6Address(ra.prefixInformation.prefix) + "/" + ra.prefixInformation.prefixLength );
+			this.logger.log(
+				"Received router advertisement.  Prefix: "+
+					stringifyIp6Address(ra.prefixInformation.prefix) + "/" + ra.prefixInformation.prefixLength);
 			this.myGlobalAddress = randomIp6Address(ra.prefixInformation.prefix, ra.prefixInformation.prefixLength);
-			this.logger.log("New address: "+stringifyIp6Address(this.myGlobalAddress));
+			this.logger.log("Out new IP address is "+stringifyIp6Address(this.myGlobalAddress));
 		}
 	}
 	
