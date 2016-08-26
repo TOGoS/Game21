@@ -62,6 +62,7 @@ export default class WebSocketClient {
 	public myGlobalAddress:IP6Address;
 	public nextPingSequenceNumber:number=0;
 	public logger:Logger;
+	public wsClientPage:any;
 	
 	constructor() {
 		this.connection = undefined;
@@ -71,35 +72,7 @@ export default class WebSocketClient {
 		this.myGlobalAddress = UNSPECIFIED_ADDRESS;
 		this.logger = window.console;
 	}
-	public connectIfNotConnected(wsUrl:string):WebSocketClient {
-		if( this.connection == null ) {
-			this.logger.log("Attempting to connect to "+wsUrl);
-			this.connection = new WebSocket(wsUrl);
-			this.connection.binaryType = 'arraybuffer';
-			this.connection.onopen = this.onOpen.bind(this);
-			this.connection.onerror = (error) => {
-				this.connection = undefined;
-				this.logger.log("Websocket Error:", error, "; disconnected");
-			};
-			this.connection.onmessage = this.onMessage.bind(this);
-			this.logger.log("Connecting...");
-		}
-		return this;
-	}
-	protected onOpen() {
-		this.logger.log('Connected!');
-		if( !this.connection ) throw new Error("But somehow connection not set in onOpen!");
-		for( var i=0; i < this.enqueuedMessages.length; ++i ) {
-			this.connection.send(this.enqueuedMessages[i]);
-		}
-		this.logger.log("Sent "+this.enqueuedMessages.length+" queued messages.");
-	};
-	protected checkConnection() {
-		if( this.connection && this.connection.readyState > 1 ) {
-			// Connection closed!
-			this.connection = undefined;
-		}
-	};
+
 	protected onMessage(messageEvent:any):void {
 		var encoding:string;
 		var data = messageEvent.data;
@@ -109,7 +82,52 @@ export default class WebSocketClient {
 		}
 		const packet = new Uint8Array(data);
 		this.receivePacket(packet);
+	}
+	
+	protected setConnected(connected:boolean) {
+		if( this.wsClientPage ) this.wsClientPage.setConnected(connected);
+	}
+	
+	protected onClose() {
+		this.logger.log('Disconnected!');
+		this.setConnected(false);
+		this.connection = undefined;
+	}
+	
+	protected onOpen() {
+		this.logger.log('Connected!');
+		if( !this.connection ) throw new Error("But somehow connection not set in onOpen!");
+		for( var i=0; i < this.enqueuedMessages.length; ++i ) {
+			this.connection.send(this.enqueuedMessages[i]);
+		}
+		this.enqueuedMessages.length = 0;
+		this.setConnected(true);
+		this.logger.log("Sent "+this.enqueuedMessages.length+" queued messages.");
 	};
+	
+	public connectIfNotConnected(wsUrl:string):WebSocketClient {
+		if( this.connection == null ) {
+			this.logger.log("Attempting to connect to "+wsUrl);
+			this.connection = new WebSocket(wsUrl);
+			this.connection.binaryType = 'arraybuffer';
+			this.connection.onopen = this.onOpen.bind(this);
+			this.connection.onclose = this.onClose.bind(this);
+			this.connection.onerror = (error) => {
+				this.connection = undefined;
+				this.logger.log("Websocket Error:", error, "; disconnected");
+			};
+			this.connection.onmessage = this.onMessage.bind(this);
+			this.logger.log("Connecting...");
+		}
+		return this;
+	}
+	
+	public disconnect() {
+		if( this.connection ) {
+			this.connection.close();
+			this.onClose();
+		}
+	}
 	
 	protected shouldRespondToPings = true;
 	
@@ -132,6 +150,7 @@ export default class WebSocketClient {
 		};
 		const responsePacket = assembleIpPacket(responseMessage);
 		this.enqueuePacket( responsePacket );
+		this.logger.log("Responding to ping from "+stringifyIp6Address(ipMessage.sourceAddress));
 	}
 	
 	protected handleOwnRouterAdvertisement( icmpMessage:ICMPMessage, ipMessage:IPMessage, sourceLinkId?:LinkID ):void {
@@ -203,12 +222,11 @@ export default class WebSocketClient {
 	}
 	
 	protected enqueuePacket(data:Uint8Array):void {
-		this.checkConnection();
 		if( this.connection != null && this.connection.readyState == 1 ) {
 			//this.logger.log("Sending message now");
 			this.connection.send(data);
 		} else {
-			this.logger.log("Not yet connected; enqueing message.");
+			this.logger.log("Not currently connected; enqueing message.");
 			this.enqueuedMessages.push(data);
 		}
 	};

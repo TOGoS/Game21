@@ -100,13 +100,13 @@ $browserVirtualAddress = '::'; //$vnPrefix.randAddressPostfix();
 
 <form onsubmit="return false" id="the-form">
 <label>Tunnel Server Address <input type="text" name="wsServerAddress" size="60" value="<?php eht($webSocketUrl); ?>" title="Router WebSocket address"/></label>
-<button onclick="wsClientPage.connect()">Connect</button>
+<button id="connect-button" onclick="wsClientPage.connect()">Connect</button>
 <br />
 
 <hr />
 
 <label>Ping target <input type="text" name="pingTargetIpAddress" size="50" value="2001:470:0:76::2" title="Ping target IP address"/></label>
-<button onclick="wsClientPage.sendPing()">Send Ping</button><br />
+<button id="ping-button" onclick="wsClientPage.sendPing()">Send Ping</button><br />
 
 <!-- p>Some targets</p>
 <ul>
@@ -155,6 +155,10 @@ $browserVirtualAddress = '::'; //$vnPrefix.randAddressPostfix();
 			wsClient.ping(targetIp);
 			proc.exit(0);
 		});
+		shell.defineCommand('disconnect', function(argv,proc) {
+			wsClient.disconnect();
+			proc.exit(0);
+		});
 		window.shellProc = shell;
 		document.getElementById('console-area').appendChild(shell.initUi());
 		
@@ -164,14 +168,26 @@ $browserVirtualAddress = '::'; //$vnPrefix.randAddressPostfix();
 		
 		var WSClientPage = function(form) {
 			this.form = form;
+			this.connectButton = document.getElementById("connect-button");
+			this.pingButton = document.getElementById("ping-button");
 		};
 		WSClientPage.prototype.connectIfNotConnected = function() {
 			wsClient.connectIfNotConnected(this.form.wsServerAddress.value);
-			this.form.wsServerAddress.disabled = "disabled";
 			return wsClient;
 		}
 		WSClientPage.prototype.connect = function() {
 			this.connectIfNotConnected();
+		}
+		WSClientPage.prototype.setConnected = function(connected) {
+			if( connected ) {
+				this.pingButton.disabled = "";
+				this.form.wsServerAddress.disabled = "disabled";
+				this.connectButton.disabled = "disabled";
+			} else {
+				this.pingButton.disabled = "disabled";
+				this.form.wsServerAddress.disabled = "";
+				this.connectButton.disabled = "";
+			}
 		}
 		WSClientPage.prototype.connect = function() {
 			var wsClient = this.connectIfNotConnected();
@@ -183,7 +199,9 @@ $browserVirtualAddress = '::'; //$vnPrefix.randAddressPostfix();
 			wsClient.ping(targetIp);
 		}
 		
-		window.wsClientPage = wsClientPage = new WSClientPage(document.getElementById('the-form'));
+		window.wsClientPage = wsClientPage = wsClient.wsClientPage =
+			new WSClientPage(document.getElementById('the-form'));
+		wsClientPage.setConnected(false);
 	});
 </script>
 
