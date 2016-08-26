@@ -129,9 +129,29 @@ $browserVirtualAddress = '::'; //$vnPrefix.randAddressPostfix();
 		_IP6Address
 	) {
 		var shell = new _Console.ShellProcess();
+		var wsClientPage;
+		var wsClient;
+		
 		shell.document = document;
 		shell.defineCommand('echo', function(argv, proc) {
 			proc.printLine(0, argv.slice(1).join(" "));
+			proc.exit(0);
+		});
+		shell.defineCommand('ping', function(argv, proc) {
+			var pingTarget = argv[1];
+			if( !pingTarget ) {
+				proc.printLine(1, "Usage: ping <target IP address>");
+				proc.exit(1);
+				return;
+			}
+			try {
+				var targetIp = _IP6Address.parseIp6Address(pingTarget);
+			} catch( err ) {
+				proc.printLine(1, "Error: invalid IP6 address '"+pingTarget+"': "+err.message);
+				proc.exit(1);
+				return;
+			}
+			wsClient.ping(targetIp);
 			proc.exit(0);
 		});
 		window.shellProc = shell;
@@ -164,7 +184,7 @@ $browserVirtualAddress = '::'; //$vnPrefix.randAddressPostfix();
 			wsClient.ping(targetIp);
 		}
 		
-		window.wsClientPage = new WSClientPage(document.getElementById('the-form'));
+		window.wsClientPage = wsClientPage = new WSClientPage(document.getElementById('the-form'));
 	});
 </script>
 

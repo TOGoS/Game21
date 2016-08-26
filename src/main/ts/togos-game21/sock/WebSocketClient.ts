@@ -152,11 +152,14 @@ export default class WebSocketClient {
 			return;
 		}
 		
-		this.logger.log("ICMP message type: "+icmpMessage.type);
+		// this.logger.log("ICMP message type: "+icmpMessage.type);
 		
 		switch( icmpMessage.type ) {
 		case ICMP_TYPE_PING:
 			this.handleOwnPing(icmpMessage, ipMessage, sourceLinkId);
+			break;
+		case ICMP_TYPE_PONG:
+			this.logger.log("Received pong from "+stringifyIp6Address(ipMessage.sourceAddress));
 			break;
 		case ICMP_TYPE_ROUTER_ADVERTISEMENT:
 			this.handleOwnRouterAdvertisement(icmpMessage, ipMessage, sourceLinkId);
@@ -181,16 +184,18 @@ export default class WebSocketClient {
 			this.logger.error(e);
 			return;
 		}
+		/*
 		this.logger.log(
 			"Received packet from "+
 				stringifyIp6Address(ipMessage.sourceAddress)+" to "+
 				stringifyIp6Address(ipMessage.destAddress)+", protocol number "+
 				ipMessage.protocolNumber);
+		*/
 		if(
 			compareByteArrays(ipMessage.destAddress, this.myGlobalAddress) == 0 ||
 			compareByteArrays(ipMessage.destAddress, ALL_NODES_ADDRESS) == 0
 		) {
-			this.logger.log("This packet is for me!");
+			//this.logger.log("This packet is for me!");
 			this.handleOwnIpMessage(ipMessage);
 		}
 	}
@@ -198,7 +203,7 @@ export default class WebSocketClient {
 	protected enqueuePacket(data:Uint8Array):void {
 		this.checkConnection();
 		if( this.connection != null && this.connection.readyState == 1 ) {
-			this.logger.log("Sending message now");
+			//this.logger.log("Sending message now");
 			this.connection.send(data);
 		} else {
 			this.logger.log("Not yet connected; enqueing message.");
@@ -207,6 +212,7 @@ export default class WebSocketClient {
 	};
 	
 	protected ping(peerAddress:IP6Address) {
+		this.logger.log("Sending ping packet to "+stringifyIp6Address(peerAddress));
 		this.enqueuePacket( assembleIpPacket({
 			ipVersion: 6,
 			sourceAddress: this.myGlobalAddress,

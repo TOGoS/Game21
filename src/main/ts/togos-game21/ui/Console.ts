@@ -14,10 +14,18 @@ export class DOMLogger implements Logger {
 	public document:HTMLDocument;
 	public outputDiv:HTMLElement;
 	
+	protected append( elem:HTMLElement ) {
+		var wasAtBottom = this.outputDiv.scrollTop == (this.outputDiv.scrollHeight - this.outputDiv.clientHeight);;
+		this.outputDiv.appendChild(elem);
+		if( wasAtBottom ) {
+			this.outputDiv.scrollTop = this.outputDiv.scrollHeight - this.outputDiv.clientHeight;
+		}
+	}
+	
 	public printLine(fh:number, text:string) {
 		const line = this.document.createElement('p');
 		line.appendChild(document.createTextNode(text));
-		this.outputDiv.appendChild(line);
+		this.append(line);
 	}
 	public log(...stuff:any[]) {
 		const pre = this.document.createElement('pre');
@@ -26,8 +34,7 @@ export class DOMLogger implements Logger {
 			texts.push(logStringify(stuff[t]));
 		}
 		pre.appendChild(document.createTextNode(texts.join(" ")));
-		console.log("Logging:", ...stuff);
-		this.outputDiv.appendChild(pre);
+		this.append(pre);
 	}
 	// TODO: make diff colors or classes something
 	public error(...stuff:any[]) { this.log(...stuff); }
