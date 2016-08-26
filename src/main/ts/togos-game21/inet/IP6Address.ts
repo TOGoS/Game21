@@ -87,3 +87,6 @@ export default IP6Address;
 export const ALL_NODES_ADDRESS = parseIp6Address('ff02::1');
 export const ALL_ROUTERS_ADDRESS = parseIp6Address('ff02::2');
 export const UNSPECIFIED_ADDRESS = parseIp6Address('::');
+
+export const LINK_LOCAL_PREFIX = parseIp6Address('fe80::');
+export const LINK_LOCAL_PREFIX_LENGTH = 10;

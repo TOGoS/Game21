@@ -251,6 +251,10 @@ export function disassembleRouterAdvertisementIcmp6Packet(
 			// don't care; deal with it when needed
 			break;
 		}
+		if( optSize == 0 ) {
+			console.warn("Option at offset "+offset+" (type="+optType+") has size zero; I'll do no more option parsing.");
+			break;
+		}
 		offset += optSize;
 	}
 	return ra;

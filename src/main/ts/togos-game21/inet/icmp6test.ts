@@ -17,6 +17,7 @@ registerTestResult("icmp6test: simple router advertisement", new Promise( (resol
 		hopLimit: 24,
 		hasManagedAddressConfiguration: false,
 		hasOtherConfiguration: false,
+		mtu: 67,
 		prefixInformation: {
 			prefixLength: 96,
 			onLink: false,

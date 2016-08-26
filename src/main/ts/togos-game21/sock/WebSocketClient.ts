@@ -4,7 +4,9 @@ import IP6Address, {
 	parseIp6Address,
 	stringifyIp6Address,
 	UNSPECIFIED_ADDRESS,
-	ALL_NODES_ADDRESS
+	ALL_NODES_ADDRESS,
+	LINK_LOCAL_PREFIX,
+	LINK_LOCAL_PREFIX_LENGTH
 } from '../inet/IP6Address';
 import { IPMessage, assembleIpPacket, disassembleIpPacket } from '../inet/ip';
 import {
@@ -15,7 +17,8 @@ import {
 	ICMPMessage,
 	verifyIcmp6PacketChecksum,
 	assembleIcmp6Packet,
-	disassembleIcmp6Packet
+	disassembleIcmp6Packet,
+	disassembleRouterAdvertisementIcmp6Packet
 } from '../inet/icmp6';
 import {
 	LinkID
@@ -36,14 +39,20 @@ declare class WebSocket implements WebSocketLike {
 	onmessage : (event:any)=>void;
 };
 
-function randomLinkLocalAddress():IP6Address {
+function randomIp6Address(prefix?:IP6Address, prefixLength:number=0) {
 	const arr = new Uint8Array(16);
-	arr[0] = 0xfe;
-	arr[1] = 0x80;
-	for( let i=8; i<16; ++i ) {
+	let i = 0;
+	for( ; i < prefixLength/8; ++i ) {
+		arr[i] = prefix ? prefix[i] : 0;
+	}
+	for( ; i < 16; ++i ) {
 		arr[i] = Math.random()*256;
 	}
 	return arr;
+}
+
+function randomLinkLocalAddress():IP6Address {
+	return randomIp6Address(LINK_LOCAL_PREFIX, 64);
 }
 
 export default class WebSocketClient {
@@ -128,6 +137,13 @@ export default class WebSocketClient {
 	protected handleOwnRouterAdvertisement( icmpMessage:ICMPMessage, ipMessage:IPMessage, sourceLinkId?:LinkID ):void {
 		// TODO
 		this.logger.log("Received a router advertisement!");
+		const ra = disassembleRouterAdvertisementIcmp6Packet(ipMessage.payload);
+		this.logger.log(ra.prefixInformation ? "Has prefix info!" : "No prefix info");
+		if( ra.prefixInformation ) {
+			this.logger.log( "Prefix: "+stringifyIp6Address(ra.prefixInformation.prefix) + "/" + ra.prefixInformation.prefixLength );
+			this.myGlobalAddress = randomIp6Address(ra.prefixInformation.prefix, ra.prefixInformation.prefixLength);
+			this.logger.log("New address: "+stringifyIp6Address(this.myGlobalAddress));
+		}
 	}
 	
 	protected handleOwnIcmpMessage( icmpMessage:ICMPMessage, ipMessage:IPMessage, sourceLinkId?:LinkID ):void {
