@@ -100,9 +100,9 @@ export default class WebSocketClient {
 		for( var i=0; i < this.enqueuedMessages.length; ++i ) {
 			this.connection.send(this.enqueuedMessages[i]);
 		}
-		this.enqueuedMessages.length = 0;
 		this.setConnected(true);
 		this.logger.log("Sent "+this.enqueuedMessages.length+" queued messages.");
+		this.enqueuedMessages.length = 0;
 	};
 	
 	public connectIfNotConnected(wsUrl:string):WebSocketClient {

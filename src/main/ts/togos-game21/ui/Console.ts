@@ -54,7 +54,8 @@ class ConsoleProcess extends DOMLogger {
 type ShellCommand = (argv:string[], proc:ConsoleProcess)=>void;
 
 export class ShellProcess extends ConsoleProcess {
-	protected commands:KeyedList<ShellCommand> = {};
+	public commands:KeyedList<ShellCommand> = {};
+	
 	public defineCommand(name:string, implementation:ShellCommand) {
 		this.commands[name] = implementation;
 	}

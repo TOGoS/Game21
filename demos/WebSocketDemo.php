@@ -161,6 +161,14 @@ $browserVirtualAddress = '::'; //$vnPrefix.randAddressPostfix();
 		});
 		window.shellProc = shell;
 		document.getElementById('console-area').appendChild(shell.initUi());
+		var cmd;
+		var welcomeText =
+			"Welcome to IP Over Web Socket Demo Shell!\n"+
+			"Available commands:";
+		for( cmd in shell.commands ) {
+			welcomeText += "\n  " + cmd;
+		}
+		shell.log(welcomeText);
 		
 		var WebSocketClient = _WebSocketClient.default;
 		var wsClient = new WebSocketClient();
