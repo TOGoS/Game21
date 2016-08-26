@@ -60,9 +60,11 @@ $browserVirtualAddress = '::'; //$vnPrefix.randAddressPostfix();
 }
 .console-output {
 	width: 100%;
-	min-height: 64px;
+	max-height: 60vh;
+	height: 500px;
+	overflow: auto;
 }
-.console-output > p {
+.console-output > * {
 	margin: 2px 4px;
 	padding: 2px 4px;
 }
