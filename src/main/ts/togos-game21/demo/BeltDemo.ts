@@ -27,12 +27,15 @@ interface BeltItem {
 	color : LightColor;
 }
 
+const AUTO_ACTIVATING = 0x01;
+const AUTO_SWITCHING  = 0x02;
+
 interface BeltSegment {
 	endpoints : BeltSegmentEndpoint[];
 	arcs : BeltSegmentArc[];
 	activeArcNumber : number; // Which curve is stuff on?
 	radius : number;
-	isAutoActivating : boolean;
+	flags : number;
 	items : KeyedList<BeltItem>;
 }
 
@@ -123,7 +126,8 @@ const segCId = "segC";//newSegmentId();
 const segDId = "segD";
 const segEId = "segE";
 const segFId = "segF";
-const cameraItemUuid = newUuidRef();
+const cameraItemUuid = "cam";//newUuidRef();
+const yellowItemUuid = "yel";
 
 declare function Symbol(x:string):symbol;
 
@@ -186,13 +190,27 @@ export default class BeltDemo {
 			if( ep1 && ep1.linkedSegmentId ) {
 				const possiblyLinkedSegment = this.beltSegments[ep1.linkedSegmentId];
 				if( possiblyLinkedSegment ) {
+					// Try to pick one without auto-activating
 					for( let la = 0; la < possiblyLinkedSegment.arcs.length; ++la ) {
 						const possiblyLinkedArc = possiblyLinkedSegment.arcs[la];
 						if(
-							possiblyLinkedArc.endpoint0Number == ep1.linkedEndpointNumber && (
-								possiblyLinkedSegment.activeArcNumber == la ||
-									(possiblyLinkedSegment.isAutoActivating && keyedListIsEmpty(possiblyLinkedSegment.items))
-							)
+							possiblyLinkedArc.endpoint0Number == ep1.linkedEndpointNumber &&
+							possiblyLinkedSegment.activeArcNumber == la
+						) {
+							linkedSegmentId = ep1.linkedSegmentId;
+							linkedSegment = possiblyLinkedSegment;
+							linkedArcNumber = la;
+							linkedArc = possiblyLinkedArc;
+							space = Infinity;
+						}
+					}
+					// If not found, try auto-activating one
+					if( !linkedArc ) for( let la = 0; la < possiblyLinkedSegment.arcs.length; ++la ) {
+						const possiblyLinkedArc = possiblyLinkedSegment.arcs[la];
+						if(
+							possiblyLinkedArc.endpoint0Number == ep1.linkedEndpointNumber &&
+							(possiblyLinkedSegment.flags & AUTO_ACTIVATING) &&
+							keyedListIsEmpty(possiblyLinkedSegment.items)
 						) {
 							linkedSegmentId = ep1.linkedSegmentId;
 							linkedSegment = possiblyLinkedSegment;
@@ -217,6 +235,11 @@ export default class BeltDemo {
 					linkedSegment.items[i] = item;
 					linkedSegment.activeArcNumber = linkedArcNumber;
 				}
+			}
+			if( (seg.flags & AUTO_SWITCHING) && keyedListIsEmpty(seg.items) ) {
+				// ^ Actually need to check incoming items, too!
+				seg.activeArcNumber += 1;
+				seg.activeArcNumber %= seg.arcs.length;
 			}
 		}
 	}
@@ -253,7 +276,7 @@ export default class BeltDemo {
 				],
 				activeArcNumber: 0,
 				radius: 3,
-				isAutoActivating: true,
+				flags: AUTO_ACTIVATING | AUTO_SWITCHING,
 				items: {},
 			},
 			[segBId]: {
@@ -266,9 +289,9 @@ export default class BeltDemo {
 				],
 				activeArcNumber: 0,
 				radius: 4,
-				isAutoActivating: true,
+				flags: AUTO_ACTIVATING | AUTO_SWITCHING,
 				items: {
-					cameraItemUuid: {
+					[cameraItemUuid]: {
 						x: 1.0,
 						orientation: 0,
 						radius: 0.1,
@@ -288,8 +311,15 @@ export default class BeltDemo {
 				],
 				activeArcNumber: 1,
 				radius: 2,
-				isAutoActivating: true,
-				items: {},
+				flags: AUTO_ACTIVATING | AUTO_SWITCHING,
+				items: {
+					[yellowItemUuid]: {
+						x: 1.0,
+						orientation: 0,
+						radius: 0.2,
+						color: new LightColor(1,1,0),
+					}
+				},
 			},
 			[segDId]: {
 				endpoints: [
@@ -303,7 +333,7 @@ export default class BeltDemo {
 				],
 				activeArcNumber: 1,
 				radius: 2,
-				isAutoActivating: true,
+				flags: AUTO_ACTIVATING | AUTO_SWITCHING,
 				items: {},
 			},
 			[segEId]: {
@@ -318,12 +348,12 @@ export default class BeltDemo {
 				],
 				activeArcNumber: 1,
 				radius: 2,
-				isAutoActivating: true,
+				flags: AUTO_ACTIVATING | AUTO_SWITCHING,
 				items: {},
 			},
 			[segFId]: {
 				endpoints: [
-					{ angle: Math.PI*5/7 },
+					{ angle: Math.PI*6/7 },
 					{ angle: -Math.PI*3/7 },
 				],
 				arcs: [
@@ -331,7 +361,7 @@ export default class BeltDemo {
 				],
 				activeArcNumber: 1,
 				radius: 4,
-				isAutoActivating: true,
+				flags: AUTO_ACTIVATING | AUTO_SWITCHING,
 				items: {},
 			},
 		};
@@ -418,7 +448,8 @@ export default class BeltDemo {
 							
 							ctx.lineCap = 'butt';
 							ctx.lineWidth = 0.2;
-							ctx.strokeStyle = 'white'; // TODO: take item color
+							const col = item.color;
+							ctx.strokeStyle = rgbaStyle(col.r, col.g, col.b, 1, opac);
 							
 							const itemStartRat = clampRat( (item.x-item.radius)/arcLength );
 							const itemEndRat   = clampRat( (item.x+item.radius)/arcLength );
