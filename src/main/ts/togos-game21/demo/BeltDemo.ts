@@ -1,4 +1,5 @@
-import KeyedList from '../KeyedList';
+import KeyedList, {keyedListIsEmpty} from '../KeyedList';
+import LightColor from '../LightColor';
 import Vector3D from '../Vector3D';
 import { uuidUrn, newType4Uuid } from '../../tshash/uuids';
 
@@ -13,16 +14,26 @@ interface BeltSegmentEndpoint {
 	linkedEndpointNumber? : number;
 }
 
-interface BeltSegmentCurve {
+interface BeltSegmentArc {
 	endpoint0Number : number;
 	endpoint1Number : number;
 }
 
+interface BeltItem {
+	x : number;
+	orientation : number;
+	/** How much on each side of x does the item take up? */
+	radius : number;
+	color : LightColor;
+}
+
 interface BeltSegment {
 	endpoints : BeltSegmentEndpoint[];
-	arcs : BeltSegmentCurve[];
+	arcs : BeltSegmentArc[];
 	activeArcNumber : number; // Which curve is stuff on?
 	radius : number;
+	isAutoActivating : boolean;
+	items : KeyedList<BeltItem>;
 }
 
 interface Line {
@@ -52,7 +63,13 @@ function fixAng( ang:number ):number {
 	return Math.PI*2*(bro - Math.floor(bro));
 }
 
-function orthoArc( from:Arc ):Arc|null {
+function orthoArcLength( from:Arc ):number {
+	const diff = angDiff(from.ang1, from.ang0);
+	const halfDiff = diff/2;
+	const orthoHalfDiff = (halfDiff < 0 ? -1 : 1) * Math.PI/2 - halfDiff;
+	return Math.abs(orthoHalfDiff*2 * from.radius * Math.abs(Math.sin(halfDiff) / Math.cos(halfDiff)));
+}
+function orthoArc( from:Arc, startRat:number=0, endRat:number=1 ):Arc|null {
 	const diff = angDiff(from.ang1, from.ang0);
 	
 	if( diff > Math.PI-0.1 || diff < -Math.PI+0.1 ) return null; // [Close to] a straight line!
@@ -62,14 +79,17 @@ function orthoArc( from:Arc ):Arc|null {
 	const dir = from.ang0 + halfDiff;
 	const orthoHalfDiff = (halfDiff < 0 ? -1 : 1) * Math.PI/2 - halfDiff;
 	
+	const orthoAng0 = dir + Math.PI + orthoHalfDiff;
+	//const orthoAng1 = dir + Math.PI - orthoHalfDiff;
+	const orthoDiff = orthoHalfDiff * 2;//angDiff(toAng, fromAng);
+	
 	const oa = {
 		cx: from.cx + dist*Math.cos(dir),
 		cy: from.cy + dist*Math.sin(dir),
-		ang0: fixAng(dir + Math.PI + orthoHalfDiff),
-		ang1: fixAng(dir + Math.PI - orthoHalfDiff),
+		ang0: orthoAng0 - startRat*orthoDiff,
+		ang1: orthoAng0 - endRat*orthoDiff,
 		radius: from.radius * Math.abs(Math.sin(halfDiff) / Math.cos(halfDiff)),
 	}
-	console.log(from.ang0+" to "+from.ang1+" ("+diff+") -ortho-> "+oa.ang0+" to "+oa.ang1);
 	return oa;
 }
 
@@ -89,13 +109,39 @@ function rgbaStyle(r:number, g:number, b:number, a:number, brightness:number=1):
 	return 'rgba('+((r*255)|0)+','+((g*255)|0)+','+((b*255)|0)+','+a+')';
 }
 
+function clampRat( r:number ) {
+	return r < 0 ? 0 : r > 1 ? 1 : r;
+}
+
 function newUuidRef() { return uuidUrn(newType4Uuid()); }
 
 const newSegmentId = newUuidRef;
 
-const segAId = newSegmentId();
-const segBId = newSegmentId();
-const segCId = newSegmentId();
+const segAId = "segA";//newSegmentId();
+const segBId = "segB";//newSegmentId();
+const segCId = "segC";//newSegmentId();
+const cameraItemUuid = newUuidRef();
+
+declare function Symbol(x:string):symbol;
+
+const lengthCacheSymbol = Symbol("arc length");
+
+function segmentArcLength( arc:BeltSegmentArc, segment:BeltSegment ) {
+	if( (<any>arc)[lengthCacheSymbol] ) return (<any>arc)[lengthCacheSymbol];
+	
+	const ep0 = segment.endpoints[arc.endpoint0Number];
+	const ep1 = segment.endpoints[arc.endpoint1Number];
+	
+	const length = orthoArcLength({
+		cx: 0,
+		cy: 0,
+		radius: segment.radius,
+		ang0: ep0.angle,
+		ang1: ep1.angle,
+	});
+	
+	return (<any>arc)[lengthCacheSymbol] = length;
+}
 
 export default class BeltDemo {
 	protected beltSegments:KeyedList<BeltSegment> = {};
@@ -119,6 +165,57 @@ export default class BeltDemo {
 		
 		delete endpoint.linkedSegmentId;
 		delete endpoint.linkedEndpointNumber;
+	}
+	
+	public update(t:number) {
+		for( let s in this.beltSegments ) {
+			const seg = this.beltSegments[s];
+			if( keyedListIsEmpty(seg.items) ) continue;
+			
+			const a = seg.activeArcNumber;
+			const arc = seg.arcs[a];
+			const ep1:BeltSegmentEndpoint|undefined = arc.endpoint1Number == null ? undefined : seg.endpoints[arc.endpoint1Number];
+			let space:number = 0;
+			let linkedSegmentId:BeltSegmentID|undefined;
+			let linkedSegment:BeltSegment|undefined;
+			let linkedArcNumber:number = 0;
+			let linkedArc:BeltSegmentArc|undefined;
+			if( ep1 && ep1.linkedSegmentId ) {
+				const possiblyLinkedSegment = this.beltSegments[ep1.linkedSegmentId];
+				if( possiblyLinkedSegment ) {
+					for( let la = 0; la < possiblyLinkedSegment.arcs.length; ++la ) {
+						const possiblyLinkedArc = possiblyLinkedSegment.arcs[la];
+						if(
+							possiblyLinkedArc.endpoint0Number == ep1.linkedEndpointNumber && (
+								possiblyLinkedSegment.activeArcNumber == la ||
+									(possiblyLinkedSegment.isAutoActivating && keyedListIsEmpty(possiblyLinkedSegment.items))
+							)
+						) {
+							linkedSegmentId = ep1.linkedSegmentId;
+							linkedSegment = possiblyLinkedSegment;
+							linkedArcNumber = la;
+							linkedArc = possiblyLinkedArc;
+							space = Infinity;
+						}
+					}
+				}
+			}
+			
+			const arcLength = segmentArcLength(arc, seg);
+			for( let i in seg.items ) {
+				const item = seg.items[i];
+				item.x += 0.1;
+				if( item.x + item.radius > arcLength + space ) {
+					item.x = arcLength + space - item.radius;
+				}
+				if( item.x >= arcLength && linkedSegment ) {
+					delete seg.items[i];
+					item.x -= arcLength;
+					linkedSegment.items[i] = item;
+					linkedSegment.activeArcNumber = linkedArcNumber;
+				}
+			}
+		}
 	}
 	
 	public linkBeltSegments( segAId:BeltSegmentID, endpointANumber:number, segBId:BeltSegmentID, endpointBNumber:number ) {
@@ -152,7 +249,9 @@ export default class BeltDemo {
 					{ endpoint0Number: 1, endpoint1Number: 2 }
 				],
 				activeArcNumber: 0,
-				radius: 1,
+				radius: 3,
+				isAutoActivating: true,
+				items: {},
 			},
 			[segBId]: {
 				endpoints: [
@@ -164,6 +263,15 @@ export default class BeltDemo {
 				],
 				activeArcNumber: 0,
 				radius: 4,
+				isAutoActivating: true,
+				items: {
+					cameraItemUuid: {
+						x: 1.0,
+						orientation: 0,
+						radius: 0.5,
+						color: new LightColor(1,1,1),
+					}
+				},
 			},
 			[segCId]: {
 				endpoints: [
@@ -172,17 +280,19 @@ export default class BeltDemo {
 					{ angle: 0 },
 				],
 				arcs: [
-					{ endpoint0Number: 0, endpoint1Number: 2 },
-					{ endpoint0Number: 1, endpoint1Number: 2 }
+					{ endpoint0Number: 0, endpoint1Number: 1 },
+					{ endpoint0Number: 0, endpoint1Number: 2 }
 				],
-				activeArcNumber: 0,
+				activeArcNumber: 1,
 				radius: 2,
+				isAutoActivating: true,
+				items: {},
 			},
 		};
-		this.linkBeltSegments( segAId, 0, segCId, 0 );
-		this.linkBeltSegments( segAId, 1, segCId, 1 );
-		this.linkBeltSegments( segAId, 2, segBId, 0 );
-		this.linkBeltSegments( segCId, 2, segBId, 1 );
+		this.linkBeltSegments( segAId, 2, segCId, 0 );
+		this.linkBeltSegments( segCId, 1, segAId, 1 );
+		this.linkBeltSegments( segCId, 2, segBId, 0 );
+		this.linkBeltSegments( segBId, 1, segAId, 0 );
 	}
 	
 	protected drawDistance = 7;
@@ -195,8 +305,8 @@ export default class BeltDemo {
 		
 		const inpoint = (inpointNumber != null) ? seg.endpoints[inpointNumber] : undefined;
 		
-		const cx = inpoint ? cursor.x + seg.radius*cursor.scale*Math.cos(cursor.angle) : cursor.x;
-		const cy = inpoint ? cursor.y + seg.radius*cursor.scale*Math.sin(cursor.angle) : cursor.y;
+		const cx = inpoint ? cursor.x + seg.radius*Math.cos(cursor.angle) : cursor.x;
+		const cy = inpoint ? cursor.y + seg.radius*Math.sin(cursor.angle) : cursor.y;
 
 		const angAdj = cursor.angle - (inpoint ? inpoint.angle - Math.PI : 0);
 		
@@ -208,8 +318,8 @@ export default class BeltDemo {
 			
 			const ang = ep.angle + angAdj;
 			this.drawSegment( ep.linkedSegmentId, ep.linkedEndpointNumber, ctx, {
-				x: cx + seg.radius*cursor.scale*Math.cos(ang),
-				y: cy + seg.radius*cursor.scale*Math.sin(ang),
+				x: cx + seg.radius*Math.cos(ang),
+				y: cy + seg.radius*Math.sin(ang),
 				angle: ang,
 				scale: cursor.scale,
 				distance: cursor.distance + 1,
@@ -220,10 +330,10 @@ export default class BeltDemo {
 		if( cursor.distance != cursor.targetDistance ) return;
 		
 		const opac = Math.pow((this.drawDistance - cursor.distance)/this.drawDistance, 1.5);
-		ctx.lineWidth = 1;
+		ctx.lineWidth = 0.1;
 		ctx.strokeStyle = rgbaStyle(0.5,0.5,0.5,1,opac/2);
 		ctx.beginPath();
-		ctx.arc(cx, cy, seg.radius*cursor.scale, 0, Math.PI*2);
+		ctx.arc(cx, cy, seg.radius, 0, Math.PI*2);
 		ctx.stroke();
 		
 		// Modes: 0 = inactive borders, 1 = active borders, 2 = slot
@@ -239,20 +349,39 @@ export default class BeltDemo {
 				const arc = {
 					cx: cx,
 					cy: cy,
-					radius: seg.radius*cursor.scale,
+					radius: seg.radius,
 					ang0: ang0,
 					ang1: ang1,
 				}
 				if( mode == 2 ) {
-					ctx.lineWidth = 2;
+					ctx.lineWidth = 0.2;
 					ctx.lineCap = 'square';
 					ctx.strokeStyle = 'black';
+					this.drawOrthoArc( arc, ctx );
+					
+					if( a == seg.activeArcNumber ) {
+						const arcLength = segmentArcLength(segArc, seg);
+						
+						// TODO: draw neighbors' items, too, if overlapping this segment
+						for( let i in seg.items ) {
+							const item = seg.items[i];
+							
+							ctx.lineCap = 'butt';
+							ctx.lineWidth = 0.2;
+							ctx.strokeStyle = 'white'; // TODO: take item color
+							
+							const itemStartRat = clampRat( (item.x-item.radius)/arcLength );
+							const itemEndRat   = clampRat( (item.x+item.radius)/arcLength );
+							
+							this.drawOrthoArc( arc, ctx, itemStartRat, itemEndRat ); // TODO: translate to radians from length units
+						}
+					}
 				} else {
-					ctx.lineWidth = 4;
+					ctx.lineWidth = 0.4;
 					ctx.lineCap = 'butt';
 					ctx.strokeStyle = (a == seg.activeArcNumber) ? rgbaStyle(0.2,0.5,0.2,1,opac) : rgbaStyle(0.5,0.2,0.2,1,opac);
+					this.drawOrthoArc( arc, ctx );
 				}
-				this.drawOrthoArc( arc, ctx );
 			}
 		}
 	}
@@ -267,12 +396,13 @@ export default class BeltDemo {
 		ctx.stroke();
 	}
 	
-	protected drawOrthoArc( arc:Arc, ctx:CanvasRenderingContext2D ):void {
-		const orth = orthoArc(arc);
+	protected drawOrthoArc( arc:Arc, ctx:CanvasRenderingContext2D, startRat:number=0, endRat:number=1 ):void {
+		const orth = orthoArc(arc, startRat, endRat);
 		if( orth ) {
 			this.drawArc( orth, ctx );
 		} else {
 			ctx.beginPath();
+			// TODO: mind start, endrat
 			ctx.moveTo(
 				arc.cx+arc.radius*Math.cos(arc.ang0),
 				arc.cy+arc.radius*Math.sin(arc.ang0)
@@ -297,9 +427,13 @@ export default class BeltDemo {
 		let x = canvasWidth/2;
 		let y = canvasHeight/2;
 		
+		ctx.save();
+		ctx.translate(x, y);
+		ctx.scale(10, 10);
 		for( let targetDistance = this.drawDistance-1; targetDistance >= 0; --targetDistance ) {
-			this.drawSegment( segAId, 0, ctx, { x, y, angle:0, scale:5, distance:0, targetDistance } );
+			this.drawSegment( segAId, 0, ctx, { x:0, y:0, angle:0, scale:5, distance:0, targetDistance } );
 		}
+		ctx.restore();
 		
 		/*
 		ctx.strokeStyle = 'darkgray';
@@ -324,9 +458,9 @@ export default class BeltDemo {
 	public start() {
 		let animFrame = () => {};
 		animFrame = () => {
+			this.update(0.1);			
 			this.drawScene();
-			
-			//requestAnimationFrame(animFrame);
+			requestAnimationFrame(animFrame);
 		};
 		requestAnimationFrame(animFrame);
 	}
