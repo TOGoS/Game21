@@ -153,6 +153,36 @@ function segmentArcLength( arc:BeltSegmentArc, segment:BeltSegment ) {
 	return (<any>arc)[lengthCacheSymbol] = length;
 }
 
+function segmentMutated( seg:BeltSegment ) {
+	for( let a = 0; a < seg.arcs.length; ++a ) {
+		delete (<any>seg.arcs[a])[lengthCacheSymbol];
+	}
+};
+
+function mutateSegment( seg:BeltSegment ) {
+	if( !keyedListIsEmpty(seg.items) ) return;
+	
+	{
+		const r = Math.random();
+		if( r < 0.1 ) {
+			if( seg.radius < 4 )	seg.radius += 1/64;
+		} else if( r < 0.2 ) {
+			if( seg.radius > 1 ) seg.radius -= 1/64;
+		}
+	}
+	
+	for( let e = 0; e < seg.endpoints.length; ++e ) {
+		const r = Math.random();
+		if( r < 0.1 ) {
+			seg.endpoints[e].angle = fixAng(seg.endpoints[e].angle + 1/128);
+		} else if( r < 0.2 ) {
+			seg.endpoints[e].angle = fixAng(seg.endpoints[e].angle - 1/128);
+		}
+	}
+	
+	segmentMutated(seg);
+}
+
 export default class BeltDemo {
 	protected beltSegments:KeyedList<BeltSegment> = {};
 	
@@ -186,6 +216,7 @@ export default class BeltDemo {
 				seg.activeArcNumber %= seg.arcs.length;
 				seg.flags &= ~DESIRES_SWITCH;
 			}
+			mutateSegment(seg);
 			
 			if( keyedListIsEmpty(seg.items) ) continue;
 			
@@ -328,12 +359,6 @@ export default class BeltDemo {
 				radius: 1,
 				flags: AUTO_ACTIVATING | AUTO_SWITCHING,
 				items: {
-					[yellowItemUuid]: {
-						x: 2.0,
-						orientation: 0,
-						radius: 0.2,
-						color: new LightColor(1,1,0),
-					},
 					[orangeItemUuid]: {
 						x: 0.0,
 						orientation: 0,
@@ -356,7 +381,14 @@ export default class BeltDemo {
 				speed: 1,
 				radius: 2,
 				flags: AUTO_ACTIVATING | AUTO_SWITCHING,
-				items: {},
+				items: {
+					[yellowItemUuid]: {
+						x: 1.0,
+						orientation: 0,
+						radius: 0.2,
+						color: new LightColor(1,1,0),
+					},
+				},
 			},
 			[segEId]: {
 				endpoints: [
@@ -575,6 +607,60 @@ export default class BeltDemo {
 		}
 	}
 	
+	protected pickRandomSegment():BeltSegmentID {
+		while( true ) {
+			let thereAreAnySegments = false;
+			for( let s in this.beltSegments ) {
+				if( Math.random() < 0.1 ) return s;
+				thereAreAnySegments = true;
+			}
+			if( !thereAreAnySegments ) throw new Error("No segments left!")
+		}
+	}
+	
+	protected cleanUpLooseEnds():void {
+		for( let s in this.beltSegments ) {
+			const seg = this.beltSegments[s];
+			for( let a = 0; a < seg.arcs.length; ++a ) {
+				const ep1 = seg.endpoints[seg.arcs[a].endpoint1Number];
+				// todo something
+			}
+		}
+	}
+	
+	// These don't work very well:
+	public randomlyDeleteLink():void {
+		doSomething: for( let attempts=0; attempts < 32; ++attempts ) {
+			for( let s in this.beltSegments ) {
+				if( Math.random() < 0.9 ) continue;
+				const seg = this.beltSegments[s];
+				if( seg.arcs.length > 1 ) {
+					const deleteAt = Math.floor(Math.random()*seg.arcs.length);
+					seg.arcs = seg.arcs.splice(deleteAt, 1);
+					seg.activeArcNumber %= seg.arcs.length;
+					break doSomething;
+				}
+			}
+		}
+		this.cleanUpLooseEnds();
+	}
+	public randomlyInsertLink():void {
+		const fromId = this.pickRandomSegment();
+		const from = this.beltSegments[fromId];
+		const toId = this.pickRandomSegment();
+		from.endpoints.push( {
+			angle: Math.random()*Math.PI*2,
+		} );
+		const newEndpointNumber = from.endpoints.length-1;
+		from.arcs.push( {
+			endpoint0Number: 0,
+			endpoint1Number: newEndpointNumber,
+		} );
+		this.linkBeltSegments(fromId, newEndpointNumber, toId, 0);
+	}
+	
+	protected frameNumber:number = 0;
+	
 	public drawScene():void {
 		const ctx = this._canvas.getContext('2d');
 		if( !ctx ) return;
@@ -591,7 +677,7 @@ export default class BeltDemo {
 		ctx.translate(x, y);
 		ctx.scale(10, 10);
 		for( let targetDistance = this.drawDistance-1; targetDistance >= 0; --targetDistance ) {
-			this.drawSegment( segAId, 0, ctx, { x:0, y:0, angle:0, scale:5, distance:0, targetDistance } );
+			this.drawSegment( segAId, 0, ctx, { x:0, y:0, angle:this.frameNumber/1000, scale:5, distance:0, targetDistance } );
 		}
 		ctx.restore();
 		
@@ -625,6 +711,7 @@ export default class BeltDemo {
 			this.update(0.1);			
 			this.drawScene();
 			++fps;
+			++this.frameNumber;
 			requestAnimationFrame(animFrame);
 		};
 		requestAnimationFrame(animFrame);

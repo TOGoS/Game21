@@ -155,14 +155,20 @@ canvas.shape-view {
 			switch( evt.keyCode ) {
 			case 219: // [
 				bd.alterDrawDistance(-1);
-				break;
+				evt.preventDefault(); return;
 			case 221: // [
 				bd.alterDrawDistance(+1);
+				evt.preventDefault(); return;
+			case 45: // insert
+				bd.randomlyInsertLink();
+				break;
+			case 46:
+				bd.randomlyDeleteLink();
 				break;
 			case 70:
 				document.getElementById('top-info').style.display = 'none';
 				document.getElementById('bottom-info').style.display = 'none';
-				break;
+				evt.preventDefault(); return;
 			default:
 				console.log("Key pressed: "+evt.keyCode);
 			}
