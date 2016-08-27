@@ -32,6 +32,7 @@ const AUTO_SWITCHING  = 0x02;
 
 interface BeltSegment {
 	endpoints : BeltSegmentEndpoint[];
+	speed : number; // meters per second!
 	arcs : BeltSegmentArc[];
 	activeArcNumber : number; // Which curve is stuff on?
 	radius : number;
@@ -128,6 +129,7 @@ const segEId = "segE";
 const segFId = "segF";
 const cameraItemUuid = "cam";//newUuidRef();
 const yellowItemUuid = "yel";
+const orangeItemUuid = "ornj";
 
 declare function Symbol(x:string):symbol;
 
@@ -182,7 +184,6 @@ export default class BeltDemo {
 			const a = seg.activeArcNumber;
 			const arc = seg.arcs[a];
 			const ep1:BeltSegmentEndpoint|undefined = arc.endpoint1Number == null ? undefined : seg.endpoints[arc.endpoint1Number];
-			let space:number = 0;
 			let linkedSegmentId:BeltSegmentID|undefined;
 			let linkedSegment:BeltSegment|undefined;
 			let linkedArcNumber:number = 0;
@@ -201,7 +202,6 @@ export default class BeltDemo {
 							linkedSegment = possiblyLinkedSegment;
 							linkedArcNumber = la;
 							linkedArc = possiblyLinkedArc;
-							space = Infinity;
 						}
 					}
 					// If not found, try auto-activating one
@@ -216,16 +216,24 @@ export default class BeltDemo {
 							linkedSegment = possiblyLinkedSegment;
 							linkedArcNumber = la;
 							linkedArc = possiblyLinkedArc;
-							space = Infinity;
 						}
 					}
+				}
+			}
+
+			let space:number = 0;
+			if( linkedSegment && linkedArc ) {
+				space = segmentArcLength(linkedArc, linkedSegment);
+				for( let li in linkedSegment.items ) {
+					const linkedItem = linkedSegment.items[li];
+					space = Math.min(space, linkedItem.x - linkedItem.radius);
 				}
 			}
 			
 			const arcLength = segmentArcLength(arc, seg);
 			for( let i in seg.items ) {
 				const item = seg.items[i];
-				item.x += 0.1;
+				item.x += t * seg.speed;
 				if( item.x + item.radius > arcLength + space ) {
 					item.x = arcLength + space - item.radius;
 				}
@@ -266,16 +274,17 @@ export default class BeltDemo {
 		this.beltSegments = {
 			[segAId]: {
 				endpoints: [
-					{ angle: Math.PI*4/3 },
-					{ angle: Math.PI*2/3 },
 					{ angle: 0 },
+					{ angle: 2 },
+					{ angle: -2 },
 				],
 				arcs: [
 					{ endpoint0Number: 0, endpoint1Number: 1 },
 					{ endpoint0Number: 0, endpoint1Number: 2 }
 				],
 				activeArcNumber: 0,
-				radius: 3,
+				speed: 1,
+				radius: 1,
 				flags: AUTO_ACTIVATING | AUTO_SWITCHING,
 				items: {},
 			},
@@ -288,6 +297,7 @@ export default class BeltDemo {
 					{ endpoint0Number: 0, endpoint1Number: 1 }
 				],
 				activeArcNumber: 0,
+				speed: 1,
 				radius: 4,
 				flags: AUTO_ACTIVATING | AUTO_SWITCHING,
 				items: {
@@ -301,24 +311,31 @@ export default class BeltDemo {
 			},
 			[segCId]: {
 				endpoints: [
-					{ angle: Math.PI*5/7 },
-					{ angle: Math.PI*3/7 },
 					{ angle: 0 },
+					{ angle: 1 },
+					{ angle: -1 },
 				],
 				arcs: [
 					{ endpoint0Number: 0, endpoint1Number: 1 },
 					{ endpoint0Number: 0, endpoint1Number: 2 }
 				],
 				activeArcNumber: 1,
-				radius: 2,
+				speed: 1,
+				radius: 1,
 				flags: AUTO_ACTIVATING | AUTO_SWITCHING,
 				items: {
 					[yellowItemUuid]: {
-						x: 1.0,
+						x: 2.0,
 						orientation: 0,
 						radius: 0.2,
 						color: new LightColor(1,1,0),
-					}
+					},
+					[orangeItemUuid]: {
+						x: 0.0,
+						orientation: 0,
+						radius: 1.0,
+						color: new LightColor(1,0.6,0),
+					},
 				},
 			},
 			[segDId]: {
@@ -332,6 +349,7 @@ export default class BeltDemo {
 					{ endpoint0Number: 1, endpoint1Number: 2 }
 				],
 				activeArcNumber: 1,
+				speed: 1,
 				radius: 2,
 				flags: AUTO_ACTIVATING | AUTO_SWITCHING,
 				items: {},
@@ -347,6 +365,7 @@ export default class BeltDemo {
 					{ endpoint0Number: 1, endpoint1Number: 2 }
 				],
 				activeArcNumber: 1,
+				speed: 1,
 				radius: 2,
 				flags: AUTO_ACTIVATING | AUTO_SWITCHING,
 				items: {},
@@ -360,6 +379,7 @@ export default class BeltDemo {
 					{ endpoint0Number: 0, endpoint1Number: 1 },
 				],
 				activeArcNumber: 1,
+				speed: 1,
 				radius: 4,
 				flags: AUTO_ACTIVATING | AUTO_SWITCHING,
 				items: {},
