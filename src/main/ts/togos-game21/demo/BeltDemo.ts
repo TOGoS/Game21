@@ -436,11 +436,11 @@ export default class BeltDemo {
 		ctx.arc(cx, cy, seg.radius, 0, Math.PI*2);
 		ctx.stroke();
 		
-		// Modes: 0 = inactive borders, 1 = active borders, 2 = slot
-		for( let mode = 0; mode < 3; ++mode ) {
+		// Modes: 0 = inactive borders, 1 = active borders, 2 = slot, 3 = items
+		for( let mode = 0; mode < 4; ++mode ) {
 			for( let a = 0; a < seg.arcs.length; ++a ) {
 				if( a == seg.activeArcNumber && mode == 0 ) continue;
-				if( a != seg.activeArcNumber && mode == 1 ) continue;
+				if( a != seg.activeArcNumber && (mode == 1 || mode == 3) ) continue;
 				const segArc = seg.arcs[a];
 				const ep0 = seg.endpoints[segArc.endpoint0Number];
 				const ep1 = seg.endpoints[segArc.endpoint1Number];
@@ -453,35 +453,37 @@ export default class BeltDemo {
 					ang0: ang0,
 					ang1: ang1,
 				}
-				if( mode == 2 ) {
-					ctx.lineWidth = 0.2;
-					ctx.lineCap = 'square';
-					ctx.strokeStyle = 'black';
-					this.drawOrthoArc( arc, ctx );
-					
-					if( a == seg.activeArcNumber ) {
-						const arcLength = segmentArcLength(segArc, seg);
-						
-						// TODO: draw neighbors' items, too, if overlapping this segment
-						for( let i in seg.items ) {
-							const item = seg.items[i];
-							
-							ctx.lineCap = 'butt';
-							ctx.lineWidth = 0.2;
-							const col = item.color;
-							ctx.strokeStyle = rgbaStyle(col.r, col.g, col.b, 1, opac);
-							
-							const itemStartRat = clampRat( (item.x-item.radius)/arcLength );
-							const itemEndRat   = clampRat( (item.x+item.radius)/arcLength );
-							
-							this.drawOrthoArc( arc, ctx, itemStartRat, itemEndRat ); // TODO: translate to radians from length units
-						}
-					}
-				} else {
+				switch( mode ) {
+				case 0: case 1:
 					ctx.lineWidth = 0.4;
 					ctx.lineCap = 'butt';
 					ctx.strokeStyle = (a == seg.activeArcNumber) ? rgbaStyle(0.2,0.5,0.2,1,opac) : rgbaStyle(0.5,0.2,0.2,1,opac);
 					this.drawOrthoArc( arc, ctx );
+					break;
+				case 2:
+					ctx.lineWidth = 0.2;
+					ctx.lineCap = 'square';
+					ctx.strokeStyle = 'black';
+					this.drawOrthoArc( arc, ctx );
+					break;
+				case 3:
+					const arcLength = segmentArcLength(segArc, seg);
+					
+					// TODO: draw neighbors' items, too, if overlapping this segment
+					for( let i in seg.items ) {
+						const item = seg.items[i];
+						
+						ctx.lineCap = 'butt';
+						ctx.lineWidth = 0.2;
+						const col = item.color;
+						ctx.strokeStyle = rgbaStyle(col.r, col.g, col.b, 1, opac);
+						
+						const itemStartRat = clampRat( (item.x-item.radius)/arcLength );
+						const itemEndRat   = clampRat( (item.x+item.radius)/arcLength );
+						
+						this.drawOrthoArc( arc, ctx, itemStartRat, itemEndRat ); // TODO: translate to radians from length units
+					}
+					break;
 				}
 			}
 		}
