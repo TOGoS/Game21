@@ -187,19 +187,18 @@ export default class BeltDemo {
 	
 	protected drawDistance = 7;
 	
-	protected drawSegment( segmentId:BeltSegmentID, inpointNumber:number, ctx:CanvasRenderingContext2D, cursor:ArcCursor ):void {
+	protected drawSegment( segmentId:BeltSegmentID, inpointNumber:number|undefined, ctx:CanvasRenderingContext2D, cursor:ArcCursor ):void {
 		if( cursor.distance > this.drawDistance ) return;
 		
 		const seg = this.beltSegments[segmentId];
 		if( !seg ) return;
 		
-		const inpoint = seg.endpoints[inpointNumber];
-		if( !inpoint ) return;
+		const inpoint = (inpointNumber != null) ? seg.endpoints[inpointNumber] : undefined;
 		
-		const cx = cursor.x + seg.radius*cursor.scale*Math.cos(cursor.angle);
-		const cy = cursor.y + seg.radius*cursor.scale*Math.sin(cursor.angle);
+		const cx = inpoint ? cursor.x + seg.radius*cursor.scale*Math.cos(cursor.angle) : cursor.x;
+		const cy = inpoint ? cursor.y + seg.radius*cursor.scale*Math.sin(cursor.angle) : cursor.y;
 
-		const angAdj = cursor.angle - inpoint.angle + Math.PI;
+		const angAdj = cursor.angle - (inpoint ? inpoint.angle - Math.PI : 0);
 		
 		if( cursor.distance+1 < this.drawDistance ) for( let e = 0; e < seg.endpoints.length; ++e ) {
 			if( e == inpointNumber && cursor.distance > 0 ) continue;
