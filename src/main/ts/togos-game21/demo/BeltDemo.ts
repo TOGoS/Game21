@@ -114,8 +114,8 @@ function rgbaStyle(r:number, g:number, b:number, a:number, brightness:number=1):
 	return 'rgba('+((r*255)|0)+','+((g*255)|0)+','+((b*255)|0)+','+a+')';
 }
 
-function clampRat( r:number ) {
-	return r < 0 ? 0 : r > 1 ? 1 : r;
+function clamp( r:number, min:number=0, max:number=1 ) {
+	return r < min ? min : r > max ? max : r;
 }
 
 function newUuidRef() { return uuidUrn(newType4Uuid()); }
@@ -401,6 +401,10 @@ export default class BeltDemo {
 	
 	protected drawDistance = 9;
 	
+	public alterDrawDistance(amt:number) {
+		this.drawDistance = clamp(this.drawDistance+amt, 1, 12);
+	}
+	
 	protected segmentIsEmpty( seg:BeltSegment ):boolean {
 		let isEmpty = true;
 		this.eachSegmentItem(seg, (item,x) => {
@@ -531,8 +535,8 @@ export default class BeltDemo {
 						const col = item.color;
 						ctx.strokeStyle = rgbaStyle(col.r, col.g, col.b, 1, opac);
 						
-						const itemStartRat = clampRat( (x-item.radius)/arcLength );
-						const itemEndRat   = clampRat( (x+item.radius)/arcLength );
+						const itemStartRat = clamp( (x-item.radius)/arcLength );
+						const itemEndRat   = clamp( (x+item.radius)/arcLength );
 						
 						this.drawOrthoArc( arc, ctx, itemStartRat, itemEndRat );
 					});
@@ -611,14 +615,24 @@ export default class BeltDemo {
 		*/
 	};
 	
+	public fpsCounterElement : HTMLElement;
+	
 	public start() {
+		let fps = 0;
+		
 		let animFrame = () => {};
 		animFrame = () => {
 			this.update(0.1);			
 			this.drawScene();
+			++fps;
 			requestAnimationFrame(animFrame);
 		};
 		requestAnimationFrame(animFrame);
+		
+		if( this.fpsCounterElement ) setInterval( () => {
+			this.fpsCounterElement.firstChild.nodeValue = ""+fps;
+			fps = 0;
+		}, 1000 );
 	}
 }
 

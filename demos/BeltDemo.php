@@ -74,7 +74,7 @@ html, body {
 	margin: 0;
 	display: flex;
 	flex-direction: column;
-	justify-content: center;
+	justify-content: space-around;
 }
 .preview-region {
 	display: flex;
@@ -115,6 +115,10 @@ canvas.shape-view {
 	display: table-cell;
 	padding-right: 10px;
 }
+#top-info {
+	font-family: sans-serif;
+	color: rgba(128,255,128,0.5);
+}
 </style>
 <title><?php eht($title); ?></title>
 </head>
@@ -122,9 +126,13 @@ canvas.shape-view {
 
 <!-- Config: <?php echo json_encode($config, JSON_PRETTY_PRINT); ?> -->
 
-<p style="position:fixed; color:white">FPS: <span id="fps-counter">&nbsp;</span></p>
-
 <div class="main-content">
+<div id="top-info">
+<p class="fps-counter">FPS: <span id="fps-counter">&nbsp;</span></p>
+
+<p>Use <code>[</code> and <code>]</code> to adjust draw distance.  Hit <code>f</code> to hide this text.</p>
+</div>
+
 <div class="preview-region">
 <canvas id="demo-canvas" class="shape-view"
   width="<?php eht($width); ?>" height="<?php eht($height); ?>"
@@ -132,12 +140,33 @@ canvas.shape-view {
 ></canvas>
 </div>
 
+<div id="bottom-info">&nbsp;</div>
+</div>
+
 <?php require_game21_js_libs($inlineResources);; ?>
 <script type="text/javascript">
 	require(['togos-game21/demo/BeltDemo'], function(_BeltDemo) {
 		var canv = document.getElementById('demo-canvas')
 		var bd = _BeltDemo.buildUi(canv);
+		bd.fpsCounterElement = document.getElementById('fps-counter');
 		bd.start();
+		
+		window.addEventListener('keydown', function(evt) {
+			switch( evt.keyCode ) {
+			case 219: // [
+				bd.alterDrawDistance(-1);
+				break;
+			case 221: // [
+				bd.alterDrawDistance(+1);
+				break;
+			case 70:
+				document.getElementById('top-info').style.display = 'none';
+				document.getElementById('bottom-info').style.display = 'none';
+				break;
+			default:
+				console.log("Key pressed: "+evt.keyCode);
+			}
+		});
 	});
 </script>
 <script type="text/javascript">
