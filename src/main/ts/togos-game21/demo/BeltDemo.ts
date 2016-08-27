@@ -481,7 +481,7 @@ export default class BeltDemo {
 						const itemStartRat = clampRat( (item.x-item.radius)/arcLength );
 						const itemEndRat   = clampRat( (item.x+item.radius)/arcLength );
 						
-						this.drawOrthoArc( arc, ctx, itemStartRat, itemEndRat ); // TODO: translate to radians from length units
+						this.drawOrthoArc( arc, ctx, itemStartRat, itemEndRat );
 					}
 					break;
 				}
