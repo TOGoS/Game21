@@ -29,6 +29,7 @@ interface BeltItem {
 
 const AUTO_ACTIVATING = 0x01;
 const AUTO_SWITCHING  = 0x02;
+const DESIRES_SWITCH  = 0x04;
 
 interface BeltSegment {
 	endpoints : BeltSegmentEndpoint[];
@@ -179,6 +180,13 @@ export default class BeltDemo {
 	public update(t:number) {
 		for( let s in this.beltSegments ) {
 			const seg = this.beltSegments[s];
+
+			if( (seg.flags & DESIRES_SWITCH) && this.segmentIsEmpty(seg) ) {
+				seg.activeArcNumber += 1;
+				seg.activeArcNumber %= seg.arcs.length;
+				seg.flags &= ~DESIRES_SWITCH;
+			}
+			
 			if( keyedListIsEmpty(seg.items) ) continue;
 			
 			const a = seg.activeArcNumber;
@@ -242,12 +250,8 @@ export default class BeltDemo {
 					item.x -= arcLength;
 					linkedSegment.items[i] = item;
 					linkedSegment.activeArcNumber = linkedArcNumber;
+					seg.flags |= DESIRES_SWITCH;
 				}
-			}
-			if( (seg.flags & AUTO_SWITCHING) && keyedListIsEmpty(seg.items) ) {
-				// ^ Actually need to check incoming items, too!
-				seg.activeArcNumber += 1;
-				seg.activeArcNumber %= seg.arcs.length;
 			}
 		}
 	}
@@ -395,7 +399,59 @@ export default class BeltDemo {
 		this.linkBeltSegments( segEId, 2, segAId, 0 );
 	}
 	
-	protected drawDistance = 7;
+	protected drawDistance = 9;
+	
+	protected segmentIsEmpty( seg:BeltSegment ):boolean {
+		let isEmpty = true;
+		this.eachSegmentItem(seg, (item,x) => {
+			isEmpty = false;
+			return false;
+		});
+		return isEmpty;
+	}
+	
+	/**
+	 * Iterates over all items on a segment, including those belonging to neighboring segments.
+	 * If the callback returns false, this will quit early.
+	 */
+	protected eachSegmentItem( seg:BeltSegment, callback:(item:BeltItem, x:number)=>void|boolean ):void {
+		for( let i in seg.items ) {
+			if( callback( seg.items[i], seg.items[i].x ) === false ) return;
+		}
+		const activeArc = seg.arcs[seg.activeArcNumber];
+		prevSegItems: {
+			const ep0 = seg.endpoints[activeArc.endpoint0Number];
+			if( !ep0 || !ep0.linkedSegmentId ) break prevSegItems;
+			const prevSeg = this.beltSegments[ep0.linkedSegmentId];
+			if( !prevSeg ) break prevSegItems;
+			if( keyedListIsEmpty(prevSeg.items) ) break prevSegItems;
+			const prevArc = prevSeg.arcs[prevSeg.activeArcNumber];
+			if( prevArc.endpoint1Number != ep0.linkedEndpointNumber ) break prevSegItems;
+			const prevSegLength = segmentArcLength(prevArc, prevSeg);
+			for( let i in prevSeg.items ) {
+				const item = prevSeg.items[i];
+				if( item.x + item.radius > prevSegLength ) {
+					if( callback( item, item.x - prevSegLength ) === false ) return;
+				}
+			}
+		}
+		nextSegItems: {
+			const ep1 = seg.endpoints[activeArc.endpoint1Number];
+			if( !ep1 || !ep1.linkedSegmentId ) break nextSegItems;
+			const nextSeg = this.beltSegments[ep1.linkedSegmentId];
+			if( !nextSeg ) break nextSegItems;
+			const nextArc = nextSeg.arcs[nextSeg.activeArcNumber];
+			if( !nextArc ) break nextSegItems;
+			if( nextArc.endpoint0Number != ep1.linkedEndpointNumber ) break nextSegItems;
+			const arcLength = segmentArcLength(activeArc, seg);
+			for( let i in nextSeg.items ) {
+				const item = nextSeg.items[i];
+				if( item.x - item.radius < 0 ) {
+					if( callback( item, item.x + arcLength ) === false ) return;
+				}
+			}
+		}
+	}
 	
 	protected drawSegment( segmentId:BeltSegmentID, inpointNumber:number|undefined, ctx:CanvasRenderingContext2D, cursor:ArcCursor ):void {
 		if( cursor.distance > this.drawDistance ) return;
@@ -462,27 +518,24 @@ export default class BeltDemo {
 					break;
 				case 2:
 					ctx.lineWidth = 0.2;
-					ctx.lineCap = 'square';
+					ctx.lineCap = 'butt';
 					ctx.strokeStyle = 'black';
 					this.drawOrthoArc( arc, ctx );
 					break;
 				case 3:
 					const arcLength = segmentArcLength(segArc, seg);
 					
-					// TODO: draw neighbors' items, too, if overlapping this segment
-					for( let i in seg.items ) {
-						const item = seg.items[i];
-						
+					this.eachSegmentItem( seg, (item, x) => {
 						ctx.lineCap = 'butt';
 						ctx.lineWidth = 0.2;
 						const col = item.color;
 						ctx.strokeStyle = rgbaStyle(col.r, col.g, col.b, 1, opac);
 						
-						const itemStartRat = clampRat( (item.x-item.radius)/arcLength );
-						const itemEndRat   = clampRat( (item.x+item.radius)/arcLength );
+						const itemStartRat = clampRat( (x-item.radius)/arcLength );
+						const itemEndRat   = clampRat( (x+item.radius)/arcLength );
 						
 						this.drawOrthoArc( arc, ctx, itemStartRat, itemEndRat );
-					}
+					});
 					break;
 				}
 			}
