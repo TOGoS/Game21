@@ -226,11 +226,11 @@ export default class BeltDemo {
 		ctx.arc(cx, cy, seg.radius*cursor.scale, 0, Math.PI*2);
 		ctx.stroke();
 		
-		// Modes: 0 = background, 1 = inactive arcs, 2 = active arcs
+		// Modes: 0 = inactive borders, 1 = active borders, 2 = slot
 		for( let mode = 0; mode < 3; ++mode ) {
 			for( let a = 0; a < seg.arcs.length; ++a ) {
-				if( a == seg.activeArcNumber && mode == 1 ) continue;
-				if( a != seg.activeArcNumber && mode == 2 ) continue;
+				if( a == seg.activeArcNumber && mode == 0 ) continue;
+				if( a != seg.activeArcNumber && mode == 1 ) continue;
 				const segArc = seg.arcs[a];
 				const ep0 = seg.endpoints[segArc.endpoint0Number];
 				const ep1 = seg.endpoints[segArc.endpoint1Number];
@@ -243,13 +243,13 @@ export default class BeltDemo {
 					ang0: ang0,
 					ang1: ang1,
 				}
-				if( mode == 0 ) {
-					ctx.lineWidth = 4;
-					ctx.lineCap = 'butt';
-					ctx.strokeStyle = 'black';
-				} else {
+				if( mode == 2 ) {
 					ctx.lineWidth = 2;
 					ctx.lineCap = 'square';
+					ctx.strokeStyle = 'black';
+				} else {
+					ctx.lineWidth = 4;
+					ctx.lineCap = 'butt';
 					ctx.strokeStyle = (a == seg.activeArcNumber) ? rgbaStyle(0.2,0.5,0.2,1,opac) : rgbaStyle(0.5,0.2,0.2,1,opac);
 				}
 				this.drawOrthoArc( arc, ctx );
