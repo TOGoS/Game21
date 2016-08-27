@@ -78,6 +78,11 @@ interface ArcCursor {
 	y : number;
 	angle : number;
 	scale : number;
+	distance : number;
+}
+
+function rgbaStyle(r:number, g:number, b:number, a:number):string {
+	return 'rgba('+((r*255)|0)+','+((g*255)|0)+','+((b*255)|0)+','+a+')';
 }
 
 function newUuidRef() { return uuidUrn(newType4Uuid()); }
@@ -154,12 +159,12 @@ export default class BeltDemo {
 					{ endpoint0Number: 0, endpoint1Number: 1 }
 				],
 				activeArcNumber: 0,
-				radius: 3,
+				radius: 4,
 			},
 			[segCId]: {
 				endpoints: [
-					{ angle: Math.PI*5/3 },
-					{ angle: Math.PI*3/3 },
+					{ angle: Math.PI*5/7 },
+					{ angle: Math.PI*3/7 },
 					{ angle: 0 },
 				],
 				arcs: [
@@ -176,25 +181,44 @@ export default class BeltDemo {
 		this.linkBeltSegments( segCId, 2, segBId, 1 );
 	}
 	
-	protected drawSegment( segmentId:BeltSegmentID, inpointNumber:number, ctx:CanvasRenderingContext2D, cursor:ArcCursor, ttl:number=1 ):void {
-		if( ttl == 0 ) return;
+	protected drawDistance = 5;
+	
+	protected drawSegment( segmentId:BeltSegmentID, inpointNumber:number, ctx:CanvasRenderingContext2D, cursor:ArcCursor ):void {
+		if( cursor.distance > this.drawDistance ) return;
 		
 		const seg = this.beltSegments[segmentId];
 		if( !seg ) return;
 		
-		const cx = cursor.x + seg.radius*cursor.scale*Math.cos(cursor.angle);
-		const cy = cursor.y + seg.radius*cursor.scale*Math.sin(cursor.angle);
-		
-		ctx.lineWidth = 1;
-		ctx.strokeStyle = 'darkgray';
-		ctx.beginPath();
-		ctx.arc(cx, cy, seg.radius*cursor.scale, 0, Math.PI*2);
-		ctx.stroke();
-		
 		const inpoint = seg.endpoints[inpointNumber];
 		if( !inpoint ) return;
 		
+		const cx = cursor.x + seg.radius*cursor.scale*Math.cos(cursor.angle);
+		const cy = cursor.y + seg.radius*cursor.scale*Math.sin(cursor.angle);
+
 		const angAdj = cursor.angle - inpoint.angle + Math.PI;
+		
+		if( cursor.distance+1 < this.drawDistance ) for( let e = 0; e < seg.endpoints.length; ++e ) {
+			if( e == inpointNumber && cursor.distance > 0 ) continue;
+			
+			const ep = seg.endpoints[e];
+			if( ep.linkedSegmentId == null || ep.linkedEndpointNumber == null ) continue;
+			
+			const ang = ep.angle + angAdj;
+			this.drawSegment( ep.linkedSegmentId, ep.linkedEndpointNumber, ctx, {
+				x: cx + seg.radius*cursor.scale*Math.cos(ang),
+				y: cy + seg.radius*cursor.scale*Math.sin(ang),
+				angle: ang,
+				scale: cursor.scale,
+				distance: cursor.distance + 1,
+			});
+		}
+		
+		const opac = Math.pow((this.drawDistance - cursor.distance)/this.drawDistance, 1.5);
+		ctx.lineWidth = 1;
+		ctx.strokeStyle = rgbaStyle(0.5,0.5,0.5,opac);
+		ctx.beginPath();
+		ctx.arc(cx, cy, seg.radius*cursor.scale, 0, Math.PI*2);
+		ctx.stroke();
 		
 		for( let a = 0; a < seg.arcs.length; ++a ) {
 			const segArc = seg.arcs[a];
@@ -210,25 +234,8 @@ export default class BeltDemo {
 				ang1: ang1,
 			}
 			ctx.lineWidth = 2;
-			ctx.strokeStyle = (a == seg.activeArcNumber) ? 'darkgreen' : 'darkred';
+			ctx.strokeStyle = (a == seg.activeArcNumber) ? rgbaStyle(0.2,0.5,0.2,opac) : rgbaStyle(0.5,0.2,0.2,opac);
 			this.drawOrthoArc( arc, ctx );
-		}
-		
-		if( ttl == 1 ) return;
-		
-		for( let e = 0; e < seg.endpoints.length; ++e ) {
-			if( e == inpointNumber ) continue;
-			
-			const ep = seg.endpoints[e];
-			if( ep.linkedSegmentId == null || ep.linkedEndpointNumber == null ) continue;
-			
-			const ang = ep.angle + angAdj;
-			this.drawSegment( ep.linkedSegmentId, ep.linkedEndpointNumber, ctx, {
-				x: cx + seg.radius*cursor.scale*Math.cos(ang),
-				y: cy + seg.radius*cursor.scale*Math.sin(ang),
-				angle: ang,
-				scale: cursor.scale,
-			}, ttl-1);
 		}
 	}
 	
@@ -272,7 +279,7 @@ export default class BeltDemo {
 		let x = canvasWidth/2;
 		let y = canvasHeight/2;
 		
-		this.drawSegment( segAId, 0, ctx, { x, y, angle:0, scale:5 }, 4 );
+		this.drawSegment( segAId, 0, ctx, { x, y, angle:0, scale:5, distance:0 } );
 		
 		/*
 		ctx.strokeStyle = 'darkgray';
