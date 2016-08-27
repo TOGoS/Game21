@@ -20,8 +20,9 @@ interface BeltSegmentCurve {
 
 interface BeltSegment {
 	endpoints : BeltSegmentEndpoint[];
-	curves : BeltSegmentCurve[];
-	contentCurveNumber : number; // Which curve is stuff on?
+	arcs : BeltSegmentCurve[];
+	activeArcNumber : number; // Which curve is stuff on?
+	radius : number;
 }
 
 function newUuidRef() { return uuidUrn(newType4Uuid()); }
@@ -83,6 +84,7 @@ interface ArcCursor {
 	x : number;
 	y : number;
 	angle : number;
+	scale : number;
 }
 
 export default class BeltDemo {
@@ -95,46 +97,91 @@ export default class BeltDemo {
 			[segAId]: {
 				endpoints: [
 					{
-						angle: Math.PI*2/3
+						angle: Math.PI*4/3
 					},
 					{
-						angle: Math.PI*1/3
+						angle: Math.PI*2/3
 					},
 					{
 						angle: 0
 					},
 				],
-				curves: [
+				arcs: [
 					{
 						endpoint0Number: 0,
 						endpoint1Number: 2,
+					},
+					{
+						endpoint0Number: 1,
+						endpoint1Number: 2,
 					}
 				],
-				contentCurveNumber: 0,
+				activeArcNumber: 0,
+				radius: 1,
 			}
 		}
 	}
 	
-	protected drawSegment( segmentId:SegmentID, endpointNumber:number, angle:number, x:number, y:number ):void {
+	protected drawSegment( segmentId:SegmentID, inpointNumber:number, ctx:CanvasRenderingContext2D, cursor:ArcCursor ):void {
 		const seg = this.beltSegments[segmentId];
 		if( !seg ) return;
 		
-		const endpoint = seg.endpoints[endpointNumber];
-		if( !endpoint ) return;
+		const cx = cursor.x + seg.radius*cursor.scale*Math.cos(cursor.angle);
+		const cy = cursor.y + seg.radius*cursor.scale*Math.sin(cursor.angle);
+		
+		ctx.lineWidth = 1;
+		ctx.strokeStyle = 'darkgray';
+		ctx.beginPath();
+		ctx.arc(cx, cy, seg.radius*cursor.scale, 0, Math.PI*2);
+		ctx.stroke();
+		
+		const inpoint = seg.endpoints[inpointNumber];
+		if( !inpoint ) return;
+		
+		for( let a = 0; a < seg.arcs.length; ++a ) {
+			const segArc = seg.arcs[a];
+			const ep0 = seg.endpoints[segArc.endpoint0Number];
+			const ep1 = seg.endpoints[segArc.endpoint1Number];
+			const ang0 = cursor.angle + Math.PI*2 + ep0.angle - inpoint.angle;
+			const ang1 = cursor.angle + Math.PI*2 + ep1.angle - inpoint.angle;
+			const arc = {
+				cx: cx,
+				cy: cy,
+				radius: seg.radius*cursor.scale,
+				ang0: ang0,
+				ang1: ang1,
+			}
+			ctx.lineWidth = 2;
+			ctx.strokeStyle = (a == seg.activeArcNumber) ? 'darkgreen' : 'darkred';
+			this.drawOrthoArc( arc, ctx );
+		}
 	}
 	
-	protected drawArc( arc:Arc, ctx:CanvasRenderingContext2D, cursor:ArcCursor ):ArcCursor {
+	protected drawArc( arc:Arc, ctx:CanvasRenderingContext2D ):void {
 		const d = angDiff(arc.ang1, arc.ang0);
 		const ccw = d < 0;
 		
 		// TODO: make sure drawing the right direction
-		const cx = arc.cx+cursor.x; // TODO: fix
-		const cy = arc.cy+cursor.y; // TODO: fix
 		ctx.beginPath();
-		ctx.arc( cx, cy, arc.radius, arc.ang0+cursor.angle, arc.ang1+cursor.angle, ccw );
+		ctx.arc( arc.cx, arc.cy, arc.radius, arc.ang0, arc.ang1, ccw );
 		ctx.stroke();
-		return {
-			x: 0, y: 0, angle: 0 // TODO
+	}
+	
+	protected drawOrthoArc( arc:Arc, ctx:CanvasRenderingContext2D ):void {
+		const orth = orthoArc(arc);
+		if( orth ) {
+			this.drawArc( orth, ctx );
+		} else {
+			ctx.beginPath();
+			ctx.moveTo(
+				arc.cx+arc.radius*Math.cos(arc.ang0),
+				arc.cx+arc.radius*Math.sin(arc.ang0)
+			);
+			ctx.lineTo(
+				arc.cx+arc.radius*Math.cos(arc.ang1),
+				arc.cx+arc.radius*Math.sin(arc.ang1)
+			);
+			ctx.stroke();
 		}
 	}
 	
@@ -150,40 +197,26 @@ export default class BeltDemo {
 		let x = canvasWidth/2;
 		let y = canvasHeight/2;
 		
+		this.drawSegment( segAId, 0, ctx, { x, y, angle:0, scale:10 } );
+		
+		/*
 		ctx.strokeStyle = 'darkgray';
 		ctx.lineWidth = 2;
-		/*
-		ctx.beginPath();
-		ctx.arc( x, y, 10, 0, Math.PI );
-		ctx.stroke();
-		*/
 		
 		const arc = {
-			cx: 0,
-			cy: 0,
+			cx: x,
+			cy: y,
 			ang0: Math.random()*Math.PI*2,
 			ang1: Math.random()*Math.PI*2,
 			radius: 20
 		};
 		
-		this.drawArc( arc, ctx, {
-			x: x,
-			y: y,
-			angle: 0
-		});
+		this.drawArc( arc, ctx );
 		
 		ctx.strokeStyle = 'blue';
 		const theOrthoArc = orthoArc(arc);
-		if( theOrthoArc ) this.drawArc( theOrthoArc, ctx, {
-			x: x,
-			y: y,
-			angle: 0
-		});
-		
-		/*
-		ctx.moveTo(20,20);
-		ctx.bezierCurveTo(20,100, 200,100, 200,20);
-*/
+		if( theOrthoArc ) this.drawArc( theOrthoArc, ctx );
+		*/
 	};
 	
 	public start() {
