@@ -120,6 +120,9 @@ const newSegmentId = newUuidRef;
 const segAId = "segA";//newSegmentId();
 const segBId = "segB";//newSegmentId();
 const segCId = "segC";//newSegmentId();
+const segDId = "segD";
+const segEId = "segE";
+const segFId = "segF";
 const cameraItemUuid = newUuidRef();
 
 declare function Symbol(x:string):symbol;
@@ -245,8 +248,8 @@ export default class BeltDemo {
 					{ angle: 0 },
 				],
 				arcs: [
-					{ endpoint0Number: 0, endpoint1Number: 2 },
-					{ endpoint0Number: 1, endpoint1Number: 2 }
+					{ endpoint0Number: 0, endpoint1Number: 1 },
+					{ endpoint0Number: 0, endpoint1Number: 2 }
 				],
 				activeArcNumber: 0,
 				radius: 3,
@@ -268,7 +271,7 @@ export default class BeltDemo {
 					cameraItemUuid: {
 						x: 1.0,
 						orientation: 0,
-						radius: 0.5,
+						radius: 0.1,
 						color: new LightColor(1,1,1),
 					}
 				},
@@ -288,11 +291,58 @@ export default class BeltDemo {
 				isAutoActivating: true,
 				items: {},
 			},
+			[segDId]: {
+				endpoints: [
+					{ angle: Math.PI*5/7 },
+					{ angle: Math.PI*3/7 },
+					{ angle: 0 },
+				],
+				arcs: [
+					{ endpoint0Number: 0, endpoint1Number: 2 },
+					{ endpoint0Number: 1, endpoint1Number: 2 }
+				],
+				activeArcNumber: 1,
+				radius: 2,
+				isAutoActivating: true,
+				items: {},
+			},
+			[segEId]: {
+				endpoints: [
+					{ angle: Math.PI*5/7 },
+					{ angle: Math.PI*3/7 },
+					{ angle: 0 },
+				],
+				arcs: [
+					{ endpoint0Number: 0, endpoint1Number: 2 },
+					{ endpoint0Number: 1, endpoint1Number: 2 }
+				],
+				activeArcNumber: 1,
+				radius: 2,
+				isAutoActivating: true,
+				items: {},
+			},
+			[segFId]: {
+				endpoints: [
+					{ angle: Math.PI*5/7 },
+					{ angle: -Math.PI*3/7 },
+				],
+				arcs: [
+					{ endpoint0Number: 0, endpoint1Number: 1 },
+				],
+				activeArcNumber: 1,
+				radius: 4,
+				isAutoActivating: true,
+				items: {},
+			},
 		};
-		this.linkBeltSegments( segAId, 2, segCId, 0 );
-		this.linkBeltSegments( segCId, 1, segAId, 1 );
-		this.linkBeltSegments( segCId, 2, segBId, 0 );
-		this.linkBeltSegments( segBId, 1, segAId, 0 );
+		this.linkBeltSegments( segAId, 2, segBId, 0 );
+		this.linkBeltSegments( segAId, 1, segDId, 0 );
+		this.linkBeltSegments( segBId, 1, segCId, 0 );
+		this.linkBeltSegments( segCId, 1, segDId, 1 );
+		this.linkBeltSegments( segCId, 2, segEId, 1 );
+		this.linkBeltSegments( segDId, 2, segFId, 0 );
+		this.linkBeltSegments( segFId, 1, segEId, 0 );
+		this.linkBeltSegments( segEId, 2, segAId, 0 );
 	}
 	
 	protected drawDistance = 7;

@@ -36,12 +36,12 @@ $configProperties = [
 	],
 	'width' => [
 		'valueType' => 'number',
-		'defaultValue' => 256,
+		'defaultValue' => 512,
 		'affects' => 'pageGeneration',
 	],
 	'height' => [
 		'valueType' => 'number',
-		'defaultValue' => 96,
+		'defaultValue' => 256,
 		'affects' => 'pageGeneration',
 	],
 	'inlineResources' => [
