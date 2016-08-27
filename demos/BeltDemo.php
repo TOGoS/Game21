@@ -31,12 +31,12 @@ $configProperties = [
 	],
 	'shapeViewMaxHeight' => [
 		'valueType' => 'number',
-		'defaultValue' => 384,
+		'defaultValue' => 512,
 		'affects' => 'pageGeneration',
 	],
 	'width' => [
 		'valueType' => 'number',
-		'defaultValue' => 192,
+		'defaultValue' => 256,
 		'affects' => 'pageGeneration',
 	],
 	'height' => [

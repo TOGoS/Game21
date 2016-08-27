@@ -2,14 +2,14 @@ import KeyedList from '../KeyedList';
 import Vector3D from '../Vector3D';
 import { uuidUrn, newType4Uuid } from '../../tshash/uuids';
 
-type SegmentID = string;
+type BeltSegmentID = string;
 
 // Curves defined as 'orthogonal circles'
 
 interface BeltSegmentEndpoint {
 	angle : number;
 	// If linked:
-	linkedSegmentId? : SegmentID;
+	linkedSegmentId? : BeltSegmentID;
 	linkedEndpointNumber? : number;
 }
 
@@ -24,13 +24,6 @@ interface BeltSegment {
 	activeArcNumber : number; // Which curve is stuff on?
 	radius : number;
 }
-
-function newUuidRef() { return uuidUrn(newType4Uuid()); }
-
-const newSegmentId = newUuidRef;
-
-const segAId = newSegmentId();
-const segBId = newSegmentId();
 
 interface Line {
 	x0 : number;
@@ -62,7 +55,7 @@ function fixAng( ang:number ):number {
 function orthoArc( from:Arc ):Arc|null {
 	const diff = angDiff(from.ang1, from.ang0);
 	
-	if( diff > -0.01 && diff < 0.01 ) return null; // Straight line!
+	if( diff > Math.PI-0.1 || diff < -Math.PI+0.1 ) return null; // [Close to] a straight line!
 	
 	const halfDiff = diff/2;
 	const dist = from.radius / Math.cos(halfDiff);
@@ -87,42 +80,105 @@ interface ArcCursor {
 	scale : number;
 }
 
+function newUuidRef() { return uuidUrn(newType4Uuid()); }
+
+const newSegmentId = newUuidRef;
+
+const segAId = newSegmentId();
+const segBId = newSegmentId();
+const segCId = newSegmentId();
+
 export default class BeltDemo {
 	protected beltSegments:KeyedList<BeltSegment> = {};
 	
 	public constructor( protected _canvas:HTMLCanvasElement ) { }
 	
+	public unlinkBeltSegment( segId:BeltSegmentID, endpointNumber:number ) {
+		const seg = this.beltSegments[segId];
+		if( !seg ) return;
+		const endpoint = seg.endpoints[endpointNumber];
+		if( !endpoint ) return;
+		
+		fixLinkedSegment: if( endpoint.linkedSegmentId != null && endpoint.linkedEndpointNumber != null ) {
+			const linkedSeg = this.beltSegments[endpoint.linkedSegmentId];
+			if( !linkedSeg ) break fixLinkedSegment;
+			const linkedEndpoint = linkedSeg.endpoints[endpoint.linkedEndpointNumber];
+			if( !linkedEndpoint ) break fixLinkedSegment;
+			delete linkedEndpoint.linkedSegmentId;
+			delete linkedEndpoint.linkedEndpointNumber;
+		}
+		
+		delete endpoint.linkedSegmentId;
+		delete endpoint.linkedEndpointNumber;
+	}
+	
+	public linkBeltSegments( segAId:BeltSegmentID, endpointANumber:number, segBId:BeltSegmentID, endpointBNumber:number ) {
+		const segA = this.beltSegments[segAId];
+		const segB = this.beltSegments[segBId];
+		if( !segA ) { console.warn("No such segment to link: "+segAId); return; }
+		if( !segB ) { console.warn("No such segment to link: "+segBId); return; }
+		const endpointA = segA.endpoints[endpointANumber];
+		const endpointB = segB.endpoints[endpointBNumber];
+		if( !endpointA ) { console.warn("No such endpoint "+endpointANumber+" on segment "+segAId); return; }
+		if( !endpointB ) { console.warn("No such endpoint "+endpointBNumber+" on segment "+segBId); return; }
+		this.unlinkBeltSegment(segAId, endpointANumber);
+		this.unlinkBeltSegment(segBId, endpointBNumber);
+		
+		endpointA.linkedSegmentId = segBId;
+		endpointA.linkedEndpointNumber = endpointBNumber;
+		endpointB.linkedSegmentId = segAId;
+		endpointB.linkedEndpointNumber = endpointANumber;
+	}
+
 	public initBelts() {
 		this.beltSegments = {
 			[segAId]: {
 				endpoints: [
-					{
-						angle: Math.PI*4/3
-					},
-					{
-						angle: Math.PI*2/3
-					},
-					{
-						angle: 0
-					},
+					{ angle: Math.PI*4/3 },
+					{ angle: Math.PI*2/3 },
+					{ angle: 0 },
 				],
 				arcs: [
-					{
-						endpoint0Number: 0,
-						endpoint1Number: 2,
-					},
-					{
-						endpoint0Number: 1,
-						endpoint1Number: 2,
-					}
+					{ endpoint0Number: 0, endpoint1Number: 2 },
+					{ endpoint0Number: 1, endpoint1Number: 2 }
 				],
 				activeArcNumber: 0,
 				radius: 1,
-			}
-		}
+			},
+			[segBId]: {
+				endpoints: [
+					{ angle: 0 },
+					{ angle: 2 },
+				],
+				arcs: [
+					{ endpoint0Number: 0, endpoint1Number: 1 }
+				],
+				activeArcNumber: 0,
+				radius: 3,
+			},
+			[segCId]: {
+				endpoints: [
+					{ angle: Math.PI*5/3 },
+					{ angle: Math.PI*3/3 },
+					{ angle: 0 },
+				],
+				arcs: [
+					{ endpoint0Number: 0, endpoint1Number: 2 },
+					{ endpoint0Number: 1, endpoint1Number: 2 }
+				],
+				activeArcNumber: 0,
+				radius: 2,
+			},
+		};
+		this.linkBeltSegments( segAId, 0, segCId, 0 );
+		this.linkBeltSegments( segAId, 1, segCId, 1 );
+		this.linkBeltSegments( segAId, 2, segBId, 0 );
+		this.linkBeltSegments( segCId, 2, segBId, 1 );
 	}
 	
-	protected drawSegment( segmentId:SegmentID, inpointNumber:number, ctx:CanvasRenderingContext2D, cursor:ArcCursor ):void {
+	protected drawSegment( segmentId:BeltSegmentID, inpointNumber:number, ctx:CanvasRenderingContext2D, cursor:ArcCursor, ttl:number=1 ):void {
+		if( ttl == 0 ) return;
+		
 		const seg = this.beltSegments[segmentId];
 		if( !seg ) return;
 		
@@ -138,12 +194,14 @@ export default class BeltDemo {
 		const inpoint = seg.endpoints[inpointNumber];
 		if( !inpoint ) return;
 		
+		const angAdj = cursor.angle - inpoint.angle + Math.PI;
+		
 		for( let a = 0; a < seg.arcs.length; ++a ) {
 			const segArc = seg.arcs[a];
 			const ep0 = seg.endpoints[segArc.endpoint0Number];
 			const ep1 = seg.endpoints[segArc.endpoint1Number];
-			const ang0 = cursor.angle + Math.PI*2 + ep0.angle - inpoint.angle;
-			const ang1 = cursor.angle + Math.PI*2 + ep1.angle - inpoint.angle;
+			const ang0 = ep0.angle + angAdj;
+			const ang1 = ep1.angle + angAdj;
 			const arc = {
 				cx: cx,
 				cy: cy,
@@ -154,6 +212,23 @@ export default class BeltDemo {
 			ctx.lineWidth = 2;
 			ctx.strokeStyle = (a == seg.activeArcNumber) ? 'darkgreen' : 'darkred';
 			this.drawOrthoArc( arc, ctx );
+		}
+		
+		if( ttl == 1 ) return;
+		
+		for( let e = 0; e < seg.endpoints.length; ++e ) {
+			if( e == inpointNumber ) continue;
+			
+			const ep = seg.endpoints[e];
+			if( ep.linkedSegmentId == null || ep.linkedEndpointNumber == null ) continue;
+			
+			const ang = ep.angle + angAdj;
+			this.drawSegment( ep.linkedSegmentId, ep.linkedEndpointNumber, ctx, {
+				x: cx + seg.radius*cursor.scale*Math.cos(ang),
+				y: cy + seg.radius*cursor.scale*Math.sin(ang),
+				angle: ang,
+				scale: cursor.scale,
+			}, ttl-1);
 		}
 	}
 	
@@ -175,11 +250,11 @@ export default class BeltDemo {
 			ctx.beginPath();
 			ctx.moveTo(
 				arc.cx+arc.radius*Math.cos(arc.ang0),
-				arc.cx+arc.radius*Math.sin(arc.ang0)
+				arc.cy+arc.radius*Math.sin(arc.ang0)
 			);
 			ctx.lineTo(
 				arc.cx+arc.radius*Math.cos(arc.ang1),
-				arc.cx+arc.radius*Math.sin(arc.ang1)
+				arc.cy+arc.radius*Math.sin(arc.ang1)
 			);
 			ctx.stroke();
 		}
@@ -197,7 +272,7 @@ export default class BeltDemo {
 		let x = canvasWidth/2;
 		let y = canvasHeight/2;
 		
-		this.drawSegment( segAId, 0, ctx, { x, y, angle:0, scale:10 } );
+		this.drawSegment( segAId, 0, ctx, { x, y, angle:0, scale:5 }, 4 );
 		
 		/*
 		ctx.strokeStyle = 'darkgray';
