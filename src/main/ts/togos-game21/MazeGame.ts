@@ -13,6 +13,7 @@ import DemoWorldGenerator, { newUuidRef, simpleObjectVisualShape } from './DemoW
 import { PhysicalObjectType, PhysicalObject, ProtoObject, TileTree, Room, Game, HUNIT_CUBE } from './world';
 import { deepFreeze, isDeepFrozen, thaw } from './DeepFreezer';
 import RoomGroupSimulator from './RoomGroupSimulator';
+import LightColor from './LightColor';
 import SurfaceColor from './SurfaceColor';
 
 function defreezeItem<T>( c:any, k:any, o?:any ):T {
@@ -119,11 +120,15 @@ export default class MazeGame {
 			layers: [
 				{
 					ruffness: 1.0,
+					glow: LightColor.NONE,
 					diffuse: new SurfaceColor(1,0.5,0.5,1),
+					indexOfRefraction: 3.0,
 				},
 				{
 					ruffness: 0.1,
+					glow: LightColor.NONE,
 					diffuse: new SurfaceColor(1,1,1,0.5),
+					indexOfRefraction: 3.0,
 				},
 			]
 		};
@@ -133,7 +138,9 @@ export default class MazeGame {
 			title: "no-gravity ball material",
 			layers: [ {
 				ruffness: 0.5,
+				glow: LightColor.NONE,
 				diffuse: new SurfaceColor(0.5,0.6,0.8,1),
+				indexOfRefraction: 3.0,
 			} ]
 		};
 		

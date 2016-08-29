@@ -1,6 +1,7 @@
 import KeyedList from './KeyedList';
 import { deepFreeze } from './DeepFreezer';
 import SurfaceColor from './SurfaceColor';
+import LightColor from './LightColor';
 import SurfaceMaterial, { SurfaceMaterialLayer } from './SurfaceMaterial';
 
 export const MATERIAL_MAP_SIZE = 256;
@@ -16,7 +17,12 @@ type MaterialRemap = Uint8Array;
 
 export const NONE:SurfaceMaterial = { title: "nothing", layers: [] };
 export const UNDEFINED:SurfaceMaterial = { title: "undefined", layers: [
-	{ ruffness: 0.5, diffuse: new SurfaceColor(1,0,1,1) }
+	{
+		ruffness: 0.5,
+		diffuse: new SurfaceColor(1,0,1,1),
+		glow: new LightColor(0.25, 0.00, 0.25),
+		indexOfRefraction: 3.0,
+	}
 ] };
 
 export function randomMaterials(count:number):Array<SurfaceMaterial> {
@@ -31,6 +37,8 @@ export function randomMaterials(count:number):Array<SurfaceMaterial> {
 			layers: [
 				{
 					ruffness: Math.random(),
+					glow: LightColor.NONE,
+					indexOfRefraction: 3,
 					diffuse: new SurfaceColor(	r, g, b ),
 				}
 			]
@@ -98,7 +106,12 @@ function rgbsc(r:number,g:number,b:number,a:number=255):SurfaceColor {
 }
 
 function sml(ruff:number,r:number,g:number,b:number,a:number=255):SurfaceMaterialLayer {
-	return { ruffness:ruff, diffuse:rgbsc(r,g,b,a) }
+	return {
+		ruffness: ruff,
+		diffuse: rgbsc(r,g,b,a),
+		glow: LightColor.NONE,
+		indexOfRefraction: 3.0,
+	}
 }
 
 function smat(title:string, ...layers:SurfaceMaterialLayer[] ) : SurfaceMaterial {
@@ -106,141 +119,25 @@ function smat(title:string, ...layers:SurfaceMaterialLayer[] ) : SurfaceMaterial
 }
 
 export const DEFAULT_MATERIALS:KeyedList<SurfaceMaterial> = {
-	[noneRef]: NONE,
-	[steel0Ref]: {
-		title: "gray steel 0", 
-		layers: [
-			{
-				ruffness: 0.5,
-				diffuse: new SurfaceColor(1.0,1.0,0.9,1.0),
-			},
-			{
-				ruffness: 1/8,
-				diffuse: new SurfaceColor(1.0,1.0,0.9,0.5),
-			},
-		]
-	},
-	[steel1Ref]: {
-		title: "gray steel 1",
-		layers: [
-			{
-				ruffness: 0.5,
-				diffuse: new SurfaceColor(1.0,0.9,0.9,1.0),
-			},
-			{
-				ruffness: 1/8,
-				diffuse: new SurfaceColor(1.0,0.9,0.9,0.5),
-			},
-		],
-	},
-	[steel2Ref]: {
-		title: "black steel 0",
-		layers: [
-			{
-				ruffness: 1/8,
-				diffuse: new SurfaceColor(1.0,0.8,0.7,1.0)
-			},
-		],
-	},
-	[steel3Ref]: {
-		title: "black steel 1",
-		layers: [
-			{
-				ruffness: 1/8,
-				diffuse: new SurfaceColor(1.0,0.7,0.8)
-			}
-		],
-	},
+	[noneRef]:   NONE,
+	[steel0Ref]: smat( "gray steel 0", sml(0.5, 255, 255, 224), sml(1/8, 255, 255, 224, 128)),
+	[steel1Ref]: smat( "gray steel 1", sml(0.5, 255, 224, 224), sml(1/8, 255, 224, 224, 128)),
+	[steel2Ref]: smat("black steel 0", sml(1/8, 255, 200, 192)),
+	[steel3Ref]: smat("black steel 1", sml(1/8, 255, 192, 200)),
 	// 8-11 (reddish stone)
-	[ps0Ref]: {
-		title: "pink stone 0",
-		layers: [
-			{
-				ruffness: 1.0,
-				diffuse: new SurfaceColor(0.70,0.30,0.2)
-			},
-			{
-				ruffness: 1/16,
-				diffuse: new SurfaceColor(0.70,0.30,0.2,0.2)
-			},
-		],
-	},
-	[ps1Ref]: {
-		title: "pink stone 1",
-		layers: [
-			{
-				ruffness: 1.0,
-				diffuse: new SurfaceColor(0.65,0.30,0.20)
-			},
-			{
-				ruffness: 1/16,
-				diffuse: new SurfaceColor(0.70,0.30,0.2,0.2)
-			},
-		],
-	},
-	[ps2Ref]: {
-		title: "pink stone 2",
-		layers: [ {
-			ruffness: 1.0,
-			diffuse: new SurfaceColor(0.60,0.25,0.15)
-		} ],
-	},
-	[ps3Ref]: {
-		title: "pink stone 3",
-		layers: [ {
-			ruffness: 1.0,
-			diffuse: new SurfaceColor(0.55,0.20,0.15)
-		} ],
-	},
-	[folg0Ref]: {
-		title: "light green foliage",
-		layers: [
-			{
-				ruffness: 1.5,
-				diffuse: rgbsc(104,111,73),
-			},
-			{
-				ruffness: 0.5,
-				diffuse: rgbsc(153,229,130,64),
-			},
-		],
-	},
-	[folg1Ref]: {
-		title: "medium green foliage",
-		layers: [
-			{
-				ruffness: 1.5,
-				diffuse: rgbsc(52,133,28),
-			},
-			{
-				ruffness: 0.5,
-				diffuse: rgbsc(61,157,3,64),
-			},
-		],
-	},
-	[folg2Ref]: {
-		title: "vibrant yellow-green foliage",
-		layers: [
-			{
-				ruffness: 1.2,
-				diffuse: rgbsc(124,195,23),
-			}
-		],
-	},
-	[folg3Ref]: {
-		title: "dark blue-green foliage",
-		layers: [
-			{
-				ruffness: 1.2,
-				diffuse: rgbsc(25,109,62),
-			}
-		],
-	},
-	[bark0Ref]: smat("light gray bark", sml(1.1, 173,146,125)),
-	[bark1Ref]: smat("medium gray bark", sml(1.1, 124,111,102)),
-	[bark2Ref]: smat("dark gray bark", sml(1.1, 75,66,59)),
-	[bark3Ref]: smat("medium brown bark", sml(1.1, 155,90,61)),
-	[bark4Ref]: smat("medium brown bark", sml(1.0, 66,28,12)),
+	[ps0Ref]:    smat( "pink stone 0", sml(1.0, 192,  64,  48), sml(1/16, 192,  64,  48,  48)),
+	[ps1Ref]:    smat( "pink stone 1", sml(1.0, 160,  64,  48), sml(1/16, 192,  64,  48,  48)),
+	[ps2Ref]:    smat( "pink stone 2", sml(1.0, 160,  64,  16)),
+	[ps3Ref]:    smat( "pink stone 3", sml(1.0, 136,  48,  16)),
+	[folg0Ref]:  smat( "light green foliage"        , sml(1.5, 104, 111,  73), sml(0.5, 153, 229, 100, 64)),
+	[folg1Ref]:  smat("medium green foliage"        , sml(1.5,  52, 133,  28), sml(0.5, 150, 200, 100, 64)),
+	[folg2Ref]:  smat("vibrant yellow-green foliage", sml(1.2, 124, 195, 23)),
+	[folg3Ref]:  smat("dark blue-green foliage"     , sml(1.2,  25, 109, 62)),
+	[bark0Ref]:  smat("light gray bark"  , sml(1.1, 173,146,125)),
+	[bark1Ref]:  smat("medium gray bark" , sml(1.1, 124,111,102)),
+	[bark2Ref]:  smat("dark gray bark"   , sml(1.1,  75, 66, 59)),
+	[bark3Ref]:  smat("medium brown bark", sml(1.1, 155, 90, 61)),
+	[bark4Ref]:  smat("medium brown bark", sml(1.0,  66, 28, 12)),
 };
 deepFreeze(DEFAULT_MATERIALS, true);
 

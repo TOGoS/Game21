@@ -1,10 +1,12 @@
+import LightColor from './LightColor';
 import SurfaceColor from './SurfaceColor';
 
 export interface SurfaceMaterialLayer {
+	glow:LightColor;
 	diffuse:SurfaceColor;
 	/** 0 = perfect mirror, 1 = drywall, >1 = subsurface scattering */
 	ruffness:number;
-	// TODO: some way to indicate glow color, which may vary based on surface angle
+	indexOfRefraction:number;
 }
 
 interface SurfaceMaterial {

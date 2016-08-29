@@ -1,4 +1,4 @@
-import { freeze } from './DeepFreezer';
+import { deepFreeze } from './DeepFreezer';
 
 class LightColor {
 	constructor(public r:number, public g:number, public b:number) { }
@@ -31,6 +31,8 @@ class LightColor {
 		if( thing instanceof LightColor ) return thing;
 		return this.createFrom(thing);
 	}
+	
+	public static NONE:LightColor = deepFreeze(new LightColor(0,0,0));
 }
 
 export default LightColor;
