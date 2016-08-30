@@ -87,6 +87,15 @@ const bark1Ref  = 'urn:uuid:9e2aea33-9210-49ad-b6b1-85ea8587a922';
 const bark2Ref  = 'urn:uuid:30a6bfe8-7afa-47da-a651-3e7fa7884ab0';
 const bark3Ref  = 'urn:uuid:603f6da3-f6ce-4bd8-87c2-01556cea502a';
 const bark4Ref  = 'urn:uuid:15ac9b6e-6242-4e97-bf91-02d881d93c05';
+
+const offLightRef    = 'urn:uuid:bc1e5d12-6b48-45f5-879c-ccae533639f0';
+const blueLightRef   = 'urn:uuid:bc1e5d12-6b48-45f5-879c-ccae533639f1';
+const greenLightRef  = 'urn:uuid:bc1e5d12-6b48-45f5-879c-ccae533639f2';
+const cyanLightRef   = 'urn:uuid:bc1e5d12-6b48-45f5-879c-ccae533639f3';
+const redLightRef    = 'urn:uuid:bc1e5d12-6b48-45f5-879c-ccae533639f4';
+const purpleLightRef = 'urn:uuid:bc1e5d12-6b48-45f5-879c-ccae533639f5';
+const yellowLightRef = 'urn:uuid:bc1e5d12-6b48-45f5-879c-ccae533639f6';
+const whiteLightRef  = 'urn:uuid:bc1e5d12-6b48-45f5-879c-ccae533639f7';
 /*
 CHECK OUT THSI AWSUM WEB SIGHT https://www.uuidgenerator.net/;
 
@@ -98,7 +107,7 @@ CHECK OUT THSI AWSUM WEB SIGHT https://www.uuidgenerator.net/;
 'urn:uuid:f9595a26-ae24-4948-84c7-6928d60ff52b';
 'urn:uuid:3184d81d-843f-4a24-b7f8-6dd0c4c014b0';
 'urn:uuid:36f70539-70b0-479b-8739-eb528f1da3f6';
-'urn:uuid:bc1e5d12-6b48-45f5-879c-ccae533639f7';
+;
 */
 
 function rgbsc(r:number,g:number,b:number,a:number=255):SurfaceColor {
@@ -114,8 +123,26 @@ function sml(ruff:number,r:number,g:number,b:number,a:number=255):SurfaceMateria
 	}
 }
 
+function lml(r:number, g:number, b:number):SurfaceMaterialLayer {
+	return {
+		ruffness: 0.5,
+		diffuse: rgbsc(16,16,16,255),
+		glow: new LightColor(r/255,g/255,b/255),
+		indexOfRefraction: 3.0,
+	}
+}
+
 function smat(title:string, ...layers:SurfaceMaterialLayer[] ) : SurfaceMaterial {
 	return { title: title, layers: layers };
+}
+
+function bulbMat(title:string, r:number, g:number, b:number) : SurfaceMaterial {
+	return smat(title, lml(r,g,b), {
+		ruffness: 0.0,
+		diffuse: rgbsc(255, 255, 255, 0.0),
+		glow: LightColor.NONE,
+		indexOfRefraction: 1.5,
+	});
 }
 
 export const DEFAULT_MATERIALS:KeyedList<SurfaceMaterial> = {
@@ -138,12 +165,21 @@ export const DEFAULT_MATERIALS:KeyedList<SurfaceMaterial> = {
 	[bark2Ref]:  smat("dark gray bark"   , sml(1.1,  75, 66, 59)),
 	[bark3Ref]:  smat("medium brown bark", sml(1.1, 155, 90, 61)),
 	[bark4Ref]:  smat("medium brown bark", sml(1.0,  66, 28, 12)),
+	
+	[offLightRef]:    bulbMat("unlit lightbulb" ,   0,   0,   0),
+	[blueLightRef]:   bulbMat("blue lightbulb"  ,   0,   0, 255),
+	[greenLightRef]:  bulbMat("green lightbulb" ,   0, 255,   0),
+	[cyanLightRef]:   bulbMat("cyan lightbulb"  ,   0, 255, 255),
+	[redLightRef]:    bulbMat("red lightbulb"   , 255,   0,   0),
+	[purpleLightRef]: bulbMat("purple lightbulb", 255,   0, 255),
+	[yellowLightRef]: bulbMat("yellow lightbulb", 255, 255,   0),
+	[whiteLightRef]:  bulbMat("white lightbulb" , 255, 255, 255),
 };
 deepFreeze(DEFAULT_MATERIALS, true);
 
 export const DEFAULT_MATERIAL_PALETTE_REF = 'urn:uuid:c05743d0-488c-4ff6-a667-bdca2c6f91d8'; // TODO: should be a urn:sha1:...# dealio
 
-export const DEFAULT_MATERIAL_PALETTE:Array<string> = deepFreeze([
+let defMats = [
 	noneRef,
 	noneRef,
 	noneRef,
@@ -170,7 +206,18 @@ export const DEFAULT_MATERIAL_PALETTE:Array<string> = deepFreeze([
    // 21
    // 22
    // 23
-]);
+];
+
+defMats[240] = offLightRef;
+defMats[241] = blueLightRef;
+defMats[242] = greenLightRef;
+defMats[243] = cyanLightRef;
+defMats[244] = redLightRef;
+defMats[245] = purpleLightRef;
+defMats[246] = yellowLightRef;
+defMats[247] = whiteLightRef;
+
+export const DEFAULT_MATERIAL_PALETTE:Array<string> = deepFreeze(defMats);
 
 export const DEFAULT_MATERIAL_MAP:MaterialMap = deepFreeze(paletteToMap(DEFAULT_MATERIAL_PALETTE, DEFAULT_MATERIALS));
 

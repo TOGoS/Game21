@@ -344,6 +344,7 @@ export default class ShapeSheetRenderer {
 		var lights = this.lights;
 		var shadowsEnabled = this.shadowsEnabled;
 		var light:DirectionalLight;
+		const lightIntensities:KeyedList<number> = {}
 		
 		for( y=minY; y < maxY; ++y ) for( x=minX, i=width*y+x; x < maxX; ++x, ++i ) {
 			var mat = materials[cellMaterialIndexes[i]];
@@ -359,75 +360,102 @@ export default class ShapeSheetRenderer {
 				normalZ = cellNormals[i*3+2];
 			
 			let r = 0, g = 0, b = 0, a = cellCoverages[i] * 0.25;
+			
 			for( l in lights ) {
+				lightIntensities[l] = 0;
 				light = lights[l];
-				const lightColor = light.color;
 				const lightDir = light.direction;
-				var dotProd = -(normalX*lightDir.x + normalY*lightDir.y + normalZ*lightDir.z);
-				const minDotProd = -1; // 0 if no subsurface scattering, 1 if there is.  Maybe can cache on material.
-				if( dotProd > minDotProd ) {
-					const shadowDistance = this._shadowDistanceOverride != null ? this._shadowDistanceOverride : light.shadowDistance;
-					let shadist = shadowDistance; // Distance to end of where we care
-					let lightLevel = 1;
-					if( shadowsEnabled && shadist > 0 ) {
-						var shadowLight = 1;
-						const traceVec = light.traceVector;
-						stx = x + 0.5;
-						sty = y + 0.5;
-						stz = cellAvgDepths[i];
-						stdx = traceVec.x;
-						stdy = traceVec.y;
-						stdz = traceVec.z;
-						if( stdx == 0 && stdy == 0 ) {
-							shadowLight = stdz < 0 ? 1 : 0;
-						} else while( stz > minAvgDepth && stx > 0 && stx < width && sty > 0 && sty < height && shadist >= 0 ) {
-							d = cellAvgDepths[(sty|0)*width + (stx|0)];
-							if( stz > d ) {
-								// Light let past for 'fuzz'
-								var fuzzLight = Math.pow(light.shadowFuzz, stz - d);
-								if( shadist === Infinity ) {
-									shadowLight *= fuzzLight;
-								} else {
-									// Shadow influence; drops off with distance from shadow caster
-									var shadinf = shadist / shadowDistance;
-									shadowLight *= (1 - shadinf*(1-fuzzLight));
-								}
-								stz = d;
+				
+				const shadowDistance = this._shadowDistanceOverride != null ? this._shadowDistanceOverride : light.shadowDistance;
+				let shadist = shadowDistance; // Distance to end of where we care
+				let lightLevel = 1;
+				if( shadowsEnabled && shadist > 0 ) {
+					var shadowLight = 1;
+					const traceVec = light.traceVector;
+					stx = x + 0.5;
+					sty = y + 0.5;
+					stz = cellAvgDepths[i];
+					stdx = traceVec.x;
+					stdy = traceVec.y;
+					stdz = traceVec.z;
+					if( stdx == 0 && stdy == 0 ) {
+						shadowLight = stdz < 0 ? 1 : 0;
+					} else while( stz > minAvgDepth && stx > 0 && stx < width && sty > 0 && sty < height && shadist >= 0 ) {
+						d = cellAvgDepths[(sty|0)*width + (stx|0)];
+						if( stz > d ) {
+							// Light let past for 'fuzz'
+							var fuzzLight = Math.pow(light.shadowFuzz, stz - d);
+							if( shadist === Infinity ) {
+								shadowLight *= fuzzLight;
+							} else {
+								// Shadow influence; drops off with distance from shadow caster
+								var shadinf = shadist / shadowDistance;
+								shadowLight *= (1 - shadinf*(1-fuzzLight));
 							}
-							stx += stdx; sty += stdy; stz += stdz;
-							shadist -= light.traceVectorLength;
+							stz = d;
 						}
-						lightLevel *= Math.max(shadowLight, light.minimumShadowLight);
+						stx += stdx; sty += stdy; stz += stdz;
+						shadist -= light.traceVectorLength;
 					}
-					for( let i=matLayers.length-1, layerContrib = 1; layerContrib > 0 && i>=0; --i ) {
-						const layer:SurfaceMaterialLayer = matLayers[i];
-						const sss = Math.max(0, layer.ruffness - 1.0);
-						const adjustedDotProd = dotProd + sss*(1-dotProd)/2;
+					lightLevel *= Math.max(shadowLight, light.minimumShadowLight);
+				}
+				lightIntensities[l] = lightLevel;
+			}
+			
+			for( let i=matLayers.length-1, layerContrib = 1; layerContrib > 0 && i>=0; --i ) {
+				const layer:SurfaceMaterialLayer = matLayers[i];
+				const sss = Math.max(0, layer.ruffness - 1.0);
+				const layerDiffuse = layer.diffuse;
+				// Higher ruffness spreads out the light more.
+				// Low ruffness leads to a very bright spot concentrated toward the light.
+				//           lightCameraDotProd ->
+				// ruffness       0  0.5  1.0
+				//  |    0.0       0  0.0  1.0
+				//  v    0.5       0  0.1  0.8
+				//       1.0       0  0.4  0.5
+				const fixFactor = 1.0 / (1 + sss);
+				const ruffness = Math.max(MIN_ROUGHNESS, Math.min(1.0, layer.ruffness));
+				
+				// Not very physically accurate IoR-based reflection
+				const refractiness = Math.min(1, layer.indexOfRefraction - 1.0);
+				// @normalZ = 0, extraOpac = 1;  @normalZ = -1, extraOpac = 0
+				const extraOpac = (1 + normalZ) * refractiness;
+				const layerOpac = layerDiffuse.a + (1.0 - layerDiffuse.a) * extraOpac;
+				
+				const layerGlow = layer.glow;
+				r += layerContrib * layerGlow.r;
+				g += layerContrib * layerGlow.g;
+				b += layerContrib * layerGlow.b;
+				
+				for( let l in lights ) {
+					const lightDir = lights[l].direction;
+					const lightColor = lights[l].color;
+					const lightLevel = lightIntensities[l];
+			
+					var lightCameraDotProd = -(normalX*lightDir.x + normalY*lightDir.y + normalZ*lightDir.z);
+					const minDotProd = -1; // 0 if no subsurface scattering, 1 if there is.  Maybe can cache on material.
+					if( lightCameraDotProd > minDotProd ) {
+						const adjustedDotProd = lightCameraDotProd + sss*(1-lightCameraDotProd)/2;
 						if( adjustedDotProd < 0 ) continue;
-						const layerColor = layer.diffuse;
-						// Higher ruffness spreads out the light more.
-						// Low ruffness leads to a very bright spot concentrated toward the light.
-						//           dotProd ->
-						// ruffness       0  0.5  1.0
-						//  |    0.0       0  0.0  1.0
-						//  v    0.5       0  0.1  0.8
-						//       1.0       0  0.4  0.5
-						const fixFactor = 1.0 / (1 + sss);
-						const ruffness = Math.max(MIN_ROUGHNESS, Math.min(1.0, layer.ruffness));
 						const diffuseAmt = fixFactor * Math.pow(adjustedDotProd, 1/ruffness) / Math.pow(ruffness, 0.5);
-						const layerAmt = lightLevel * diffuseAmt * layerContrib * layerColor.a;
-						r += layerAmt * lightColor.r * layerColor.r;
-						g += layerAmt * lightColor.g * layerColor.g;
-						b += layerAmt * lightColor.b * layerColor.b;
-						layerContrib *= (1-layerColor.a);
+						const layerLightAmt = lightLevel * diffuseAmt * layerContrib * layerOpac;
+						
+						r += layerLightAmt * lightColor.r * layerDiffuse.r;
+						g += layerLightAmt * lightColor.g * layerDiffuse.g;
+						b += layerLightAmt * lightColor.b * layerDiffuse.b;
 					}
 				}
+				
+				// Next layer can only contribute through the holes in this one
+				layerContrib *= (1-layerOpac);
 			}
+			
 			cellColors[i*4+0] = r;
 			cellColors[i*4+1] = g;
 			cellColors[i*4+2] = b;
 			cellColors[i*4+3] = a;
 		}
+			
 		var s:any;
 		for( let s in this.shaders ) {
 			this.shaders[s](this, region);
