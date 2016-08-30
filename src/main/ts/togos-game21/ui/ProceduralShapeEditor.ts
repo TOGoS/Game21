@@ -1,6 +1,7 @@
 import { freeze, deepFreeze, thaw } from '../DeepFreezer';
 import KeyedList from '../KeyedList';
 import ClientRegistry from '../ClientRegistry';
+import LightColor from '../LightColor';
 import DirectionalLight from '../DirectionalLight';
 import SurfaceMaterial from '../SurfaceMaterial';
 import ProceduralShape from '../ProceduralShape';
@@ -455,6 +456,34 @@ export default class ProceduralShapeEditor
 		this.viewSet.paused = false;
 		this.playButton.style.display = 'none';
 		this.pauseButton.style.display = '';
+	}
+	
+	public get lights():KeyedList<DirectionalLight> { return this.viewSet.lights; }
+	public set lights(l:KeyedList<DirectionalLight>) { this.viewSet.lights = l; }
+	
+	public resetLights() {
+		this.lights = DEFAULT_LIGHTS;
+	}
+	
+	public randomizeLights() {
+		var lights:KeyedList<DirectionalLight> = {};
+		lights["primary"] = new DirectionalLight(
+			new Vector3D(Math.random()-0.5, Math.random()-0.5, Math.random()-0.5),
+			new LightColor(Math.random()*1.5, Math.random()*1.5, Math.random()*1.5), {
+				shadowFuzz: 0.1,
+				shadowDistance: 32,
+				minimumShadowLight: 0.05
+			}
+		);
+		lights["glow"] = new DirectionalLight(
+			new Vector3D(Math.random()-0.5, Math.random()-0.5, Math.random()-0.5),
+			new LightColor(Math.random(), Math.random(), Math.random()), {
+				shadowFuzz: 0.1,
+				shadowDistance: 32,
+				minimumShadowLight: 0.1
+			}
+		);
+		this.lights = lights;
 	}
 	
 	protected addViewFromCanvasByName( name:string, ss:number=1, init?:(v:ShapeView)=>void ):void {
