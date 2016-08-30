@@ -1,7 +1,6 @@
 ## Demos
 
-- Browser-based ping w/ SLAAC
-- Conveyor belts
+- Simple maze game with discrete (though possibly in small unit, like 1/8m) movement
 - Packet truck
 - Image with dynamic (via material map overrides) indicator lights?
 - Small game with signal wires?
@@ -157,3 +156,5 @@ Possibly outdated but maybe not:
 * Centralize address configuration in .env
 * Allocate IP address for each browser connected
 * Have 2 browsers ping each other
+* Browser-based ping w/ SLAAC
+* Goofy conveyor belt demo
