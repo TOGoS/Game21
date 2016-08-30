@@ -44,7 +44,14 @@ Conveyor belts:
   that are attached to the world
 - Could probably build a fun game entirely using the tube system
 
-Tube graphics:
+Graphics:
+- Convert OBJ (from FreeCAD) to procedural shape script
+  "Can only contain triangulated meshes." which should make my job easy.
+  -- http://www.freecadweb.org/wiki/index.php?title=Manual:Import_and_export_to_other_filetypes
+- Allow $material-index to be a (x,y,z) -> material index function
+  - Origin/transform determined by context when function defined?
+    - which would automatically account for object rotation
+For tubes:
 - Render front, back half of tubes separately
 - For translucent surfaces, dither in shapesheet; will be AAd to translucency when rendered.
 
