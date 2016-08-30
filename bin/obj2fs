@@ -1,0 +1,47 @@
+#!/usr/bin/env node
+
+var readline = require('readline');
+var rl = readline.createInterface({
+   input: process.stdin,
+   output: process.stdout,
+   terminal: false,
+});
+
+var out = process.stdout;
+
+var position = [0,0,0];
+var vertexes = [];
+function moveToVertex( id ) {
+   var virt = vertexes[id];
+   var diff = [virt[0]-position[0], virt[1]-position[1], virt[2]-position[2]];
+   out.write(diff[0]+" "+diff[1]+" "+diff[2]+" move ");
+   position = virt;
+}
+
+
+rl.on('line', (line) => {
+   line = line.trim();
+   if( line.length == 0 ) return;
+   if( line[0] == '#' ) return;
+   
+   words = line.split(/\s+/);
+   switch( words[0] ) {
+   case 'v':
+      // Invert y and z for cheap solution
+      vertexes.push( [parseFloat(words[1]), -parseFloat(words[2]), -parseFloat(words[3])] );
+      break;
+   case 'f':
+      var i;
+      
+      if( words.length < 4 ) return; // Ain't no polygon.
+      
+      moveToVertex( parseInt(words[words.length-1])-1 );
+      out.write("open-polygon ");
+      for( i = words.length-2; i >= 1; --i ) {
+	 moveToVertex( parseInt(words[i])-1 );
+	 out.write("polygon-point ");
+      }
+      moveToVertex( parseInt(words[1])-1 );
+      out.write("fill-polygon\n");
+   }
+});
