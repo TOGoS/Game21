@@ -256,7 +256,7 @@ class ShapeSheetUtil {
 		const quadRenderMethod:FlatTBQuadRenderMethod = Math.max(
 			Math.abs(dzdx),
 			Math.abs(dzdy)
-		) > 0 ? 1 : 0;
+		) > 4 ? FlatTBQuadRenderMethod.CLAMPED_Z : FlatTBQuadRenderMethod.NORMAL;
 		
 		function clamp( min:number, x:number, max:number ):number {
 			return x < min ? min : x > max ? max : x;
