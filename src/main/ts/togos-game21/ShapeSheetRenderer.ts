@@ -339,12 +339,15 @@ export default class ShapeSheetRenderer {
 		var cellNormals = this.cellNormals;
 		var materials = this.materials;
 		var cellMaterialIndexes = ss.cellMaterialIndexes;
+		var cellCornerDepths = ss.cellCornerDepths;
 		var cellAvgDepths = this.cellAverageDepths;
 		var minAvgDepth = this.minimumAverageDepth;
 		var lights = this.lights;
 		var shadowsEnabled = this.shadowsEnabled;
 		var light:DirectionalLight;
 		const lightIntensities:KeyedList<number> = {}
+		
+		const shadowTraceSurfaceOffset = 0; // Set to some negative value to start tracing for shadows from just off the surface
 		
 		for( y=minY; y < maxY; ++y ) for( x=minX, i=width*y+x; x < maxX; ++x, ++i ) {
 			var mat = materials[cellMaterialIndexes[i]];
@@ -374,14 +377,28 @@ export default class ShapeSheetRenderer {
 					const traceVec = light.traceVector;
 					stx = x + 0.5;
 					sty = y + 0.5;
-					stz = cellAvgDepths[i];
+					stz = cellAvgDepths[i] + shadowTraceSurfaceOffset;
 					stdx = traceVec.x;
 					stdy = traceVec.y;
 					stdz = traceVec.z;
 					if( stdx == 0 && stdy == 0 ) {
 						shadowLight = stdz < 0 ? 1 : 0;
 					} else while( stz > minAvgDepth && stx > 0 && stx < width && sty > 0 && sty < height && shadist >= 0 ) {
-						d = cellAvgDepths[(sty|0)*width + (stx|0)];
+						const sampleDepthFindingMethod = 1;
+						if( sampleDepthFindingMethod == 0 ) {
+							d = cellAvgDepths[(sty|0)*width + (stx|0)];
+						} else {
+							const sampSubX = stx - (stx|0);
+							const sampSubY = sty - (sty|0);
+							const cellIdx = (sty|0)*width + (stx|0);
+							const d0 = cellCornerDepths[cellIdx*4+0];
+							const d1 = cellCornerDepths[cellIdx*4+1];
+							const d2 = cellCornerDepths[cellIdx*4+2];
+							const d3 = cellCornerDepths[cellIdx*4+3];
+							const dTop = d0 + sampSubX*(d1-d0);
+							const dBot = d2 + sampSubX*(d3-d2);
+							d = dTop + sampSubY*(dBot-dTop);
+						}
 						if( stz > d ) {
 							// Light let past for 'fuzz'
 							var fuzzLight = Math.pow(light.shadowFuzz, stz - d);
@@ -392,7 +409,7 @@ export default class ShapeSheetRenderer {
 								var shadinf = shadist / shadowDistance;
 								shadowLight *= (1 - shadinf*(1-fuzzLight));
 							}
-							stz = d;
+							stz = d + shadowTraceSurfaceOffset;
 						}
 						stx += stdx; sty += stdy; stz += stdz;
 						shadist -= light.traceVectorLength;

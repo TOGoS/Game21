@@ -238,26 +238,49 @@ class ShapeSheetUtil {
 		if( x1 <= x0 && x3 <= x2 ) return;
 		if( y0 >= y2 ) return;
 		
-		const height = y2-y0;
-		
-		// Figure out surface angle so we never have to do it again
-		// (also, calculating it only once will ensure that our polygon appears flat)
-		const dzdx = (x1 - x0) > (x3 - x2) ? (z1-z0)/(x1-x0) : (z3-z2)/(x3-x2);
-		const dzdy = ((z2 + dzdx*(x0-x2)) - z0) / (y2-y0);
-		
 		const diffY  = y2-y0;
 		const diffX0 = x2-x0, diffX1 = x3-x1;
 		const diffZ0 = z2-z0, diffZ1 = z3-z1;
+
+		const quadRenderMethod = 0;
 		
-		const rowCount = maxY-minY;
-		
-		for( let y=minY; y<maxY; ++y ) {
-			const midYRat = (y+0.5-y0)/diffY;
-			const minX = Math.max(0, Math.round( x0 + diffX0*midYRat ))|0;
-			const maxX = Math.min(ss.width, Math.round( x1 + diffX1*midYRat ));
-			for( let x=minX; x<maxX; ++x ) {
-				const pz0 = z0 + (x-x0)*dzdx + (y-y0)*dzdy;
-				this.plotPixel( x, y, pz0, pz0+dzdx, pz0+dzdy, pz0+dzdx+dzdy );
+		if( quadRenderMethod == 0 ) {
+			// Figure out surface angle so we never have to do it again
+			// (also, calculating it only once will ensure that our polygon appears flat)
+			const dzdx = (x1 - x0) > (x3 - x2) ? (z1-z0)/(x1-x0) : (z3-z2)/(x3-x2);
+			const dzdy = ((z2 + dzdx*(x0-x2)) - z0) / (y2-y0);
+			
+			for( let y=minY; y<maxY; ++y ) {
+				const midYRat = (y+0.5-y0)/diffY;
+				const minX = Math.max(0, Math.round( x0 + diffX0*midYRat ))|0;
+				const maxX = Math.min(ss.width, Math.round( x1 + diffX1*midYRat ));
+				for( let x=minX; x<maxX; ++x ) {
+					const pz0 = z0 + (x-x0)*dzdx + (y-y0)*dzdy;
+					this.plotPixel( x, y, pz0, pz0+dzdx, pz0+dzdy, pz0+dzdx+dzdy );
+				}
+			}
+		} else {
+			for( let y=minY; y<maxY; ++y ) {
+				const midYRat = (y+0.5-y0)/diffY;
+				//const minX = Math.max(0, Math.round( x0 + diffX0*midYRat ))|0;
+				//const maxX = Math.min(ss.width, Math.round( x1 + diffX1*midYRat ));
+				const rowX0 = x0 + diffX0*(y-y0)/diffY;
+				const rowX1 = x1 + diffX1*(y-y0)/diffY;
+				const rowX2 = x0 + diffX0*(y+1-y0)/diffY;
+				const rowX3 = x1 + diffX1*(y+1-y0)/diffY;
+				const minX = Math.max(0, Math.round( (rowX0+rowX2)/2 ));
+				const maxX = Math.min(ss.width, Math.round( (rowX1+rowX3)/2 ));
+				const rowZ0 = z0 + diffZ0*(y-y0)/diffY;
+				const rowZ1 = z1 + diffZ1*(y-y0)/diffY;
+				const rowZ2 = z0 + diffZ0*(y+1-y0)/diffY;
+				const rowZ3 = z1 + diffZ1*(y+1-y0)/diffY;
+				for( let x=minX; x<maxX; ++x ) {
+					const pz0 = rowZ0 + (rowZ1-rowZ0)*(x  -rowX0)/(rowX1-rowX0);
+					const pz1 = rowZ0 + (rowZ1-rowZ0)*(x+1-rowX0)/(rowX1-rowX0);
+					const pz2 = rowZ2 + (rowZ3-rowZ2)*(x  -rowX2)/(rowX3-rowX2);
+					const pz3 = rowZ2 + (rowZ3-rowZ2)*(x+1-rowX2)/(rowX3-rowX2);
+					this.plotPixel( x, y, pz0, pz1, pz2, pz3 );
+				}
 			}
 		}
 		
