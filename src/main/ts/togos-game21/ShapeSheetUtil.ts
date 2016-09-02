@@ -77,6 +77,12 @@ const findSurfaceZ = function( df:DensityFunction3D, x:number, y:number, z0:numb
 	return dfDestVectorBuffer.z;
 }
 
+enum FlatTBQuadRenderMethod {
+	NORMAL,
+	CLAMPED_Z,
+	ALTERNATE
+}
+
 class ShapeSheetUtil {
 	protected _shapeSheet:ShapeSheet;
 	protected _renderer:ShapeSheetRenderer|undefined;
@@ -241,15 +247,22 @@ class ShapeSheetUtil {
 		const diffY  = y2-y0;
 		const diffX0 = x2-x0, diffX1 = x3-x1;
 		const diffZ0 = z2-z0, diffZ1 = z3-z1;
-
-		const quadRenderMethod = 0;
 		
-		if( quadRenderMethod == 0 ) {
-			// Figure out surface angle so we never have to do it again
-			// (also, calculating it only once will ensure that our polygon appears flat)
-			const dzdx = (x1 - x0) > (x3 - x2) ? (z1-z0)/(x1-x0) : (z3-z2)/(x3-x2);
-			const dzdy = ((z2 + dzdx*(x0-x2)) - z0) / (y2-y0);
-			
+		// Figure out surface angle so we never have to do it again
+		// (also, calculating it only once will ensure that our polygon appears flat)
+		const dzdx = (x1 - x0) > (x3 - x2) ? (z1-z0)/(x1-x0) : (z3-z2)/(x3-x2);
+		const dzdy = ((z2 + dzdx*(x0-x2)) - z0) / (y2-y0);
+		
+		const quadRenderMethod:FlatTBQuadRenderMethod = Math.max(
+			Math.abs(dzdx),
+			Math.abs(dzdy)
+		) > 0 ? 1 : 0;
+		
+		function clamp( min:number, x:number, max:number ):number {
+			return x < min ? min : x > max ? max : x;
+		}
+		
+		if( quadRenderMethod == FlatTBQuadRenderMethod.NORMAL ) {
 			for( let y=minY; y<maxY; ++y ) {
 				const midYRat = (y+0.5-y0)/diffY;
 				const minX = Math.max(0, Math.round( x0 + diffX0*midYRat ))|0;
@@ -257,6 +270,26 @@ class ShapeSheetUtil {
 				for( let x=minX; x<maxX; ++x ) {
 					const pz0 = z0 + (x-x0)*dzdx + (y-y0)*dzdy;
 					this.plotPixel( x, y, pz0, pz0+dzdx, pz0+dzdy, pz0+dzdx+dzdy );
+				}
+			}
+		} else if( quadRenderMethod == FlatTBQuadRenderMethod.CLAMPED_Z ) {
+			for( let y=minY; y<maxY; ++y ) {
+				const midYRat = (y+0.5-y0)/diffY;
+				const minX = Math.max(0, Math.round( x0 + diffX0*midYRat ))|0;
+				const maxX = Math.min(ss.width, Math.round( x1 + diffX1*midYRat ));
+				const rowZ0 = z0 + diffZ0*(y-y0)/diffY;
+				const rowZ1 = z1 + diffZ1*(y-y0)/diffY;
+				const rowZ2 = z0 + diffZ0*(y+1-y0)/diffY;
+				const rowZ3 = z1 + diffZ1*(y+1-y0)/diffY;
+				const rowMinZ = Math.min(rowZ0, rowZ1, rowZ2, rowZ3);
+				const rowMaxZ = Math.max(rowZ0, rowZ1, rowZ2, rowZ3);
+				for( let x=minX; x<maxX; ++x ) {
+					const _pz0 = z0 + (x-x0)*dzdx + (y-y0)*dzdy;
+					const pz0 = clamp( rowMinZ, _pz0, rowMaxZ );
+					const pz1 = clamp( rowMinZ, _pz0 + dzdx, rowMaxZ );
+					const pz2 = clamp( rowMinZ, _pz0 + dzdy, rowMaxZ );
+					const pz3 = clamp( rowMinZ, _pz0 + dzdx + dzdy, rowMaxZ );
+					this.plotPixel( x, y, pz0, pz1, pz2, pz3 );
 				}
 			}
 		} else {
