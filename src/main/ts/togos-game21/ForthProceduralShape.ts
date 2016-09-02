@@ -138,7 +138,20 @@ const customWords : KeyedList<Word> = {
 			
 			addPolygonPoint(sgctx.polygonPoints, sgctx.transform);
 			fixMaterialParameters(sgctx);
-			sgctx.shapeSheetUtil.plotConvexPolygon(sgctx.polygonPoints);
+			sgctx.shapeSheetUtil.plotConvexPolygon(sgctx.polygonPoints, true);
+		}
+	},
+	"fill-clockwise-polygon": <RuntimeWord> {
+		"name": "fill-clockwise-polygon",
+		wordType: WordType.OTHER_RUNTIME,
+		forthRun: <RuntimeWord> (ctx:RuntimeContext):void => {
+			const sgctx:ShapeGeneratorContext = (<ShapeGeneratorContext>ctx);
+
+			if( Object.isFrozen(sgctx.polygonPoints) ) sgctx.polygonPoints = thaw(sgctx.polygonPoints);
+			
+			addPolygonPoint(sgctx.polygonPoints, sgctx.transform);
+			fixMaterialParameters(sgctx);
+			sgctx.shapeSheetUtil.plotConvexPolygon(sgctx.polygonPoints, false);
 		}
 	},
 	"plot-sphere": <RuntimeWord> {

@@ -49,6 +49,19 @@ function disto( x0:number, y0:number, z0:number, x1:number, y1:number, z1:number
 	return Math.sqrt( dx*dx + dy*dy + dz*dz );
 };
 
+function reversePointList( points:Array<number> ):Array<number> {
+	let reversed = new Array(points.length);
+	const pointCount = points.length / 3;
+	for( let i = 0; i < pointCount; ++i ) {
+		const ioff = (pointCount-1-i)*3;
+		const ooff = i*3;
+		reversed[ooff+0] = points[ioff+0];
+		reversed[ooff+1] = points[ioff+1];
+		reversed[ooff+2] = points[ioff+2];
+	}
+	return reversed;
+}
+
 export const NOOP_PLOTTED_DEPTH_FUNCTION = (x:number,y:number,z:number):number => z;
 
 const dfDestVectorBuffer = new Vector3D;
@@ -322,9 +335,12 @@ class ShapeSheetUtil {
 		}
 	};
 	
-	plotConvexPolygon( points:Array<number> ):void {
+	plotConvexPolygon( points:Array<number>, drawBackside:boolean=false ):void {
 		var normalZ = this.leftThumbZ(points);
-		if( normalZ > 0 ) return; // back face culling!
+		if( normalZ > 0 ) {
+			if( drawBackside ) points = reversePointList(points);
+			else return;
+		}
 		
 		var vertexCount = points.length/3;
 		var topY = Infinity, bottomY = -Infinity;
