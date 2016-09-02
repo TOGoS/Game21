@@ -44,9 +44,11 @@ Conveyor belts:
 - Could probably build a fun game entirely using the tube system
 
 Graphics:
-- Convert OBJ (from FreeCAD) to procedural shape script
-  "Can only contain triangulated meshes." which should make my job easy.
-  -- http://www.freecadweb.org/wiki/index.php?title=Manual:Import_and_export_to_other_filetypes
+- Support .obj format natively;
+    urn:asdasd eval-obj
+  or
+    "v 0 0 1 ... " eval-obj
+  Can require that string be a literal or URI and compile it to a forth word at compile-time.
 - Allow $material-index to be a (x,y,z) -> material index function
   - Origin/transform determined by context when function defined?
     - which would automatically account for object rotation
@@ -158,3 +160,6 @@ Possibly outdated but maybe not:
 * Have 2 browsers ping each other
 * Browser-based ping w/ SLAAC
 * Goofy conveyor belt demo
+* Convert OBJ (from FreeCAD) to procedural shape script
+  "Can only contain triangulated meshes." which should make my job easy.
+  -- http://www.freecadweb.org/wiki/index.php?title=Manual:Import_and_export_to_other_filetypes
