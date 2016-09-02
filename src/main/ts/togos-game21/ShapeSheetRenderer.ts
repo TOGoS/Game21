@@ -384,6 +384,8 @@ export default class ShapeSheetRenderer {
 					if( stdx == 0 && stdy == 0 ) {
 						shadowLight = stdz < 0 ? 1 : 0;
 					} else while( stz > minAvgDepth && stx > 0 && stx < width && sty > 0 && sty < height && shadist >= 0 ) {
+						// In theory mode 1 might result in slightly higher-quality shadows,
+						// but I can't tell the difference, so leaving at 0.
 						const sampleDepthFindingMethod = 0;
 						if( sampleDepthFindingMethod == 0 ) {
 							d = cellAvgDepths[(sty|0)*width + (stx|0)];
