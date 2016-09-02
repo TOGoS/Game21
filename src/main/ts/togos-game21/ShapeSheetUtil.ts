@@ -273,6 +273,9 @@ class ShapeSheetUtil {
 				}
 			}
 		} else if( quadRenderMethod == FlatTBQuadRenderMethod.CLAMPED_Z ) {
+			const maxZ = Math.max(z0,z1,z2,z3);
+			const minZ = Math.min(z0,z1,z2,z3);
+			
 			for( let y=minY; y<maxY; ++y ) {
 				const midYRat = (y+0.5-y0)/diffY;
 				const minX = Math.max(0, Math.round( x0 + diffX0*midYRat ))|0;
@@ -281,8 +284,8 @@ class ShapeSheetUtil {
 				const rowZ1 = z1 + diffZ1*(y-y0)/diffY;
 				const rowZ2 = z0 + diffZ0*(y+1-y0)/diffY;
 				const rowZ3 = z1 + diffZ1*(y+1-y0)/diffY;
-				const rowMinZ = Math.min(rowZ0, rowZ1, rowZ2, rowZ3);
-				const rowMaxZ = Math.max(rowZ0, rowZ1, rowZ2, rowZ3);
+				const rowMinZ = Math.max(minZ, Math.min(rowZ0, rowZ1, rowZ2, rowZ3));
+				const rowMaxZ = Math.min(maxZ, Math.max(rowZ0, rowZ1, rowZ2, rowZ3));
 				for( let x=minX; x<maxX; ++x ) {
 					const _pz0 = z0 + (x-x0)*dzdx + (y-y0)*dzdy;
 					const pz0 = clamp( rowMinZ, _pz0, rowMaxZ );
