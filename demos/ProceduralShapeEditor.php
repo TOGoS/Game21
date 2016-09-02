@@ -147,7 +147,11 @@ list($shapeViewWidth, $shapeViewHeight) = fitpar($shapeViewMaxWidth, $shapeViewM
 <html>
 <head>
 <meta charset="utf-8"/>
-<style>
+<title><?php eht($title); ?></title>
+</head>
+<body>
+
+<style scoped>
 html, body {
 	background: black;
 	width: 100%;
@@ -258,9 +262,6 @@ p, ul {
 	padding-bottom: 6px;
 }
 </style>
-<title><?php eht($title); ?></title>
-</head>
-<body>
 
 <?php if($showInstructions): ?>
 <p>I've made a Procedural Shape Editor!
