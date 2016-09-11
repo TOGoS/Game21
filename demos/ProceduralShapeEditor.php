@@ -353,7 +353,7 @@ t 180 deg2rad * sin 20 * 10 - $flap !
 <button onclick="shapeEditor.resetLights()">Reset lights</button>
 </div>
 
-<?php require_game21_js_libs($inlineResources); ?>
+<?php require_game21_js_libs($inlineResources, array('togos-game21/ClientRegistry','togos-game21/ui/ProceduralShapeEditor')); ?>
 <script type="text/javascript">
 	require(['togos-game21/ClientRegistry','togos-game21/ui/ProceduralShapeEditor'], function(_ClientRegistry,_ProceduralShapeEditor) {
 		var ProceduralShapeEditor = _ProceduralShapeEditor.default;

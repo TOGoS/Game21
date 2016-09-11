@@ -100,9 +100,18 @@ function require_js($files, $inline=false, $extraProps=array()) {
 	}
 };
 
-function require_game21_js_libs( $inline=false ) {
+function require_game21_js_libs( $inline=false, $requireModuleNames=null ) {
 	global $rp;
-	require_js([$rp.'/fakerequire.js', $rp.'/target/game21libs.amd.es5.js'], $inline);
+	$libsFile = $rp.'/target/game21libs.amd.es5.js';
+	if( $inline and $requireModuleNames !== null ) {
+		$squishFile = $rp.'/temp/'.hash('sha1', implode(',', $requireModuleNames).'-'.filemtime($libsFile));
+		system("$rp/bin/pruneamd -m ".escapeshellarg(implode(',', $requireModuleNames))." < $libsFile > $squishFile", $pruneStatus);
+		if( $pruneStatus !== 0 ) {
+			throw new Exception("Failed to run pruner!");
+		}
+		$libsFile = $squishFile;
+	}
+	require_js([$rp.'/fakerequire.js', $libsFile], $inline);
 }
 
 function parse_bool($b, $emptyValue=false) {
