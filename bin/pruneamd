@@ -1,0 +1,132 @@
+#!/usr/bin/env node
+"use strict";
+
+var readline = require('readline');
+
+function parseOptions( argv ) {
+   let allMods = {};
+   let mode = "filter";
+   for( let i=2; i<argv.length; ++i ) {
+      if( argv[i] == '-m' ) {
+	 let modStr = argv[++i];
+	 let mods = modStr.split(',');
+	 for( let m in mods ) {
+	    allMods[mods[m]] = mods[m];
+	 }
+      } else if( argv[i] == '-debug' ) {
+	 mode = "debug";
+      } else {
+	 process.stderr.write("Invalid argument: "+argv[i]+"\n");
+	 process.exit(1);
+      }
+   }
+   return {
+      rootModuleNames: allMods,
+      mode: mode,
+   };
+}
+
+let options = parseOptions( process.argv );
+
+var rl = readline.createInterface({
+   input: process.stdin,
+   output: process.stdout,
+   terminal: false,
+});
+
+var out = process.stdout;
+
+var state = "global"; // global, module
+var sections = [];
+var csect = { type: "global", lines: [] };
+var modDepends = {};
+
+function flushSect() {
+   if( csect.lines.length > 0 ) {
+      sections.push(csect);
+   }
+   csect = { type: "global", lines: [] };
+}
+
+const MODOPEN_RE = /^define\(("[^"]+"), (\[[^\]]+\]), function (.*) {$/;
+
+rl.on('line', (line) => {
+   if( state == "module" ) {
+      if( /^\/\/# sourceMappingURL=.*/.exec(line) ) return; // They won't make sense after we're done!
+      csect.lines.push(line);
+      if( line == '});' ) flushSect();
+   } else {
+      let modMatch = MODOPEN_RE.exec(line);
+      if( modMatch ) {
+	 let modName = JSON.parse(modMatch[1]);
+	 let dependencies = JSON.parse(modMatch[2].replace(/'/g,'"'));
+	 flushSect();
+	 csect.type = "module";
+	 csect.moduleName = modName;
+	 csect.dependencies = dependencies;
+	 modDepends[modName] = dependencies;
+      }
+      csect.lines.push(line);
+   }
+});
+rl.on('close', () => {
+   flushSect();
+   
+   var usedModuleNames = {};
+   
+   function markModUsed( modName ) {
+      usedModuleNames[modName] = modName;
+      if( modDepends[modName] ) markModsUsed(modDepends[modName])
+   }
+   function markModsUsed( modNames ) {
+      for( let d in modNames ) {
+	 markModUsed( modNames[d] );
+      }
+   }
+   markModsUsed( options.rootModuleNames );
+   
+   function emitSection( sect ) {
+      for( let l in sect.lines ) {
+	 out.write( sect.lines[l] + "\n" );
+      }
+   }
+   
+   if( options.mode == "filter" ) {
+      for( let s in sections ) {
+	 let sect = sections[s];
+	 if( sect.type == 'global' ) {
+	    emitSection(sect);
+	 } else if( sect.type == "module" ) {
+	    if( usedModuleNames[sect.moduleName] ) emitSection(sect);
+	 }
+      }
+   } else {
+      let includedModuleCount = 0;
+      let excludedModuleCount = 0;
+      let includedCharCount = 0;
+      let totalCharCount = 0;
+      for( let s in sections ) {
+	 let sect = sections[s];
+	 let sectCharCount = 0;
+	 for( let l=0; l<sect.lines.length; ++l ) {
+	    sectCharCount += sect.lines[l].length + 1;
+	 }
+	 totalCharCount += sectCharCount;
+	 if( sect.type == "global" ) {
+	    includedCharCount += sectCharCount;
+	 } else if( sect.type == "module" ) {
+	    if( usedModuleNames[sect.moduleName] ) {
+	       out.write( "+ "+sect.moduleName+"\n" );
+	       ++includedModuleCount;
+	       includedCharCount += sectCharCount;
+	    } else {
+	       out.write( "- "+sect.moduleName+"\n" );
+	       ++excludedModuleCount;
+	    }
+	 }
+      }
+      let totalModuleCount = includedModuleCount + excludedModuleCount;
+      out.write(includedModuleCount+"/"+totalModuleCount+" modules\n");
+      out.write(includedCharCount+"/"+totalCharCount+" characters (approximate) ; squished to "+Math.round((includedCharCount/totalCharCount)*100)+"%");
+   }
+});
