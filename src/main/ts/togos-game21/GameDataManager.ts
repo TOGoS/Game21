@@ -5,7 +5,7 @@ import Datastore from './Datastore';
 import KeyedList from './KeyedList';
 import { DistributedBucketMapManager } from './DistributedBucketMap';
 import { utf8Encode } from '../tshash/utils';
-import { fetchObject, storeObject } from './JSONObjectDatastore';
+import { fetchObject, storeObject, fastStoreObject } from './JSONObjectDatastore';
 import { shortcutThen, value as promiseValue } from './promises';
 
 const hashUrnRegex = /^urn:(sha1|bitprint):.*/;
@@ -89,10 +89,19 @@ export default class GameDataManager {
 		} else return urnProm;
 	}
 	
-	public fastStoreObject( obj:any, name?:string ):string {
-		// Hey, hey!  This probably doesn't work yet.
-		const v = promiseValue( this.storeObject(obj, name) );
-		if( v == null ) throw new Error("promiseValue on storeObject result is null!");
-		return v;
+	public fastStoreObject( obj:any, _name?:string ):string {
+		obj = deepFreeze(obj);
+		const urn = fastStoreObject( obj, this.datastore );
+		this.objectCache[urn] = obj;
+		// Uhm, how can we set this.storing[urn] and then have it get cleared, uhm
+		const name = _name;
+		if( name ) {
+			this.objectCache[name] = obj;
+			this.storing[name] = true;
+			this.updateMap({[name]: urn}).then( (newMapUrn) => {
+				delete this.storing[name];
+			});
+		}
+		return urn;
 	}
 }

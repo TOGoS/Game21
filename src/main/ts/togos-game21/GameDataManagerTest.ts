@@ -72,12 +72,31 @@ function testGameDataManager( testNamePrefix:string, ds:Datastore<Uint8Array> ) 
 			return assertEqualsPromise(expectedKen2, v, 'fetched urn:ken after initiating storage of new version');
 		});
 	}));
-	registerTestResult(testNamePrefix+' fetch ken, take II, after waiting for store to finish', fetchProm3.then( () => {
+	const fetchProm4 = fetchProm3.then( () => {
 		return storeProm2;
 	}).then( () => {
 		return gdm.fetchObject('urn:ken').then( (v) => {
 			return assertEqualsPromise(expectedKen2, v, 'fetched urn:ken after completing storage of new version');
 		});
+	});
+	registerTestResult(testNamePrefix+' fetch ken, take II, after waiting for store to finish', fetchProm4);
+	
+	// Then we'll test fast stores!
+	
+	const ben = {
+		name: "Ben",
+		value: 33
+	};
+	const anon = {
+		name: "Anon",
+		value: 76
+	};
+	registerTestResult(testNamePrefix+' fastStoreObject', fetchProm4.then( () => {
+		const benUrn = gdm.fastStoreObject( ben, 'urn:ben' );
+		if( benUrn == null ) return {failures: [{message: "fastStoreObject(ben,'urn:ben') didn't return a URN. >:("}]};
+		const anonUrn = gdm.fastStoreObject( anon );
+		if( anonUrn == null ) return {failures: [{message: "fastStoreObject(anon) didn't return a URN. >:("}]};
+		return {}
 	}));
 }
 
