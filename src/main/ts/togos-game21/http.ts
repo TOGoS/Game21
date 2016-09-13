@@ -4,6 +4,7 @@
 import ErrorInfo from './ErrorInfo';
 import KeyedList from './KeyedList';
 import { IncomingMessage } from 'http';
+import { utf8Encode } from '../tshash/utils';
 
 /**
  * HTTP abstraction layer.
@@ -76,9 +77,16 @@ class NodeClient implements Client {
 				method: request.method,
 				headers: request.headers,
 			}, (res : IncomingMessage) => {
-				const buffers:Buffer[] = [];
+				const buffers:(Buffer|Uint8Array)[] = [];
 				res.setEncoding(null);
-				res.on('data', (d : Buffer) => buffers.push(d));
+				res.on('data', (d : Buffer|Uint8Array) => {
+					if( typeof(d) == 'string' ) {
+						// ugh y this happen 2 me
+						// hacky worxakround ;;((
+						d = utf8Encode(d);
+					}
+					buffers.push(d)
+				});
 				res.on('end', () => {
 					const data:Uint8Array = new Uint8Array( buffers.reduce( (len:number,buf:Buffer) => len + buf.length, 0 ) );
 					for( let i=0, b=0; b<buffers.length; ++b ) {
