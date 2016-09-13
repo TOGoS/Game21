@@ -48,7 +48,7 @@ function _fetchValue<T>( valueName:string, node:DistributedBucketMap<T>, datasto
 		const prefix = valueName.substr(0, node.prefixLength);
 		if( !node.subBucketUris ) throw missingSubBucketUrisError(node)
 		const subBucketUri = node.subBucketUris[prefix];
-		if( subBucketUri == null ) return Promise.resolve(undefined);
+		if( subBucketUri == undefined ) return Promise.resolve(undefined);
 		return fetchValue(valueName, subBucketUri, datastore);
 	}
 }
@@ -65,12 +65,13 @@ export function fetchValue<T>( valueName:string, nodeUri:string|DistributedBucke
 
 //// Updating's a bit more complex
 
-function updateValues<T>( original:KeyedList<T>, updates:KeyedList<T> ):KeyedList<T> {
+function updateValues<T>( original:KeyedList<T>, updates:KeyedList<T|undefined> ):KeyedList<T> {
 	const clone : KeyedList<T> = { };
 	for( let k in original ) clone[k] = original[k];
 	for( let k in updates ) {
-		if( updates[k] == null ) delete clone[k];
-		else clone[k] = updates[k];
+		const v = updates[k];
+		if( v != undefined ) clone[k] = v;
+		else delete clone[k];
 	}
 	return clone;
 };
@@ -93,7 +94,7 @@ function leafNode<T>( values:KeyedList<T> ):DistributedBucketMap<T> {
 // and count its entries or whatever
 
 export function _storeValues<T>(
-	updates:KeyedList<T>, node:DistributedBucketMap<T>, nodeUri:string,
+	updates:KeyedList<T|undefined>, node:DistributedBucketMap<T>, nodeUri:string,
 	datastore:Datastore<Uint8Array>, settings:DistributedBucketMapSettings
 ):Promise<string> {
 	let newValues:KeyedList<T>;
@@ -119,10 +120,9 @@ export function _storeValues<T>(
 }
 
 export function storeValues<T>(
-	updates:KeyedList<T>, nodeUri:string,
+	updates:KeyedList<T|undefined>, nodeUri:string,
 	datastore:Datastore<Uint8Array>, settings:DistributedBucketMapSettings
 ):Promise<string> {
-	
 	return fetchObject( nodeUri, datastore ).then( (obj:any) => {
 		return _storeValues(updates, <DistributedBucketMap<T>>obj, nodeUri, datastore, settings);
 	});
@@ -130,4 +130,73 @@ export function storeValues<T>(
 
 export function emptyNodeUri( datastore:Datastore<Uint8Array> ):string {
 	return storeObject( leafNode( {} ), datastore );
+}
+
+export class DistributedBucketMapManager<T> {
+	/**
+	 * A promise if updates are currently being written;
+	 * null otherwise.
+	 */
+	protected currentUpdatePromise : Promise<string> | null;
+	protected allUpdatesPromise : Promise<string>;
+	protected storeSettings : DistributedBucketMapSettings;
+	
+	public constructor( protected _datastore:Datastore<Uint8Array>, protected _rootNodeUri:string=emptyNodeUri(_datastore) ) {
+		this.allUpdatesPromise = Promise.resolve(_rootNodeUri);
+	}
+
+	public flushUpdates():Promise<string> {
+		if( this.currentUpdatePromise ) return this.currentUpdatePromise;
+		return Promise.resolve(this._rootNodeUri);
+	}
+	
+	protected pendingUpdates : KeyedList<T|undefined> = {};
+	protected currentUpdates : KeyedList<T|undefined> = {};
+
+	public fetchValue( k:string ):Promise<T|undefined> {
+		if( this.pendingUpdates.hasOwnProperty(k) ) {
+			return Promise.resolve(this.pendingUpdates[k]);
+		}
+		if( this.currentUpdates.hasOwnProperty(k) ) {
+			return Promise.resolve(this.currentUpdates[k]);
+		}
+		return fetchValue(k, this._rootNodeUri, this._datastore);
+	}
+
+	public storeValues( updates:KeyedList<T|undefined> ):Promise<string> {
+		for( let u in updates ) {
+			 this.pendingUpdates[u] = updates[u];
+		}
+
+		// If there's already a currentUpdatePromise, it's already set to call storeUpdates
+		// when it's done, so we don't need to do anything!
+		if( this.currentUpdatePromise != null ) return this.currentUpdatePromise;
+		
+		// Otherwise we have to make currentUpdatePromise
+		let storeUpdates : ()=>Promise<string>;
+		storeUpdates = () => Promise.resolve("xxx oh no"); // To trick compiler into letting me use it down below 
+		storeUpdates = () => {
+			let anyUpdates = false;
+			for( let u in this.pendingUpdates ) {
+				anyUpdates = true;
+				break;
+			}
+			if( anyUpdates ) {
+				this.currentUpdates = this.pendingUpdates;
+				this.pendingUpdates = {};
+				this.currentUpdatePromise = storeValues( this.currentUpdates, this._rootNodeUri, this._datastore, this.storeSettings ).then( (newRootNodeUri) => {
+					this._rootNodeUri = newRootNodeUri;
+					this.currentUpdates = {};
+					return newRootNodeUri;
+				});
+				this.allUpdatesPromise = this.currentUpdatePromise.then(storeUpdates);
+				return this.currentUpdatePromise;
+			} else {
+				this.currentUpdatePromise = null;
+				return this.allUpdatesPromise = Promise.resolve(this._rootNodeUri);
+			}
+		}
+
+		return storeUpdates();
+	}
 }
