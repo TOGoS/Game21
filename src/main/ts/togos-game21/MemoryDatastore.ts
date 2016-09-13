@@ -23,7 +23,16 @@ export default class MemoryDatastore<T> implements Datastore<T> {
 			}, +this.delay );
 		});
 	}
-	public store( data:T, onComplete?:(success:boolean, errorInfo?:ErrorInfo)=>void ):string {
+	public store( data:T ):Promise<string> {
+		return new Promise<string>( (resolve, reject) => {
+			const ident = this.identify(data);
+			setTimeout( () => {
+				this.values[ident] = data;
+				setTimeout( () => resolve(ident), this.delay );
+			}, this.delay );
+		});
+	}
+	public fastStore( data:T, onComplete?:(success:boolean, errorInfo?:ErrorInfo)=>void ):string {
 		const ident = this.identify(data);
 		const onCompleat = onComplete;
 		setTimeout( () => {

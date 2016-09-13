@@ -1,7 +1,7 @@
 import KeyedList from './KeyedList';
 import Datastore from './Datastore';
 import ErrorInfo from './ErrorInfo';
-import { storeObject, fetchObject } from './JSONObjectDatastore';
+import { storeObject, fastStoreObject, fetchObject } from './JSONObjectDatastore';
 
 interface DistributedBucketMap<T> {
 	/**
@@ -117,13 +117,7 @@ export function _storeValues<T>(
 	
 	// At this point, node is some mutable DistributedBucketMap
 	// that we're going to mess with.
-	return new Promise( (resolve,reject) => {
-		let uri = "oh no";
-		uri = storeObject( node, datastore, (success:boolean, errorInfo:ErrorInfo) => {
-			if( success ) resolve(uri);
-			else reject(errorInfo)
-		});
-	});
+	return storeObject( node, datastore );
 }
 
 export function storeValues<T>(
@@ -136,7 +130,7 @@ export function storeValues<T>(
 }
 
 export function emptyNodeUri( datastore:Datastore<Uint8Array> ):string {
-	return storeObject( leafNode( {} ), datastore );
+	return fastStoreObject( leafNode( {} ), datastore );
 }
 
 export class DistributedBucketMapManager<T> {

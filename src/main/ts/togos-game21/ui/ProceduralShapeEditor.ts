@@ -358,7 +358,7 @@ export default class ProceduralShapeEditor
 	protected hardSave():void {
 		const scriptTextBytes:Uint8Array = utf8Encode(this.fixScriptText());
 		let urn = "Holy crap that got saved too fast!";
-		urn = this.registry.datastore.store(scriptTextBytes, (success,errorInfo) => {
+		urn = this.registry.datastore.fastStore(scriptTextBytes, (success,errorInfo) => {
 			if( success ) {
 				this.console.log("Saved "+urn);
 			} else {
