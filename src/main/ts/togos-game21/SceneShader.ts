@@ -2,8 +2,8 @@ import Vector3D from './Vector3D';
 import Quaternion from './Quaternion';
 import Rectangle, {RectangularBounds} from './Rectangle';
 import Cuboid from './Cuboid';
-import { eachSubObject, objectVelocity, objectOrientation } from './worldutil';
-import { Game, Room, PhysicalObject, ProtoObject, PhysicalObjectType, TileTree } from './world';
+import { eachSubEntity, roomEntityOrientation } from './worldutil';
+import { Game, Room, RoomEntity, Entity, EntityClass, StructureType, TileTree } from './world';
 
 /*
  * Opactity map gives opacity of each cell
@@ -49,14 +49,9 @@ export default class SceneShader {
 	protected destBounds:Cuboid = new Cuboid;
 	protected game:Game;
 	
-	// TODO: Move this into GameDataAccessor or something
-	protected objectPrototype( obj:PhysicalObject ):ProtoObject {
-		const proto = this.game.protoObjects[obj.prototypeRef];
-		if( !proto ) throw new Error("No prototype "+obj.prototypeRef );
-		return proto;
-	}
-	
-	protected applyObjectToOpacityRaster( proto:ProtoObject, stateFlags:number, pos:Vector3D, orientation:Quaternion ):void {
+	protected applyObjectToOpacityRaster( ent:Entity, pos:Vector3D, orientation:Quaternion ):void {
+		const proto = this.game.entityClasses[ent.classRef];
+		if( !proto ) return; // Well, maybe we should just mark everything opaque!
 		const vbb = proto.visualBoundingBox;
 		const destBounds = this.destBounds;
 		if( pos.x + vbb.maxX <= destBounds.minX ) return;
@@ -82,20 +77,20 @@ export default class SceneShader {
 			return;
 		}
 		
-		eachSubObject(proto, pos, this.game, this.applyObjectToOpacityRaster, this);
+		eachSubEntity(ent, pos, this.game, this.applyObjectToOpacityRaster, this);
 	}
 	
 	/**
 	 * Pos = position relative to the shademap's origin where this room's origin would appear
 	 */
 	protected applyRoomToOpacityRaster( room:Room, pos:Vector3D, game:Game ):void {
-		for( let o in room.objects ) {
-			const obj = room.objects[o];
-			const proto = this.objectPrototype(obj);			
-			Vector3D.add(pos, obj.position, objPosBuf);
+		for( let e in room.roomEntities ) {
+			const re = room.roomEntities[e];
+			const ent = re.entity;
+			Vector3D.add(pos, re.position, objPosBuf);
 			// If we really cared about orientation (and assuming rooms can have them),
 			// we'd do the same thing to it.
-			this.applyObjectToOpacityRaster( proto, obj.stateFlags, objPosBuf, objectOrientation(obj) );
+			this.applyObjectToOpacityRaster( ent, objPosBuf, roomEntityOrientation(re) );
 		}
 	}
 	

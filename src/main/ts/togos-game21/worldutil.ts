@@ -1,7 +1,7 @@
 import Vector3D from './Vector3D';
 import Quaternion from './Quaternion';
 import Cuboid from './Cuboid';
-import { Game, ProtoObject, PhysicalObject, PhysicalObjectType, TileTree } from './world';
+import { Game, RoomEntity, Entity, EntityClass, StructureType, TileTree, TileEntityPalette } from './world';
 import { deepFreeze } from './DeepFreezer';
 import { hash, sha1Urn, base32Encode } from '../tshash/index';
 import SHA1 from '../tshash/SHA1';
@@ -22,14 +22,14 @@ function saveObject( obj:any ):string {
 	return sha1Urn(json)+"#";
 }
 
-function objectPrototypeRef( op?:any, game?:Game ):string|null {
+function entityClassRef( op?:any, game?:Game ):string|null {
 	if( op == null ) return null;
 	if( typeof op == 'string' ) return op;
 	
 	if( game == null ) throw new Error("Can't generate object prototype ref without game object"); // Well, really we should be able to for hash URN things eventually
 	
 	const ref:string = saveObject(op);
-	game.protoObjects[ref] = op;
+	game.entityClasses[ref] = op;
 	return ref;
 }
 
@@ -40,27 +40,36 @@ function paletteRef( palette:any, game:Game ):string {
 	
 	if( !Array.isArray(palette) ) throw new Error("Supposed tile palette is not an array; can't reference it: "+JSON.stringify(palette));
 	
-	palette = palette.map( (obj:any) => objectPrototypeRef(obj, game) );
+	const tilePalette:TileEntityPalette = palette.map( (obj:any) => deepFreeze({
+		orientation: Quaternion.IDENTITY, // For now
+		entity: {
+			classRef: entityClassRef(obj, game)
+		},
+	}) );
 	
 	const ref:string = saveObject(palette);
-	game.tilePalettes[ref] = palette;
+	game.tilePalettes[ref] = tilePalette;
 	return ref;
 }
 
 // 'game' is used to look up tile palettes/object prototypes by UUID.
 // Could be replaced with some accessor thingy, possibly asynchronous.
-export function eachSubObject(
-	proto:ProtoObject, pos:Vector3D, game:Game,
-	callback:(subObj:ProtoObject, stateFlats:number, pos:Vector3D, orientation:Quaternion)=>void,
+export function eachSubEntity(
+	entity:Entity, pos:Vector3D, game:Game,
+	callback:(subEnt:Entity, pos:Vector3D, orientation:Quaternion)=>void,
 	callbackThis:any=null, posBuffer:Vector3D=posBuffer0
 ) {
-	if( proto.type == PhysicalObjectType.INDIVIDUAL ) {
+	const proto = game.entityClasses[entity.classRef];
+	if( proto == null ) return;
+	
+	if( proto.structureType == StructureType.NONE ) {
+	} else if( proto.structureType == StructureType.INDIVIDUAL ) {
 		// No sub-objects!
-	} else if( proto.type == PhysicalObjectType.TILE_TREE ) {
+	} else if( proto.structureType == StructureType.TILE_TREE ) {
 		const tt:TileTree = <TileTree>proto;
-		const tilePaletteIndexes = tt.childObjectIndexes;
-		const tilePalette = game.tilePalettes[tt.childObjectPaletteRef];
-		const protoObjects = game.protoObjects;
+		const tilePaletteIndexes = tt.childEntityIndexes;
+		const tilePalette = game.tilePalettes[tt.childEntityPaletteRef];
+		const entityClasses = game.entityClasses;
 		const xd = tt.tilingBoundingBox.width/tt.xDivisions;
 		const yd = tt.tilingBoundingBox.height/tt.yDivisions;
 		const zd = tt.tilingBoundingBox.depth/tt.zDivisions;
@@ -68,14 +77,13 @@ export function eachSubObject(
 		const y0 = pos.y - tt.tilingBoundingBox.height/2 + yd/2;
 		const z0 = pos.z - tt.tilingBoundingBox.depth/2  + zd/2;
 		for( let i=0, z=0; z < tt.zDivisions; ++z ) for( let y=0; y < tt.yDivisions; ++y ) for( let x=0; x < tt.xDivisions; ++x, ++i ) {
-			const childId = tilePalette[tilePaletteIndexes[i]];
-			if( childId != null ) {
-				const child = protoObjects[childId];
-				callback.call( callbackThis, child, posBuffer.set(x0+x*xd, y0+y*yd, z0+z*zd) );
+			const tileEntity = tilePalette[tilePaletteIndexes[i]];
+			if( tileEntity != null ) {
+				callback.call( callbackThis, tileEntity.entity, posBuffer.set(x0+x*xd, y0+y*yd, z0+z*zd), tileEntity.orientation );
 			}
 		}
 	} else {
-		throw new Error("Unrecognized physical object type: "+proto.type);
+		throw new Error("Unrecognized physical object type: "+proto.structureType);
 	}
 }
 
@@ -89,21 +97,23 @@ export function makeTileTreeNode( palette:any, w:number, h:number, d:number, _in
 	const tilePalette = game.tilePalettes[_paletteRef]
 	let tileW = 0, tileH = 0, tileD = 0;
 	for( let t in tilePalette ) {
-		const tileRef = tilePalette[t];
-		if( tileRef == null ) continue;
-		const tile = game.protoObjects[tileRef];
-		if( tile == null ) throw new Error("Couldn't find tile "+tileRef+" while calculating size for tile tree; given palette: "+JSON.stringify(palette)+"; "+JSON.stringify(tilePalette));
-		tileW = Math.max(tile.tilingBoundingBox.width , tileW);
-		tileH = Math.max(tile.tilingBoundingBox.height, tileH);
-		tileD = Math.max(tile.tilingBoundingBox.depth , tileD);
+		const tileEntity = tilePalette[t];
+		if( tileEntity == null ) continue;
+		const tileClassRef = tileEntity.entity.classRef;
+		const tileClass = game.entityClasses[tileClassRef];
+		if( tileClass == null ) throw new Error("Couldn't find entity class "+tileClassRef+" while calculating size for tile tree; given palette: "+JSON.stringify(palette)+"; "+JSON.stringify(tilePalette));
+		tileW = Math.max(tileClass.tilingBoundingBox.width , tileW);
+		tileH = Math.max(tileClass.tilingBoundingBox.height, tileH);
+		tileD = Math.max(tileClass.tilingBoundingBox.depth , tileD);
 	}
 
 	let totalOpacity:number = 0;
 	for( let i = w*d*h-1; i >= 0; --i ) {
-		const tileRef = tilePalette[indexes[i]];
-		if( tileRef == null ) continue;
-		const tile = game.protoObjects[tileRef];
-		totalOpacity += tile.opacity ? tile.opacity : 0;
+		const tileEntity = tilePalette[indexes[i]];
+		if( tileEntity == null ) continue;
+		if( tileEntity.entity.classRef == null ) continue;
+		const tileClass = game.entityClasses[tileEntity.entity.classRef];
+		totalOpacity += tileClass.opacity ? tileClass.opacity : 0;
 	}
 	
 	const tilingBoundingBox = new Cuboid(-tileW*w/2, -tileH*h/2, -tileD*d/2, +tileW*w/2, +tileH*h/2, +tileD*d/2);
@@ -111,13 +121,13 @@ export function makeTileTreeNode( palette:any, w:number, h:number, d:number, _in
 	return {
 		visualBoundingBox: tilingBoundingBox, // TODO: potentially different!
 		physicalBoundingBox: tilingBoundingBox, // TODO: potentially different!
-		type: PhysicalObjectType.TILE_TREE,
+		structureType: StructureType.TILE_TREE,
 		tilingBoundingBox: tilingBoundingBox,
 		xDivisions: w,
 		yDivisions: h,
 		zDivisions: d,
-		childObjectPaletteRef: _paletteRef,
-		childObjectIndexes: indexes,
+		childEntityPaletteRef: _paletteRef,
+		childEntityIndexes: indexes,
 		// These don't really make sense to have to have on a tile tree
 		isAffectedByGravity: false,
 		visualRef: undefined,
@@ -128,7 +138,7 @@ export function makeTileTreeNode( palette:any, w:number, h:number, d:number, _in
 export function makeTileTreeRef( palette:any, w:number, h:number, d:number, indexes:any, game:Game ):string {
 	const tt:TileTree = makeTileTreeNode(palette, w, h, d, indexes, game);
 	const ref:string = saveObject(tt);
-	game.protoObjects[ref] = tt;
+	game.entityClasses[ref] = tt;
 	return ref;
 }
 
@@ -150,9 +160,9 @@ export function connectRooms( game:Game, room0Ref:string, room1Ref:string, offse
 	return neighborKey;
 }
 
-export function objectVelocity(obj:PhysicalObject):Vector3D {
-	return coalesce2(obj.velocity, Vector3D.ZERO);
+export function roomEntityVelocity(re:RoomEntity):Vector3D {
+	return coalesce2(re.velocity, Vector3D.ZERO);
 }
-export function objectOrientation(obj:PhysicalObject):Quaternion {
-	return coalesce2(obj.orientation, Quaternion.IDENTITY);
+export function roomEntityOrientation(re:RoomEntity):Quaternion {
+	return coalesce2(re.orientation, Quaternion.IDENTITY);
 }

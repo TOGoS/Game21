@@ -56,8 +56,6 @@ export default class QuaternionDemo {
 					{
 						orientation: Quaternion.IDENTITY,
 						materialRemap: IDENTITY_MATERIAL_REMAP,
-						applicabilityFlagsMin: 0,
-						applicabilityFlagsMax: 0,
 						animation: {
 							type : AnimationType.NONE,
 							length: Infinity,
@@ -70,7 +68,7 @@ export default class QuaternionDemo {
 	}	
 	
 	public generateImageSlice( q:Quaternion ):ImageSlice<HTMLImageElement> {
-		const slice = this.objectImageManager.objectVisualImage(this.generateObjectVisual(), 0, 0, q, 32);
+		const slice = this.objectImageManager.objectVisualImage(this.generateObjectVisual(), {}, 0, q, 32);
 		if( !slice ) throw new Error("Failed to generate image slice!");
 		return slice;
 	}

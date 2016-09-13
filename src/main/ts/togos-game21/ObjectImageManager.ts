@@ -93,7 +93,7 @@ declare function Symbol(name:string):symbol;
 const LAST_REQUESTED:symbol = Symbol("LAST_REQUESTED");
 
 interface LastRequestedCache {
-	flags : number;
+	//flags : number;
 	animationLength : number;
 	animationPhase : number;
 	orientation : Quaternion;
@@ -153,7 +153,7 @@ export default class ObjectImageManager {
 			croppedSheet.bounds.scale(1/sup));
 	}
 	
-	public objectVisualState(visual:MAObjectVisual, flags:number, orientation:Quaternion):ObjectVisualState|undefined {
+	public objectVisualState(visual:MAObjectVisual, state:KeyedList<any>, orientation:Quaternion):ObjectVisualState|undefined {
 		if( visual.states.length == 1 ) return visual.states[0];
 		
 		// Find the closest match flag-wise,
@@ -165,13 +165,14 @@ export default class ObjectImageManager {
 		let closestState:ObjectVisualState|undefined = undefined;
 		for( let s in visual.states ) {
 			const state = visual.states[s];
+			/*
 			const d = flagDiff(state.applicabilityFlagsMin, flags, state.applicabilityFlagsMax);
 			if( d > minFlagDifference ) continue;
 			if( d < minFlagDifference ) {
 				// Closer one flag-wise blows away anything else we've found
 				minOrientationDifference = 1;
 				closestState = state;
-		} else {
+			} else {
 				// Flag difference is equal, so compare orientations
 				const da = orientation.a - state.orientation.a;
 				const db = orientation.b - state.orientation.b;
@@ -183,6 +184,10 @@ export default class ObjectImageManager {
 					closestState = state;
 				}
 			}
+			*/
+			// Since this isn't implemented, just pick the first state.
+			closestState = state;
+			continue;
 		}
 		
 		return closestState;
@@ -225,7 +230,7 @@ export default class ObjectImageManager {
 		return viz;
 	}
 	
-	public objectVisualImage(visual:ObjectVisual, flags:number, time:number, orientation:Quaternion, preferredResolution:number=this.resolution):ImageSlice<HTMLImageElement>|undefined {
+	public objectVisualImage(visual:ObjectVisual, state:KeyedList<any>, time:number, orientation:Quaternion, preferredResolution:number=this.resolution):ImageSlice<HTMLImageElement>|undefined {
 		// TODO: Caching up the wazoo, at least for common cases (single state, identity orientation).
 		// this function's going to be called for each object for each frame, so it's gotta be fast
 		// and not do any real work or allocations 99% of the time.
@@ -233,7 +238,7 @@ export default class ObjectImageManager {
 		const lastRequested = <LastRequestedCache>(<any>visual)[LAST_REQUESTED];
 		if(
 			lastRequested &&
-			(lastRequested.flags == null || lastRequested.flags == flags) &&
+			//(lastRequested.flags == null || lastRequested.flags == flags) &&
 			(lastRequested.animationPhase == null || lastRequested.animationPhase == phase(time, lastRequested.animationLength)) &&
 			Quaternion.areEqual(lastRequested.orientation, orientation) &&
 			lastRequested.resolution == preferredResolution
@@ -257,18 +262,18 @@ export default class ObjectImageManager {
 			null;
 		if( maVisual == null ) return undefined;
 		
-		const state = this.objectVisualState(maVisual, flags, orientation);
-		if( state == null ) return undefined;
-		if( state.animation == null ) return undefined;
+		const ovState = this.objectVisualState(maVisual, state, orientation);
+		if( ovState == null ) return undefined;
+		if( ovState.animation == null ) return undefined;
 		
-		const frame = this.frame(state.animation, time);
-		const t = this.animationPhase(state.animation, time);
-		const finalMaterialMap = state.materialRemap ? remap(materialMap, state.materialRemap) : materialMap;
+		const frame = this.frame(ovState.animation, time);
+		const t = this.animationPhase(ovState.animation, time);
+		const finalMaterialMap = ovState.materialRemap ? remap(materialMap, ovState.materialRemap) : materialMap;
 		const imageSlice = this.frameToImageSlice(frame, finalMaterialMap, t, orientation, preferredResolution);
 		(<any>visual)[LAST_REQUESTED] = <LastRequestedCache>{
-			flags: maVisual.states.length == 0 ? null : flags,
-			animationLength: state.animation.length,
-			animationPhase: state.animation.length == Infinity ? null : t,
+			//flags: maVisual.ovStates.length == 0 ? null : flags,
+			animationLength: ovState.animation.length,
+			animationPhase: ovState.animation.length == Infinity ? null : t,
 			orientation: orientation,
 			resolution: preferredResolution,
 			imageSlice: imageSlice

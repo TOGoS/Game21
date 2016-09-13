@@ -37,10 +37,8 @@ export interface ObjectVisualState {
 	/** Orientation depicted by this state */
 	orientation:Quaternion;
 	
-	// Not sure how flags will work; here's a guess.
-	// Need to define flags
-	applicabilityFlagsMin:number;
-	applicabilityFlagsMax:number;
+	// TODO: Some way to associate with certain states.
+	// Maybe some kind of filters?
 	
 	materialRemap? : Uint8Array;
 	// The animation to show for this state

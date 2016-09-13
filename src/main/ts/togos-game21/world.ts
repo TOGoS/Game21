@@ -7,6 +7,13 @@ import SurfaceMaterial from './SurfaceMaterial';
 
 import { deepFreeze } from './DeepFreezer';
 
+export type ProtoObjectRef = string;
+export type RoomRef = string;
+export type EntityClassRef = string;
+export type EntityState = KeyedList<any>;
+
+export const EMPTY_STATE = deepFreeze({});
+
 export interface RoomNeighbor {
 	offset:Vector3D;
 	/**
@@ -14,24 +21,28 @@ export interface RoomNeighbor {
 	 * This is duplicated from the room's own data.
 	 */
 	bounds:Cuboid;
-	roomRef:string;
+	roomRef:RoomRef;
 }
 
-// TODO: Separate into:
-// - RoomGameObject (object + position)
-// - GameObject (object class reference + state)
-// - GameObjectClass (currently 'ProtoObject')
-
-export enum PhysicalObjectType {
+export enum StructureType {
+	NONE, // For entirely non-physical objects
 	TILE_TREE,
+	STACK, // A bunch of things in one spot!
 	INDIVIDUAL
 }
 
 /**
  * These should be considered immutable.
  */
-export interface ProtoObject {
-	type:PhysicalObjectType;
+export interface EntityClass {
+	structureType : StructureType;
+	
+	// Thoughts:
+	// bounding boxes need to be overridden sometimes,
+	// e.g. player crouching.
+	// maybe these bounding boxes are just limits,
+	// and finer-grained collision detection uses some to-be-determined data?
+	//   shapeFunc : (state:EntityState) => Shape // or somesuch
 	
 	// Bounding boxes are relative to the object's position (whether indicated externally or internally)
 	tilingBoundingBox:Cuboid; // Used by tile trees to determine division, etc
@@ -48,40 +59,63 @@ export interface ProtoObject {
 	visualRef? : string;
 }
 
-export interface PhysicalObject {
+export interface Entity {
+	classRef : EntityClassRef;
 	debugLabel? : string;
-	position : Vector3D; // Ignored (and should be null) for tiles/prototypes
-	
-	// Assumed 0,0,0 if undefined
-	velocity? : Vector3D;
-	// Assumed identify if undefined
-	orientation? : Quaternion;
-	
-	prototypeRef : string;
-	stateFlags : number;
+	/**
+	 * Arbitrary additional values about the object's state
+	 * which may be used by behavior and rendering
+	 */ 
+	state? : KeyedList<any>;
 }
 
-export interface TileTree extends ProtoObject {
+/**
+ * A room's link to an object that resides within it
+ */
+export interface RoomEntity {
+	roomRef : RoomRef;
+	position : Vector3D; // Ignored (and should be null) for tiles/prototypes
+	orientation? : Quaternion; // Assume identify if undefined
+	velocity? : Vector3D; // Assume 0,0,0 if undefined
+	
+	/** The game object itself */
+	entity : Entity;
+}
+
+export interface TileTreeEntity {
+	entity : Entity;
+	orientation : Quaternion;
+}
+
+export type TileEntityPalette = Array<TileTreeEntity>;
+
+export interface TileTree extends EntityClass {
 	xDivisions:number;
 	yDivisions:number;
 	zDivisions:number;
-	childObjectPaletteRef:string;
-	childObjectIndexes:Uint8Array;
+	childEntityPaletteRef:string;
+	childEntityIndexes:Uint8Array;
 }
 
 export interface Room {
-	bounds:Cuboid;
-	objects:KeyedList<PhysicalObject>;
-	neighbors:KeyedList<RoomNeighbor>;
+	bounds : Cuboid;
+	roomEntities : KeyedList<RoomEntity>;
+	neighbors : KeyedList<RoomNeighbor>;
 }
 
+/**
+ * Theoretical structure.
+ * Since the set of data making up a game might become really large,
+ * it will be distributed and not directly accessible from a single object.
+ * Instead, sub-objects would be DistributedBucketMaps
+ */
 export interface Game {
 	materials: KeyedList<SurfaceMaterial>;
 	materialPalettes: KeyedList<Array<string|undefined>>;
 	maObjectVisuals: KeyedList<MAObjectVisual>;
 	objectVisuals: KeyedList<ObjectVisual>;
-	tilePalettes: KeyedList<Array<string|undefined>>;
-	protoObjects: KeyedList<ProtoObject>;
+	tilePalettes: KeyedList<TileEntityPalette>;
+	entityClasses: KeyedList<EntityClass>;
 	rooms: KeyedList<Room>;
 	time: number; // Current time in the world
 }
