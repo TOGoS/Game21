@@ -104,8 +104,14 @@ function require_game21_js_libs( $inline=false, $requireModuleNames=null ) {
 	global $rp;
 	$libsFile = $rp.'/target/game21libs.amd.es5.js';
 	if( $inline and $requireModuleNames !== null ) {
-		$squishFile = $rp.'/temp/'.hash('sha1', implode(',', $requireModuleNames).'-'.filemtime($libsFile));
-		system("$rp/bin/pruneamd -m ".escapeshellarg(implode(',', $requireModuleNames))." < $libsFile > $squishFile", $pruneStatus);
+		$tempDir = $rp.'/temp';
+		if( !is_dir($tempDir) ) if( !mkdir($tempDir, 0777, true) ) {
+			throw new Exception("Failed to mkdir('$tempDir')");
+		}
+		$squishFile = $tempDir.'/'.hash('sha1', implode(',', $requireModuleNames).'-'.filemtime($libsFile));
+		$squishCmd = "$rp/bin/pruneamd -m ".escapeshellarg(implode(',', $requireModuleNames))." < $libsFile > $squishFile";
+		fwrite(STDERR, "$ $squishCmd\n");
+		system($squishCmd, $pruneStatus);
 		if( $pruneStatus !== 0 ) {
 			throw new Exception("Failed to run pruner!");
 		}
