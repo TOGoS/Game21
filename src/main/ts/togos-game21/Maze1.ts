@@ -150,11 +150,70 @@ function rgbaToNumber( r:number, g:number, b:number, a:number ):number {
 	return ((r&0xFF)<<24) | ((g&0xFF)<<16) | ((b&0xFF)<<8) | (a&0xFF);
 }
 
+interface MazeItemVisual {
+	imageRef : string;
+	width : number;
+	height : number;
+}
+
+interface MazeViewageItem {
+	x : number;
+	y : number;
+	visual : MazeItemVisual;
+}
+
+interface MazeViewage {
+	items : MazeViewageItem[];
+}
+
+const brikImgRef = "bitimg:color0=0;color1="+rgbaToNumber(255,255,128,255)+","+hexEncodeBits(brikPix);
+const bigBrikImgRef = "bitimg:color0=0;color1="+rgbaToNumber(255,255,128,255)+","+hexEncodeBits(brikPix);
+
+const brikVisual:MazeItemVisual = {
+	width: 1,
+	height: 1,
+	imageRef: brikImgRef
+};
+
+const bigBrikVisual:MazeItemVisual = {
+	width: 1,
+	height: 1,
+	imageRef: bigBrikImgRef
+};
+
+const mazeData = [
+	1,1,1,1,1,1,1,1,1,1,0,1,1,1,1,1,
+	1,0,0,0,0,1,1,1,1,0,0,0,1,0,1,1,
+	1,1,0,0,0,1,1,1,1,0,0,0,1,0,1,1,
+	1,1,1,0,1,1,1,1,1,1,1,0,1,0,1,1,
+	1,1,1,0,1,1,1,1,0,0,0,0,0,0,1,1,
+	1,1,1,0,1,1,1,2,2,2,2,0,0,0,1,1,
+	1,0,0,0,0,1,1,2,0,0,0,0,0,0,0,0,
+	1,0,2,2,2,1,1,2,0,1,1,1,1,0,1,0,
+	1,0,2,1,1,1,1,2,0,1,0,0,1,0,1,0,
+	1,0,2,2,2,2,2,2,0,1,0,0,1,0,1,1,
+	0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,
+	1,1,0,1,1,1,1,1,1,1,1,1,1,1,1,1,
+	1,1,0,1,1,1,1,1,1,1,1,1,0,0,0,1,
+	1,0,0,0,1,1,1,1,1,1,0,0,0,0,0,1,
+	1,0,0,0,1,1,1,1,1,1,0,1,0,0,0,1,
+	1,1,1,1,1,1,1,1,1,1,0,1,1,1,1,1,
+];
+
 export class MazeView {
 	public gameDataManager:GameDataManager;
 	public constructor( public canvas:HTMLCanvasElement ) { }
 	
 	protected imageCache:KeyedList<HTMLImageElement> = {};
+	public viewage : MazeViewage = {
+		items: [
+			{
+				x: -1,
+				y: -1,
+				visual: bigBrikVisual
+			}
+		]
+	};
 
 	protected getImage( ref:string ):HTMLImageElement {
 		if( this.imageCache[ref] ) return this.imageCache[ref];
@@ -176,18 +235,49 @@ export class MazeView {
 	public draw():void {
 		const ctx = this.canvas.getContext('2d');
 		if( !ctx ) return;
+		const cx = this.canvas.width/2;
+		const cy = this.canvas.height/2;
 		ctx.fillStyle = 'rgba(255,255,255,1.0)';
 		//ctx.fillRect(0,0,16,16);
 
-		const brikImgRef = "bitimg:color0=0;color1="+rgbaToNumber(255,255,128,255)+","+
-			hexEncodeBits(brikPix);
-		const brikImg = this.getImage(brikImgRef);
-		ctx.drawImage(brikImg, 0, 0);
+		//const brikImg = this.getImage(brikImgRef);
+		//ctx.drawImage(brikImg, 0, 0);
+		for( let i in this.viewage.items ) {
+			const item = this.viewage.items[i];
+			const img = this.getImage(item.visual.imageRef);
+			const px = (item.x-item.visual.width/2 ) * 16 + cx;
+			const py = (item.y-item.visual.height/2) * 16 + cy;
+			ctx.drawImage(img, px, py);
+		}
 	}
 }
 
 export function startDemo(canv:HTMLCanvasElement) {
 	const v = new MazeView(canv);
+	const viewItems : MazeViewageItem[] = [];
+	for( let i=0, row=0; row < 16; ++row ) {
+		for( let col=0; col < 16; ++col, ++i ) {
+			let itemVisual : MazeItemVisual|null = null;
+			switch( mazeData[i] ) {
+			case 1: itemVisual = brikVisual; break;
+			case 2: itemVisual = bigBrikVisual; break;
+			}
+			if( itemVisual ) {
+				for( let rou = -1; rou <= 1; ++rou ) {
+					for( let cal = -1; cal <= 1; ++cal ) {
+						viewItems.push({
+							x: (rou*16)+row-7,
+							y: (cal*16)+col-7,
+							visual: itemVisual
+						});
+					}
+				}
+			}
+		}
+	}
+	v.viewage = {
+		items: viewItems
+	};
 	const ds = MemoryDatastore.createSha1Based(0); //HTTPHashDatastore();
 	const dbmm = new DistributedBucketMapManager<string>(ds);
 	v.gameDataManager = new GameDataManager(ds, dbmm);
