@@ -53,11 +53,25 @@ html, body {
 	margin: 0;
 	padding: 0;
 	color: white;
+	box-sizing: border-box;
+}
+.maze-area {
+	width: 100%;
+	height: 100vh;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+.maze-canvas {
+	border: 1px solid #333344;
+	width: 640px;
+	height: 480px;
+	box-sizing: content-box;
 }
 /* ]]> */</style>
 
 <div class="maze-area">
-<canvas clas=s"maze-canvas" id="maze-canvas" width="<?php eht($width); ?>" height="<?php eht($height); ?>"/>
+<canvas class="maze-canvas" id="maze-canvas" width="<?php eht($width); ?>" height="<?php eht($height); ?>"/>
 </div>
 
 <?php require_game21_js_libs($inlineResources, array('togos-game21/Maze1')); ?>
