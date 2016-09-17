@@ -1,3 +1,4 @@
+import { thaw } from './DeepFreezer';
 import GameDataManager from './GameDataManager';
 import HTTPHashDatastore from './HTTPHashDatastore';
 import MemoryDatastore from './MemoryDatastore';
@@ -11,6 +12,7 @@ import { uuidUrn, newType4Uuid } from '../tshash/uuids';
 import { makeTileTreeRef, tileEntityPaletteRef, eachSubEntity } from './worldutil';
 import {
 	Room,
+	RoomEntity,
 	Entity,
 	EntityClass,
 	StructureType
@@ -129,6 +131,24 @@ const bigBrikPix = [
 	1,1,1,1,1,1,1,0,0,1,1,1,1,1,1,1,
 	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 ];
+const playerPix = [
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,1,1,1,1,0,0,0,0,0,
+	0,0,0,0,0,0,0,1,1,1,1,0,0,0,0,0,
+	0,0,0,0,0,0,0,1,1,1,1,0,0,0,0,0,
+	0,0,0,0,0,0,0,1,1,1,1,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,
+	0,0,0,0,0,1,1,1,1,1,1,1,0,0,0,0,
+	0,0,0,0,1,0,1,0,0,0,1,0,1,0,0,0,
+	0,0,0,0,1,0,1,0,0,0,1,0,1,0,0,0,
+	0,0,0,0,1,0,1,0,0,0,1,0,1,0,0,0,
+	0,0,0,0,1,0,1,0,0,0,1,0,1,0,0,0,
+	0,0,0,0,1,0,1,1,1,1,1,0,1,0,0,0,
+	0,0,0,0,0,1,1,0,0,0,1,1,0,0,0,0,
+	0,0,0,0,1,1,0,0,0,0,0,1,1,0,0,0,
+	0,0,0,0,1,1,0,0,0,0,0,1,1,0,0,0,
+	0,0,1,1,1,1,0,0,0,0,0,1,1,1,1,0,
+];
 
 interface BitImageInfo {
 	bitstr : string;
@@ -182,6 +202,7 @@ interface MazeViewage {
 
 const brikImgRef = "bitimg:color0=0;color1="+rgbaToNumber(255,255,128,255)+","+hexEncodeBits(brikPix);
 const bigBrikImgRef = "bitimg:color0=0;color1="+rgbaToNumber(255,255,128,255)+","+hexEncodeBits(bigBrikPix);
+const playerImgRef = "bitimg:color0=0;color1="+rgbaToNumber(255,255,96,255)+","+hexEncodeBits(playerPix);
 
 const brikVisual:MazeItemVisual = {
 	width: 1,
@@ -435,7 +456,29 @@ export function startDemo(canv:HTMLCanvasElement) {
 	const dbmm = new DistributedBucketMapManager<string>(ds);
 	const gdm = new GameDataManager(ds, dbmm);
 
+	const playerId = newUuidRef();
+	const playerClass:EntityClass = {
+		structureType: StructureType.INDIVIDUAL,
+		tilingBoundingBox: HUNIT_CUBE,
+		physicalBoundingBox: HUNIT_CUBE,
+		visualBoundingBox: HUNIT_CUBE,
+		isAffectedByGravity: false,
+		visualRef: playerImgRef
+	};
+	const playerRoomEntity:RoomEntity = {
+		position: new Vector3D(-6.5, -1.5, 0),
+		entity: {
+			id: playerId,
+			classRef: gdm.fastStoreObject<EntityClass>(playerClass)
+		}
+	};
+	
 	const roomRef = makeRoom(gdm);
+	const room = thaw(gdm.getRoom(roomRef));
+	if( room == null ) throw new Error("Failed to load "+roomRef);
+	room.roomEntities = thaw(room.roomEntities);
+	room.roomEntities[playerId] = playerRoomEntity;
+	gdm.fastStoreObject(room, roomRef);
 	const sceneShader:SceneShader = new SceneShader(gdm);
 	const shadeRaster = new ShadeRaster(64, 48, 1, 32, 24);
 	sceneShader.sceneOpacityRaster(roomRef, new Vector3D(3.5, 3.5, 0), shadeRaster);

@@ -60,6 +60,7 @@ export interface EntityClass {
 }
 
 export interface Entity {
+	id?: string;
 	classRef : EntityClassRef;
 	debugLabel? : string;
 	/**
