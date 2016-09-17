@@ -18,7 +18,8 @@ import {DEFAULT_LIGHTS} from './lights';
 import {DEFAULT_MATERIAL_MAP, IDENTITY_MATERIAL_REMAP, makeRemap, remap} from './surfacematerials';
 import Rectangle from './Rectangle';
 import { newType4Uuid, uuidUrn } from '../tshash/uuids';
-import { Game, Room, Entity, EntityState, EntityClass, EMPTY_STATE } from './world';
+import { Room, Entity, EntityState, EntityClass, EMPTY_STATE } from './world';
+import GameDataManager from './GameDataManager';
 import { eachSubEntity } from './worldutil';
 import SceneShader, { ShadeRaster } from './SceneShader';
 
@@ -27,8 +28,6 @@ const posBuffer0 = new Vector3D;
 const neighborPos = new Vector3D;
 // Buffer used for tile tree sub-object positions
 //const ttPosBuffer = new Vector3D;
-
-const sceneShader:SceneShader = new SceneShader();
 
 enum VisibilityMaskingMode {
 	NONE, // Draw everything!
@@ -71,7 +70,7 @@ export default class CanvasWorldView {
 	protected drawCommandBuffer : Array<DrawCommand> = [];
 	protected drawCommandCount = 0;
 	
-	protected _game:Game;
+	public gameDataManager:GameDataManager;
 	public focusDistance = 10; // Distance at which we draw the foreground.  Fog is applied only behind this.
 	public fogColor = new SurfaceColor(0.2, 0.2, 0.2, 0.1); // Should probably come from game data somehow
 	public visibilityMaskingMode:VisibilityMaskingMode = VisibilityMaskingMode.SOLID;
@@ -80,12 +79,6 @@ export default class CanvasWorldView {
 		this._canvas = canvas;
 		this.canvasContext = canvas.getContext('2d');
 	};
-	
-	public get game():Game { return this._game; }
-	public set game(g:Game) {
-		this._game = g;
-		this.objectImageManager = new ObjectImageManager(g);
-	}
 	
 	public get canvas():HTMLCanvasElement|null { return this._canvas; }
 	
@@ -139,9 +132,9 @@ export default class CanvasWorldView {
 	}
 	
 	protected drawIndividualEntity( ent:Entity, pos:Vector3D, orientation:Quaternion ):void {
-		const proto = this.game.entityClasses[ent.classRef];
+		const proto = this.gameDataManager.getObject<EntityClass>(ent.classRef);
 		if( !proto || !proto.visualRef ) return;
-		let visual = this.game.objectVisuals[proto.visualRef];
+		let visual = this.gameDataManager.getObject<ObjectVisual>(proto.visualRef);
 		if( visual == null ) {
 			console.log("Object visual "+proto.visualRef+" not loaded; can't draw");
 			return;
@@ -174,7 +167,7 @@ export default class CanvasWorldView {
 	
 	/** Object's .position should already be taken into account in 'pos' */
 	protected drawEntity( ent:Entity, pos:Vector3D, orientation:Quaternion ):void {
-		const proto = this.game.entityClasses[ent.classRef];
+		const proto = this.gameDataManager.getObject<EntityClass>(ent.classRef);
 		if( proto == null ) return;
 		
 		const vbb = proto.visualBoundingBox;
@@ -190,13 +183,13 @@ export default class CanvasWorldView {
 			this.drawIndividualEntity(ent, pos, orientation);
 		}
 		
-		eachSubEntity( ent, pos, this._game, this.drawEntity, this, posBuffer0 );
+		eachSubEntity( ent, pos, this.gameDataManager, this.drawEntity, this, posBuffer0 );
 	}
 	
 	protected drawRoom( room:Room, pos:Vector3D ):void {
 		for( let o in room.roomEntities ) {
 			const ro = room.roomEntities[o];
-			const proto = this.game.entityClasses[ro.entity.classRef];
+			const proto = this.gameDataManager.getObject<EntityClass>(ro.entity.classRef);
 			if( proto == null ) continue;
 			const orientation = ro.orientation ? ro.orientation : Quaternion.IDENTITY;
 			this.drawEntity(ro.entity, Vector3D.add(pos, ro.position, posBuffer0), orientation);
@@ -206,6 +199,12 @@ export default class CanvasWorldView {
 	protected opacityRaster:ShadeRaster;
 	protected visibilityRaster:ShadeRaster;
 	protected shadeRaster:ShadeRaster;
+
+	protected _sceneShader:SceneShader;
+	protected get sceneShader() {
+		if( this._sceneShader == null ) this._sceneShader = new SceneShader(this.gameDataManager);
+		return this._sceneShader;
+	}
 	
 	protected initShadeRasters(w:number, h:number) {
 		if( this.opacityRaster == null || this.opacityRaster.width != w || this.opacityRaster.height != h ) {
@@ -279,15 +278,15 @@ export default class CanvasWorldView {
 			// Set shade origin such that the shade corner matches up to an integer coordinate in the world
 			opacityRaster.originX = (opacityRaster.width /opacityRaster.resolution/2) + (Math.round(pos.x) - pos.x);
 			opacityRaster.originY = (opacityRaster.height/opacityRaster.resolution/2) + (Math.round(pos.y) - pos.y);
-			sceneShader.sceneOpacityRaster(roomId, pos, this._game, opacityRaster);
+			this.sceneShader.sceneOpacityRaster(roomId, pos, opacityRaster);
 			visibilityRaster.data.fill(0);
-			sceneShader.opacityTolVisibilityRaster(
+			this.sceneShader.opacityTolVisibilityRaster(
 				opacityRaster,
 				Math.floor(opacityRaster.originX*opacityRaster.resolution),
 				Math.floor(opacityRaster.originY*opacityRaster.resolution),
 				255, visibilityRaster
 			);
-			sceneShader.visibilityToShadeRaster( visibilityRaster, shadeRaster );
+			this.sceneShader.visibilityToShadeRaster( visibilityRaster, shadeRaster );
 		
 			opacityRaster.getBounds(this.clip);
 			this.clip.set(
@@ -298,7 +297,7 @@ export default class CanvasWorldView {
 			);
 		}
 		
-		const room = this.game.rooms[roomId];
+		const room = this.gameDataManager.getRoom(roomId);
 		if( room == null ) {
 			console.log("Failed to load room "+roomId+"; can't draw it.")
 			return;
@@ -306,7 +305,7 @@ export default class CanvasWorldView {
 		this.drawRoom(room, pos);
 		for( let n in room.neighbors ) {
 			let neighbor = room.neighbors[n];
-			let neighborRoom = this.game.rooms[neighbor.roomRef];
+			let neighborRoom = this.gameDataManager.getRoom(neighbor.roomRef);
 			if( neighborRoom == null ) {
 				console.log("Failed to load neighbor room "+neighbor.roomRef+"; can't draw it.");
 				continue;

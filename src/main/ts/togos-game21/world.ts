@@ -73,7 +73,6 @@ export interface Entity {
  * A room's link to an object that resides within it
  */
 export interface RoomEntity {
-	roomRef : RoomRef;
 	position : Vector3D; // Ignored (and should be null) for tiles/prototypes
 	orientation? : Quaternion; // Assume identify if undefined
 	velocity? : Vector3D; // Assume 0,0,0 if undefined
@@ -87,7 +86,7 @@ export interface TileTreeEntity {
 	orientation : Quaternion;
 }
 
-export type TileEntityPalette = Array<TileTreeEntity>;
+export type TileEntityPalette = Array<TileTreeEntity|null>;
 
 export interface TileTree extends EntityClass {
 	xDivisions:number;

@@ -7,6 +7,7 @@ import { DistributedBucketMapManager } from './DistributedBucketMap';
 import { utf8Encode } from '../tshash/utils';
 import { fetchObject, storeObject, fastStoreObject } from './JSONObjectDatastore';
 import { shortcutThen, value as promiseValue } from './promises';
+import { Room } from './world';
 
 const hashUrnRegex = /^urn:(sha1|bitprint):.*/;
 
@@ -33,6 +34,8 @@ export default class GameDataManager {
 		if( v == null && initiateFetch && !this.fetching[ref] ) this.fetchObject(ref);
 		return v;
 	}
+
+	public getRoom( ref:string ):Room|undefined { return this.getObject<Room>(ref); }
 	
 	protected cache<T>( k:string, v:T ):void {
 		this.objectCache[k] = v;
@@ -89,7 +92,7 @@ export default class GameDataManager {
 		} else return urnProm;
 	}
 	
-	public fastStoreObject( obj:any, _name?:string ):string {
+	public fastStoreObject<T>( obj:T, _name?:string ):string {
 		obj = deepFreeze(obj);
 		const urn = fastStoreObject( obj, this.datastore );
 		this.objectCache[urn] = obj;

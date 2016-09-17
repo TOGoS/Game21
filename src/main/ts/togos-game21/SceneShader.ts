@@ -3,7 +3,8 @@ import Quaternion from './Quaternion';
 import Rectangle, {RectangularBounds} from './Rectangle';
 import Cuboid from './Cuboid';
 import { eachSubEntity, roomEntityOrientation } from './worldutil';
-import { Game, Room, RoomEntity, Entity, EntityClass, StructureType, TileTree } from './world';
+import { Room, RoomEntity, Entity, EntityClass, StructureType, TileTree } from './world';
+import GameDataManager from './GameDataManager';
 
 /*
  * Opactity map gives opacity of each cell
@@ -39,6 +40,8 @@ const objPosBuf:Vector3D = new Vector3D;
 const objBB = new Cuboid;
 
 export default class SceneShader {
+	public constructor( protected gameDataManager:GameDataManager ) { } 
+
 	public shareMap( opacityMap:ShadeRaster, dest:ShadeRaster ):ShadeRaster {
 		dest.data.fill(0);
 		return dest;
@@ -47,10 +50,9 @@ export default class SceneShader {
 	// 'implicitly passed variables'
 	protected destShadeMap:ShadeRaster;
 	protected destBounds:Cuboid = new Cuboid;
-	protected game:Game;
 	
 	protected applyObjectToOpacityRaster( ent:Entity, pos:Vector3D, orientation:Quaternion ):void {
-		const proto = this.game.entityClasses[ent.classRef];
+		const proto = <EntityClass>this.gameDataManager.getObject(ent.classRef);
 		if( !proto ) return; // Well, maybe we should just mark everything opaque!
 		const vbb = proto.visualBoundingBox;
 		const destBounds = this.destBounds;
@@ -77,13 +79,13 @@ export default class SceneShader {
 			return;
 		}
 		
-		eachSubEntity(ent, pos, this.game, this.applyObjectToOpacityRaster, this);
+		eachSubEntity(ent, pos, this.gameDataManager, this.applyObjectToOpacityRaster, this);
 	}
 	
 	/**
 	 * Pos = position relative to the shademap's origin where this room's origin would appear
 	 */
-	protected applyRoomToOpacityRaster( room:Room, pos:Vector3D, game:Game ):void {
+	protected applyRoomToOpacityRaster( room:Room, pos:Vector3D ):void {
 		for( let e in room.roomEntities ) {
 			const re = room.roomEntities[e];
 			const ent = re.entity;
@@ -94,23 +96,24 @@ export default class SceneShader {
 		}
 	}
 	
-	public sceneOpacityRaster( roomRef:string, roomPos:Vector3D, game:Game, dest:ShadeRaster ):ShadeRaster {
+	public sceneOpacityRaster( roomRef:string, roomPos:Vector3D, dest:ShadeRaster ):ShadeRaster {
 		// TODO: fill with opaque, then carve out rooms, then add opacity of objects
 		dest.data.fill(0);
 		
-		this.game = game;
 		this.destShadeMap = dest;
 		dest.getBounds(this.destBounds);
 		this.destBounds.minZ = -0.5;
 		this.destBounds.maxZ = +0.5;
 		
-		const room = game.rooms[roomRef];
-		this.applyRoomToOpacityRaster(room, roomPos, game);
+		const room = this.gameDataManager.getRoom(roomRef);
+		if( room == null ) return dest;
+		this.applyRoomToOpacityRaster(room, roomPos);
 		for( const n in room.neighbors ) {
 			const neighbor = room.neighbors[n];
-			const neighbR = game.rooms[neighbor.roomRef];
+			const neighbR = this.gameDataManager.getObject<Room>(neighbor.roomRef);
+			if( neighbR == null ) continue;
 			Vector3D.add(roomPos, neighbor.offset, roomPosBuf);
-			this.applyRoomToOpacityRaster(neighbR, roomPosBuf, game);
+			this.applyRoomToOpacityRaster(neighbR, roomPosBuf);
 		}
 		
 		return dest;

@@ -1,7 +1,8 @@
 import Vector3D from './Vector3D';
 import Quaternion from './Quaternion';
 import Cuboid from './Cuboid';
-import { Game, RoomEntity, Entity, EntityClass, StructureType, TileTree, TileEntityPalette } from './world';
+import { Room, RoomEntity, Entity, EntityClass, StructureType, TileTree, TileEntityPalette } from './world';
+import GameDataManager from './GameDataManager';
 import { deepFreeze } from './DeepFreezer';
 import { hash, sha1Urn, base32Encode } from '../tshash/index';
 import SHA1 from '../tshash/SHA1';
@@ -17,49 +18,43 @@ function toUint8Array(src:ArrayLike<number>):Uint8Array {
 	return toArray(src, new Uint8Array(src.length));
 }
 
-function saveObject( obj:any ):string {
-	const json:string = JSON.stringify(obj, null, "\t") + "\t";
-	return sha1Urn(json)+"#";
-}
-
-function entityClassRef( op?:any, game?:Game ):string|null {
-	if( op == null ) return null;
+function entityClassRef( op:any, gdm?:GameDataManager ):string {
 	if( typeof op == 'string' ) return op;
 	
-	if( game == null ) throw new Error("Can't generate object prototype ref without game object"); // Well, really we should be able to for hash URN things eventually
+	if( gdm == null ) throw new Error("Can't generate object prototype ref without game object"); // Well, really we should be able to for hash URN things eventually
 	
-	const ref:string = saveObject(op);
-	game.entityClasses[ref] = op;
-	return ref;
+	return gdm.fastStoreObject(op);
 }
 
-function paletteRef( palette:any, game:Game ):string {
+/**
+ * Palette can either be an ID of a TileEntityPalette,
+ * or a list of tile tree entity class refs.
+ */
+export function tileEntityPaletteRef( palette:any, gdm?:GameDataManager ):string {
 	if( typeof palette == 'string' ) return palette;
 	
-	if( game == null ) throw new Error("Can't generate palette ref without game object"); // Well, really we should be able to for hash URN things eventually
+	if( gdm == null ) throw new Error("Can't generate palette ref without game object"); // Well, really we should be able to for hash URN things eventually
 	
 	if( !Array.isArray(palette) ) throw new Error("Supposed tile palette is not an array; can't reference it: "+JSON.stringify(palette));
 	
-	const tilePalette:TileEntityPalette = palette.map( (obj:any) => deepFreeze({
+	const tilePalette:TileEntityPalette = palette.map( (obj:any) => obj == null ? null : deepFreeze({
 		orientation: Quaternion.IDENTITY, // For now
 		entity: {
-			classRef: entityClassRef(obj, game)
+			classRef: entityClassRef(obj, gdm)
 		},
 	}) );
 	
-	const ref:string = saveObject(palette);
-	game.tilePalettes[ref] = tilePalette;
-	return ref;
+	return gdm.fastStoreObject(palette);
 }
 
 // 'game' is used to look up tile palettes/object prototypes by UUID.
 // Could be replaced with some accessor thingy, possibly asynchronous.
 export function eachSubEntity(
-	entity:Entity, pos:Vector3D, game:Game,
+	entity:Entity, pos:Vector3D, gdm:GameDataManager,
 	callback:(subEnt:Entity, pos:Vector3D, orientation:Quaternion)=>void,
 	callbackThis:any=null, posBuffer:Vector3D=posBuffer0
 ) {
-	const proto = game.entityClasses[entity.classRef];
+	const proto = gdm.getObject<EntityClass>(entity.classRef);
 	if( proto == null ) return;
 	
 	if( proto.structureType == StructureType.NONE ) {
@@ -68,8 +63,8 @@ export function eachSubEntity(
 	} else if( proto.structureType == StructureType.TILE_TREE ) {
 		const tt:TileTree = <TileTree>proto;
 		const tilePaletteIndexes = tt.childEntityIndexes;
-		const tilePalette = game.tilePalettes[tt.childEntityPaletteRef];
-		const entityClasses = game.entityClasses;
+		const tilePalette = gdm.getObject<TileEntityPalette>(tt.childEntityPaletteRef);
+		if( tilePalette == null ) return;
 		const xd = tt.tilingBoundingBox.width/tt.xDivisions;
 		const yd = tt.tilingBoundingBox.height/tt.yDivisions;
 		const zd = tt.tilingBoundingBox.depth/tt.zDivisions;
@@ -87,20 +82,21 @@ export function eachSubEntity(
 	}
 }
 
-export function makeTileTreeNode( palette:any, w:number, h:number, d:number, _indexes:any, game:Game ):TileTree {
+export function makeTileTreeNode( palette:any, w:number, h:number, d:number, _indexes:any, gdm:GameDataManager ):TileTree {
 	if( _indexes.length != w*h*d ) {
 		throw new Error("Expected 'indexes' to be array of length "+(w*d*h)+"; but it had length "+_indexes.length);
 	}
 	const indexes:Uint8Array = toUint8Array(_indexes);
-	const _paletteRef = paletteRef(palette, game);
+	const _paletteRef = tileEntityPaletteRef(palette, gdm);
 	
-	const tilePalette = game.tilePalettes[_paletteRef]
+	const tilePalette = gdm.getObject<TileEntityPalette>(_paletteRef);
+	if( tilePalette == null ) throw new Error("Failed to load tile palette "+_paletteRef);
 	let tileW = 0, tileH = 0, tileD = 0;
 	for( let t in tilePalette ) {
 		const tileEntity = tilePalette[t];
 		if( tileEntity == null ) continue;
 		const tileClassRef = tileEntity.entity.classRef;
-		const tileClass = game.entityClasses[tileClassRef];
+		const tileClass = gdm.getObject<EntityClass>(tileClassRef);
 		if( tileClass == null ) throw new Error("Couldn't find entity class "+tileClassRef+" while calculating size for tile tree; given palette: "+JSON.stringify(palette)+"; "+JSON.stringify(tilePalette));
 		tileW = Math.max(tileClass.tilingBoundingBox.width , tileW);
 		tileH = Math.max(tileClass.tilingBoundingBox.height, tileH);
@@ -112,7 +108,8 @@ export function makeTileTreeNode( palette:any, w:number, h:number, d:number, _in
 		const tileEntity = tilePalette[indexes[i]];
 		if( tileEntity == null ) continue;
 		if( tileEntity.entity.classRef == null ) continue;
-		const tileClass = game.entityClasses[tileEntity.entity.classRef];
+		const tileClass = gdm.getObject<EntityClass>(tileEntity.entity.classRef);
+		if( tileClass == null ) throw new Error("Failed to load tile class "+tileEntity.entity.classRef);
 		totalOpacity += tileClass.opacity ? tileClass.opacity : 0;
 	}
 	
@@ -135,29 +132,29 @@ export function makeTileTreeNode( palette:any, w:number, h:number, d:number, _in
 	}
 }
 
-export function makeTileTreeRef( palette:any, w:number, h:number, d:number, indexes:any, game:Game ):string {
-	const tt:TileTree = makeTileTreeNode(palette, w, h, d, indexes, game);
-	const ref:string = saveObject(tt);
-	game.entityClasses[ref] = tt;
-	return ref;
+export function makeTileTreeRef( palette:any, w:number, h:number, d:number, indexes:any, gdm:GameDataManager ):string {
+	const tt:TileTree = makeTileTreeNode(palette, w, h, d, indexes, gdm);
+	return gdm.fastStoreObject(tt);
 }
 
-export function connectRooms( game:Game, room0Ref:string, room1Ref:string, offset:Vector3D ):string {
+export function connectRooms( gdm:GameDataManager, room0Ref:string, room1Ref:string, offset:Vector3D ):void {
 	offset = deepFreeze(offset);
-	const room0 = game.rooms[room0Ref];
-	const room1 = game.rooms[room1Ref];
-	const neighborKey = "n"+base32Encode(hash(room0Ref+";"+room1Ref+";"+offset.toArray().join(","), SHA1));
-	room0.neighbors[neighborKey] = {
+	const room0 = gdm.getRoom(room0Ref);
+	if( room0 == null ) throw new Error("Failed to load "+room0Ref);
+	const room1 = gdm.getRoom(room1Ref);
+	if( room1 == null ) throw new Error("Failed to load "+room1Ref);
+	const neighborKey0To1 = "n"+base32Encode(hash(room0Ref+";"+room1Ref+";"+offset.toArray().join(","), SHA1));
+	const neighborKey1To0 = "n"+base32Encode(hash(room1Ref+";"+room0Ref+";"+Vector3D.scale(offset, -1).toArray().join(","), SHA1));
+	room0.neighbors[neighborKey0To1] = {
 		offset: offset,
 		roomRef: room1Ref,
 		bounds: room1.bounds,
 	}
-	room1.neighbors[neighborKey] = {
+	room1.neighbors[neighborKey1To0] = {
 		offset: offset.scale(-1),
 		roomRef: room0Ref,
 		bounds: room0.bounds,
 	}
-	return neighborKey;
 }
 
 export function roomEntityVelocity(re:RoomEntity):Vector3D {

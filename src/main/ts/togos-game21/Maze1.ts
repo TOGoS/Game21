@@ -2,7 +2,20 @@ import GameDataManager from './GameDataManager';
 import HTTPHashDatastore from './HTTPHashDatastore';
 import MemoryDatastore from './MemoryDatastore';
 import { DistributedBucketMapManager } from './DistributedBucketMap';
-import KeyedList from './KeyedList'; 
+import KeyedList from './KeyedList';
+import Cuboid from './Cuboid';
+import Vector3D from './Vector3D';
+import SceneShader from './SceneShader';
+import { uuidUrn, newType4Uuid } from '../tshash/uuids';
+import { makeTileTreeRef, tileEntityPaletteRef } from './worldutil';
+import {
+	Room,
+	Entity,
+	EntityClass,
+	StructureType
+} from './world';
+
+function newUuidRef():string { return uuidUrn(newType4Uuid()); }
 
 function hexDig(i:number):string {
 	return String.fromCharCode( i < 10 ? 48 + i : 87 + i );
@@ -200,6 +213,79 @@ const mazeData = [
 	1,1,1,1,1,1,1,1,1,1,0,1,1,1,1,1,
 ];
 
+/*
+interface OpacityRaster {
+	scale:number; // Size of each tile; also width,height
+	width:number; // Number of tiles wide
+	height:number; // Number of tiles high
+	opacities:number[];
+	originX:number;
+	originY:number;
+}
+
+function entityToOpacityRaster(
+	raster:OpacityRaster, eneity:Entity
+)
+
+function roomContentToOpacityRaster(
+	raster:OpacityRaster, roomRef:string, x:number, y:number, gdm:GameDataManager
+):void {
+	const rMinX = -raster.originX;
+	const rMinY = -raster.originY;
+	const rMaxX = rMinX + raster.width *raster.scale;
+	const rMaxY = rMinY + raster.height*raster.scale;
+	const room = <Room>gdm.getObject(roomRef);
+	for( let re in room.roomEntities ) {
+		const roomEntity = room.roomEntities[re];
+		const entityClass = <EntityClass>gdm.getObject(roomEntity.entity.classRef);
+		if( entityClass == null ) continue;
+
+		const pos = roomEntity.position;
+		const vbb = entityClass.visualBoundingBox;
+		const ex = x + pos.x;
+		const ey = y + pos.y;  
+		if( x + vbb.minX >= rMaxX ) continue;
+		if( entityClass.opacity )
+	}
+}
+
+function opacityRaster(
+	originRoomRef:string, originX:number, originY:number, minX:number, minY:number, maxX:number, maxY:number, scale:number, gdm:GameDataManager
+):OpacityRaster {
+	const width = Math.ceil(maxX - minX);
+	const height = Math.ceil(maxY - minY);
+	const raster = {
+		width: width,
+		height: height,
+		scale: scale,
+		opacities: new Array<number>( width*height ),
+		originX: -minX,
+		originY: -minY,
+	};
+	const room = <Room>gdm.getObject(originRoomRef);
+	if( room != null ) {
+		const roomX = -originX, roomY = -originY;
+		roomContentToOpacityRaster( raster, originRoomRef, roomX, roomY, gdm );
+		for( let n in room.neighbors ) {
+			const neighb = room.neighbors[n];
+			roomContentToOpacityRaster( raster, neighb.roomRef, roomX+neighb.offset.x, roomY+neighb.offset.y, gdm );
+		}
+	}
+
+	return raster;
+}
+*/
+
+function traceView( originRoomRef:string, originX:number, originY:number, originZ:number, gdm:GameDataManager ):MazeViewage {
+	const viewage:MazeViewage = { items: [] };
+
+	const sceneShader:SceneShader = new SceneShader(gdm);
+
+	return viewage;
+}
+
+
+
 export class MazeView {
 	public gameDataManager:GameDataManager;
 	public constructor( public canvas:HTMLCanvasElement ) { }
@@ -250,6 +336,52 @@ export class MazeView {
 			ctx.drawImage(img, px, py);
 		}
 	}
+}
+
+const HUNIT_CUBE:Cuboid = new Cuboid(-0.5, -0.5, -0.5, 0.5, 0.5, 0.5); 
+
+function makeTileEntityPalette( gdm:GameDataManager ):string {
+	return tileEntityPaletteRef( [
+		null,
+		gdm.fastStoreObject<EntityClass>( {
+			structureType: StructureType.INDIVIDUAL,
+			tilingBoundingBox: HUNIT_CUBE,
+			physicalBoundingBox: HUNIT_CUBE,
+			visualBoundingBox: HUNIT_CUBE,
+			isAffectedByGravity: false,
+			visualRef: brikImgRef
+		} ),
+	], gdm );
+}
+
+function makeRoom( gdm:GameDataManager ):string {
+	const tileTreeRef = makeTileTreeRef( makeTileEntityPalette(gdm), 16, 16, 1, mazeData, gdm );
+	const roomRef = newUuidRef();
+	const roomBounds = new Cuboid(-8, -8, -0.5, 8, 8, 0.5);
+	const room:Room = {
+		bounds: roomBounds,
+		roomEntities: {
+			[newUuidRef()]: {
+				position: new Vector3D(0,0,0),
+				entity: {
+					classRef: tileTreeRef
+				}
+			}
+		},
+		neighbors: {
+			"w": {
+				offset: new Vector3D(-16, 0, 0),
+				bounds: roomBounds,
+				roomRef: roomRef
+			},
+			"e": {
+				offset: new Vector3D(+16, 0, 0),
+				bounds: roomBounds,
+				roomRef: roomRef
+			}
+		}
+	}
+	return roomRef;
 }
 
 export function startDemo(canv:HTMLCanvasElement) {

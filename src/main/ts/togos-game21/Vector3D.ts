@@ -54,6 +54,10 @@ export default class Vector3D {
 	public static add( v0:Vector3D, v1:Vector3D, dest:Vector3D=new Vector3D ):Vector3D {
 		return dest.set(v0.x+v1.x, v0.y+v1.y, v0.z+v1.z);
 	}
+	public static scale(v:Vector3D, n:number, dest:Vector3D=new Vector3D):Vector3D {
+		dest.set(v.x*n, v.y*n, v.z*n);
+		return dest;
+	}
 	public static subtract( v0:Vector3D, v1:Vector3D ):Vector3D {
 		return new Vector3D(v0.x-v1.x, v0.y-v1.y, v0.z-v1.z);
 	}

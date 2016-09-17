@@ -4,11 +4,17 @@ import ErrorInfo from './ErrorInfo';
 import { utf8Encode, utf8Decode } from '../tshash/utils';
 
 export function storeObject( v:any, datastore:Datastore<Uint8Array> ):Promise<string> {
+	if( v instanceof Uint8Array ) {
+		return datastore.store(v);
+	}
 	const json = JSON.stringify(v, null, "\t")+"\n";
 	return datastore.store( utf8Encode(json) ).then( (dataurn) => dataurn+"#" );
 }
 
-export function fastStoreObject( v:any, datastore:Datastore<Uint8Array> ):string {
+export function fastStoreObject<T>( v:T, datastore:Datastore<Uint8Array> ):string {
+	if( v instanceof Uint8Array ) {
+		return datastore.fastStore(v);
+	}
 	const json = JSON.stringify(v, null, "\t")+"\n";
 	return datastore.fastStore( utf8Encode(json) )+'#';
 }
