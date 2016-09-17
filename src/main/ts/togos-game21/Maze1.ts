@@ -414,7 +414,17 @@ function makeRoom( gdm:GameDataManager ):string {
 				offset: new Vector3D(+16, 0, 0),
 				bounds: roomBounds,
 				roomRef: roomRef
-			}
+			},
+			"n": {
+				offset: new Vector3D(0, -16, 0),
+				bounds: roomBounds,
+				roomRef: roomRef
+			},
+			"s": {
+				offset: new Vector3D(0, +16, 0),
+				bounds: roomBounds,
+				roomRef: roomRef
+			},
 		}
 	}
 	gdm.fastStoreObject(room, roomRef);
