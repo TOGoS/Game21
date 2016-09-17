@@ -43,8 +43,10 @@ export function tileEntityPaletteRef( palette:any, gdm?:GameDataManager ):string
 			classRef: entityClassRef(obj, gdm)
 		},
 	}) );
+
+	console.log("saving tile palette", tilePalette);
 	
-	return gdm.fastStoreObject(palette);
+	return gdm.fastStoreObject(tilePalette);
 }
 
 // 'game' is used to look up tile palettes/object prototypes by UUID.
@@ -91,10 +93,12 @@ export function makeTileTreeNode( palette:any, w:number, h:number, d:number, _in
 	
 	const tilePalette = gdm.getObject<TileEntityPalette>(_paletteRef);
 	if( tilePalette == null ) throw new Error("Failed to load tile palette "+_paletteRef);
+	console.log("got tile palette", tilePalette);
 	let tileW = 0, tileH = 0, tileD = 0;
 	for( let t in tilePalette ) {
 		const tileEntity = tilePalette[t];
 		if( tileEntity == null ) continue;
+		if( tileEntity.entity == null ) throw new Error("TileEntity#entity is null!");
 		const tileClassRef = tileEntity.entity.classRef;
 		const tileClass = gdm.getObject<EntityClass>(tileClassRef);
 		if( tileClass == null ) throw new Error("Couldn't find entity class "+tileClassRef+" while calculating size for tile tree; given palette: "+JSON.stringify(palette)+"; "+JSON.stringify(tilePalette));

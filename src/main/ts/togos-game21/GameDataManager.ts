@@ -7,7 +7,7 @@ import { DistributedBucketMapManager } from './DistributedBucketMap';
 import { utf8Encode } from '../tshash/utils';
 import { fetchObject, storeObject, fastStoreObject } from './JSONObjectDatastore';
 import { shortcutThen, value as promiseValue } from './promises';
-import { Room } from './world';
+import { Room, EntityClass } from './world';
 
 const hashUrnRegex = /^urn:(sha1|bitprint):.*/;
 
@@ -36,6 +36,7 @@ export default class GameDataManager {
 	}
 
 	public getRoom( ref:string ):Room|undefined { return this.getObject<Room>(ref); }
+	public getEntityClass( ref:string ):EntityClass|undefined { return this.getObject<EntityClass>(ref); }
 	
 	protected cache<T>( k:string, v:T ):void {
 		this.objectCache[k] = v;

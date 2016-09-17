@@ -5,9 +5,10 @@ import { DistributedBucketMapManager } from './DistributedBucketMap';
 import KeyedList from './KeyedList';
 import Cuboid from './Cuboid';
 import Vector3D from './Vector3D';
-import SceneShader from './SceneShader';
+import Quaternion from './Quaternion';
+import SceneShader, { ShadeRaster } from './SceneShader';
 import { uuidUrn, newType4Uuid } from '../tshash/uuids';
-import { makeTileTreeRef, tileEntityPaletteRef } from './worldutil';
+import { makeTileTreeRef, tileEntityPaletteRef, eachSubEntity } from './worldutil';
 import {
 	Room,
 	Entity,
@@ -384,34 +385,81 @@ function makeRoom( gdm:GameDataManager ):string {
 	return roomRef;
 }
 
+function roomToMazeViewage( roomRef:string, roomX:number, roomY:number, gdm:GameDataManager, viewage:MazeViewage ):void {
+	const room = gdm.getRoom(roomRef);
+	if( room == null ) throw new Error("Failed to load room "+roomRef);
+
+	let _entityToMazeViewage = ( entity:Entity, position:Vector3D, orientation:Quaternion  ) => {}
+	_entityToMazeViewage = ( entity:Entity, position:Vector3D, orientation:Quaternion ) => {
+		const entityClass = gdm.getEntityClass(entity.classRef);
+		if( entityClass == null ) throw new Error("Failed to load entity class "+entity.classRef);
+		if( entityClass.visualRef ) {
+			viewage.items.push( {
+				x: roomX + position.x,
+				y: roomY + position.y,
+				visual: {
+					width: 1,
+					height: 1,
+					imageRef: entityClass.visualRef
+				}
+			})
+			eachSubEntity( entity, position, gdm, _entityToMazeViewage );
+		}
+	};
+
+	for( let re in room.roomEntities ) {
+		const roomEntity = room.roomEntities[re];
+		const orientation = roomEntity.orientation ? roomEntity.orientation : Quaternion.IDENTITY;
+		_entityToMazeViewage( roomEntity.entity, new Vector3D(roomX+roomEntity.position.x, roomY+roomEntity.position.y, roomEntity.position.z), orientation );
+	}
+}
+function roomAndNeighborsToMazeViewage( roomRef:string, roomX:number, roomY:number, gdm:GameDataManager, viewage:MazeViewage ):void {
+	const room = gdm.getRoom(roomRef);
+	if( room == null ) throw new Error("Failed to load room "+roomRef);
+	for( let n in room.neighbors ) {
+		const neighb = room.neighbors[n];
+		roomToMazeViewage( neighb.roomRef, roomX+neighb.offset.x, roomY+neighb.offset.y, gdm, viewage );
+	}
+}
+
 export function startDemo(canv:HTMLCanvasElement) {
+	const ds = MemoryDatastore.createSha1Based(0); //HTTPHashDatastore();
+	const dbmm = new DistributedBucketMapManager<string>(ds);
+	const gdm = new GameDataManager(ds, dbmm);
+
+	const roomRef = makeRoom(gdm);
+	const sceneShader:SceneShader = new SceneShader(gdm);
+	const shadeRaster = new ShadeRaster(64, 48, 1, 32, 24);
+	sceneShader.sceneOpacityRaster(roomRef, new Vector3D(3.5, 3.5, 0), shadeRaster);
+
 	const v = new MazeView(canv);
 	const viewItems : MazeViewageItem[] = [];
-	for( let i=0, row=0; row < 16; ++row ) {
-		for( let col=0; col < 16; ++col, ++i ) {
+	
+	/*
+	for( let i=0, row=0; row < shadeRaster.height; ++row ) {
+		for( let col=0; col < shadeRaster.width; ++col, ++i ) {
 			let itemVisual : MazeItemVisual|null = null;
-			switch( mazeData[i] ) {
+			switch( shadeRaster.data[i] ) {
 			case 1: itemVisual = brikVisual; break;
 			case 2: itemVisual = bigBrikVisual; break;
 			}
 			if( itemVisual ) {
-				for( let rou = -1; rou <= 1; ++rou ) {
-					for( let cal = -1; cal <= 1; ++cal ) {
-						viewItems.push({
-							x: (rou*16)+row-7,
-							y: (cal*16)+col-7,
-							visual: itemVisual
-						});
-					}
-				}
+				viewItems.push({
+					x: row-7,
+					y: col-7,
+					visual: itemVisual
+				});
 			}
 		}
 	}
 	v.viewage = {
 		items: viewItems
 	};
-	const ds = MemoryDatastore.createSha1Based(0); //HTTPHashDatastore();
-	const dbmm = new DistributedBucketMapManager<string>(ds);
-	v.gameDataManager = new GameDataManager(ds, dbmm);
+	*/
+
+	v.viewage = { items: [] };
+	roomToMazeViewage( roomRef, 0, 0, gdm, v.viewage );
+	
+	v.gameDataManager = gdm;
 	v.draw();
 }

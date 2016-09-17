@@ -17,6 +17,8 @@ export class ShadeRaster {
 	
 	/**
 	 * originX and originY are the location of the map's origin relative to its top-left corner.
+	 * width and height are in samples
+	 * resolution = samples per meter; higher means the size of the thing is smaller
 	 */
 	constructor(public width:number, public height:number, public resolution:number, public originX:number, public originY:number ) {
 		this.data = new Uint8Array(width*height);
