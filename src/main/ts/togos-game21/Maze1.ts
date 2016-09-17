@@ -1,4 +1,4 @@
-import { thaw } from './DeepFreezer';
+import { thaw, isDeepFrozen } from './DeepFreezer';
 import GameDataManager from './GameDataManager';
 import HTTPHashDatastore from './HTTPHashDatastore';
 import MemoryDatastore from './MemoryDatastore';
@@ -15,7 +15,9 @@ import {
 	RoomEntity,
 	Entity,
 	EntityClass,
-	StructureType
+	TileTree,
+	StructureType,
+	TileEntityPalette
 } from './world';
 
 function newUuidRef():string { return uuidUrn(newType4Uuid()); }
@@ -140,8 +142,8 @@ const playerPix = [
 	0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,
 	0,0,0,0,0,1,1,1,1,1,1,1,0,0,0,0,
 	0,0,0,0,1,0,1,0,0,0,1,0,1,0,0,0,
-	0,0,0,0,1,0,1,0,0,0,1,0,1,0,0,0,
-	0,0,0,0,1,0,1,0,0,0,1,0,1,0,0,0,
+	0,0,0,0,1,0,1,0,1,0,1,0,1,0,0,0,
+	0,0,0,0,1,0,1,0,1,0,1,0,1,0,0,0,
 	0,0,0,0,1,0,1,0,0,0,1,0,1,0,0,0,
 	0,0,0,0,1,0,1,1,1,1,1,0,1,0,0,0,
 	0,0,0,0,0,1,1,0,0,0,1,1,0,0,0,0,
@@ -338,6 +340,12 @@ export class MazeView {
 		return this.imageCache[ref] = img; 
 	}
 
+	public clear():void {
+		const ctx = this.canvas.getContext('2d');
+		if( !ctx ) return;
+		ctx.clearRect(0,0,this.canvas.width,this.canvas.height);
+	}
+
 	public draw():void {
 		const ctx = this.canvas.getContext('2d');
 		if( !ctx ) return;
@@ -451,7 +459,136 @@ function roomAndNeighborsToMazeViewage( roomRef:string, roomX:number, roomY:numb
 	}
 }
 
-export function startDemo(canv:HTMLCanvasElement) {
+enum CardinalDirection {
+	EAST = 0,
+	SOUTHEAST = 1,
+	SOUTH = 2,
+	SOUTHWEST = 3,
+	WEST = 4,
+	NORTHWEST = 5,
+	NORTH = 6,
+	NORTHEAST = 7
+}
+
+function cardinalDirectionToVec( dir:CardinalDirection ):Vector3D {
+	switch( dir ) {
+	case CardinalDirection.EAST: return new Vector3D(1,0,0);
+	case CardinalDirection.SOUTHEAST: return new Vector3D(1,1,0);
+	case CardinalDirection.SOUTH: return new Vector3D(0,1,0);
+	case CardinalDirection.SOUTHWEST: return new Vector3D(-1,1,0);
+	case CardinalDirection.WEST: return new Vector3D(-1,0,0);
+	case CardinalDirection.NORTHWEST: return new Vector3D(-1,-1,0);
+	case CardinalDirection.NORTH: return new Vector3D(0,-1,0);
+	case CardinalDirection.NORTHEAST: return new Vector3D(1,-1,0);
+	default: return Vector3D.ZERO;
+	}
+}
+
+interface RoomLocation {
+	roomRef : string;
+	position : Vector3D;
+}
+
+export class MazeGame {
+	protected rooms:KeyedList<Room> = {};
+
+	public constructor( public gameDataManager:GameDataManager ) { }
+
+	protected getRoom( roomId:string ):Room {
+		if( this.rooms[roomId] ) return this.rooms[roomId];
+		throw new Error("Room "+roomId+" not loaded");
+	}
+
+	public fullyLoadRoom( roomId:string ):Promise<Room> {
+		return this.gameDataManager.fullyLoadRoom(roomId).then( (room) => {
+			this.rooms[roomId] = room;
+			return room;
+		});
+	}
+
+	public playerEntityId?:string;
+	public playerMoveDir:CardinalDirection|undefined = undefined;
+	public update() {
+		for( let r in this.rooms ) {
+			let room = this.rooms[r];
+			for( let re in room.roomEntities ) {
+				if( re == this.playerEntityId && this.playerMoveDir != null ) {
+					console.log("Found "+re);
+					const delta = cardinalDirectionToVec(this.playerMoveDir);
+					console.log("Move direction "+this.playerMoveDir+":", delta);
+					if( delta.isZero ) continue;
+					const roomEntity = thaw(room.roomEntities[re]);
+					roomEntity.position = Vector3D.add(roomEntity.position, delta);
+					this.rooms[r] = room = thaw(room);
+					room.roomEntities = thaw(room.roomEntities);
+					room.roomEntities[re] = roomEntity;
+					console.log("Updatubg entity "+re+" in room "+r);
+				}
+			}
+		}
+		console.log("Update!");
+		for( let r in this.rooms ) {
+			const room = this.rooms[r];
+			if( !isDeepFrozen(room) ) {
+				const urn = this.gameDataManager.fastStoreObject(room, r);
+				console.log("Saving updated room "+r+" as "+urn);
+			}
+		}
+	}
+
+	public locateRoomEntity( id:string ):RoomLocation|undefined {
+		for( let r in this.rooms ) {
+			const room = this.rooms[r];
+			for( let re in room.roomEntities ) {
+				if( re == id ) {
+					return {
+						roomRef: r,
+						position: room.roomEntities[re].position
+					};
+				}
+			}
+		}
+		return undefined;
+	}
+}
+
+export class MazeDemo {
+	public game : MazeGame;
+	public view : MazeView;
+	public playerId : string;
+
+	public setUp() {
+
+	}
+
+	public walk(dir:CardinalDirection|undefined):void {
+		console.log("Walk "+dir);
+		this.game.playerMoveDir = dir;
+		this.update();
+	}
+	
+	public update() {
+		this.game.update();
+		this.updateView();
+	}
+
+	public updateView() {
+		this.view.viewage = { items: [] };
+		
+		const playerLoc = this.game.locateRoomEntity(this.playerId);
+
+		if( playerLoc ) {
+			roomAndNeighborsToMazeViewage( playerLoc.roomRef, -playerLoc.position.x, -playerLoc.position.y, this.game.gameDataManager, this.view.viewage );
+		} else {
+			console.log("Failed to locate player, "+this.playerId);
+		}
+		
+		this.view.clear();
+		this.view.draw();
+	}
+}
+
+export function startDemo(canv:HTMLCanvasElement) : MazeDemo {
 	const ds = MemoryDatastore.createSha1Based(0); //HTTPHashDatastore();
 	const dbmm = new DistributedBucketMapManager<string>(ds);
 	const gdm = new GameDataManager(ds, dbmm);
@@ -483,34 +620,21 @@ export function startDemo(canv:HTMLCanvasElement) {
 	const shadeRaster = new ShadeRaster(64, 48, 1, 32, 24);
 	sceneShader.sceneOpacityRaster(roomRef, new Vector3D(3.5, 3.5, 0), shadeRaster);
 
-	const v = new MazeView(canv);
-	const viewItems : MazeViewageItem[] = [];
-	
-	/*
-	for( let i=0, row=0; row < shadeRaster.height; ++row ) {
-		for( let col=0; col < shadeRaster.width; ++col, ++i ) {
-			let itemVisual : MazeItemVisual|null = null;
-			switch( shadeRaster.data[i] ) {
-			case 1: itemVisual = brikVisual; break;
-			case 2: itemVisual = bigBrikVisual; break;
-			}
-			if( itemVisual ) {
-				viewItems.push({
-					x: row-7,
-					y: col-7,
-					visual: itemVisual
-				});
-			}
-		}
-	}
-	v.viewage = {
-		items: viewItems
-	};
-	*/
+	const game = new MazeGame(gdm);
+	game.playerEntityId = playerId;
 
-	v.viewage = { items: [] };
-	roomAndNeighborsToMazeViewage( roomRef, 0, 0, gdm, v.viewage );
-	
+	const v = new MazeView(canv);
 	v.gameDataManager = gdm;
-	v.draw();
+	const viewItems : MazeViewageItem[] = [];
+
+	const demo = new MazeDemo();
+	demo.game = game;
+	demo.view = v;
+	demo.playerId = playerId;
+
+	game.fullyLoadRoom( roomRef ).then( (room) => {
+		demo.updateView();
+	});
+
+	return demo;
 }

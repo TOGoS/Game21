@@ -7,7 +7,7 @@ import { DistributedBucketMapManager } from './DistributedBucketMap';
 import { utf8Encode } from '../tshash/utils';
 import { fetchObject, storeObject, fastStoreObject } from './JSONObjectDatastore';
 import { shortcutThen, value as promiseValue } from './promises';
-import { Room, EntityClass } from './world';
+import { Room, RoomEntity, Entity, EntityClass, StructureType, TileTree, TileEntityPalette, TileTreeEntity } from './world';
 
 const hashUrnRegex = /^urn:(sha1|bitprint):.*/;
 
@@ -29,9 +29,15 @@ export default class GameDataManager {
 		this.objectMapManager = omm;
 	}
 	
-	public getObject<T>( ref:string, initiateFetch:boolean=false ):T|undefined {
+	public getObjectIfLoaded<T>( ref:string, initiateFetch:boolean=false, allowUndefined:boolean=false ):T|undefined {
 		const v = this.objectCache[ref];
 		if( v == null && initiateFetch && !this.fetching[ref] ) this.fetchObject(ref);
+		return v;
+	}
+	public getObject<T>( ref:string, initiateFetch:boolean=false, allowUndefined:boolean=false ):T {
+		const v = this.objectCache[ref];
+		if( v == null && initiateFetch && !this.fetching[ref] ) this.fetchObject(ref);
+		if( v == null ) throw new Error(ref+" not loaded");
 		return v;
 	}
 
@@ -107,5 +113,42 @@ export default class GameDataManager {
 			});
 		}
 		return urn;
+	}
+
+	protected fullyLoadTileEntityPalette( paletteRef:string ):Promise<TileEntityPalette> {
+		return this.fetchObject<TileEntityPalette>(paletteRef).then( (tep:TileEntityPalette) => {
+			const itemPromises:Promise<EntityClass>[] = [];
+			for( let te in tep ) {
+				const tileEntity = tep[te];
+				if( tileEntity ) itemPromises.push(this.fullyLoadEntityClass(tileEntity.entity.classRef));
+			}
+			return Promise.all(itemPromises).then( () => tep );
+		});
+	}
+
+	public fullyLoadEntityClass( classRef:string ):Promise<EntityClass> {
+		return this.fetchObject<EntityClass>( classRef ).then( (ec:EntityClass) => {
+			const itemPromises:Promise<any>[] = [];
+			switch( ec.structureType ) {
+			case StructureType.INDIVIDUAL:
+			case StructureType.NONE:
+				break;
+			case StructureType.TILE_TREE:
+				const tt:TileTree = <TileTree>ec;
+				itemPromises.push(this.fullyLoadTileEntityPalette(tt.childEntityPaletteRef));
+			}
+			return Promise.all(itemPromises).then( () => ec );
+		})
+	}
+
+	public fullyLoadRoom( roomId:string ):Promise<Room> {
+		return this.fetchObject<Room>( roomId ).then( (room:Room) => {
+			const itemPromises:Promise<EntityClass>[] = [];
+			for( let re in room.roomEntities ) {
+				const roomEntity = room.roomEntities[re];
+				itemPromises.push(this.fullyLoadEntityClass(roomEntity.entity.classRef));
+			}
+			return Promise.all(itemPromises).then( () => room );
+		})
 	}
 }

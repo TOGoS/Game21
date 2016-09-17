@@ -49,15 +49,13 @@ export function tileEntityPaletteRef( palette:any, gdm?:GameDataManager ):string
 	return gdm.fastStoreObject(tilePalette);
 }
 
-// 'game' is used to look up tile palettes/object prototypes by UUID.
-// Could be replaced with some accessor thingy, possibly asynchronous.
 export function eachSubEntity(
 	entity:Entity, pos:Vector3D, gdm:GameDataManager,
 	callback:(subEnt:Entity, pos:Vector3D, orientation:Quaternion)=>void,
 	callbackThis:any=null, posBuffer:Vector3D=posBuffer0
 ) {
 	const proto = gdm.getObject<EntityClass>(entity.classRef);
-	if( proto == null ) return;
+	if( proto == null ) throw new Error("Failed to get entity class "+entity.classRef);
 	
 	if( proto.structureType == StructureType.NONE ) {
 	} else if( proto.structureType == StructureType.INDIVIDUAL ) {
@@ -91,7 +89,7 @@ export function makeTileTreeNode( palette:any, w:number, h:number, d:number, ind
 	const _paletteRef = tileEntityPaletteRef(palette, gdm);
 	
 	const tilePalette = gdm.getObject<TileEntityPalette>(_paletteRef);
-	if( tilePalette == null ) throw new Error("Failed to load tile palette "+_paletteRef);
+	if( tilePalette == null ) throw new Error("Failed to get tile palette "+_paletteRef);
 	console.log("got tile palette", tilePalette);
 	let tileW = 0, tileH = 0, tileD = 0;
 	for( let t in tilePalette ) {
@@ -112,7 +110,7 @@ export function makeTileTreeNode( palette:any, w:number, h:number, d:number, ind
 		if( tileEntity == null ) continue;
 		if( tileEntity.entity.classRef == null ) continue;
 		const tileClass = gdm.getObject<EntityClass>(tileEntity.entity.classRef);
-		if( tileClass == null ) throw new Error("Failed to load tile class "+tileEntity.entity.classRef);
+		if( tileClass == null ) throw new Error("Failed to get tile class "+tileEntity.entity.classRef);
 		totalOpacity += tileClass.opacity ? tileClass.opacity : 0;
 	}
 	
@@ -143,9 +141,9 @@ export function makeTileTreeRef( palette:any, w:number, h:number, d:number, inde
 export function connectRooms( gdm:GameDataManager, room0Ref:string, room1Ref:string, offset:Vector3D ):void {
 	offset = deepFreeze(offset);
 	const room0 = gdm.getRoom(room0Ref);
-	if( room0 == null ) throw new Error("Failed to load "+room0Ref);
+	if( room0 == null ) throw new Error("Failed to get room "+room0Ref);
 	const room1 = gdm.getRoom(room1Ref);
-	if( room1 == null ) throw new Error("Failed to load "+room1Ref);
+	if( room1 == null ) throw new Error("Failed to get room "+room1Ref);
 	const neighborKey0To1 = "n"+base32Encode(hash(room0Ref+";"+room1Ref+";"+offset.toArray().join(","), SHA1));
 	const neighborKey1To0 = "n"+base32Encode(hash(room1Ref+";"+room0Ref+";"+Vector3D.scale(offset, -1).toArray().join(","), SHA1));
 	room0.neighbors[neighborKey0To1] = {

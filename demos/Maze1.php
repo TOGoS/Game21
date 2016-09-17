@@ -77,7 +77,17 @@ html, body {
 <?php require_game21_js_libs($inlineResources, array('togos-game21/Maze1')); ?>
 <script type="text/javascript">//<![CDATA[
 	require(['togos-game21/Maze1'], function(_Maze1) {
-		_Maze1.startDemo(document.getElementById('maze-canvas'));
+		var demo = _Maze1.startDemo(document.getElementById('maze-canvas'));
+		window.addEventListener('keydown', function(keyEvent) {
+			switch( keyEvent.keyCode ) {
+			case 68: demo.walk(0); break;
+			case 83: demo.walk(2); break;
+			case 65: demo.walk(4); break;
+			case 87: demo.walk(6); break;
+			default:
+				console.log("Key down: "+keyEvent.keyCode)
+			}
+		});
 	});
 //]]></script>
 
