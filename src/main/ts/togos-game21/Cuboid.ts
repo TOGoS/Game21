@@ -22,13 +22,17 @@ export default class Cuboid {
 		return dest;
 	}
 	
-	public containsVector( v:Vector3D ):boolean {
-		if( v.x < this.minX ) return false;
-		if( v.y < this.minY ) return false;
-		if( v.z < this.minZ ) return false;
-		if( v.x > this.maxX ) return false;
-		if( v.y > this.maxY ) return false;
-		if( v.z > this.maxZ ) return false;
+	public static containsVector( cuboid:Cuboid, v:Vector3D ):boolean {
+		if( v.x < cuboid.minX ) return false;
+		if( v.y < cuboid.minY ) return false;
+		if( v.z < cuboid.minZ ) return false;
+		if( v.x > cuboid.maxX ) return false;
+		if( v.y > cuboid.maxY ) return false;
+		if( v.z > cuboid.maxZ ) return false;
 		return true;
+	}
+	
+	public containsVector( v:Vector3D ):boolean {
+		return Cuboid.containsVector( this, v );
 	}
 };

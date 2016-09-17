@@ -506,6 +506,30 @@ export class MazeGame {
 		});
 	}
 
+	protected fixEntity(roomRef:string, entityId:string) {
+		let room = this.rooms[roomRef];
+		let roomEntity = room.roomEntities[entityId];
+		let pos = roomEntity.position;
+		if( Cuboid.containsVector(room.bounds, pos) ) return;
+		console.log("Uh oh, "+entityId+" is outside of room bounds:", pos, room.bounds);
+		for( let n in room.neighbors ) {
+			const neighb = room.neighbors[n];
+			if( Cuboid.containsVector(neighb.bounds, Vector3D.subtract(pos, neighb.offset)) ) {
+				console.log("Moving entity "+entityId+" to room "+neighb.roomRef);
+				// oh boy move them there!
+				this.rooms[roomRef] = room = thaw(room);
+				room.roomEntities = thaw(room.roomEntities);
+				let neighborRoom = this.rooms[neighb.roomRef];
+				this.rooms[neighb.roomRef] = neighborRoom = thaw(neighborRoom);
+				neighborRoom.roomEntities = thaw(neighborRoom.roomEntities);
+				delete room.roomEntities[entityId];
+				neighborRoom.roomEntities[entityId] = roomEntity;
+				roomEntity = thaw(roomEntity);
+				roomEntity.position = Vector3D.subtract(roomEntity.position, neighb.offset);
+			}
+		}
+	}
+
 	public playerEntityId?:string;
 	public playerMoveDir:CardinalDirection|undefined = undefined;
 	public update() {
@@ -523,6 +547,7 @@ export class MazeGame {
 					room.roomEntities = thaw(room.roomEntities);
 					room.roomEntities[re] = roomEntity;
 					console.log("Updatubg entity "+re+" in room "+r);
+					this.fixEntity(r, re);
 				}
 			}
 		}
