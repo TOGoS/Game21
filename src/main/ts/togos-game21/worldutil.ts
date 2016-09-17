@@ -84,11 +84,10 @@ export function eachSubEntity(
 	}
 }
 
-export function makeTileTreeNode( palette:any, w:number, h:number, d:number, _indexes:any, gdm:GameDataManager ):TileTree {
-	if( _indexes.length != w*h*d ) {
-		throw new Error("Expected 'indexes' to be array of length "+(w*d*h)+"; but it had length "+_indexes.length);
+export function makeTileTreeNode( palette:any, w:number, h:number, d:number, indexes:number[], gdm:GameDataManager ):TileTree {
+	if( indexes.length != w*h*d ) {
+		throw new Error("Expected 'indexes' to be array of length "+(w*d*h)+"; but it had length "+indexes.length);
 	}
-	const indexes:Uint8Array = toUint8Array(_indexes);
 	const _paletteRef = tileEntityPaletteRef(palette, gdm);
 	
 	const tilePalette = gdm.getObject<TileEntityPalette>(_paletteRef);

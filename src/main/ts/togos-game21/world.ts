@@ -93,7 +93,7 @@ export interface TileTree extends EntityClass {
 	yDivisions:number;
 	zDivisions:number;
 	childEntityPaletteRef:string;
-	childEntityIndexes:Uint8Array;
+	childEntityIndexes:number[];
 }
 
 export interface Room {

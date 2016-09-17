@@ -181,7 +181,7 @@ interface MazeViewage {
 }
 
 const brikImgRef = "bitimg:color0=0;color1="+rgbaToNumber(255,255,128,255)+","+hexEncodeBits(brikPix);
-const bigBrikImgRef = "bitimg:color0=0;color1="+rgbaToNumber(255,255,128,255)+","+hexEncodeBits(brikPix);
+const bigBrikImgRef = "bitimg:color0=0;color1="+rgbaToNumber(255,255,128,255)+","+hexEncodeBits(bigBrikPix);
 
 const brikVisual:MazeItemVisual = {
 	width: 1,
@@ -281,11 +281,9 @@ function traceView( originRoomRef:string, originX:number, originY:number, origin
 	const viewage:MazeViewage = { items: [] };
 
 	const sceneShader:SceneShader = new SceneShader(gdm);
-
-	return viewage;
+	throw new Error("traceView not yet implementse");
+	//return viewage;
 }
-
-
 
 export class MazeView {
 	public gameDataManager:GameDataManager;
@@ -352,6 +350,14 @@ function makeTileEntityPalette( gdm:GameDataManager ):string {
 			isAffectedByGravity: false,
 			visualRef: brikImgRef
 		} ),
+		gdm.fastStoreObject<EntityClass>( {
+			structureType: StructureType.INDIVIDUAL,
+			tilingBoundingBox: HUNIT_CUBE,
+			physicalBoundingBox: HUNIT_CUBE,
+			visualBoundingBox: HUNIT_CUBE,
+			isAffectedByGravity: false,
+			visualRef: bigBrikImgRef
+		} ),
 	], gdm );
 }
 
@@ -382,6 +388,7 @@ function makeRoom( gdm:GameDataManager ):string {
 			}
 		}
 	}
+	gdm.fastStoreObject(room, roomRef);
 	return roomRef;
 }
 
@@ -395,16 +402,16 @@ function roomToMazeViewage( roomRef:string, roomX:number, roomY:number, gdm:Game
 		if( entityClass == null ) throw new Error("Failed to load entity class "+entity.classRef);
 		if( entityClass.visualRef ) {
 			viewage.items.push( {
-				x: roomX + position.x,
-				y: roomY + position.y,
+				x: position.x,
+				y: position.y,
 				visual: {
 					width: 1,
 					height: 1,
 					imageRef: entityClass.visualRef
 				}
 			})
-			eachSubEntity( entity, position, gdm, _entityToMazeViewage );
 		}
+		eachSubEntity( entity, position, gdm, _entityToMazeViewage );
 	};
 
 	for( let re in room.roomEntities ) {
@@ -416,6 +423,7 @@ function roomToMazeViewage( roomRef:string, roomX:number, roomY:number, gdm:Game
 function roomAndNeighborsToMazeViewage( roomRef:string, roomX:number, roomY:number, gdm:GameDataManager, viewage:MazeViewage ):void {
 	const room = gdm.getRoom(roomRef);
 	if( room == null ) throw new Error("Failed to load room "+roomRef);
+	roomToMazeViewage( roomRef, roomX, roomY, gdm, viewage );
 	for( let n in room.neighbors ) {
 		const neighb = room.neighbors[n];
 		roomToMazeViewage( neighb.roomRef, roomX+neighb.offset.x, roomY+neighb.offset.y, gdm, viewage );
@@ -458,7 +466,7 @@ export function startDemo(canv:HTMLCanvasElement) {
 	*/
 
 	v.viewage = { items: [] };
-	roomToMazeViewage( roomRef, 0, 0, gdm, v.viewage );
+	roomAndNeighborsToMazeViewage( roomRef, 0, 0, gdm, v.viewage );
 	
 	v.gameDataManager = gdm;
 	v.draw();
