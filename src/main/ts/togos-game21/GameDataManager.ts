@@ -41,8 +41,8 @@ export default class GameDataManager {
 		return v;
 	}
 
-	public getRoom( ref:string ):Room|undefined { return this.getObject<Room>(ref); }
-	public getEntityClass( ref:string ):EntityClass|undefined { return this.getObject<EntityClass>(ref); }
+	public getRoom( ref:string ):Room { return this.getObject<Room>(ref); }
+	public getEntityClass( ref:string ):EntityClass { return this.getObject<EntityClass>(ref); }
 	
 	protected cache<T>( k:string, v:T ):void {
 		this.objectCache[k] = v;

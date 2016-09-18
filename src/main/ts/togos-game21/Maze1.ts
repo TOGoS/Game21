@@ -172,7 +172,6 @@ function parseBitImg( m:RegExpExecArray ):BitImageInfo {
 			modVals[p[0]] = v;
 		}
 	}
-	console.log("modVals:",modVals);
 	return {
 		bitstr: m[2],
 		color0: modVals['color0']|0,
@@ -219,22 +218,22 @@ const bigBrikVisual:MazeItemVisual = {
 };
 
 const mazeData = [
-	1,1,1,1,1,1,1,1,1,1,0,1,1,1,1,1,
-	1,0,0,0,0,1,1,1,1,0,0,0,1,0,1,1,
-	1,1,0,0,0,1,1,1,1,0,0,0,1,0,1,1,
+	1,1,1,1,1,1,0,0,1,1,0,1,1,1,1,1,
+	0,0,0,0,0,1,0,1,1,0,0,0,1,0,1,0,
+	1,1,0,0,0,1,0,0,0,0,0,0,1,0,0,0,
 	1,1,1,0,1,1,1,1,1,1,1,0,1,0,1,1,
 	1,1,1,0,1,1,1,1,0,0,0,0,0,0,1,1,
 	1,1,1,0,1,1,1,2,2,2,2,0,0,0,1,1,
 	1,0,0,0,0,1,1,2,0,0,0,0,0,0,0,0,
 	1,0,2,2,2,1,1,2,0,1,1,1,1,0,1,0,
-	1,0,2,1,1,1,1,2,0,1,0,0,1,0,1,0,
-	1,0,2,2,2,2,2,2,0,1,0,0,1,0,1,1,
+	1,0,2,1,1,1,1,2,0,1,0,0,1,1,1,0,
+	1,0,2,2,2,2,2,2,0,1,0,0,1,1,1,1,
 	0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,
-	1,1,0,1,1,1,1,1,1,1,1,1,1,1,1,1,
-	1,1,0,1,1,1,1,1,1,1,1,1,0,0,0,1,
-	1,0,0,0,1,1,1,1,1,1,0,0,0,0,0,1,
-	1,0,0,0,1,1,1,1,1,1,0,1,0,0,0,1,
-	1,1,1,1,1,1,1,1,1,1,0,1,1,1,1,1,
+	1,1,0,1,1,1,1,1,1,1,1,1,1,0,1,1,
+	1,1,0,1,1,0,0,2,2,2,2,1,0,0,0,1,
+	1,0,0,0,1,0,0,0,0,1,0,0,0,0,0,1,
+	1,0,0,0,1,1,0,2,2,2,0,1,0,0,0,1,
+	1,1,1,1,1,1,0,0,1,1,0,1,1,1,1,1,
 ];
 
 /*
@@ -376,7 +375,9 @@ function makeTileEntityPalette( gdm:GameDataManager ):string {
 			tilingBoundingBox: HUNIT_CUBE,
 			physicalBoundingBox: HUNIT_CUBE,
 			visualBoundingBox: HUNIT_CUBE,
-			isAffectedByGravity: false,
+			isInteractive: true,
+			isRigid: true,
+			mass: Infinity,
 			visualRef: brikImgRef
 		} ),
 		gdm.fastStoreObject<EntityClass>( {
@@ -384,7 +385,9 @@ function makeTileEntityPalette( gdm:GameDataManager ):string {
 			tilingBoundingBox: HUNIT_CUBE,
 			physicalBoundingBox: HUNIT_CUBE,
 			visualBoundingBox: HUNIT_CUBE,
-			isAffectedByGravity: false,
+			isInteractive: true,
+			isRigid: true,
+			mass: Infinity,
 			visualRef: bigBrikImgRef
 		} ),
 	], gdm );
@@ -553,8 +556,26 @@ export class MazeGame {
 		}
 	}
 
+	protected collisionAt2( entity:Entity, samplePosition:Vector3D, ignoreEntityId:string ):boolean {
+		const proto = this.gameDataManager.getEntityClass( entity.classRef );
+		if( proto.isInteractive === false ) return false;
+		if( !Cuboid.containsVector(proto.physicalBoundingBox, samplePosition) ) return false;
+		if( proto.structureType == StructureType.INDIVIDUAL ) {
+			return !!(proto.isInteractive && proto.isRigid);
+		} else return !!eachSubEntity( entity, Vector3D.ZERO, this.gameDataManager, (subEnt, subEntPos, ori) => {
+			if( this.collisionAt2(subEnt, Vector3D.subtract(samplePosition, subEntPos), ignoreEntityId) ) return true;
+			return undefined;
+		});
+	}
+
 	/** Overly simplistic 'is there anything at this exact point' check */
 	protected collisionAt( roomRef:string, position:Vector3D, ignoreEntityId:string ):boolean {
+		const room = this.rooms[roomRef];
+		for( let re in room.roomEntities ) {
+			if( re == ignoreEntityId ) continue;
+			const roomEntity = room.roomEntities[re];
+			if( this.collisionAt2(roomEntity.entity, Vector3D.subtract(position, roomEntity.position), ignoreEntityId) ) return true;
+		}
 		return false;
 	}
 
@@ -618,7 +639,6 @@ export class MazeDemo {
 	}
 
 	public walk(dir:CardinalDirection|undefined):void {
-		console.log("Walk "+dir);
 		this.game.playerMoveDir = dir;
 		this.update();
 	}

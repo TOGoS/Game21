@@ -49,11 +49,11 @@ export function tileEntityPaletteRef( palette:any, gdm?:GameDataManager ):string
 	return gdm.fastStoreObject(tilePalette);
 }
 
-export function eachSubEntity(
+export function eachSubEntity<T>(
 	entity:Entity, pos:Vector3D, gdm:GameDataManager,
-	callback:(subEnt:Entity, pos:Vector3D, orientation:Quaternion)=>void,
+	callback:(subEnt:Entity, pos:Vector3D, orientation:Quaternion)=>T|undefined,
 	callbackThis:any=null, posBuffer:Vector3D=posBuffer0
-) {
+):T|undefined {
 	const proto = gdm.getObject<EntityClass>(entity.classRef);
 	if( proto == null ) throw new Error("Failed to get entity class "+entity.classRef);
 	
@@ -74,12 +74,14 @@ export function eachSubEntity(
 		for( let i=0, z=0; z < tt.zDivisions; ++z ) for( let y=0; y < tt.yDivisions; ++y ) for( let x=0; x < tt.xDivisions; ++x, ++i ) {
 			const tileEntity = tilePalette[tilePaletteIndexes[i]];
 			if( tileEntity != null ) {
-				callback.call( callbackThis, tileEntity.entity, posBuffer.set(x0+x*xd, y0+y*yd, z0+z*zd), tileEntity.orientation );
+				let v = callback.call( callbackThis, tileEntity.entity, posBuffer.set(x0+x*xd, y0+y*yd, z0+z*zd), tileEntity.orientation );
+				if( v != null ) return v;
 			}
 		}
 	} else {
 		throw new Error("Unrecognized physical object type: "+proto.structureType);
 	}
+	return undefined;
 }
 
 export function makeTileTreeNode( palette:any, w:number, h:number, d:number, indexes:number[], gdm:GameDataManager ):TileTree {
@@ -105,6 +107,7 @@ export function makeTileTreeNode( palette:any, w:number, h:number, d:number, ind
 	}
 
 	let totalOpacity:number = 0;
+	let isInteractive:boolean = false;
 	for( let i = w*d*h-1; i >= 0; --i ) {
 		const tileEntity = tilePalette[indexes[i]];
 		if( tileEntity == null ) continue;
@@ -112,6 +115,7 @@ export function makeTileTreeNode( palette:any, w:number, h:number, d:number, ind
 		const tileClass = gdm.getObject<EntityClass>(tileEntity.entity.classRef);
 		if( tileClass == null ) throw new Error("Failed to get tile class "+tileEntity.entity.classRef);
 		totalOpacity += tileClass.opacity ? tileClass.opacity : 0;
+		if( tileClass.isInteractive !== false ) isInteractive = true;
 	}
 	
 	const tilingBoundingBox = new Cuboid(-tileW*w/2, -tileH*h/2, -tileD*d/2, +tileW*w/2, +tileH*h/2, +tileD*d/2);
@@ -126,9 +130,10 @@ export function makeTileTreeNode( palette:any, w:number, h:number, d:number, ind
 		zDivisions: d,
 		childEntityPaletteRef: _paletteRef,
 		childEntityIndexes: indexes,
+		isInteractive: isInteractive,
 		// These don't really make sense to have to have on a tile tree
-		isAffectedByGravity: false,
-		visualRef: undefined,
+		// isAffectedByGravity: false,
+		// visualRef: undefined,
 		opacity: totalOpacity/(w*h*d),
 	}
 }

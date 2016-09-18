@@ -25,10 +25,10 @@ export interface RoomNeighbor {
 }
 
 export enum StructureType {
-	NONE, // For entirely non-physical objects
-	TILE_TREE,
-	STACK, // A bunch of things in one spot!
-	INDIVIDUAL
+	NONE = 0, // For entirely non-physical objects
+	INDIVIDUAL = 1, // No subdivisions
+	TILE_TREE = 2,
+	STACK = 3, // A bunch of things in one spot!
 }
 
 /**
@@ -49,7 +49,7 @@ export interface EntityClass {
 	physicalBoundingBox:Cuboid;
 	visualBoundingBox:Cuboid;
 	
-	isAffectedByGravity:boolean;
+	isAffectedByGravity?:boolean;
 	isInteractive?:boolean; // Does it need to be taken into account by collision detection?
 	isRigid?:boolean;
 	opacity?:number; // For space-filling trees, this should be something like the average of contained items' opacities
