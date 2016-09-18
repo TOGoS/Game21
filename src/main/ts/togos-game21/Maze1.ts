@@ -1,4 +1,4 @@
-import { thaw, isDeepFrozen } from './DeepFreezer';
+import { thaw, deepThaw, isDeepFrozen } from './DeepFreezer';
 import GameDataManager from './GameDataManager';
 import HTTPHashDatastore from './HTTPHashDatastore';
 import MemoryDatastore from './MemoryDatastore';
@@ -499,6 +499,11 @@ interface RoomLocation {
 	position : Vector3D;
 }
 
+interface RoomEntityUpdate {
+	roomRef? : string;
+	position? : Vector3D;
+}
+
 export class MazeGame {
 	protected rooms:KeyedList<Room> = {};
 
@@ -511,33 +516,46 @@ export class MazeGame {
 
 	public fullyLoadRoom( roomId:string ):Promise<Room> {
 		return this.gameDataManager.fullyLoadRoom(roomId).then( (room) => {
-			this.rooms[roomId] = room;
+			room = thaw(room);
+			room.roomEntities = thaw(room.roomEntities);
+			for( let re in room.roomEntities ) {
+				room.roomEntities[re] = thaw(room.roomEntities[re]);
+			}
+			// Apparently deepThaw doesn't quite work, yet
+			this.rooms[roomId] = room; // deepThaw(room);
 			return room;
 		});
 	}
 
-	protected fixEntity(roomRef:string, entityId:string) {
-		let room = this.rooms[roomRef];
-		let roomEntity = room.roomEntities[entityId];
-		let pos = roomEntity.position;
-		if( Cuboid.containsVector(room.bounds, pos) ) return;
-		console.log("Uh oh, "+entityId+" is outside of room bounds:", pos, room.bounds);
-		for( let n in room.neighbors ) {
+	protected fixLocation(loc:RoomLocation):RoomLocation {
+		let room = this.rooms[loc.roomRef];
+		if( !Cuboid.containsVector(room.bounds, loc.position) ) for( let n in room.neighbors ) {
 			const neighb = room.neighbors[n];
-			if( Cuboid.containsVector(neighb.bounds, Vector3D.subtract(pos, neighb.offset)) ) {
-				console.log("Moving entity "+entityId+" to room "+neighb.roomRef);
-				// oh boy move them there!
-				this.rooms[roomRef] = room = thaw(room);
-				room.roomEntities = thaw(room.roomEntities);
-				let neighborRoom = this.rooms[neighb.roomRef];
-				this.rooms[neighb.roomRef] = neighborRoom = thaw(neighborRoom);
-				neighborRoom.roomEntities = thaw(neighborRoom.roomEntities);
-				delete room.roomEntities[entityId];
-				neighborRoom.roomEntities[entityId] = roomEntity;
-				roomEntity = thaw(roomEntity);
-				roomEntity.position = Vector3D.subtract(roomEntity.position, neighb.offset);
+			const fixedPos = Vector3D.subtract(loc.position, neighb.offset);
+			if( Cuboid.containsVector(neighb.bounds, fixedPos) ) {
+				return {
+					roomRef: neighb.roomRef,
+					position: fixedPos,
+				};
 			}
 		}
+		return loc;
+	}
+
+	protected updateRoomEntity( roomRef:string, entityId:string, update:RoomEntityUpdate ):void {
+		let room : Room = this.rooms[roomRef];
+		let roomEntity = room.roomEntities[entityId];
+		if( update.position ) roomEntity.position = update.position;
+		if( update.roomRef != null && update.roomRef != roomRef ) {
+			let newRoom : Room = this.rooms[update.roomRef];
+			newRoom.roomEntities[entityId] = roomEntity;
+			delete room.roomEntities[entityId];
+		}
+	}
+
+	/** Overly simplistic 'is there anything at this exact point' check */
+	protected collisionAt( roomRef:string, position:Vector3D, ignoreEntityId:string ):boolean {
+		return false;
 	}
 
 	public playerEntityId?:string;
@@ -547,26 +565,29 @@ export class MazeGame {
 			let room = this.rooms[r];
 			for( let re in room.roomEntities ) {
 				if( re == this.playerEntityId && this.playerMoveDir != null ) {
-					console.log("Found "+re);
 					const delta = cardinalDirectionToVec(this.playerMoveDir);
-					console.log("Move direction "+this.playerMoveDir+":", delta);
 					if( delta.isZero ) continue;
-					const roomEntity = thaw(room.roomEntities[re]);
-					roomEntity.position = Vector3D.add(roomEntity.position, delta);
-					this.rooms[r] = room = thaw(room);
-					room.roomEntities = thaw(room.roomEntities);
-					room.roomEntities[re] = roomEntity;
-					console.log("Updatubg entity "+re+" in room "+r);
-					this.fixEntity(r, re);
+					let roomEntity = room.roomEntities[re];
+					const newLoc = this.fixLocation({
+						roomRef: r,
+						position: Vector3D.add(roomEntity.position, delta)
+					});
+					if( !this.collisionAt(newLoc.roomRef, newLoc.position, re) ) {
+						this.updateRoomEntity(r, re, {
+							roomRef: newLoc.roomRef,
+							position: newLoc.position
+						})
+					}
 				}
 			}
 		}
-		console.log("Update!");
 		for( let r in this.rooms ) {
 			const room = this.rooms[r];
 			if( !isDeepFrozen(room) ) {
+				// For now we have to do this so that the view will see them,
+				// since gdm doesn't have any way to track objects without saving them.
+				// But it should eventually.
 				const urn = this.gameDataManager.fastStoreObject(room, r);
-				console.log("Saving updated room "+r+" as "+urn);
 			}
 		}
 	}
