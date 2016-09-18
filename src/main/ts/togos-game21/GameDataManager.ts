@@ -29,14 +29,13 @@ export default class GameDataManager {
 		this.objectMapManager = omm;
 	}
 	
-	public getObjectIfLoaded<T>( ref:string, initiateFetch:boolean=false, allowUndefined:boolean=false ):T|undefined {
+	public getObjectIfLoaded<T>( ref:string, initiateFetch:boolean=false ):T|undefined {
 		const v = this.objectCache[ref];
 		if( v == null && initiateFetch && !this.fetching[ref] ) this.fetchObject(ref);
 		return v;
 	}
-	public getObject<T>( ref:string, initiateFetch:boolean=false, allowUndefined:boolean=false ):T {
-		const v = this.objectCache[ref];
-		if( v == null && initiateFetch && !this.fetching[ref] ) this.fetchObject(ref);
+	public getObject<T>( ref:string, initiateFetch:boolean=false ):T {
+		const v = this.getObjectIfLoaded<T>(ref, initiateFetch);
 		if( v == null ) throw new Error(ref+" not loaded");
 		return v;
 	}

@@ -35,15 +35,15 @@ function testGameDataManager( testNamePrefix:string, ds:Datastore<Uint8Array> ) 
 			//console.log("Store promise resolved! urn:ken = "+urn);
 		});
 	}).then( () => {
-		const cachedKen = gdm.getObject('urn:ken');
+		const cachedKen = gdm.getObjectIfLoaded('urn:ken');
 		if( cachedKen == null ) {
-			return Promise.reject(new Error('getObject(\'urn:ken\') should have returned null before cache clear'));
+			return Promise.reject(new Error('getObjectIfLoaded(\'urn:ken\') should have returned null before cache clear'));
 		}
 		
 		gdm.clearCache();
-		const nullKen = gdm.getObject('urn:ken');
+		const nullKen = gdm.getObjectIfLoaded('urn:ken');
 		if( nullKen != null ) {
-			return Promise.reject(new Error('getObject(\'urn:ken\') should have returned null right after cache clear'));
+			return Promise.reject(new Error('getObjectIfLoaded(\'urn:ken\') should have returned null right after cache clear'));
 		}
 		
 		return {};
@@ -65,7 +65,7 @@ function testGameDataManager( testNamePrefix:string, ds:Datastore<Uint8Array> ) 
 	}, 'urn:ken'));
 	registerTestResult(testNamePrefix+' get ken, take II', fetchProm3.then( () => {
 		// Before storeProm2 has finished!
-		return assertEqualsPromise(expectedKen2, gdm.getObject('urn:ken'), "got urn:ken after initiating storage of new version");
+		return assertEqualsPromise(expectedKen2, gdm.getObjectIfLoaded('urn:ken'), "got urn:ken after initiating storage of new version");
 	}));
 	registerTestResult(testNamePrefix+' fetch ken, take II, not waiting for store to finish', fetchProm3.then( () => {
 		return gdm.fetchObject('urn:ken').then( (v) => {
