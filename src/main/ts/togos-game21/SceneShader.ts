@@ -168,10 +168,11 @@ export default class SceneShader {
 	
 	/**
 	 * Fill dest with zeroes and then call this
-	 * for each cell with eyes. 
+	 * for each cell with eyes.
 	 */
 	public opacityTolVisibilityRaster( opacity:ShadeRaster, x:number, y:number, maxDistance:number, dest:ShadeRaster ):void {
 		if( x < 0 || y < 0 || x >= opacity.width || y >= opacity.height ) return;
+		x |= 0; y |= 0;
 		
 		if( maxDistance > 255 ) maxDistance = 255;
 		const idx = x+y*opacity.width;

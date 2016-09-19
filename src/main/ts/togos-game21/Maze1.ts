@@ -297,8 +297,8 @@ export class MazeView {
 				ctx.fillRect(
 					cx+ppm*(x0/viz.resolution - viz.originX),
 					cy+ppm*( y/viz.resolution - viz.originY),
-					ppm*(x1-x0),
-					ppm
+					ppm*(x1-x0) / viz.resolution,
+					ppm         / viz.resolution
 				);
 			};
 
@@ -570,7 +570,7 @@ export class MazeGame {
 			let room = this.rooms[r];
 			for( let re in room.roomEntities ) {
 				if( re == this.playerEntityId && this.playerMoveDir != null ) {
-					const delta = cardinalDirectionToVec(this.playerMoveDir);
+					const delta = Vector3D.scale(cardinalDirectionToVec(this.playerMoveDir), 0.5);
 					if( delta.isZero ) continue;
 					let roomEntity = room.roomEntities[re];
 					const newLoc = this.fixLocation({
@@ -647,13 +647,22 @@ export class MazeDemo {
 		const playerLoc = this.game.locateRoomEntity(this.playerId);
 
 		if( playerLoc ) {
-			const opacityRaster = new ShadeRaster(31, 31, 1, 15.5, 15.5);
-			const visibilityRaster   = new ShadeRaster(31, 31, 1, 15.5, 15.5);
+			const rasterWidth = 31;
+			const rasterHeight = 31;
+			const rasterResolution = 2;
+			const distance = 16;
+			// Line up raster origin so it falls as close as possible to the center of the raster
+			// while lining up edges with world coordinates
+			const rasterOriginX = Math.floor(rasterWidth /rasterResolution/2) + playerLoc.position.x - Math.floor(playerLoc.position.x);
+			const rasterOriginY = Math.floor(rasterHeight/rasterResolution/2) + playerLoc.position.y - Math.floor(playerLoc.position.y);
+			const distanceInPixels = rasterResolution*distance;
+			const opacityRaster = new ShadeRaster(rasterWidth, rasterHeight, rasterResolution, rasterOriginX, rasterOriginY);
+			const visibilityRaster   = new ShadeRaster(rasterWidth, rasterHeight, rasterResolution, rasterOriginX, rasterOriginY);
 			const sceneShader = new SceneShader(this.game.gameDataManager);
 			sceneShader.sceneOpacityRaster(playerLoc.roomRef, Vector3D.scale(playerLoc.position, -1), opacityRaster);
 			if( isAllZero(opacityRaster.data) ) console.log("Opacity raster is all zero!");
 			if( isAllNonZero(opacityRaster.data) ) console.log("Opacity raster is all nonzero!");
-			sceneShader.opacityTolVisibilityRaster(opacityRaster, 15, 15, 16, visibilityRaster);
+			sceneShader.opacityTolVisibilityRaster(opacityRaster, rasterOriginX*rasterResolution, rasterOriginY*rasterResolution, distanceInPixels, visibilityRaster);
 			if( isAllZero(visibilityRaster.data) ) console.log("Visibility raster is all zero!");
 			if( isAllNonZero(visibilityRaster.data) ) console.log("Visibility raster is all nonzero!");
 			sceneShader.growVisibility(visibilityRaster);
