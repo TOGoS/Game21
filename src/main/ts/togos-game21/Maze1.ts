@@ -301,6 +301,7 @@ function makeTileEntityPalette( gdm:GameDataManager ):string {
 			isInteractive: true,
 			isRigid: true,
 			mass: Infinity,
+			opacity: 1,
 			visualRef: brikImgRef
 		} ),
 		gdm.fastStoreObject<EntityClass>( {
@@ -311,6 +312,7 @@ function makeTileEntityPalette( gdm:GameDataManager ):string {
 			isInteractive: true,
 			isRigid: true,
 			mass: Infinity,
+			opacity: 1,
 			visualRef: bigBrikImgRef
 		} ),
 		gdm.fastStoreObject<EntityClass>( {
@@ -321,6 +323,7 @@ function makeTileEntityPalette( gdm:GameDataManager ):string {
 			isInteractive: false,
 			isRigid: false,
 			mass: Infinity,
+			opacity: 0.25,
 			visualRef: plant1ImgRef
 		} ),
 	], gdm );
@@ -367,7 +370,7 @@ function makeRoom( gdm:GameDataManager ):string {
 	return roomRef;
 }
 
-function roomToMazeViewage( roomRef:string, roomX:number, roomY:number, gdm:GameDataManager, viewage:MazeViewage ):void {
+function roomToMazeViewage( roomRef:string, roomX:number, roomY:number, gdm:GameDataManager, viewage:MazeViewage, visibility:ShadeRaster ):void {
 	const room = gdm.getRoom(roomRef);
 	if( room == null ) throw new Error("Failed to load room "+roomRef);
 
@@ -376,7 +379,22 @@ function roomToMazeViewage( roomRef:string, roomX:number, roomY:number, gdm:Game
 		const entityClass = gdm.getEntityClass(entity.classRef);
 		if( entityClass == null ) throw new Error("Failed to load entity class "+entity.classRef);
 		if( entityClass.visualRef ) {
-			viewage.items.push( {
+			const minVrX = Math.max(0                , Math.floor((position.x+entityClass.visualBoundingBox.minX+visibility.originX)*visibility.resolution));
+			const minVrY = Math.max(0                , Math.floor((position.y+entityClass.visualBoundingBox.minY+visibility.originY)*visibility.resolution));
+			const maxVrX = Math.min(visibility.width , Math.ceil( (position.x+entityClass.visualBoundingBox.maxX+visibility.originX)*visibility.resolution));
+			const maxVrY = Math.min(visibility.height, Math.ceil( (position.y+entityClass.visualBoundingBox.maxY+visibility.originY)*visibility.resolution));
+			//console.log("Visibility bounds: "+minVrX+","+minVrY+" - "+maxVrX+","+maxVrY);
+			let visible = false;
+			isVisibleLoop: for( let vry=minVrY; vry<maxVrY; ++vry ) for( let vrx=minVrX; vrx<maxVrX; ++vrx ) {
+				//console.log("Check bisibility raster@"+vrx+","+vry+"; "+(visibility.width*vry+vrx)+" = "+visibility.data[visibility.width*vry+vrx]);
+				if( visibility.data[visibility.width*vry+vrx] ) {
+					visible = true;
+					break isVisibleLoop;
+				}
+			}
+
+			// TODO: Re-use items, visuals
+			if( visible ) viewage.items.push( {
 				x: position.x,
 				y: position.y,
 				visual: {
@@ -395,13 +413,13 @@ function roomToMazeViewage( roomRef:string, roomX:number, roomY:number, gdm:Game
 		_entityToMazeViewage( roomEntity.entity, new Vector3D(roomX+roomEntity.position.x, roomY+roomEntity.position.y, roomEntity.position.z), orientation );
 	}
 }
-function roomAndNeighborsToMazeViewage( roomRef:string, roomX:number, roomY:number, gdm:GameDataManager, viewage:MazeViewage ):void {
+function sceneToMazeViewage( roomRef:string, roomX:number, roomY:number, gdm:GameDataManager, viewage:MazeViewage, visibility:ShadeRaster ):void {
 	const room = gdm.getRoom(roomRef);
 	if( room == null ) throw new Error("Failed to load room "+roomRef);
-	roomToMazeViewage( roomRef, roomX, roomY, gdm, viewage );
+	roomToMazeViewage( roomRef, roomX, roomY, gdm, viewage, visibility );
 	for( let n in room.neighbors ) {
 		const neighb = room.neighbors[n];
-		roomToMazeViewage( neighb.roomRef, roomX+neighb.offset.x, roomY+neighb.offset.y, gdm, viewage );
+		roomToMazeViewage( neighb.roomRef, roomX+neighb.offset.x, roomY+neighb.offset.y, gdm, viewage, visibility );
 	}
 }
 
@@ -562,6 +580,15 @@ export class MazeGame {
 	}
 }
 
+function isAllZero( data:ArrayLike<number> ) {
+	for( let i=0; i<data.length; ++i ) if( data[i] != 0 ) return false;
+	return true;
+}
+function isAllNonZero( data:ArrayLike<number> ) {
+	for( let i=0; i<data.length; ++i ) if( data[i] == 0 ) return false;
+	return true;
+}
+
 export class MazeDemo {
 	public game : MazeGame;
 	public view : MazeView;
@@ -587,7 +614,33 @@ export class MazeDemo {
 		const playerLoc = this.game.locateRoomEntity(this.playerId);
 
 		if( playerLoc ) {
-			roomAndNeighborsToMazeViewage( playerLoc.roomRef, -playerLoc.position.x, -playerLoc.position.y, this.game.gameDataManager, this.view.viewage );
+			const opacityRaster = new ShadeRaster(32, 32, 1, 16, 16);
+			const visibilityRaster   = new ShadeRaster(32, 32, 1, 16, 16);
+			const sceneShader = new SceneShader(this.game.gameDataManager);
+			sceneShader.sceneOpacityRaster(playerLoc.roomRef, Vector3D.scale(playerLoc.position, -1), opacityRaster);
+			if( isAllZero(opacityRaster.data) ) console.log("Opacity raster is all zero!");
+			if( isAllNonZero(opacityRaster.data) ) console.log("Opacity raster is all nonzero!");
+			sceneShader.opacityTolVisibilityRaster(opacityRaster, 16, 16, 16, visibilityRaster);
+			if( isAllZero(visibilityRaster.data) ) console.log("Visibility raster is all zero!");
+			if( isAllNonZero(visibilityRaster.data) ) console.log("Visibility raster is all nonzero!");
+			sceneShader.growVisibility(visibilityRaster);
+			/*
+			for( let i=0, y=0; y<visibilityRaster.height; ++y ) {
+				for( let x=0; x<visibilityRaster.width; ++x, ++i ) {
+					if( visibilityRaster.data[i] ) {
+						this.view.viewage.items.push( {
+							x: x / visibilityRaster.resolution - visibilityRaster.originX,
+							y: y / visibilityRaster.resolution - visibilityRaster.originY,
+							visual: {
+								width: 1 / visibilityRaster.resolution,
+								height: 1 / visibilityRaster.resolution,
+								imageRef: [plant1ImgRef,brikImgRef,bigBrikImgRef][visibilityRaster.data[i] % 3]
+							}
+						})
+					}
+				}
+			}*/
+			sceneToMazeViewage( playerLoc.roomRef, -playerLoc.position.x, -playerLoc.position.y, this.game.gameDataManager, this.view.viewage, visibilityRaster );
 		} else {
 			console.log("Failed to locate player, "+this.playerId);
 		}

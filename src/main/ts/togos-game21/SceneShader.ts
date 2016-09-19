@@ -16,7 +16,7 @@ export class ShadeRaster {
 	public data:Uint8Array;
 	
 	/**
-	 * originX and originY are the location of the map's origin relative to its top-left corner.
+	 * originX and originY are the location of the map's origin relative to its top-left corner in world units
 	 * width and height are in samples
 	 * resolution = samples per meter; higher means the size of the thing is smaller
 	 */
@@ -67,15 +67,26 @@ export default class SceneShader {
 		if( proto.opacity != null && proto.opacity == 1 ) {
 			const destMap = this.destShadeMap;
 			const tbb = proto.tilingBoundingBox;
-			// It fills its entire tilingBoundingBox, so mark that as opaque!
-			// CX/CY = cellX/cellY; i.e. cell x, y, resolution and origin already taken into account.
-			const minCX = Math.max(0             , Math.ceil(  (tbb.minX + pos.x + destMap.originX) * destMap.resolution));
-			const minCY = Math.max(0             , Math.ceil(  (tbb.minY + pos.y + destMap.originY) * destMap.resolution));
-			const maxCX = Math.min(destMap.width , Math.floor( (tbb.maxX + pos.x + destMap.originX) * destMap.resolution));
-			const maxCY = Math.min(destMap.height, Math.floor( (tbb.maxY + pos.y + destMap.originY) * destMap.resolution));
+			const opacityByte = Math.round(255*proto.opacity); 
+			// Round object's corners to nearest opacity raster cell corners.
+			// (this should have the effect that any cell whose center is covered by the object gets marked opaque)
+			const minCX = Math.max(0             , Math.round( (tbb.minX + pos.x + destMap.originX) * destMap.resolution));
+			const minCY = Math.max(0             , Math.round( (tbb.minY + pos.y + destMap.originY) * destMap.resolution));
+			const maxCX = Math.min(destMap.width , Math.round( (tbb.maxX + pos.x + destMap.originX) * destMap.resolution));
+			const maxCY = Math.min(destMap.height, Math.round( (tbb.maxY + pos.y + destMap.originY) * destMap.resolution));
 			for( let cy = minCY; cy < maxCY; ++cy ) {
 				for( let cx = minCX, ci = cy*destMap.width + cx; cx < maxCX; ++cx, ++ci ) {
-					destMap.data[ci] = 255;
+					const currentOpacityByte = destMap.data[ci];
+					// TODO: Probably better to avoid the ifs and just always do the fancy arithmetic
+					if( currentOpacityByte == 255 ) continue;
+					if( currentOpacityByte == 0 ) {
+						destMap.data[ci] = opacityByte;
+					} else {
+						// Slightly more complicated combination arithmetic
+						const currentOpacity:number = destMap.data[ci] / 255;
+						const combinedOpacity:number = currentOpacity + (1-currentOpacity) * proto.opacity;
+						destMap.data[ci] = Math.round( 255 * combinedOpacity );
+					}
 				} 
 			}
 			return;
@@ -217,6 +228,41 @@ export default class SceneShader {
 					((v2 >> 4) & 0x0C) |
 					((v3 >> 6) & 0x03)
 				);
+			}
+		}
+	}
+
+	/**
+	 * Expand visibility by one sample in every direction (including diagonals);
+	 * Useful if you're working directly from the visibility raster
+	 * for determining object visibility instead of converting to a shade raster.
+	 */
+	public growVisibility( visibility:ShadeRaster ):void {
+		const dat = visibility.data;
+		const w = visibility.width;
+		const h = visibility.height;
+		for( let i=0, y=0; y<h; ++y ) for( let x=0; x<w; ++x, ++i ) {
+			if( dat[i] > 0 && dat[i] < 255 ) ++dat[i];
+		}
+		for( let i=0, y=0; y<h; ++y ) for( let prevVal=0, x=0; x<w; ++x, ++i ) {
+			if( dat[i] == 0 ) {
+				if( prevVal || x < w-1 && dat[i+1] ) {
+					dat[i] = 1;
+				}
+				prevVal = 0;
+			} else {
+				prevVal = dat[i];
+			}
+		}
+		for( let x=0; x<w; ++x ) for( let prevVal=0, y=0; y<h; ++y ) {
+			const i = y*w+x;
+			if( dat[i] == 0 ) {
+				if( prevVal || y < h-1 && dat[i+w] ) {
+					dat[i] = 1;
+				}
+				prevVal = 0;
+			} else {
+				prevVal = dat[i];
 			}
 		}
 	}
