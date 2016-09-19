@@ -243,69 +243,6 @@ const mazeData = [
 	1,1,1,1,1,1,0,0,1,1,0,1,1,1,1,1,
 ];
 
-/*
-interface OpacityRaster {
-	scale:number; // Size of each tile; also width,height
-	width:number; // Number of tiles wide
-	height:number; // Number of tiles high
-	opacities:number[];
-	originX:number;
-	originY:number;
-}
-
-function entityToOpacityRaster(
-	raster:OpacityRaster, eneity:Entity
-)
-
-function roomContentToOpacityRaster(
-	raster:OpacityRaster, roomRef:string, x:number, y:number, gdm:GameDataManager
-):void {
-	const rMinX = -raster.originX;
-	const rMinY = -raster.originY;
-	const rMaxX = rMinX + raster.width *raster.scale;
-	const rMaxY = rMinY + raster.height*raster.scale;
-	const room = <Room>gdm.getObject(roomRef);
-	for( let re in room.roomEntities ) {
-		const roomEntity = room.roomEntities[re];
-		const entityClass = <EntityClass>gdm.getObject(roomEntity.entity.classRef);
-		if( entityClass == null ) continue;
-
-		const pos = roomEntity.position;
-		const vbb = entityClass.visualBoundingBox;
-		const ex = x + pos.x;
-		const ey = y + pos.y;  
-		if( x + vbb.minX >= rMaxX ) continue;
-		if( entityClass.opacity )
-	}
-}
-
-function opacityRaster(
-	originRoomRef:string, originX:number, originY:number, minX:number, minY:number, maxX:number, maxY:number, scale:number, gdm:GameDataManager
-):OpacityRaster {
-	const width = Math.ceil(maxX - minX);
-	const height = Math.ceil(maxY - minY);
-	const raster = {
-		width: width,
-		height: height,
-		scale: scale,
-		opacities: new Array<number>( width*height ),
-		originX: -minX,
-		originY: -minY,
-	};
-	const room = <Room>gdm.getObject(originRoomRef);
-	if( room != null ) {
-		const roomX = -originX, roomY = -originY;
-		roomContentToOpacityRaster( raster, originRoomRef, roomX, roomY, gdm );
-		for( let n in room.neighbors ) {
-			const neighb = room.neighbors[n];
-			roomContentToOpacityRaster( raster, neighb.roomRef, roomX+neighb.offset.x, roomY+neighb.offset.y, gdm );
-		}
-	}
-
-	return raster;
-}
-*/
-
 function traceView( originRoomRef:string, originX:number, originY:number, originZ:number, gdm:GameDataManager ):MazeViewage {
 	const viewage:MazeViewage = { items: [] };
 
@@ -349,11 +286,6 @@ export class MazeView {
 		if( !ctx ) return;
 		const cx = this.canvas.width/2;
 		const cy = this.canvas.height/2;
-		ctx.fillStyle = 'rgba(255,255,255,1.0)';
-		//ctx.fillRect(0,0,16,16);
-
-		//const brikImg = this.getImage(brikImgRef);
-		//ctx.drawImage(brikImg, 0, 0);
 		for( let i in this.viewage.items ) {
 			const item = this.viewage.items[i];
 			const img = this.getImage(item.visual.imageRef);
