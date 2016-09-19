@@ -217,6 +217,7 @@ interface MazeViewageItem {
 
 interface MazeViewage {
 	items : MazeViewageItem[];
+	visibility? : ShadeRaster;
 }
 
 const brikImgRef = "bitimg:color0=0;color1="+rgbaToNumber(255,255,128,255)+","+hexEncodeBits(brikPix);
@@ -278,12 +279,43 @@ export class MazeView {
 		if( !ctx ) return;
 		const cx = this.canvas.width/2;
 		const cy = this.canvas.height/2;
+		const ppm = 16;
 		for( let i in this.viewage.items ) {
 			const item = this.viewage.items[i];
 			const img = this.getImage(item.visual.imageRef);
-			const px = (item.x-item.visual.width/2 ) * 16 + cx;
-			const py = (item.y-item.visual.height/2) * 16 + cy;
+			const px = (item.x-item.visual.width/2 ) * ppm + cx;
+			const py = (item.y-item.visual.height/2) * ppm + cy;
 			ctx.drawImage(img, px, py);
+		}
+		const viz = this.viewage.visibility;
+		if( viz ) {
+			const vrWidth = viz.width, vrHeight = viz.height;
+			const vrData = viz.data;
+			ctx.fillStyle = 'rgba(192,128,128,0.5)';
+			let i:number, y:number;
+			const fillFog = function(x0:number, x1:number):void {
+				ctx.fillRect(
+					cx+ppm*(x0/viz.resolution - viz.originX),
+					cy+ppm*( y/viz.resolution - viz.originY),
+					ppm*(x1-x0),
+					ppm
+				);
+			};
+
+			for( i=0, y=0; y<vrHeight; ++y ) {
+				let spanStart:number|null = null;
+				for( let x=0; x<vrWidth; ++x, ++i ) {
+					if( vrData[i] == 0 ) {
+						if( spanStart == null ) spanStart = x;
+					} else if( spanStart != null ) {
+						fillFog(spanStart, x);
+						spanStart = null;
+					}
+				}
+				if( spanStart != null ) {
+					fillFog(spanStart, vrWidth);
+				}
+			}
 		}
 	}
 }
@@ -421,6 +453,7 @@ function sceneToMazeViewage( roomRef:string, roomX:number, roomY:number, gdm:Gam
 		const neighb = room.neighbors[n];
 		roomToMazeViewage( neighb.roomRef, roomX+neighb.offset.x, roomY+neighb.offset.y, gdm, viewage, visibility );
 	}
+	viewage.visibility = visibility;
 }
 
 enum CardinalDirection {
@@ -614,13 +647,13 @@ export class MazeDemo {
 		const playerLoc = this.game.locateRoomEntity(this.playerId);
 
 		if( playerLoc ) {
-			const opacityRaster = new ShadeRaster(32, 32, 1, 16, 16);
-			const visibilityRaster   = new ShadeRaster(32, 32, 1, 16, 16);
+			const opacityRaster = new ShadeRaster(31, 31, 1, 15.5, 15.5);
+			const visibilityRaster   = new ShadeRaster(31, 31, 1, 15.5, 15.5);
 			const sceneShader = new SceneShader(this.game.gameDataManager);
 			sceneShader.sceneOpacityRaster(playerLoc.roomRef, Vector3D.scale(playerLoc.position, -1), opacityRaster);
 			if( isAllZero(opacityRaster.data) ) console.log("Opacity raster is all zero!");
 			if( isAllNonZero(opacityRaster.data) ) console.log("Opacity raster is all nonzero!");
-			sceneShader.opacityTolVisibilityRaster(opacityRaster, 16, 16, 16, visibilityRaster);
+			sceneShader.opacityTolVisibilityRaster(opacityRaster, 15, 15, 16, visibilityRaster);
 			if( isAllZero(visibilityRaster.data) ) console.log("Visibility raster is all zero!");
 			if( isAllNonZero(visibilityRaster.data) ) console.log("Visibility raster is all nonzero!");
 			sceneShader.growVisibility(visibilityRaster);
