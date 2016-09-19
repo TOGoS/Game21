@@ -151,6 +151,24 @@ const playerPix = [
 	0,0,0,0,1,1,0,0,0,0,0,1,1,0,0,0,
 	0,0,1,1,1,1,0,0,0,0,0,1,1,1,1,0,
 ];
+const plant1Pix = [
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,
+	0,0,0,0,1,0,0,1,0,0,1,0,1,1,0,0,
+	0,0,0,0,0,1,0,0,0,0,0,1,0,0,1,0,
+	0,0,0,0,1,1,1,1,0,0,1,0,1,0,0,0,
+	0,0,1,1,0,1,0,0,1,1,1,0,0,1,0,0,
+	0,0,0,0,1,0,0,0,0,1,1,0,0,0,0,0,
+	0,0,0,0,0,1,1,1,1,1,0,0,0,0,0,0,
+	0,0,0,0,1,0,1,0,1,1,1,1,0,1,0,0,
+	0,0,0,0,0,0,0,0,1,1,0,0,1,1,0,0,
+	0,0,1,1,1,1,0,1,1,0,0,0,0,0,1,0,
+	0,1,0,0,0,0,1,1,1,1,1,1,0,0,0,0,
+	0,0,0,0,0,0,0,1,1,0,0,0,1,0,0,0,
+	0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,
+];
 
 interface BitImageInfo {
 	bitstr : string;
@@ -204,18 +222,7 @@ interface MazeViewage {
 const brikImgRef = "bitimg:color0=0;color1="+rgbaToNumber(255,255,128,255)+","+hexEncodeBits(brikPix);
 const bigBrikImgRef = "bitimg:color0=0;color1="+rgbaToNumber(255,255,128,255)+","+hexEncodeBits(bigBrikPix);
 const playerImgRef = "bitimg:color0=0;color1="+rgbaToNumber(255,255,96,255)+","+hexEncodeBits(playerPix);
-
-const brikVisual:MazeItemVisual = {
-	width: 1,
-	height: 1,
-	imageRef: brikImgRef
-};
-
-const bigBrikVisual:MazeItemVisual = {
-	width: 1,
-	height: 1,
-	imageRef: bigBrikImgRef
-};
+const plant1ImgRef = "bitimg:color0=0;color1="+rgbaToNumber(64,255,64,255)+","+hexEncodeBits(plant1Pix);
 
 const mazeData = [
 	1,1,1,1,1,1,0,0,1,1,0,1,1,1,1,1,
@@ -225,14 +232,14 @@ const mazeData = [
 	1,1,1,0,1,1,1,1,0,0,0,0,0,0,1,1,
 	1,1,1,0,1,1,1,2,2,2,2,0,0,0,1,1,
 	1,0,0,0,0,1,1,2,0,0,0,0,0,0,0,0,
-	1,0,2,2,2,1,1,2,0,1,1,1,1,0,1,0,
+	1,0,2,2,2,1,1,2,0,1,1,1,1,3,1,0,
 	1,0,2,1,1,1,1,2,0,1,0,0,1,1,1,0,
 	1,0,2,2,2,2,2,2,0,1,0,0,1,1,1,1,
-	0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,3,1,0,0,0,
 	1,1,0,1,1,1,1,1,1,1,1,1,1,0,1,1,
 	1,1,0,1,1,0,0,2,2,2,2,1,0,0,0,1,
 	1,0,0,0,1,0,0,0,0,1,0,0,0,0,0,1,
-	1,0,0,0,1,1,0,2,2,2,0,1,0,0,0,1,
+	1,3,3,3,1,1,0,2,2,2,0,1,0,0,0,1,
 	1,1,1,1,1,1,0,0,1,1,0,1,1,1,1,1,
 ];
 
@@ -312,15 +319,7 @@ export class MazeView {
 	public constructor( public canvas:HTMLCanvasElement ) { }
 	
 	protected imageCache:KeyedList<HTMLImageElement> = {};
-	public viewage : MazeViewage = {
-		items: [
-			{
-				x: -1,
-				y: -1,
-				visual: bigBrikVisual
-			}
-		]
-	};
+	public viewage : MazeViewage = { items: [] };
 
 	protected getImage( ref:string ):HTMLImageElement {
 		if( this.imageCache[ref] ) return this.imageCache[ref];
@@ -389,6 +388,16 @@ function makeTileEntityPalette( gdm:GameDataManager ):string {
 			isRigid: true,
 			mass: Infinity,
 			visualRef: bigBrikImgRef
+		} ),
+		gdm.fastStoreObject<EntityClass>( {
+			structureType: StructureType.INDIVIDUAL,
+			tilingBoundingBox: HUNIT_CUBE,
+			physicalBoundingBox: HUNIT_CUBE,
+			visualBoundingBox: HUNIT_CUBE,
+			isInteractive: false,
+			isRigid: false,
+			mass: Infinity,
+			visualRef: plant1ImgRef
 		} ),
 	], gdm );
 }
