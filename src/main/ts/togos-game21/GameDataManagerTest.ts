@@ -103,5 +103,6 @@ function testGameDataManager( testNamePrefix:string, ds:Datastore<Uint8Array> ) 
 const mds = MemoryDatastore.createSha1Based(1);
 testGameDataManager( "MemoryDatastore-backed GameDataManager", mds );
 
-const hds = new HTTPHashDatastore;
-testGameDataManager( "HTTPHashDatastore-backed GameDataManager", hds );
+// It's nice to see this work, but it shouldn't really need its own test
+//const hds = new HTTPHashDatastore;
+//testGameDataManager( "HTTPHashDatastore-backed GameDataManager", hds );
