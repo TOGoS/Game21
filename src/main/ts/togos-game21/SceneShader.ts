@@ -122,7 +122,8 @@ export default class SceneShader {
 	}
 	
 	// Naive recursion was too slow so optimize by shooting in straight lines
-	
+	/*
+	TODO: Fix these functions to not be wrong
 	public opacityTolVisibilityRasterOptX( opacity:ShadeRaster, x:number, y:number, maxDistance:number, dest:ShadeRaster, dx:number ):void {
 		if( x < 0 || y < 0 || x >= opacity.width || y >= opacity.height ) return;
 		
@@ -152,6 +153,7 @@ export default class SceneShader {
 			y += dy;
 		}
 	}
+	*/
 	
 	/**
 	 * Fill dest with zeroes and then call this
@@ -167,10 +169,16 @@ export default class SceneShader {
 			dest.data[idx] = maxDistance;
 			if( maxDistance > 0 ) {
 				const maxDistanceMinus1 = maxDistance - 1;
+				this.opacityTolVisibilityRaster( opacity, x+1, y+0, maxDistanceMinus1, dest );
+				this.opacityTolVisibilityRaster( opacity, x+0, y+1, maxDistanceMinus1, dest );
+				this.opacityTolVisibilityRaster( opacity, x-1, y+0, maxDistanceMinus1, dest );
+				this.opacityTolVisibilityRaster( opacity, x+0, y-1, maxDistanceMinus1, dest );
+				/*
 				this.opacityTolVisibilityRasterOptX( opacity, x+1, y  , maxDistanceMinus1, dest, +1 );
 				this.opacityTolVisibilityRasterOptY( opacity, x  , y+1, maxDistanceMinus1, dest, +1 );
 				this.opacityTolVisibilityRasterOptX( opacity, x-1, y  , maxDistanceMinus1, dest, -1 );
 				this.opacityTolVisibilityRasterOptY( opacity, x  , y-1, maxDistanceMinus1, dest, -1 );
+				*/
 			}
 		}
 	}
