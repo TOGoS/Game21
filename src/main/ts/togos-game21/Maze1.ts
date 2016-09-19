@@ -243,14 +243,6 @@ const mazeData = [
 	1,1,1,1,1,1,0,0,1,1,0,1,1,1,1,1,
 ];
 
-function traceView( originRoomRef:string, originX:number, originY:number, originZ:number, gdm:GameDataManager ):MazeViewage {
-	const viewage:MazeViewage = { items: [] };
-
-	const sceneShader:SceneShader = new SceneShader(gdm);
-	throw new Error("traceView not yet implementse");
-	//return viewage;
-}
-
 export class MazeView {
 	public gameDataManager:GameDataManager;
 	public constructor( public canvas:HTMLCanvasElement ) { }
@@ -633,9 +625,6 @@ export function startDemo(canv:HTMLCanvasElement) : MazeDemo {
 	room.roomEntities = thaw(room.roomEntities);
 	room.roomEntities[playerId] = playerRoomEntity;
 	gdm.fastStoreObject(room, roomRef);
-	const sceneShader:SceneShader = new SceneShader(gdm);
-	const shadeRaster = new ShadeRaster(64, 48, 1, 32, 24);
-	sceneShader.sceneOpacityRaster(roomRef, new Vector3D(3.5, 3.5, 0), shadeRaster);
 
 	const game = new MazeGame(gdm);
 	game.playerEntityId = playerId;
