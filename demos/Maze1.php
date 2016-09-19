@@ -49,7 +49,7 @@ extract($config, EXTR_SKIP|EXTR_REFS);
 
 <style scroped>/* <![CDATA[ */
 html, body {
-	background: black;
+	background: rgba(96,64,64,1);
 	margin: 0;
 	padding: 0;
 	color: white;
@@ -63,6 +63,7 @@ html, body {
 	justify-content: center;
 }
 .maze-canvas {
+	background: black;
 	border: 1px solid #333344;
 	width: 640px;
 	height: 480px;

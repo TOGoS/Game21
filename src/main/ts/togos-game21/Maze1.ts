@@ -251,6 +251,8 @@ export class MazeView {
 	protected imageCache:KeyedList<HTMLImageElement> = {};
 	public viewage : MazeViewage = { items: [] };
 
+	public occlusionFillStyle:string = 'rgba(96,64,64,1)';
+
 	protected getImage( ref:string ):HTMLImageElement {
 		if( this.imageCache[ref] ) return this.imageCache[ref];
 
@@ -277,6 +279,8 @@ export class MazeView {
 	public draw():void {
 		const ctx = this.canvas.getContext('2d');
 		if( !ctx ) return;
+		const canvWidth = this.canvas.width;
+		const canvHeight = this.canvas.height;
 		const cx = this.canvas.width/2;
 		const cy = this.canvas.height/2;
 		const ppm = 16;
@@ -291,7 +295,20 @@ export class MazeView {
 		if( viz ) {
 			const vrWidth = viz.width, vrHeight = viz.height;
 			const vrData = viz.data;
-			ctx.fillStyle = 'rgba(192,128,128,0.5)';
+			ctx.fillStyle = this.occlusionFillStyle;
+
+			{ // Draw border
+				const vizMinPx = Math.max(0, canvWidth /2 - (viz.originX*ppm));
+				const vizMinPy = Math.max(0, canvHeight/2 - (viz.originY*ppm));
+				const vizMaxPx = Math.min(canvWidth , vizMinPx + (viz.width /viz.resolution)*ppm);
+				const vizMaxPy = Math.min(canvHeight, vizMinPy + (viz.height/viz.resolution)*ppm);
+				
+				ctx.fillRect(0,       0,canvWidth,vizMinPy           );
+				ctx.fillRect(0,vizMaxPy,canvWidth,canvHeight-vizMinPy);
+				ctx.fillRect(0       ,vizMinPy,vizMinPx          ,vizMaxPy-vizMinPy);
+				ctx.fillRect(vizMaxPx,vizMinPy,canvWidth-vizMaxPx,vizMaxPy-vizMinPy);
+			}
+
 			let i:number, y:number;
 			const fillFog = function(x0:number, x1:number):void {
 				ctx.fillRect(
