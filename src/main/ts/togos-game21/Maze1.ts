@@ -13,6 +13,7 @@ import { makeTileTreeRef, tileEntityPaletteRef, eachSubEntity } from './worlduti
 import {
 	Room,
 	RoomEntity,
+	RoomLocation,
 	Entity,
 	EntityClass,
 	TileTree,
@@ -520,11 +521,6 @@ function cardinalDirectionToVec( dir:CardinalDirection ):Vector3D {
 	}
 }
 
-interface RoomLocation {
-	roomRef : string;
-	position : Vector3D;
-}
-
 interface RoomEntityUpdate {
 	roomRef? : string;
 	position? : Vector3D;
@@ -545,26 +541,38 @@ export class MazeGame {
 
 	public constructor( public gameDataManager:GameDataManager ) { }
 
+	protected getMutableRoom( roomId:string ):Room {
+		if( this.rooms[roomId] ) return this.rooms[roomId];
+		
+		let room = this.gameDataManager.getRoom(roomId);
+		
+		room = thaw(room);
+		room.roomEntities = thaw(room.roomEntities);
+		for( let re in room.roomEntities ) {
+			room.roomEntities[re] = thaw(room.roomEntities[re]);
+			room.roomEntities[re].entity = thaw(room.roomEntities[re].entity);
+		}
+		// Apparently deepThaw doesn't quite work, yet
+		this.rooms[roomId] = room; // deepThaw(room);
+		return room;
+	}
+	
 	protected getRoom( roomId:string ):Room {
 		if( this.rooms[roomId] ) return this.rooms[roomId];
-		throw new Error("Room "+roomId+" not loaded");
+		return this.gameDataManager.getRoom(roomId);
 	}
 
+	public fullyCacheRoom( roomId:string ):Promise<Room> {
+		return this.gameDataManager.fullyCacheRoom(roomId);
+	}
 	public fullyLoadRoom( roomId:string ):Promise<Room> {
-		return this.gameDataManager.fullyLoadRoom(roomId).then( (room) => {
-			room = thaw(room);
-			room.roomEntities = thaw(room.roomEntities);
-			for( let re in room.roomEntities ) {
-				room.roomEntities[re] = thaw(room.roomEntities[re]);
-			}
-			// Apparently deepThaw doesn't quite work, yet
-			this.rooms[roomId] = room; // deepThaw(room);
-			return room;
+		return this.fullyCacheRoom(roomId).then( (room) => {
+			return this.getMutableRoom(roomId);
 		});
 	}
-
+	
 	protected fixLocation(loc:RoomLocation):RoomLocation {
-		let room = this.rooms[loc.roomRef];
+		let room = this.getMutableRoom(loc.roomRef);
 		if( !Cuboid.containsVector(room.bounds, loc.position) ) for( let n in room.neighbors ) {
 			const neighb = room.neighbors[n];
 			const fixedPos = Vector3D.subtract(loc.position, neighb.offset);
@@ -579,16 +587,16 @@ export class MazeGame {
 	}
 
 	protected updateRoomEntity( roomRef:string, entityId:string, update:RoomEntityUpdate ):void {
-		let room : Room = this.rooms[roomRef];
+		let room : Room = this.getMutableRoom(roomRef);
 		let roomEntity = room.roomEntities[entityId];
 		if( update.position ) roomEntity.position = update.position;
 		if( update.roomRef != null && update.roomRef != roomRef ) {
-			let newRoom : Room = this.rooms[update.roomRef];
+			let newRoom : Room = this.getMutableRoom(update.roomRef);
 			newRoom.roomEntities[entityId] = roomEntity;
 			delete room.roomEntities[entityId];
 		}
 	}
-	
+
 	protected _collisionsAt3( entityPos:Vector3D, entity:Entity, pos:Vector3D, bb:Cuboid, into:Collision[] ):void {
 		const proto = this.gameDataManager.getEntityClass( entity.classRef );
 		if( proto.isInteractive === false ) return;
@@ -599,13 +607,12 @@ export class MazeGame {
 				into.push( {} );
 			}
 		} else {
-			// TODO: Re-use position buffer
 			eachSubEntity( entity, entityPos, this.gameDataManager, (subEnt, subEntPos, ori) => {
 				this._collisionsAt3( subEntPos, subEnt, pos, bb, into );
 			}, this, entityPos);
 		};
-	}		
-
+	}
+	
 	protected _collisionsAt2( roomPos:Vector3D, roomRef:string, pos:Vector3D, bb:Cuboid, ignoreEntityId:string, into:Collision[] ):void {
 		// Room bounds have presumably already been determined to intersect
 		// with that of the box being checked, so we'll skip that and go
@@ -618,11 +625,11 @@ export class MazeGame {
 			this._collisionsAt3(entityPositionBuffer, roomEntity.entity, pos, bb, into)
 		}
 	}
-
+	
 	/** Overly simplistic 'is there anything at this exact point' check */
 	protected collisionsAt( roomRef:string, pos:Vector3D, bb:Cuboid, ignoreEntityId:string ):Collision[] {
 		const collisions:Collision[] = [];
-		const room = this.rooms[roomRef];
+		const room = this.getRoom(roomRef);
 		if( Cuboid.intersectsWithOffset(Vector3D.ZERO, room.bounds, pos, bb) ) {
 			this._collisionsAt2( Vector3D.ZERO, roomRef, pos, bb, ignoreEntityId, collisions );
 		}
@@ -637,15 +644,27 @@ export class MazeGame {
 
 	public playerEntityId?:string;
 	public playerMoveDir:CardinalDirection|undefined = undefined;
-	public update() {
+	public update(interval:number=1/16) {
 		for( let r in this.rooms ) {
 			let room = this.rooms[r];
 			for( let re in room.roomEntities ) {
-				if( re == this.playerEntityId && this.playerMoveDir != null ) {
-					const delta = Vector3D.scale(cardinalDirectionToVec(this.playerMoveDir), 0.5);
-					if( delta.isZero ) continue;
+				if( re == this.playerEntityId ) {
+					room.roomEntities[re].entity.desiredMovementDirection = this.playerMoveDir != null ?
+						cardinalDirectionToVec(this.playerMoveDir) : undefined;
+				}
+			}
+		}
+		for( let r in this.rooms ) {
+			let room = this.rooms[r];
+			for( let re in room.roomEntities ) {
+				const roomEntity = room.roomEntities[re];
+				const entity = roomEntity.entity;
+				if( entity.desiredMovementDirection && !Vector3D.isZero(entity.desiredMovementDirection) ) {
+					const entityClass = this.gameDataManager.getEntityClass(entity.classRef);
+					const delta = Vector3D.roundToGrid(Vector3D.normalize(entity.desiredMovementDirection, entityClass.normalWalkingSpeed*interval), 1/16);
+					if( Vector3D.isZero(delta) ) continue;
 					let roomEntity = room.roomEntities[re];
-					const entityClass = this.gameDataManager.getEntityClass(roomEntity.entity.classRef);
+					// TODO: Much better movement
 					const newLoc = this.fixLocation({
 						roomRef: r,
 						position: Vector3D.add(roomEntity.position, delta)
@@ -700,20 +719,19 @@ export class MazeDemo {
 	public view : MazeView;
 	public playerId : string;
 
-	public setUp() {
-
+	public startSimulation() {
+		setInterval(this.tick.bind(this), 1000/16);
+	}
+	
+	protected tick() {
+		this.game.update(1/16);
+		this.updateView();
 	}
 
 	public walk(dir:CardinalDirection|undefined):void {
 		this.game.playerMoveDir = dir;
-		this.update();
 	}
 	
-	public update() {
-		this.game.update();
-		this.updateView();
-	}
-
 	public updateView() {
 		this.view.viewage = { items: [] };
 		
@@ -765,13 +783,45 @@ export class MazeDemo {
 		this.view.clear();
 		this.view.draw();
 	}
+	
+	protected keysDown:KeyedList<boolean> = {};
+	protected keysUpdated() {
+		let up=false,down=false,left=false,right=false;
+		
+		if( this.keysDown[68] ) right = true;
+		if( this.keysDown[65] ) left = true;
+		if( this.keysDown[83] ) down = true;
+		if( this.keysDown[87] ) up = true;
+		
+		if( left && right ) left = right = false;
+		if( up && down ) up = down = false;
+		
+		this.game.playerMoveDir =
+			right && up ? CardinalDirection.NORTHEAST :
+			right && down ? CardinalDirection.SOUTHEAST :
+			right ? CardinalDirection.EAST :
+			left && up ? CardinalDirection.NORTHWEST :
+			left && down ? CardinalDirection.SOUTHWEST :
+			left ? CardinalDirection.WEST :
+			up ? CardinalDirection.NORTH :
+			down ? CardinalDirection.SOUTH :
+			undefined;
+	}
+	public keyDown(keyEvent:KeyboardEvent):void {
+		this.keysDown[keyEvent.keyCode] = true;
+		this.keysUpdated();
+	}
+	public keyUp(keyEvent:KeyboardEvent):void {
+		delete this.keysDown[keyEvent.keyCode];
+		this.keysUpdated();
+	}
 }
 
 export function startDemo(canv:HTMLCanvasElement) : MazeDemo {
 	const ds = MemoryDatastore.createSha1Based(0); //HTTPHashDatastore();
 	const dbmm = new DistributedBucketMapManager<string>(ds);
 	const gdm = new GameDataManager(ds, dbmm);
-
+	
 	const playerId = newUuidRef();
 	const playerClass:EntityClass = {
 		structureType: StructureType.INDIVIDUAL,
@@ -779,7 +829,9 @@ export function startDemo(canv:HTMLCanvasElement) : MazeDemo {
 		physicalBoundingBox: HUNIT_CUBE,
 		visualBoundingBox: HUNIT_CUBE,
 		isAffectedByGravity: false,
-		visualRef: playerImgRef
+		visualRef: playerImgRef,
+		normalWalkingSpeed: 4,
+		normalClimbingSpeed: 2,
 	};
 	const playerRoomEntity:RoomEntity = {
 		position: new Vector3D(-6.5, -1.5, 0),
@@ -795,22 +847,23 @@ export function startDemo(canv:HTMLCanvasElement) : MazeDemo {
 	room.roomEntities = thaw(room.roomEntities);
 	room.roomEntities[playerId] = playerRoomEntity;
 	gdm.fastStoreObject(room, roomRef);
-
+	
 	const game = new MazeGame(gdm);
 	game.playerEntityId = playerId;
-
+	
 	const v = new MazeView(canv);
 	v.gameDataManager = gdm;
 	const viewItems : MazeViewageItem[] = [];
-
+	
 	const demo = new MazeDemo();
 	demo.game = game;
 	demo.view = v;
 	demo.playerId = playerId;
-
+	demo.startSimulation();
+	
 	game.fullyLoadRoom( roomRef ).then( (room) => {
 		demo.updateView();
 	});
-
+	
 	return demo;
 }

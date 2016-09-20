@@ -113,19 +113,19 @@ export default class GameDataManager {
 		}
 		return urn;
 	}
-
-	protected fullyLoadTileEntityPalette( paletteRef:string ):Promise<TileEntityPalette> {
+	
+	protected fullyCacheTileEntityPalette( paletteRef:string ):Promise<TileEntityPalette> {
 		return this.fetchObject<TileEntityPalette>(paletteRef).then( (tep:TileEntityPalette) => {
 			const itemPromises:Promise<EntityClass>[] = [];
 			for( let te in tep ) {
 				const tileEntity = tep[te];
-				if( tileEntity ) itemPromises.push(this.fullyLoadEntityClass(tileEntity.entity.classRef));
+				if( tileEntity ) itemPromises.push(this.fullyCacheEntityClass(tileEntity.entity.classRef));
 			}
 			return Promise.all(itemPromises).then( () => tep );
 		});
 	}
-
-	public fullyLoadEntityClass( classRef:string ):Promise<EntityClass> {
+	
+	public fullyCacheEntityClass( classRef:string ):Promise<EntityClass> {
 		return this.fetchObject<EntityClass>( classRef ).then( (ec:EntityClass) => {
 			const itemPromises:Promise<any>[] = [];
 			switch( ec.structureType ) {
@@ -134,20 +134,20 @@ export default class GameDataManager {
 				break;
 			case StructureType.TILE_TREE:
 				const tt:TileTree = <TileTree>ec;
-				itemPromises.push(this.fullyLoadTileEntityPalette(tt.childEntityPaletteRef));
+				itemPromises.push(this.fullyCacheTileEntityPalette(tt.childEntityPaletteRef));
 			}
 			return Promise.all(itemPromises).then( () => ec );
-		})
+		});
 	}
-
-	public fullyLoadRoom( roomId:string ):Promise<Room> {
+	
+	public fullyCacheRoom( roomId:string ):Promise<Room> {
 		return this.fetchObject<Room>( roomId ).then( (room:Room) => {
 			const itemPromises:Promise<EntityClass>[] = [];
 			for( let re in room.roomEntities ) {
 				const roomEntity = room.roomEntities[re];
-				itemPromises.push(this.fullyLoadEntityClass(roomEntity.entity.classRef));
+				itemPromises.push(this.fullyCacheEntityClass(roomEntity.entity.classRef));
 			}
 			return Promise.all(itemPromises).then( () => room );
-		})
+		});
 	}
 }

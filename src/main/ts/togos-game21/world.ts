@@ -14,6 +14,11 @@ export type EntityState = KeyedList<any>;
 
 export const EMPTY_STATE = deepFreeze({});
 
+export interface RoomLocation {
+	roomRef : string;
+	position : Vector3D;
+}
+
 export interface RoomNeighbor {
 	offset:Vector3D;
 	/**
@@ -53,8 +58,11 @@ export interface EntityClass {
 	isInteractive?:boolean; // Does it need to be taken into account by collision detection?
 	isRigid?:boolean;
 	opacity?:number; // For space-filling trees, this should be something like the average of contained items' opacities
+
 	bounciness?:number;
 	mass?:number;
+	normalWalkingSpeed? : number;
+	normalClimbingSpeed? : number;
 	
 	visualRef? : string;
 }
@@ -68,14 +76,19 @@ export interface Entity {
 	 * which may be used by behavior and rendering
 	 */ 
 	state? : KeyedList<any>;
+	
+	desiredMovementDirection? : Vector3D;
 }
 
 /**
  * A room's link to an object that resides within it
  */
 export interface RoomEntity {
+	// TODO: Replace with Vector3DLike so things can be deserialized
 	position : Vector3D; // Ignored (and should be null) for tiles/prototypes
+	// TODO: Replace with QuaternionLike so things can be deserialized
 	orientation? : Quaternion; // Assume identify if undefined
+	// TODO: Replace with Vector3DLike so things can be deserialized
 	velocity? : Vector3D; // Assume 0,0,0 if undefined
 	
 	/** The game object itself */
