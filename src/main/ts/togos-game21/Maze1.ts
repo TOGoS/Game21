@@ -340,7 +340,7 @@ export class MazeView {
 	}
 
 	protected drawOcclusionFog(viz:ShadeRaster):void {
-		this.drawRaster( viz, 0, this.occlusionFillStyle, true, 'rgba(255,0,0,0.5)');
+		this.drawRaster( viz, 0, this.occlusionFillStyle, true);
 	}
 
 	public draw():void {
@@ -357,9 +357,6 @@ export class MazeView {
 			ctx.drawImage(img, px, py);
 		}
 		if(this.viewage.visibility) this.drawOcclusionFog(this.viewage.visibility);
-		if(this.viewage.opacity) {
-			this.drawRaster(this.viewage.opacity, 255, 'rgba(0,255,0,0.5)', false, 'rgba(0,255,0,0.25)');
-		}
 	}
 }
 
