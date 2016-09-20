@@ -99,6 +99,20 @@ export default class SceneShader {
 	 * Pos = position relative to the shademap's origin where this room's origin would appear
 	 */
 	protected applyRoomToOpacityRaster( room:Room, pos:Vector3D ):void {
+		{
+			// Set opacity of room area to zero
+			const destMap = this.destShadeMap;
+			const destData = destMap.data;
+			const tbb = room.bounds;
+			const minCX = Math.max(0             , Math.round( (tbb.minX + pos.x + destMap.originX) * destMap.resolution));
+			const minCY = Math.max(0             , Math.round( (tbb.minY + pos.y + destMap.originY) * destMap.resolution));
+			const maxCX = Math.min(destMap.width , Math.round( (tbb.maxX + pos.x + destMap.originX) * destMap.resolution));
+			const maxCY = Math.min(destMap.height, Math.round( (tbb.maxY + pos.y + destMap.originY) * destMap.resolution));
+			for( let y=minCY; y<maxCY; ++y ) for( let x=minCX, i=y*destMap.width+x; x<maxCX; ++x, ++i ) {
+				destData[i] = 0;
+			}
+		}
+
 		for( let e in room.roomEntities ) {
 			const re = room.roomEntities[e];
 			const ent = re.entity;
@@ -110,8 +124,7 @@ export default class SceneShader {
 	}
 	
 	public sceneOpacityRaster( roomRef:string, roomPos:Vector3D, dest:ShadeRaster ):ShadeRaster {
-		// TODO: fill with opaque, then carve out rooms, then add opacity of objects
-		dest.data.fill(0);
+		dest.data.fill(255);
 		
 		this.destShadeMap = dest;
 		dest.getBounds(this.destBounds);
