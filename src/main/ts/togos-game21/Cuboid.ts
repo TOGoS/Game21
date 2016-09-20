@@ -31,6 +31,16 @@ export default class Cuboid {
 		if( v.z > cuboid.maxZ ) return false;
 		return true;
 	}
+
+	public static intersectsWithOffset( aPos:Vector3D, aBb:Cuboid, bPos:Vector3D, bBb:Cuboid ):boolean {
+		if( aPos.x + aBb.maxX <= bPos.x + bBb.minX ) return false;
+		if( aPos.x + aBb.minX >= bPos.x + bBb.maxX ) return false;
+		if( aPos.y + aBb.maxY <= bPos.y + bBb.minY ) return false;
+		if( aPos.y + aBb.minY >= bPos.y + bBb.maxY ) return false;
+		if( aPos.z + aBb.maxZ <= bPos.z + bBb.minZ ) return false;
+		if( aPos.z + aBb.minZ >= bPos.z + bBb.maxZ ) return false;
+		return true;
+	}
 	
 	public containsVector( v:Vector3D ):boolean {
 		return Cuboid.containsVector( this, v );

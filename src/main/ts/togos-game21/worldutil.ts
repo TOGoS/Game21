@@ -49,6 +49,11 @@ export function tileEntityPaletteRef( palette:any, gdm?:GameDataManager ):string
 	return gdm.fastStoreObject(tilePalette);
 }
 
+/**
+ * It is safe to pass posBuffer = pos
+ * so long as you don't rely on that buffer
+ * calling eachSubEntity.
+ */
 export function eachSubEntity<T>(
 	entity:Entity, pos:Vector3D, gdm:GameDataManager,
 	callback:(subEnt:Entity, pos:Vector3D, orientation:Quaternion)=>T|undefined,

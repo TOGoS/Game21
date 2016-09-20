@@ -530,6 +530,16 @@ interface RoomEntityUpdate {
 	position? : Vector3D;
 }
 
+interface Collision {
+	/* For now I don't care, but here's some info that may be useful later:
+	roomRef : string;
+	relativePosition : Vector3D;
+	roomEntity : RoomEntity;
+	*/
+}
+
+const entityPositionBuffer:Vector3D = new Vector3D;
+
 export class MazeGame {
 	protected rooms:KeyedList<Room> = {};
 
@@ -578,28 +588,51 @@ export class MazeGame {
 			delete room.roomEntities[entityId];
 		}
 	}
-
-	protected collisionAt2( entity:Entity, samplePosition:Vector3D, ignoreEntityId:string ):boolean {
+	
+	protected _collisionsAt3( entityPos:Vector3D, entity:Entity, pos:Vector3D, bb:Cuboid, into:Collision[] ):void {
 		const proto = this.gameDataManager.getEntityClass( entity.classRef );
-		if( proto.isInteractive === false ) return false;
-		if( !Cuboid.containsVector(proto.physicalBoundingBox, samplePosition) ) return false;
-		if( proto.structureType == StructureType.INDIVIDUAL ) {
-			return !!(proto.isInteractive && proto.isRigid);
-		} else return !!eachSubEntity( entity, Vector3D.ZERO, this.gameDataManager, (subEnt, subEntPos, ori) => {
-			if( this.collisionAt2(subEnt, Vector3D.subtract(samplePosition, subEntPos), ignoreEntityId) ) return true;
-			return undefined;
-		});
-	}
+		if( proto.isInteractive === false ) return;
+		if( !Cuboid.intersectsWithOffset(entityPos, proto.physicalBoundingBox, pos, bb) ) return;
 
-	/** Overly simplistic 'is there anything at this exact point' check */
-	protected collisionAt( roomRef:string, position:Vector3D, ignoreEntityId:string ):boolean {
-		const room = this.rooms[roomRef];
+		if( proto.structureType == StructureType.INDIVIDUAL ) {
+			if( proto.isInteractive && proto.isRigid ) {
+				into.push( {} );
+			}
+		} else {
+			// TODO: Re-use position buffer
+			eachSubEntity( entity, entityPos, this.gameDataManager, (subEnt, subEntPos, ori) => {
+				this._collisionsAt3( subEntPos, subEnt, pos, bb, into );
+			}, this, entityPos);
+		};
+	}		
+
+	protected _collisionsAt2( roomPos:Vector3D, roomRef:string, pos:Vector3D, bb:Cuboid, ignoreEntityId:string, into:Collision[] ):void {
+		// Room bounds have presumably already been determined to intersect
+		// with that of the box being checked, so we'll skip that and go
+		// straight to checking entities.
+		const room:Room = this.getRoom(roomRef);
 		for( let re in room.roomEntities ) {
 			if( re == ignoreEntityId ) continue;
 			const roomEntity = room.roomEntities[re];
-			if( this.collisionAt2(roomEntity.entity, Vector3D.subtract(position, roomEntity.position), ignoreEntityId) ) return true;
+			Vector3D.add( roomPos, roomEntity.position, entityPositionBuffer );
+			this._collisionsAt3(entityPositionBuffer, roomEntity.entity, pos, bb, into)
 		}
-		return false;
+	}
+
+	/** Overly simplistic 'is there anything at this exact point' check */
+	protected collisionsAt( roomRef:string, pos:Vector3D, bb:Cuboid, ignoreEntityId:string ):Collision[] {
+		const collisions:Collision[] = [];
+		const room = this.rooms[roomRef];
+		if( Cuboid.intersectsWithOffset(Vector3D.ZERO, room.bounds, pos, bb) ) {
+			this._collisionsAt2( Vector3D.ZERO, roomRef, pos, bb, ignoreEntityId, collisions );
+		}
+		for( let n in room.neighbors ) {
+			const neighb = room.neighbors[n];
+			if( Cuboid.intersectsWithOffset(neighb.offset, neighb.bounds, pos, bb) ) {
+				this._collisionsAt2( neighb.offset, neighb.roomRef, pos, bb, ignoreEntityId, collisions );
+			}
+		}
+		return collisions;
 	}
 
 	public playerEntityId?:string;
@@ -612,11 +645,12 @@ export class MazeGame {
 					const delta = Vector3D.scale(cardinalDirectionToVec(this.playerMoveDir), 0.5);
 					if( delta.isZero ) continue;
 					let roomEntity = room.roomEntities[re];
+					const entityClass = this.gameDataManager.getEntityClass(roomEntity.entity.classRef);
 					const newLoc = this.fixLocation({
 						roomRef: r,
 						position: Vector3D.add(roomEntity.position, delta)
 					});
-					if( !this.collisionAt(newLoc.roomRef, newLoc.position, re) ) {
+					if( this.collisionsAt(newLoc.roomRef, newLoc.position, entityClass.physicalBoundingBox, re).length == 0 ) {
 						this.updateRoomEntity(r, re, {
 							roomRef: newLoc.roomRef,
 							position: newLoc.position
