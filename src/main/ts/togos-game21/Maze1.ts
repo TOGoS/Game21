@@ -682,7 +682,7 @@ export class MazeDemo {
 			sceneShader.opacityTolVisibilityRaster(opacityRaster, rasterOriginX*rasterResolution, rasterOriginY*rasterResolution, distanceInPixels, visibilityRaster);
 			if( isAllZero(visibilityRaster.data) ) console.log("Visibility raster is all zero!");
 			if( isAllNonZero(visibilityRaster.data) ) console.log("Visibility raster is all nonzero!");
-			sceneShader.growVisibility(visibilityRaster);
+			sceneShader.growVisibility(visibilityRaster); // Not quite!  Since this expands visibility into non-room space.
 			/*
 			for( let i=0, y=0; y<visibilityRaster.height; ++y ) {
 				for( let x=0; x<visibilityRaster.width; ++x, ++i ) {
