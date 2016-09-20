@@ -76,17 +76,10 @@ export default class SceneShader {
 			const maxCY = Math.min(destMap.height, Math.round( (tbb.maxY + pos.y + destMap.originY) * destMap.resolution));
 			for( let cy = minCY; cy < maxCY; ++cy ) {
 				for( let cx = minCX, ci = cy*destMap.width + cx; cx < maxCX; ++cx, ++ci ) {
-					const currentOpacityByte = destMap.data[ci];
-					// TODO: Probably better to avoid the ifs and just always do the fancy arithmetic
-					if( currentOpacityByte == 255 ) continue;
-					if( currentOpacityByte == 0 ) {
-						destMap.data[ci] = opacityByte;
-					} else {
-						// Slightly more complicated combination arithmetic
-						const currentOpacity:number = destMap.data[ci] / 255;
-						const combinedOpacity:number = currentOpacity + (1-currentOpacity) * proto.opacity;
-						destMap.data[ci] = Math.round( 255 * combinedOpacity );
-					}
+					// Slightly more complicated combination arithmetic
+					const currentOpacity:number = destMap.data[ci] / 255;
+					const combinedOpacity:number = currentOpacity + (1-currentOpacity) * proto.opacity;
+					destMap.data[ci] = Math.round( 255 * combinedOpacity );
 				} 
 			}
 			return;
