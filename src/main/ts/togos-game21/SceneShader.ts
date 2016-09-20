@@ -61,7 +61,7 @@ export default class SceneShader {
 		if( pos.x + vbb.maxX <= destBounds.minX ) return;
 		if( pos.y + vbb.maxY <= destBounds.minY ) return;
 		if( pos.x + vbb.minX >= destBounds.maxX ) return;
-		if( pos.x + vbb.minY >= destBounds.maxY ) return;
+		if( pos.y + vbb.minY >= destBounds.maxY ) return;
 		if( pos.z + vbb.maxZ <= destBounds.minZ ) return;
 		
 		if( proto.opacity != null && proto.opacity == 1 ) {
