@@ -30,7 +30,7 @@ export class ShadeRaster {
 	public getBounds<T extends RectangularBounds>(dest:T):T {
 		dest.minX = -this.originX;
 		dest.minY = -this.originY;
-		dest.maxX = this.width/this.resolution - this.originX;
+		dest.maxX = this.width /this.resolution - this.originX;
 		dest.maxY = this.height/this.resolution - this.originY;
 		return dest;
 	}

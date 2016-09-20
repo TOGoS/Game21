@@ -218,6 +218,7 @@ interface MazeViewageItem {
 interface MazeViewage {
 	items : MazeViewageItem[];
 	visibility? : ShadeRaster;
+	opacity? : ShadeRaster; // Fer debuggin
 }
 
 const brikImgRef = "bitimg:color0=0;color1="+rgbaToNumber(255,255,128,255)+","+hexEncodeBits(brikPix);
@@ -276,11 +277,75 @@ export class MazeView {
 		ctx.clearRect(0,0,this.canvas.width,this.canvas.height);
 	}
 
+	protected drawRaster(rast:ShadeRaster, drawValue:number, fillStyle:string, drawMargin:boolean, borderColor?:string):void {
+		const ctx = this.canvas.getContext('2d');
+		if( !ctx ) return;
+		const cx = this.canvas.width/2;
+		const cy = this.canvas.height/2;
+		const ppm = 16;
+
+		const canvWidth = this.canvas.width;
+		const canvHeight = this.canvas.height;
+
+		const vrWidth = rast.width, vrHeight = rast.height;
+		const vrData = rast.data;
+		ctx.fillStyle = fillStyle;
+
+		if( borderColor ) {
+			ctx.strokeStyle = borderColor;
+			ctx.strokeRect(
+				canvWidth /2 - rast.originX*ppm,
+				canvHeight/2 - rast.originY*ppm,
+				rast.width*ppm/rast.resolution,
+				rast.height*ppm/rast.resolution
+			)
+		}
+
+		if( drawMargin ) {
+			const rastMinPx = Math.max(0, canvWidth /2 - (rast.originX*ppm));
+			const rastMinPy = Math.max(0, canvHeight/2 - (rast.originY*ppm));
+			const rastMaxPx = Math.min(canvWidth , rastMinPx + (rast.width /rast.resolution)*ppm);
+			const rastMaxPy = Math.min(canvHeight, rastMinPy + (rast.height/rast.resolution)*ppm);
+
+			ctx.fillRect(0,       0,canvWidth,rastMinPy           );
+			ctx.fillRect(0,rastMaxPy,canvWidth,canvHeight-rastMinPy);
+			ctx.fillRect(0       ,rastMinPy,rastMinPx          ,rastMaxPy-rastMinPy);
+			ctx.fillRect(rastMaxPx,rastMinPy,canvWidth-rastMaxPx,rastMaxPy-rastMinPy);
+		}
+
+		let i:number, y:number;
+		const fillFog = function(x0:number, x1:number):void {
+			ctx.fillRect(
+				cx+ppm*(x0/rast.resolution - rast.originX),
+				cy+ppm*( y/rast.resolution - rast.originY),
+				ppm*(x1-x0) / rast.resolution,
+				ppm         / rast.resolution
+			);
+		};
+
+		for( i=0, y=0; y<vrHeight; ++y ) {
+			let spanStart:number|null = null;
+			for( let x=0; x<vrWidth; ++x, ++i ) {
+				if( vrData[i] == drawValue ) {
+					if( spanStart == null ) spanStart = x;
+				} else if( spanStart != null ) {
+					fillFog(spanStart, x);
+					spanStart = null;
+				}
+			}
+			if( spanStart != null ) {
+				fillFog(spanStart, vrWidth);
+			}
+		}
+	}
+
+	protected drawOcclusionFog(viz:ShadeRaster):void {
+		this.drawRaster( viz, 0, this.occlusionFillStyle, true, 'rgba(255,0,0,0.5)');
+	}
+
 	public draw():void {
 		const ctx = this.canvas.getContext('2d');
 		if( !ctx ) return;
-		const canvWidth = this.canvas.width;
-		const canvHeight = this.canvas.height;
 		const cx = this.canvas.width/2;
 		const cy = this.canvas.height/2;
 		const ppm = 16;
@@ -291,48 +356,9 @@ export class MazeView {
 			const py = (item.y-item.visual.height/2) * ppm + cy;
 			ctx.drawImage(img, px, py);
 		}
-		const viz = this.viewage.visibility;
-		if( viz ) {
-			const vrWidth = viz.width, vrHeight = viz.height;
-			const vrData = viz.data;
-			ctx.fillStyle = this.occlusionFillStyle;
-
-			{ // Draw border
-				const vizMinPx = Math.max(0, canvWidth /2 - (viz.originX*ppm));
-				const vizMinPy = Math.max(0, canvHeight/2 - (viz.originY*ppm));
-				const vizMaxPx = Math.min(canvWidth , vizMinPx + (viz.width /viz.resolution)*ppm);
-				const vizMaxPy = Math.min(canvHeight, vizMinPy + (viz.height/viz.resolution)*ppm);
-				
-				ctx.fillRect(0,       0,canvWidth,vizMinPy           );
-				ctx.fillRect(0,vizMaxPy,canvWidth,canvHeight-vizMinPy);
-				ctx.fillRect(0       ,vizMinPy,vizMinPx          ,vizMaxPy-vizMinPy);
-				ctx.fillRect(vizMaxPx,vizMinPy,canvWidth-vizMaxPx,vizMaxPy-vizMinPy);
-			}
-
-			let i:number, y:number;
-			const fillFog = function(x0:number, x1:number):void {
-				ctx.fillRect(
-					cx+ppm*(x0/viz.resolution - viz.originX),
-					cy+ppm*( y/viz.resolution - viz.originY),
-					ppm*(x1-x0) / viz.resolution,
-					ppm         / viz.resolution
-				);
-			};
-
-			for( i=0, y=0; y<vrHeight; ++y ) {
-				let spanStart:number|null = null;
-				for( let x=0; x<vrWidth; ++x, ++i ) {
-					if( vrData[i] == 0 ) {
-						if( spanStart == null ) spanStart = x;
-					} else if( spanStart != null ) {
-						fillFog(spanStart, x);
-						spanStart = null;
-					}
-				}
-				if( spanStart != null ) {
-					fillFog(spanStart, vrWidth);
-				}
-			}
+		if(this.viewage.visibility) this.drawOcclusionFog(this.viewage.visibility);
+		if(this.viewage.opacity) {
+			this.drawRaster(this.viewage.opacity, 255, 'rgba(0,255,0,0.5)', false, 'rgba(0,255,0,0.25)');
 		}
 	}
 }
@@ -470,7 +496,6 @@ function sceneToMazeViewage( roomRef:string, roomX:number, roomY:number, gdm:Gam
 		const neighb = room.neighbors[n];
 		roomToMazeViewage( neighb.roomRef, roomX+neighb.offset.x, roomY+neighb.offset.y, gdm, viewage, visibility );
 	}
-	viewage.visibility = visibility;
 }
 
 enum CardinalDirection {
@@ -700,6 +725,8 @@ export class MazeDemo {
 				}
 			}*/
 			sceneToMazeViewage( playerLoc.roomRef, -playerLoc.position.x, -playerLoc.position.y, this.game.gameDataManager, this.view.viewage, visibilityRaster );
+			this.view.viewage.visibility = visibilityRaster;
+			this.view.viewage.opacity = opacityRaster;
 		} else {
 			console.log("Failed to locate player, "+this.playerId);
 		}
