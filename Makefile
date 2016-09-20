@@ -8,7 +8,9 @@ all_js_files = $(shell find . -name '*.js') ${generated_js_files}
 node := node
 tsc := ${node} node_modules/typescript/bin/tsc
 
-default: demos/ShapeDemo.html target/cjs
+default: demos/ShapeDemo.html js-libs
+
+js-libs: target/cjs target/game21libs.amd.es5.js
 
 sortaclean:
 	rm -rf ${generated_js_files} demos/*.html demos/*.html.urn demos/*.url target
@@ -22,9 +24,10 @@ clean: sortaclean
 
 .PHONY: \
 	clean \
-	sortaclean \
 	default \
-	publish-demo
+	js-libs \
+	publish-demo \
+	sortaclean
 
 demos/%.html: demos/%.php $(shell find . -name '*.php') target/game21libs.amd.es5.js
 	cd demos && php "../$<" --inline-resources >"../$@"
