@@ -1,4 +1,6 @@
 import Vector3D from './Vector3D';
+import { makeVector, setVector, vectorToArray, ZERO_VECTOR } from './vector3ds';
+import { scaleVector } from './vector3dmath';
 import Quaternion from './Quaternion';
 import Cuboid from './Cuboid';
 import { Room, RoomEntity, Entity, EntityClass, StructureType, TileTree, TileEntityPalette } from './world';
@@ -8,7 +10,7 @@ import { hash, sha1Urn, base32Encode } from '../tshash/index';
 import SHA1 from '../tshash/SHA1';
 import { coalesce2 } from './util';
 
-const posBuffer0:Vector3D=new Vector3D;
+const posBuffer0:Vector3D = makeVector();
 
 function toArray<T,D extends ArrayLike<T>>(src:ArrayLike<T>, dest:D):D {
 	for( let i=0; i < src.length; ++i ) (<any>dest)[i] = src[i];
@@ -79,7 +81,7 @@ export function eachSubEntity<T>(
 		for( let i=0, z=0; z < tt.zDivisions; ++z ) for( let y=0; y < tt.yDivisions; ++y ) for( let x=0; x < tt.xDivisions; ++x, ++i ) {
 			const tileEntity = tilePalette[tilePaletteIndexes[i]];
 			if( tileEntity != null ) {
-				let v = callback.call( callbackThis, tileEntity.entity, posBuffer.set(x0+x*xd, y0+y*yd, z0+z*zd), tileEntity.orientation );
+				let v = callback.call( callbackThis, tileEntity.entity, setVector(posBuffer, x0+x*xd, y0+y*yd, z0+z*zd), tileEntity.orientation );
 				if( v != null ) return v;
 			}
 		}
@@ -154,22 +156,22 @@ export function connectRooms( gdm:GameDataManager, room0Ref:string, room1Ref:str
 	if( room0 == null ) throw new Error("Failed to get room "+room0Ref);
 	const room1 = gdm.getRoom(room1Ref);
 	if( room1 == null ) throw new Error("Failed to get room "+room1Ref);
-	const neighborKey0To1 = "n"+base32Encode(hash(room0Ref+";"+room1Ref+";"+offset.toArray().join(","), SHA1));
-	const neighborKey1To0 = "n"+base32Encode(hash(room1Ref+";"+room0Ref+";"+Vector3D.scale(offset, -1).toArray().join(","), SHA1));
+	const neighborKey0To1 = "n"+base32Encode(hash(room0Ref+";"+room1Ref+";"+vectorToArray(offset).join(","), SHA1));
+	const neighborKey1To0 = "n"+base32Encode(hash(room1Ref+";"+room0Ref+";"+vectorToArray(scaleVector(offset, -1)).join(","), SHA1));
 	room0.neighbors[neighborKey0To1] = {
 		offset: offset,
 		roomRef: room1Ref,
 		bounds: room1.bounds,
 	}
 	room1.neighbors[neighborKey1To0] = {
-		offset: offset.scale(-1),
+		offset: scaleVector(offset, -1),
 		roomRef: room0Ref,
 		bounds: room0.bounds,
 	}
 }
 
 export function roomEntityVelocity(re:RoomEntity):Vector3D {
-	return coalesce2(re.velocity, Vector3D.ZERO);
+	return coalesce2(re.velocity, ZERO_VECTOR);
 }
 export function roomEntityOrientation(re:RoomEntity):Quaternion {
 	return coalesce2(re.orientation, Quaternion.IDENTITY);

@@ -1,5 +1,6 @@
 import Rectangle from './Rectangle';
 import Vector3D from './Vector3D';
+import { makeVector } from './vector3ds';
 import TransformationMatrix3D from './TransformationMatrix3D';
 import Quaternion from './Quaternion';
 import ShapeSheet from './ShapeSheet';
@@ -22,9 +23,9 @@ class ArrowShape implements ProceduralShape {
 		const scale = xf.scale;
 		
 		ssu.plottedDepthFunction = NOOP_PLOTTED_DEPTH_FUNCTION;
-		const v0 = xf.multiplyVector( new Vector3D( 0, -0.5, 0 ) );
-		const v1 = xf.multiplyVector( new Vector3D( 1,  0.0, 0 ) );
-		const v2 = xf.multiplyVector( new Vector3D( 0, +0.5, 0 ) );
+		const v0 = xf.multiplyVector( makeVector( 0, -0.5, 0 ) );
+		const v1 = xf.multiplyVector( makeVector( 1,  0.0, 0 ) );
+		const v2 = xf.multiplyVector( makeVector( 0, +0.5, 0 ) );
 		
 		const lineRad = scale/8;
 		ssu.plottedMaterialIndexFunction = () => { return 4; }

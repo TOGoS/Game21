@@ -1,5 +1,6 @@
 import { deepFreeze } from './DeepFreezer';
 import Vector3D from './Vector3D';
+import { setVector } from './vector3ds';
 import Quaternion from './Quaternion';
 
 const fmtNum = function(num:number, size:number, digits=2) {
@@ -19,6 +20,10 @@ export default class TransformationMatrix3D {
 		public zx:number=0, public zy:number=0, public zz:number=0, public z1:number=0
 	) { }
 	
+	// TODO: This is similar to 'magnitude',
+	// which is the maximum stretching (in any direction)
+	// done by this matrix.
+	// (according to some math site, that's what matrix magnitude means)
 	public get scale():number {
 		const xScale = Math.sqrt(this.xx*this.xx + this.yx*this.yx + this.zx*this.zx);
 		const yScale = Math.sqrt(this.xy*this.xy + this.yy*this.yy + this.zy*this.zy);
@@ -51,8 +56,8 @@ export default class TransformationMatrix3D {
 	
 	public static IDENTITY = deepFreeze(new TransformationMatrix3D(1,0,0,0,0,1,0,0,0,0,1,0));
 	
-	public multiplyVector( v:Vector3D, dest:Vector3D=new Vector3D ) : Vector3D {
-		return dest.set(
+	public multiplyVector( v:Vector3D, dest?:Vector3D ) : Vector3D {
+		return setVector( dest,
 			this.xx*v.x + this.xy*v.y + this.xz * v.z + this.x1,
 			this.yx*v.x + this.yy*v.y + this.yz * v.z + this.y1,
 			this.zx*v.x + this.zy*v.y + this.zz * v.z + this.z1

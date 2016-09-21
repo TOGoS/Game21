@@ -7,6 +7,8 @@ import KeyedList from './KeyedList';
 import SurfaceMaterial from './SurfaceMaterial';
 import SurfaceColor from './SurfaceColor';
 import Vector3D from './Vector3D';
+import { makeVector, setVector, ZERO_VECTOR } from './vector3ds'
+import { addVector, roundVectorToGrid } from './vector3dmath';
 import Quaternion from './Quaternion';
 import TransformationMatrix3D from './TransformationMatrix3D';
 import Cuboid from './Cuboid';
@@ -24,10 +26,10 @@ import { eachSubEntity } from './worldutil';
 import SceneShader, { ShadeRaster } from './SceneShader';
 
 // Buffer used for room object positions
-const posBuffer0 = new Vector3D;
-const neighborPos = new Vector3D;
+const posBuffer0 = makeVector();
+const neighborPos = makeVector();
 // Buffer used for tile tree sub-object positions
-//const ttPosBuffer = new Vector3D;
+//const ttPosBuffer = makeVector();
 
 enum VisibilityMaskingMode {
 	NONE, // Draw everything!
@@ -192,7 +194,7 @@ export default class CanvasWorldView {
 			const proto = this.gameDataManager.getObject<EntityClass>(ro.entity.classRef);
 			if( proto == null ) continue;
 			const orientation = ro.orientation ? ro.orientation : Quaternion.IDENTITY;
-			this.drawEntity(ro.entity, Vector3D.add(pos, ro.position, posBuffer0), orientation);
+			this.drawEntity(ro.entity, addVector(pos, ro.position, posBuffer0), orientation);
 		}
 	}
 	
@@ -258,7 +260,7 @@ export default class CanvasWorldView {
 		
 		// Make pos a little more manageable
 		// so that math doesn't screw up due to rounding errors
-		pos = pos.roundToGrid(1/64, 1/64, 1/64);
+		pos = roundVectorToGrid(pos, 1/64, 1/64, 1/64);
 		
 		this.screenCenterX = canv.width/2;
 		this.screenCenterY = canv.height/2;
@@ -270,7 +272,7 @@ export default class CanvasWorldView {
 		const visibilityRaster = this.visibilityRaster;
 		const shadeRaster      = this.shadeRaster;
 		
-		const shadePos = Vector3D.ZERO;
+		const shadePos = ZERO_VECTOR;
 		
 		if( this.visibilityMaskingMode == VisibilityMaskingMode.NONE ) {
 			this.clip.set(0, 0, canv.width, canv.height);
@@ -310,7 +312,7 @@ export default class CanvasWorldView {
 				console.log("Failed to load neighbor room "+neighbor.roomRef+"; can't draw it.");
 				continue;
 			}
-			this.drawRoom(neighborRoom, Vector3D.add(pos, neighbor.offset, neighborPos));
+			this.drawRoom(neighborRoom, addVector(pos, neighbor.offset, neighborPos));
 		}
 		
 		const fogColorStr = this.fogColor.toRgbaString();
@@ -379,9 +381,9 @@ export default class CanvasWorldView {
 		this.canvasContext.clearRect(0,0,this._canvas.width,this._canvas.height);
 	}
 	
-	public canvasToWorldCoordinates(x:number, y:number, focusZ:number=this.focusDistance, dest:Vector3D=new Vector3D ):Vector3D {
+	public canvasToWorldCoordinates(x:number, y:number, focusZ:number=this.focusDistance, dest?:Vector3D ):Vector3D {
 		const pdx = x - this.screenCenterX, pdy = y - this.screenCenterY;
 		const ppm = this.unitPpm / focusZ;
-		return dest.set( pdx/ppm, pdy/ppm, 0 );
+		return setVector( dest, pdx/ppm, pdy/ppm, 0 );
 	}
 }

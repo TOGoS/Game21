@@ -7,6 +7,8 @@ import SurfaceMaterial from '../SurfaceMaterial';
 import ProceduralShape from '../ProceduralShape';
 import Rectangle from '../Rectangle';
 import Vector3D from '../Vector3D';
+import { makeVector, setVector } from '../vector3ds';
+import { normalizeVector } from '../vector3dmath';
 import Quaternion from '../Quaternion';
 import TransformationMatrix3D from '../TransformationMatrix3D';
 import ShapeSheet from '../ShapeSheet';
@@ -73,7 +75,7 @@ class ShapeView {
 		let dragging = false;
 		let prevDrag = [0,0];
 
-		const axis = new Vector3D( 0, 0, 0 );
+		const axis = makeVector( 0, 0, 0 );
 
 		// Have to do this to trick the TS compiler
 		// into allowing the reference to dragReleasedTick from within its definition.
@@ -84,8 +86,8 @@ class ShapeView {
 			if( Math.abs(degX) < 1 && Math.abs(degY) < 1 ) return;
 
 			degX *= 0.9; degY *= 0.9;
-			axis.set(degY, -degX, 0);
-			axis.normalize(1, axis);
+			setVector(axis, degY, -degX, 0);
+			normalizeVector(axis, 1, axis);
 			this.rotateBy( Quaternion.fromAxisAngle(axis, Math.sqrt(degX*degX+degY*degY)*Math.PI/180) );
 			prevDrag = [degX,degY];
 
@@ -124,8 +126,8 @@ class ShapeView {
 			if( dragging && (ev.buttons & 1) ) {
 				const degX = ev.movementX * 90 / canvas.width;
 				const degY = ev.movementY * 90 / canvas.height;
-				axis.set(degY, -degX, 0);
-				axis.normalize(1, axis);
+				setVector(axis, degY, -degX, 0);
+				normalizeVector(axis, 1, axis);
 				this.rotateBy( Quaternion.fromAxisAngle(axis, Math.sqrt(degX*degX+degY*degY)*Math.PI/180) );
 				prevDrag = [degX,degY];
 			}
@@ -148,7 +150,7 @@ class ShapeView {
 	
 	public setScaleAndOrientation( scale:number, q:Quaternion ) {
 		const xforms : TransformationMatrix3D[] = [
-			TransformationMatrix3D.translation( new Vector3D(this._ss.width/2, this._ss.height/2) ),
+			TransformationMatrix3D.translation( makeVector(this._ss.width/2, this._ss.height/2) ),
 			TransformationMatrix3D.scale( scale * this._superSampling ),
 			TransformationMatrix3D.fromQuaternion( q )
 		];
@@ -468,7 +470,7 @@ export default class ProceduralShapeEditor
 	public randomizeLights() {
 		var lights:KeyedList<DirectionalLight> = {};
 		lights["primary"] = new DirectionalLight(
-			new Vector3D(Math.random()-0.5, Math.random()-0.5, Math.random()-0.5),
+			makeVector(Math.random()-0.5, Math.random()-0.5, Math.random()-0.5),
 			new LightColor(Math.random()*1.5, Math.random()*1.5, Math.random()*1.5), {
 				shadowFuzz: 0.1,
 				shadowDistance: 32,
@@ -476,7 +478,7 @@ export default class ProceduralShapeEditor
 			}
 		);
 		lights["glow"] = new DirectionalLight(
-			new Vector3D(Math.random()-0.5, Math.random()-0.5, Math.random()-0.5),
+			makeVector(Math.random()-0.5, Math.random()-0.5, Math.random()-0.5),
 			new LightColor(Math.random(), Math.random(), Math.random()), {
 				shadowFuzz: 0.1,
 				shadowDistance: 32,

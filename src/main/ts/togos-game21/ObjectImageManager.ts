@@ -6,6 +6,7 @@ import Animation from './Animation';
 import { ObjectVisual, MAObjectVisual, ObjectVisualState, ObjectVisualFrame, VisualBasisType } from './ObjectVisual';
 import TransformationMatrix3D from './TransformationMatrix3D';
 import Vector3D from './Vector3D';
+import { scaleVector } from './vector3dmath';
 import Quaternion from './Quaternion';
 import ShapeSheetRenderer from './ShapeSheetRenderer';
 import ShapeSheetUtil from './ShapeSheetUtil';
@@ -149,7 +150,7 @@ export default class ObjectImageManager {
 			sup
 		)
 		return new ImageSlice<HTMLImageElement>(
-			image, croppedSheet.origin.scale(1/sup), croppedSheet.resolution / sup,
+			image, scaleVector(croppedSheet.origin, 1/sup), croppedSheet.resolution / sup,
 			croppedSheet.bounds.scale(1/sup));
 	}
 	

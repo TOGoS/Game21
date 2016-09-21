@@ -1,4 +1,6 @@
 import Vector3D from './Vector3D';
+import { makeVector, setVector, TEMP_VECTOR } from './vector3ds'
+import { normalizeVector } from './vector3dmath';
 
 interface DensityFunction3D
 {
@@ -36,10 +38,10 @@ function extimateMaxGradient(f:(x:number,y:number,z:number)=>number ):number {
 	return max;
 }
 
-const normalizedDirection:Vector3D = new Vector3D;
-const goVectorBuffer:Vector3D = Vector3D.temp0;
-const newVect0:Vector3D = new Vector3D;
-const newVect1:Vector3D = new Vector3D;
+const normalizedDirection:Vector3D = makeVector();
+const goVectorBuffer:Vector3D = TEMP_VECTOR;
+const newVect0:Vector3D = makeVector();
+const newVect1:Vector3D = makeVector();
 
 const addScaled = function(v0:Vector3D, v1:Vector3D, scale:number, dest:Vector3D):Vector3D {
 	dest.x = v0.x + v1.x*scale;
@@ -57,9 +59,9 @@ export function makeDensityFunction( f:(x:number,y:number,z:number)=>number ):De
 		return f(v.x, v.y, v.z);
 	}
 	df.findValue = function(start:Vector3D, direction:Vector3D, targetValue:number, dest:Vector3D, maxIterations:number=10):number {
-		direction.normalize(1, normalizedDirection);
+		normalizeVector(direction, 1, normalizedDirection);
 		const initialValue = f(start.x,start.y,start.z);
-		dest.set(start.x, start.y, start.z);
+		setVector(dest, start.x, start.y, start.z);
 		let iter = maxIterations;
 		let cv = initialValue;
 		const fwd = initialValue < 0 ? -1 : +1;

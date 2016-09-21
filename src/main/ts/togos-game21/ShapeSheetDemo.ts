@@ -1,6 +1,7 @@
 import KeyedList from './KeyedList';
 import { thaw } from './DeepFreezer';
 import Vector3D from './Vector3D';
+import { makeVector } from './vector3ds';
 import Cuboid from './Cuboid';
 import LightColor from './LightColor';
 import ShapeSheet from './ShapeSheet';
@@ -233,12 +234,12 @@ class ShapeSheetDemo {
 		}
 		var lights = thaw(this.renderer.lights);
 		lights["primary"] = new DirectionalLight(
-			new Vector3D(Math.random()-0.5, Math.random()-0.5, Math.random()-0.5),
+			makeVector(Math.random()-0.5, Math.random()-0.5, Math.random()-0.5),
 			new LightColor(Math.random()*1.5, Math.random()*1.5, Math.random()*1.5),
 			lights["glow"]
 		);
 		lights["glow"] = new DirectionalLight(
-			new Vector3D(Math.random()-0.5, Math.random()-0.5, Math.random()-0.5),
+			makeVector(Math.random()-0.5, Math.random()-0.5, Math.random()-0.5),
 			new LightColor(Math.random(), Math.random(), Math.random()),
 			lights["glow"]
 		);
@@ -259,12 +260,12 @@ class ShapeSheetDemo {
 				lights = thaw(lights);
 				if( lights["primary"] != null ) {
 					lights["primary"] = new DirectionalLight(
-						new Vector3D(+Math.sin(f*0.01), 0.8, +Math.cos(f*0.01)),
+						makeVector(+Math.sin(f*0.01), 0.8, +Math.cos(f*0.01)),
 						lights["primary"].color, lights["primary"] );
 				}
 				if( lights["glow"] != null ) {
 					lights["glow"] = new DirectionalLight(
-						new Vector3D(-Math.sin(f*0.005), -0.8, -Math.cos(f*0.007)),
+						makeVector(-Math.sin(f*0.005), -0.8, -Math.cos(f*0.007)),
 						lights["glow"].color, lights["glow"]);
 				}
 				renderer.lights = lights;
@@ -281,7 +282,7 @@ class ShapeSheetDemo {
 							bolts[i] = Math.random();
 							lights = thaw(lights);
 							lights[i] = DirectionalLight.createFrom({
-								direction: new Vector3D(Math.random()-0.5, Math.random()-0.5, Math.random()-0.5),
+								direction: makeVector(Math.random()-0.5, Math.random()-0.5, Math.random()-0.5),
 								color: new LightColor(level,level,level),
 								shadowFuzz: 0.5,
 								minimumShadowLight: 0.1

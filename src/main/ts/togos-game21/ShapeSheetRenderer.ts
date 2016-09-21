@@ -5,6 +5,8 @@ import SurfaceColor from './SurfaceColor';
 import LightColor from './LightColor';
 import SurfaceMaterial, { SurfaceMaterialLayer } from './SurfaceMaterial';
 import Vector3D from './Vector3D';
+import { setVector, makeVector } from './vector3ds';
+import { scaleVector } from './vector3dmath';
 import KeyedList from './KeyedList';
 import DirectionalLight from './DirectionalLight';
 import {DEFAULT_LIGHTS} from './lights';
@@ -21,7 +23,7 @@ function vectorXYLength(vect:Vector3D):number {
 function normalizeVect3dToXYUnitSquare(vect:Vector3D):Vector3D {
 	var len = Math.max(Math.abs(vect.x), Math.abs(vect.y));
 	if( len == 0 ) return vect;
-	return vect.scale(1/len);
+	return scaleVector(vect, 1/len);
 };
 
 function calcOpacity4(z0:number, z1:number, z2:number, z3:number):number {

@@ -1,5 +1,7 @@
 import LightColor from './LightColor';
 import Vector3D from './Vector3D';
+import { parseVector } from './vector3ds';
+import { normalizeVector, scaleVector, vectorLength } from './vector3dmath';
 
 export default class DirectionalLight {
 	public shadowFuzz:number = 0;
@@ -17,9 +19,9 @@ export default class DirectionalLight {
 	
 	protected fix() {
 		if( this.direction != null ) {
-			this.direction = this.direction.normalize();
-			this.traceVector = this.direction.scale(-1);
-			this.traceVectorLength = this.traceVector.length;
+			this.direction = normalizeVector(this.direction);
+			this.traceVector = scaleVector(this.direction, -1);
+			this.traceVectorLength = vectorLength(this.traceVector);
 		}
 		if( typeof this.shadowFuzz != 'number' ) this.shadowFuzz = 0;
 		if( typeof this.shadowDistance != 'number' ) this.shadowDistance = Infinity;
@@ -27,6 +29,6 @@ export default class DirectionalLight {
 	}
 	
 	public static createFrom( props:any ):DirectionalLight {
-		return new DirectionalLight( Vector3D.from(props.direction), LightColor.from(props.color), props );
+		return new DirectionalLight( parseVector(props.direction), LightColor.from(props.color), props );
 	};
 }

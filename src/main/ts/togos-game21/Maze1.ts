@@ -6,6 +6,8 @@ import { DistributedBucketMapManager } from './DistributedBucketMap';
 import KeyedList from './KeyedList';
 import Cuboid from './Cuboid';
 import Vector3D from './Vector3D';
+import { makeVector, ZERO_VECTOR } from './vector3ds';
+import { addVector, subtractVector, vectorIsZero, scaleVector, normalizeVector, roundVectorToGrid } from './vector3dmath';
 import Quaternion from './Quaternion';
 import SceneShader, { ShadeRaster } from './SceneShader';
 import { uuidUrn, newType4Uuid } from '../tshash/uuids';
@@ -410,7 +412,7 @@ function makeRoom( gdm:GameDataManager ):string {
 		bounds: roomBounds,
 		roomEntities: {
 			[newUuidRef()]: {
-				position: new Vector3D(0,0,0),
+				position: makeVector(0,0,0),
 				entity: {
 					classRef: tileTreeRef
 				}
@@ -418,22 +420,22 @@ function makeRoom( gdm:GameDataManager ):string {
 		},
 		neighbors: {
 			"w": {
-				offset: new Vector3D(-16, 0, 0),
+				offset: makeVector(-16, 0, 0),
 				bounds: roomBounds,
 				roomRef: roomRef
 			},
 			"e": {
-				offset: new Vector3D(+16, 0, 0),
+				offset: makeVector(+16, 0, 0),
 				bounds: roomBounds,
 				roomRef: roomRef
 			},
 			"n": {
-				offset: new Vector3D(0, -16, 0),
+				offset: makeVector(0, -16, 0),
 				bounds: roomBounds,
 				roomRef: roomRef
 			},
 			"s": {
-				offset: new Vector3D(0, +16, 0),
+				offset: makeVector(0, +16, 0),
 				bounds: roomBounds,
 				roomRef: roomRef
 			},
@@ -483,7 +485,7 @@ function roomToMazeViewage( roomRef:string, roomX:number, roomY:number, gdm:Game
 	for( let re in room.roomEntities ) {
 		const roomEntity = room.roomEntities[re];
 		const orientation = roomEntity.orientation ? roomEntity.orientation : Quaternion.IDENTITY;
-		_entityToMazeViewage( roomEntity.entity, new Vector3D(roomX+roomEntity.position.x, roomY+roomEntity.position.y, roomEntity.position.z), orientation );
+		_entityToMazeViewage( roomEntity.entity, makeVector(roomX+roomEntity.position.x, roomY+roomEntity.position.y, roomEntity.position.z), orientation );
 	}
 }
 function sceneToMazeViewage( roomRef:string, roomX:number, roomY:number, gdm:GameDataManager, viewage:MazeViewage, visibility:ShadeRaster ):void {
@@ -509,15 +511,15 @@ enum CardinalDirection {
 
 function cardinalDirectionToVec( dir:CardinalDirection ):Vector3D {
 	switch( dir ) {
-	case CardinalDirection.EAST: return new Vector3D(1,0,0);
-	case CardinalDirection.SOUTHEAST: return new Vector3D(1,1,0);
-	case CardinalDirection.SOUTH: return new Vector3D(0,1,0);
-	case CardinalDirection.SOUTHWEST: return new Vector3D(-1,1,0);
-	case CardinalDirection.WEST: return new Vector3D(-1,0,0);
-	case CardinalDirection.NORTHWEST: return new Vector3D(-1,-1,0);
-	case CardinalDirection.NORTH: return new Vector3D(0,-1,0);
-	case CardinalDirection.NORTHEAST: return new Vector3D(1,-1,0);
-	default: return Vector3D.ZERO;
+	case CardinalDirection.EAST: return makeVector(1,0,0);
+	case CardinalDirection.SOUTHEAST: return makeVector(1,1,0);
+	case CardinalDirection.SOUTH: return makeVector(0,1,0);
+	case CardinalDirection.SOUTHWEST: return makeVector(-1,1,0);
+	case CardinalDirection.WEST: return makeVector(-1,0,0);
+	case CardinalDirection.NORTHWEST: return makeVector(-1,-1,0);
+	case CardinalDirection.NORTH: return makeVector(0,-1,0);
+	case CardinalDirection.NORTHEAST: return makeVector(1,-1,0);
+	default: return ZERO_VECTOR;
 	}
 }
 
@@ -534,7 +536,7 @@ interface Collision {
 	*/
 }
 
-const entityPositionBuffer:Vector3D = new Vector3D;
+const entityPositionBuffer:Vector3D = makeVector(0,0,0);
 
 export class MazeGame {
 	protected rooms:KeyedList<Room> = {};
@@ -575,7 +577,7 @@ export class MazeGame {
 		let room = this.getMutableRoom(loc.roomRef);
 		if( !Cuboid.containsVector(room.bounds, loc.position) ) for( let n in room.neighbors ) {
 			const neighb = room.neighbors[n];
-			const fixedPos = Vector3D.subtract(loc.position, neighb.offset);
+			const fixedPos = subtractVector(loc.position, neighb.offset);
 			if( Cuboid.containsVector(neighb.bounds, fixedPos) ) {
 				return {
 					roomRef: neighb.roomRef,
@@ -621,7 +623,7 @@ export class MazeGame {
 		for( let re in room.roomEntities ) {
 			if( re == ignoreEntityId ) continue;
 			const roomEntity = room.roomEntities[re];
-			Vector3D.add( roomPos, roomEntity.position, entityPositionBuffer );
+			addVector( roomPos, roomEntity.position, entityPositionBuffer );
 			this._collisionsAt3(entityPositionBuffer, roomEntity.entity, pos, bb, into)
 		}
 	}
@@ -630,8 +632,8 @@ export class MazeGame {
 	protected collisionsAt( roomRef:string, pos:Vector3D, bb:Cuboid, ignoreEntityId:string ):Collision[] {
 		const collisions:Collision[] = [];
 		const room = this.getRoom(roomRef);
-		if( Cuboid.intersectsWithOffset(Vector3D.ZERO, room.bounds, pos, bb) ) {
-			this._collisionsAt2( Vector3D.ZERO, roomRef, pos, bb, ignoreEntityId, collisions );
+		if( Cuboid.intersectsWithOffset(ZERO_VECTOR, room.bounds, pos, bb) ) {
+			this._collisionsAt2( ZERO_VECTOR, roomRef, pos, bb, ignoreEntityId, collisions );
 		}
 		for( let n in room.neighbors ) {
 			const neighb = room.neighbors[n];
@@ -659,15 +661,15 @@ export class MazeGame {
 			for( let re in room.roomEntities ) {
 				const roomEntity = room.roomEntities[re];
 				const entity = roomEntity.entity;
-				if( entity.desiredMovementDirection && !Vector3D.isZero(entity.desiredMovementDirection) ) {
+				if( entity.desiredMovementDirection && !vectorIsZero(entity.desiredMovementDirection) ) {
 					const entityClass = this.gameDataManager.getEntityClass(entity.classRef);
-					const delta = Vector3D.roundToGrid(Vector3D.normalize(entity.desiredMovementDirection, entityClass.normalWalkingSpeed*interval), 1/16);
-					if( Vector3D.isZero(delta) ) continue;
+					const delta = roundVectorToGrid(normalizeVector(entity.desiredMovementDirection, entityClass.normalWalkingSpeed*interval), 1/16);
+					if( vectorIsZero(delta) ) continue;
 					let roomEntity = room.roomEntities[re];
 					// TODO: Much better movement
 					const newLoc = this.fixLocation({
 						roomRef: r,
-						position: Vector3D.add(roomEntity.position, delta)
+						position: addVector(roomEntity.position, delta)
 					});
 					if( this.collisionsAt(newLoc.roomRef, newLoc.position, entityClass.physicalBoundingBox, re).length == 0 ) {
 						this.updateRoomEntity(r, re, {
@@ -750,7 +752,7 @@ export class MazeDemo {
 			const opacityRaster = new ShadeRaster(rasterWidth, rasterHeight, rasterResolution, rasterOriginX, rasterOriginY);
 			const visibilityRaster   = new ShadeRaster(rasterWidth, rasterHeight, rasterResolution, rasterOriginX, rasterOriginY);
 			const sceneShader = new SceneShader(this.game.gameDataManager);
-			sceneShader.sceneOpacityRaster(playerLoc.roomRef, Vector3D.scale(playerLoc.position, -1), opacityRaster);
+			sceneShader.sceneOpacityRaster(playerLoc.roomRef, scaleVector(playerLoc.position, -1), opacityRaster);
 			if( isAllZero(opacityRaster.data) ) console.log("Opacity raster is all zero!");
 			if( isAllNonZero(opacityRaster.data) ) console.log("Opacity raster is all nonzero!");
 			sceneShader.opacityTolVisibilityRaster(opacityRaster, rasterOriginX*rasterResolution, rasterOriginY*rasterResolution, distanceInPixels, visibilityRaster);
@@ -834,7 +836,7 @@ export function startDemo(canv:HTMLCanvasElement) : MazeDemo {
 		normalClimbingSpeed: 2,
 	};
 	const playerRoomEntity:RoomEntity = {
-		position: new Vector3D(-6.5, -1.5, 0),
+		position: makeVector(-6.5, -1.5, 0),
 		entity: {
 			id: playerId,
 			classRef: gdm.fastStoreObject<EntityClass>(playerClass)

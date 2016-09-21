@@ -1,4 +1,6 @@
 import Vector3D from './Vector3D';
+import { makeVector } from './vector3ds';
+import { addVector } from './vector3dmath';
 import Quaternion from './Quaternion';
 import Rectangle, {RectangularBounds} from './Rectangle';
 import Cuboid from './Cuboid';
@@ -37,8 +39,8 @@ export class ShadeRaster {
 }
 
 const mapBoundsBuffer:Cuboid = new Cuboid;
-const roomPosBuf:Vector3D = new Vector3D;
-const objPosBuf:Vector3D = new Vector3D;
+const roomPosBuf:Vector3D = makeVector();
+const objPosBuf:Vector3D = makeVector();
 const objBB = new Cuboid;
 
 export default class SceneShader {
@@ -109,7 +111,7 @@ export default class SceneShader {
 		for( let e in room.roomEntities ) {
 			const re = room.roomEntities[e];
 			const ent = re.entity;
-			Vector3D.add(pos, re.position, objPosBuf);
+			addVector(pos, re.position, objPosBuf);
 			// If we really cared about orientation (and assuming rooms can have them),
 			// we'd do the same thing to it.
 			this.applyObjectToOpacityRaster( ent, objPosBuf, roomEntityOrientation(re) );
@@ -131,7 +133,7 @@ export default class SceneShader {
 			const neighbor = room.neighbors[n];
 			const neighbR = this.gameDataManager.getObject<Room>(neighbor.roomRef);
 			if( neighbR == null ) continue;
-			Vector3D.add(roomPos, neighbor.offset, roomPosBuf);
+			addVector(roomPos, neighbor.offset, roomPosBuf);
 			this.applyRoomToOpacityRaster(neighbR, roomPosBuf);
 		}
 		

@@ -1,6 +1,8 @@
 const LARGE_NUMBER = 1000;
 
 import Vector3D from './Vector3D';
+import { makeVector, setVector, K_VECTOR } from './vector3ds';
+import { scaleVector, vectorLength } from './vector3dmath';
 import Curve from './Curve';
 import Rectangle from './Rectangle';
 import Cuboid from './Cuboid';
@@ -41,7 +43,7 @@ var infiniMinus = function(a:number, b:number):number {
 function normalizeVect3dToXYUnitSquare(vect:Vector3D):Vector3D {
 	var len = Math.max(Math.abs(vect.x), Math.abs(vect.y));
 	if( len == 0 ) return vect;
-	return vect.scale(1/len);
+	return scaleVector(vect, 1/len);
 };
 
 function disto( x0:number, y0:number, z0:number, x1:number, y1:number, z1:number ):number {
@@ -64,13 +66,13 @@ function reversePointList( points:Array<number> ):Array<number> {
 
 export const NOOP_PLOTTED_DEPTH_FUNCTION = (x:number,y:number,z:number):number => z;
 
-const dfDestVectorBuffer = new Vector3D;
-const dfStartVectorBuffer = new Vector3D;
+const dfDestVectorBuffer = makeVector();
+const dfStartVectorBuffer = makeVector();
 
 const findSurfaceZ = function( df:DensityFunction3D, x:number, y:number, z0:number, z1:number=Infinity, maxIterations:number=10 ):number {
 	if( df(x,y,z0) > 0 ) return z0;
-	dfStartVectorBuffer.set(x,y,z0);
-	const v = df.findValue(dfStartVectorBuffer, Vector3D.K, 0, dfDestVectorBuffer, maxIterations);
+	setVector(dfStartVectorBuffer,x,y,z0);
+	const v = df.findValue(dfStartVectorBuffer, K_VECTOR, 0, dfDestVectorBuffer, maxIterations);
 	if( v === Infinity || v === -Infinity ) {
 		return Infinity;
 	}
@@ -544,9 +546,9 @@ class ShapeSheetUtil {
 			return;
 		}
 		
-		const vect = new Vector3D(x1-x0, y1-y0, z1-z0);
+		const vect = makeVector(x1-x0, y1-y0, z1-z0);
 		const stepVect = normalizeVect3dToXYUnitSquare(vect);
-		const stepCount = vect.length / stepVect.length;
+		const stepCount = vectorLength(vect) / vectorLength(stepVect);
 		const stepR = (r1-r0)/stepCount;
 		for( let i=0; i <= stepCount; ++i ) {
 			plotFunc.call( this, x0+stepVect.x*i, y0+stepVect.y*i, z0+stepVect.z*i, r0+stepR*i );
@@ -571,7 +573,7 @@ class ShapeSheetUtil {
 	plotCurve( curve:Curve, r0:number, r1:number, plotFunc:PlotFunction ):void {
 		if( plotFunc == null ) plotFunc = this.plotSphere;
 		
-		var v = new Vector3D;
+		var v = makeVector()
 		curve( 1, v );
 		plotFunc.call( this, v.x, v.y, v.z, r1 );
 		this._plotCurveSegment( curve, r0, r1, 0, 1, plotFunc, v );
@@ -645,7 +647,7 @@ class ShapeSheetUtil {
 			ssu.blit( sss.sheet, cropRect.minX, cropRect.minY, cropRect.width, cropRect.height, 0, 0, 0 );
 			return new ImageSlice<ShapeSheet>(
 				croppedSs,
-				new Vector3D(sss.origin.x - cropRect.minX, sss.origin.y - cropRect.minY, sss.origin.z),
+				makeVector(sss.origin.x - cropRect.minX, sss.origin.y - cropRect.minY, sss.origin.z),
 				sss.resolution,
 				new Rectangle(0,0,cropRect.width,cropRect.height))
 		}
@@ -663,7 +665,7 @@ class ShapeSheetUtil {
 	public static proceduralShapeToShapeSheet( ps:ProceduralShape, orientation:Quaternion, resolution:number ):ImageSlice<ShapeSheet> {
 		const xf = TransformationMatrix3D.fromQuaternion(orientation).multiply(TransformationMatrix3D.scale(resolution));
 		const bounds = ps.estimateOuterBounds(0.5, xf).growToIntegerBoundaries();
-		const origin:Vector3D = new Vector3D(
+		const origin:Vector3D = makeVector(
 			-bounds.minX,
 			-bounds.minY,
 			0);

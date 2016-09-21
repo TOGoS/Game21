@@ -2,6 +2,7 @@ import { thaw, deepFreeze } from './DeepFreezer';
 import KeyedList from './KeyedList';
 import Rectangle from './Rectangle';
 import Vector3D from './Vector3D';
+import { makeVector, setVector, ZERO_VECTOR } from './vector3ds';
 import TransformationMatrix3D from './TransformationMatrix3D';
 import ShapeSheetUtil from './ShapeSheetUtil';
 import { AnimationType, animationTypeFromName } from './Animation';
@@ -31,7 +32,7 @@ interface ShapeGeneratorContext extends RuntimeContext, SavableContext {
 	polygonPoints : number[];
 }
 
-const tempVec = new Vector3D;
+const tempVec = makeVector();
 const tempXf = new TransformationMatrix3D;
 
 interface ContextVariableRef {
@@ -96,7 +97,7 @@ function applyTransform( sgctx:ShapeGeneratorContext, xf:TransformationMatrix3D 
 }
 
 function addPolygonPoint( points:number[], xf:TransformationMatrix3D ):void {
-	xf.multiplyVector(Vector3D.ZERO, tempVec);
+	xf.multiplyVector(ZERO_VECTOR, tempVec);
 	points.push(tempVec.x, tempVec.y, tempVec.z);
 }
 
@@ -160,7 +161,7 @@ const customWords : KeyedList<Word> = {
 		forthRun: <RuntimeWord> (ctx:RuntimeContext):void => {
 			const sgctx:ShapeGeneratorContext = (<ShapeGeneratorContext>ctx);
 			const rad = +ctx.dataStack.pop();
-			tempVec.set(0,0,0);
+			setVector(tempVec,0,0,0);
 			fixMaterialParameters(sgctx);
 			sgctx.transform.multiplyVector( tempVec, tempVec );
 			(<ShapeGeneratorContext>ctx).shapeSheetUtil.plotSphere( tempVec.x, tempVec.y, tempVec.z, sgctx.transform.scale * rad );

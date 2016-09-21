@@ -1,4 +1,6 @@
 import Vector3D from './Vector3D';
+import { makeVector, setVector, I_VECTOR } from './vector3ds';
+import { addVector, normalizeVector } from './vector3dmath'; 
 import Curve, {estimateCurveLength, estimateCurveTangent} from './Curve';
 import {makeCubicBezierCurve} from './Bezier';
 import ShapeSheet from './ShapeSheet';
@@ -54,22 +56,22 @@ function railEndpoint( trackEndpoint:TrackEndpoint, rail:TrackTypeRail ):TrackEn
 
 
 function guessCurve( c:Curve, startDir:Vector3D, endDir:Vector3D ):Curve {
-	const b0=new Vector3D
-	const b3=new Vector3D
+	const b0=makeVector()
+	const b3=makeVector()
 	c(0.00, b0);
 	c(1.00, b3);
 	
 	const len = estimateCurveLength(c);
 	// len / 3 seems to allow for nice 45 degree curves
-	const b1 = Vector3D.add( b0, startDir.normalize(+len/3) );
-	const b2 = Vector3D.add( b3,   endDir.normalize(-len/3) );
+	const b1 = addVector( b0, normalizeVector(startDir, +len/3) );
+	const b2 = addVector( b3, normalizeVector(  endDir, -len/3) );
 	
 	return makeCubicBezierCurve(b0, b1, b2, b3);
 }
 
 function trackCurve( start:TrackEndpoint, end:TrackEndpoint, iter:number=1 ):Curve {
-	const startForward = TransformationMatrix3D.fromQuaternion(start.orientation).multiplyVector(Vector3D.I); 
-	const endForward   = TransformationMatrix3D.fromQuaternion(end.orientation  ).multiplyVector(Vector3D.I);
+	const startForward = TransformationMatrix3D.fromQuaternion(start.orientation).multiplyVector(I_VECTOR); 
+	const endForward   = TransformationMatrix3D.fromQuaternion(end.orientation  ).multiplyVector(I_VECTOR);
 	
 	let curve = makeCubicBezierCurve(start.position, start.position, end.position, end.position);
 	for( let i=0; i<iter; ++i ) {
@@ -89,10 +91,10 @@ export default class RailDemo {
 	protected _drawTrackSegmentRails(
 		rails:Array<TrackTypeRail>, startOrientation:Quaternion, endOrientation:Quaternion, trackCurve:Curve, divisions:number=16
 	) {
-		let prevTrackPosition:Vector3D = new Vector3D;
-		let nextTrackPosition:Vector3D = new Vector3D;
-		let prevRailPosition:Vector3D = new Vector3D;
-		let nextRailPosition:Vector3D = new Vector3D;
+		let prevTrackPosition:Vector3D = makeVector();
+		let nextTrackPosition:Vector3D = makeVector();
+		let prevRailPosition:Vector3D = makeVector();
+		let nextRailPosition:Vector3D = makeVector();
 		let prevOrientation:Quaternion = new Quaternion;
 		let nextOrientation:Quaternion = new Quaternion;
 		let prevTransform = new TransformationMatrix3D;
@@ -132,18 +134,18 @@ export default class RailDemo {
 		const segmentLength = estimateCurveLength(trackCurve);
 		const divisions = Math.round( segmentLength / tie.spacing );
 		
-		const leftOffset  = new Vector3D(0, tie.y0, 0);
-		const rightOffset = new Vector3D(0, tie.y1, 0);
+		const leftOffset  = makeVector(0, tie.y0, 0);
+		const rightOffset = makeVector(0, tie.y1, 0);
 		
-		let prevTrackPosition:Vector3D = new Vector3D;
-		let nextTrackPosition:Vector3D = new Vector3D;
+		let prevTrackPosition:Vector3D = makeVector();
+		let nextTrackPosition:Vector3D = makeVector();
 		// Sub-segment corner positions
-		//let c0rPosition:Vector3D = new Vector3D;
-		//let c0lPosition:Vector3D = new Vector3D;
-		//let c1rPosition:Vector3D = new Vector3D;
-		//let c1lPosition:Vector3D = new Vector3D;
-		let tep0 = new Vector3D;
-		let tep1 = new Vector3D;
+		//let c0rPosition:Vector3D = makeVector();
+		//let c0lPosition:Vector3D = makeVector();
+		//let c1rPosition:Vector3D = makeVector();
+		//let c1lPosition:Vector3D = makeVector();
+		let tep0 = makeVector();
+		let tep1 = makeVector();
 		let prevOrientation:Quaternion = new Quaternion;
 		let nextOrientation:Quaternion = new Quaternion;
 		let prevTransform = new TransformationMatrix3D;
@@ -204,7 +206,7 @@ export default class RailDemo {
 	
 	drawTrack(trackType:TrackType, start:TrackEndpoint, end:TrackEndpoint) {
 		const curve = trackCurve(start, end);
-		const buf = new Vector3D;
+		const buf = makeVector();
 		
 		for( let t in trackType.ties ) {
 			let tie = trackType.ties[t];
@@ -217,7 +219,7 @@ export default class RailDemo {
 	run():void {
 		const scale = this.scale;
 		
-		const minusZ = new Vector3D(0,0,-1);
+		const minusZ = makeVector(0,0,-1);
 		
 		const railMf = constantMaterialIndexFunction(4);
 		const tieMf = constantMaterialIndexFunction(8);
@@ -226,19 +228,19 @@ export default class RailDemo {
 		const y1 = +scale*2/3;
 		
 		const leftRail:TrackTypeRail = {
-			offset: new Vector3D(0, y0, 0),
+			offset: makeVector(0, y0, 0),
 			surfaceDepthFunction: NOOP_PLOTTED_DEPTH_FUNCTION,
 			surfaceMaterialIndexFunction: railMf,
 			radius: scale/8
 		};
 		const rightRail:TrackTypeRail = {
-			offset: new Vector3D(0, y1, 0),
+			offset: makeVector(0, y1, 0),
 			surfaceDepthFunction: NOOP_PLOTTED_DEPTH_FUNCTION,
 			surfaceMaterialIndexFunction: railMf,
 			radius: scale/8
 		};
 		const bottomRail:TrackTypeRail = {
-			offset: new Vector3D(0, 0, y1),
+			offset: makeVector(0, 0, y1),
 			surfaceDepthFunction: (x,y,z) => z+Math.random()*0.5,
 			surfaceMaterialIndexFunction: tieMf,
 			radius: scale/4
@@ -269,22 +271,22 @@ export default class RailDemo {
 		const trackSegments:Array<TrackSegment> = [
 			{
 				start: {
-					position: new Vector3D(scale*-1, scale*8, 0),
+					position: makeVector(scale*-1, scale*8, 0),
 					orientation: Quaternion.fromXYZAxisAngle(1,0,0,0)
 				},
 				end: {
-					position: new Vector3D(scale*3, scale*8, 0),
+					position: makeVector(scale*3, scale*8, 0),
 					orientation: Quaternion.fromXYZAxisAngle(1,0,0,0)
 				},
 				type: trackType
 			},
 			{
 				start: {
-					position: new Vector3D(scale*3, scale*8, 0),
+					position: makeVector(scale*3, scale*8, 0),
 					orientation: Quaternion.fromXYZAxisAngle(1,0,0,0)
 				},
 				end: {
-					position: new Vector3D(scale*13, scale*3, 0),
+					position: makeVector(scale*13, scale*3, 0),
 					orientation: Quaternion.multiply(
 						Quaternion.fromXYZAxisAngle(1,0,0,+Math.PI),
 						Quaternion.fromXYZAxisAngle(0,0,1,+Math.PI/4)
@@ -294,14 +296,14 @@ export default class RailDemo {
 			},
 			{
 				start: {
-					position: new Vector3D(scale*13, scale*3, 0),
+					position: makeVector(scale*13, scale*3, 0),
 					orientation: Quaternion.multiply(
 						Quaternion.fromXYZAxisAngle(1,0,0,+Math.PI),
 						Quaternion.fromXYZAxisAngle(0,0,1,+Math.PI/4)
 					)
 				},
 				end: {
-					position: new Vector3D(scale*17, scale*-1, 0),
+					position: makeVector(scale*17, scale*-1, 0),
 					orientation: Quaternion.multiply(
 						Quaternion.fromXYZAxisAngle(1,0,0,+Math.PI),
 						Quaternion.fromXYZAxisAngle(0,0,1,+Math.PI/4)

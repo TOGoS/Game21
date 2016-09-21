@@ -1,21 +1,23 @@
 import Vector3D from './Vector3D';
+import { makeVector, setVector, vectorToArray, K_VECTOR } from './vector3ds';
+import { roundVectorToGrid } from './vector3dmath';
 import DensityFunction3D, {makeDensityFunction} from './DensityFunction3D';
 
-const dfDestVectorBuffer = new Vector3D;
-const dfStartVectorBuffer = new Vector3D;
+const dfDestVectorBuffer = makeVector();
+const dfStartVectorBuffer = makeVector();
 
 const findSurface = function( df:DensityFunction3D, start:Vector3D, z1:number=Infinity ):Vector3D {
 	if( df.valueAtVector(start) > 0 ) return start;
-	const v = df.findValue(start, Vector3D.K, 0, dfDestVectorBuffer);
+	const v = df.findValue(start, K_VECTOR, 0, dfDestVectorBuffer);
 	if( v === Infinity || v === -Infinity ) {
-		dfDestVectorBuffer.set(start.x, start.y, Infinity);
+		setVector(dfDestVectorBuffer, start.x, start.y, Infinity);
 	}
 	return dfDestVectorBuffer;
 }
 
 function vectorToString( v:Vector3D, precision:number=4 ) {
-	v = v.roundToGrid(1/64);
-	return '('+v.toArray().map(a => a === Infinity ? 'Infinity' : a.toPrecision(precision)).join(',')+')';
+	v = roundVectorToGrid(v, 1/64);
+	return '('+vectorToArray(v).map(a => a === Infinity ? 'Infinity' : a.toPrecision(precision)).join(',')+')';
 }
 
 function assertVectorsApproximatelyEqual( v0:Vector3D, v1:Vector3D, message?:string ) {
@@ -27,8 +29,8 @@ function assertVectorsApproximatelyEqual( v0:Vector3D, v1:Vector3D, message?:str
 
 const unitSphereDf:DensityFunction3D = makeDensityFunction( (x,y,z) => 1 - Math.sqrt(x*x+y*y+z*z) );
 
-assertVectorsApproximatelyEqual(new Vector3D(0,0,-1), findSurface(unitSphereDf, new Vector3D(0, 0, -4)), "Center of sphere!" )
+assertVectorsApproximatelyEqual(makeVector(0,0,-1), findSurface(unitSphereDf, makeVector(0, 0, -4)), "Center of sphere!" )
 // It would be unreasonable to expect it to find the exact edge:
-// assertVectorsApproximatelyEqual(new Vector3D(1,0,0), findSurface(unitSphereDf, new Vector3D(1, 0, -4)), "Edge of sphere!" )
-assertVectorsApproximatelyEqual(new Vector3D(0.5,0,-Math.sqrt(1-0.5*0.5)), findSurface(unitSphereDf, new Vector3D(0.5, 0, -4)), "Off-center!")
-assertVectorsApproximatelyEqual(new Vector3D(1,1,Infinity), findSurface(unitSphereDf, new Vector3D(1, 1, -4)), "Off sphere!")
+// assertVectorsApproximatelyEqual(makeVector(1,0,0), findSurface(unitSphereDf, makeVector(1, 0, -4)), "Edge of sphere!" )
+assertVectorsApproximatelyEqual(makeVector(0.5,0,-Math.sqrt(1-0.5*0.5)), findSurface(unitSphereDf, makeVector(0.5, 0, -4)), "Off-center!")
+assertVectorsApproximatelyEqual(makeVector(1,1,Infinity), findSurface(unitSphereDf, makeVector(1, 1, -4)), "Off sphere!")
