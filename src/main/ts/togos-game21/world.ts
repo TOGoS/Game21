@@ -84,11 +84,8 @@ export interface Entity {
  * A room's link to an object that resides within it
  */
 export interface RoomEntity {
-	// TODO: Replace with Vector3DLike so things can be deserialized
 	position : Vector3D; // Ignored (and should be null) for tiles/prototypes
-	// TODO: Replace with QuaternionLike so things can be deserialized
 	orientation? : Quaternion; // Assume identify if undefined
-	// TODO: Replace with Vector3DLike so things can be deserialized
 	velocity? : Vector3D; // Assume 0,0,0 if undefined
 	
 	/** The game object itself */
