@@ -823,10 +823,15 @@ export class MazeDemo {
 	protected keysUpdated() {
 		let up=false,down=false,left=false,right=false;
 		
-		if( this.keysDown[68] ) right = true;
-		if( this.keysDown[65] ) left = true;
-		if( this.keysDown[83] ) down = true;
-		if( this.keysDown[87] ) up = true;
+		const rightKeys = [33,34,39,68];
+		const leftKeys  = [35,36,37,65];
+		const upKeys    = [33,36,38,87];
+		const downKeys  = [34,35,40,83];
+		
+		for( let k in rightKeys ) if( this.keysDown[rightKeys[k]] ) right = true;
+		for( let k in leftKeys  ) if( this.keysDown[leftKeys[k]]  ) left  = true;
+		for( let k in upKeys    ) if( this.keysDown[upKeys[k]]    ) up    = true;
+		for( let k in downKeys  ) if( this.keysDown[downKeys[k]]  ) down  = true;
 		
 		if( left && right ) left = right = false;
 		if( up && down ) up = down = false;
