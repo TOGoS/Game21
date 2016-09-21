@@ -866,7 +866,7 @@ export function startDemo(canv:HTMLCanvasElement) : MazeDemo {
 	const playerClass:EntityClass = {
 		structureType: StructureType.INDIVIDUAL,
 		tilingBoundingBox: HUNIT_CUBE,
-		physicalBoundingBox: HUNIT_CUBE,
+		physicalBoundingBox: new Cuboid(-0.25, -0.5, 0.25, 0.25, 0.5, 0.25),
 		visualBoundingBox: HUNIT_CUBE,
 		isAffectedByGravity: false,
 		visualRef: playerImgRef,
