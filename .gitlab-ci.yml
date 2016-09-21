@@ -1,0 +1,5 @@
+image: node:latest
+
+test:
+  script:
+   - make run-unit-tests
