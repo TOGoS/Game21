@@ -1,4 +1,4 @@
-import { thaw, deepThaw, isDeepFrozen } from './DeepFreezer';
+import { deepFreeze, thaw, deepThaw, isDeepFrozen } from './DeepFreezer';
 import GameDataManager from './GameDataManager';
 import HTTPHashDatastore from './HTTPHashDatastore';
 import MemoryDatastore from './MemoryDatastore';
@@ -9,6 +9,7 @@ import Vector3D from './Vector3D';
 import { makeVector, ZERO_VECTOR } from './vector3ds';
 import { addVector, subtractVector, vectorIsZero, scaleVector, normalizeVector, roundVectorToGrid } from './vector3dmath';
 import Quaternion from './Quaternion';
+import TransformationMatrix3D from './TransformationMatrix3D';
 import SceneShader, { ShadeRaster } from './SceneShader';
 import { uuidUrn, newType4Uuid } from '../tshash/uuids';
 import { makeTileTreeRef, tileEntityPaletteRef, eachSubEntity } from './worldutil';
@@ -448,7 +449,7 @@ function makeRoom( gdm:GameDataManager ):string {
 function roomToMazeViewage( roomRef:string, roomX:number, roomY:number, gdm:GameDataManager, viewage:MazeViewage, visibility:ShadeRaster ):void {
 	const room = gdm.getRoom(roomRef);
 	if( room == null ) throw new Error("Failed to load room "+roomRef);
-
+	
 	let _entityToMazeViewage = ( entity:Entity, position:Vector3D, orientation:Quaternion  ) => {}
 	_entityToMazeViewage = ( entity:Entity, position:Vector3D, orientation:Quaternion ) => {
 		const entityClass = gdm.getEntityClass(entity.classRef);
@@ -526,6 +527,7 @@ function cardinalDirectionToVec( dir:CardinalDirection ):Vector3D {
 interface RoomEntityUpdate {
 	roomRef? : string;
 	position? : Vector3D;
+	velocityPosition? : Vector3D;
 }
 
 interface Collision {
@@ -537,6 +539,13 @@ interface Collision {
 }
 
 const entityPositionBuffer:Vector3D = makeVector(0,0,0);
+const rotate45Clockwise:TransformationMatrix3D        = deepFreeze(TransformationMatrix3D.fromXYZAxisAngle(0,0,1,+Math.PI/4));
+const rotate45CounterClockwise:TransformationMatrix3D = deepFreeze(TransformationMatrix3D.fromXYZAxisAngle(0,0,1,-Math.PI/4));
+const movementAttemptTransforms = [
+	TransformationMatrix3D.IDENTITY,
+	rotate45Clockwise,
+	rotate45CounterClockwise
+];
 
 export class MazeGame {
 	protected rooms:KeyedList<Room> = {};
@@ -591,7 +600,11 @@ export class MazeGame {
 	protected updateRoomEntity( roomRef:string, entityId:string, update:RoomEntityUpdate ):void {
 		let room : Room = this.getMutableRoom(roomRef);
 		let roomEntity = room.roomEntities[entityId];
-		if( update.position ) roomEntity.position = update.position;
+		if( update.position ) {
+			roomEntity.position = update.position;
+			delete roomEntity.velocityPosition;
+		}
+		if( update.velocityPosition ) roomEntity.velocityPosition = update.velocityPosition;
 		if( update.roomRef != null && update.roomRef != roomRef ) {
 			let newRoom : Room = this.getMutableRoom(update.roomRef);
 			newRoom.roomEntities[entityId] = roomEntity;
@@ -643,7 +656,7 @@ export class MazeGame {
 		}
 		return collisions;
 	}
-
+	
 	public playerEntityId?:string;
 	public playerMoveDir:CardinalDirection|undefined = undefined;
 	public update(interval:number=1/16) {
@@ -661,21 +674,41 @@ export class MazeGame {
 			for( let re in room.roomEntities ) {
 				const roomEntity = room.roomEntities[re];
 				const entity = roomEntity.entity;
-				if( entity.desiredMovementDirection && !vectorIsZero(entity.desiredMovementDirection) ) {
+				if( entity.desiredMovementDirection ) {
 					const entityClass = this.gameDataManager.getEntityClass(entity.classRef);
-					const delta = roundVectorToGrid(normalizeVector(entity.desiredMovementDirection, entityClass.normalWalkingSpeed*interval), 1/16);
-					if( vectorIsZero(delta) ) continue;
-					let roomEntity = room.roomEntities[re];
-					// TODO: Much better movement
-					const newLoc = this.fixLocation({
-						roomRef: r,
-						position: addVector(roomEntity.position, delta)
-					});
-					if( this.collisionsAt(newLoc.roomRef, newLoc.position, entityClass.physicalBoundingBox, re).length == 0 ) {
-						this.updateRoomEntity(r, re, {
-							roomRef: newLoc.roomRef,
-							position: newLoc.position
-						})
+					roomEntity.velocity = normalizeVector(entity.desiredMovementDirection, entityClass.normalWalkingSpeed);
+				} else delete roomEntity.velocity;
+				if( roomEntity.velocity && !vectorIsZero(roomEntity.velocity) ) {
+					const snapGridSize = 1/8; // Maybe should vary based on entity size
+					const entityClass = this.gameDataManager.getEntityClass(entity.classRef);
+					const delta = scaleVector(roomEntity.velocity, interval);
+					const p0 = roomEntity.velocityPosition ? roomEntity.velocityPosition : roomEntity.position;
+					const movementBufferVector = makeVector();
+					
+					shoveIt:
+					for( let scale = 1; scale >= snapGridSize; scale /= 2 ) {
+						for( let t in movementAttemptTransforms ) {
+							const transform = movementAttemptTransforms[t];
+							scaleVector(delta, scale, movementBufferVector);
+							transform.multiplyVector(movementBufferVector, movementBufferVector);
+							addVector(p0, movementBufferVector, movementBufferVector);
+							const newVLoc:RoomLocation = this.fixLocation({
+								roomRef: r,
+								position: movementBufferVector,
+							});
+							const newLoc:RoomLocation = {
+								roomRef: newVLoc.roomRef, // As long as gridSize <= 1, this should be okay, I think?
+								position: roundVectorToGrid(newVLoc.position, snapGridSize)
+							};
+							if( this.collisionsAt(newLoc.roomRef, newLoc.position, entityClass.physicalBoundingBox, re).length == 0 ) {
+								this.updateRoomEntity(r, re, {
+									roomRef: newLoc.roomRef,
+									position: newLoc.position,
+									velocityPosition: newVLoc.position
+								});
+								break shoveIt;
+							}
+						}
 					}
 				}
 			}

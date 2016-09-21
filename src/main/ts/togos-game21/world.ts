@@ -85,6 +85,7 @@ export interface Entity {
  */
 export interface RoomEntity {
 	position : Vector3D; // Ignored (and should be null) for tiles/prototypes
+	velocityPosition? : Vector3D; // Separate position for calculating movement when primary position is stepped
 	orientation? : Quaternion; // Assume identify if undefined
 	velocity? : Vector3D; // Assume 0,0,0 if undefined
 	
