@@ -4,7 +4,7 @@ import HTTPHashDatastore from './HTTPHashDatastore';
 import MemoryDatastore from './MemoryDatastore';
 import { DistributedBucketMapManager } from './DistributedBucketMap';
 import KeyedList from './KeyedList';
-import Cuboid from './Cuboid';
+import Cuboid, { makeCuboid, cuboidHeight } from './Cuboid';
 import Vector3D from './Vector3D';
 import { makeVector, ZERO_VECTOR } from './vector3ds';
 import { addVector, subtractVector, vectorIsZero, scaleVector, normalizeVector, roundVectorToGrid } from './vector3dmath';
@@ -674,16 +674,46 @@ export class MazeGame {
 			for( let re in room.roomEntities ) {
 				const roomEntity = room.roomEntities[re];
 				const entity = roomEntity.entity;
-				if( entity.desiredMovementDirection ) {
-					const entityClass = this.gameDataManager.getEntityClass(entity.classRef);
-					roomEntity.velocity = normalizeVector(entity.desiredMovementDirection, entityClass.normalWalkingSpeed);
-				} else delete roomEntity.velocity;
+				const entityClass = this.gameDataManager.getEntityClass(entity.classRef);
+				const entityBb = entityClass.physicalBoundingBox;
+				const snapGridSize = 1/8; // Maybe should vary based on entity size
+				if( entityClass.isAffectedByGravity ) {
+					const floorCuboid = makeCuboid(
+						entityBb.minX, entityBb.maxY             , entityBb.minZ,
+						entityBb.maxX, entityBb.maxY+snapGridSize, entityBb.maxZ
+					)
+					// TODO: It's more about walking
+					const onFloor = this.collisionsAt(r, roomEntity.position, floorCuboid, re).length > 0;
+					if( onFloor ) {
+						const vel = roomEntity.velocity ? roomEntity.velocity : ZERO_VECTOR;
+						if( entity.desiredMovementDirection ) {
+							const walkVel = normalizeVector(entity.desiredMovementDirection, entityClass.normalWalkingSpeed);
+							roomEntity.velocity = makeVector(walkVel.x, vel.y, walkVel.z);
+						} else {
+							if( roomEntity.velocity ) {
+								roomEntity.velocity = makeVector(0, vel.y, 0);
+							}
+						}
+						if( roomEntity.velocity && roomEntity.velocity.y > 0 ) {
+							roomEntity.velocity = makeVector(roomEntity.velocity.x, 0, roomEntity.velocity.z);
+						}
+						if( roomEntity.velocityPosition && roomEntity.velocityPosition.y > roomEntity.position.y ) {
+							roomEntity.velocityPosition = makeVector(roomEntity.velocityPosition.x, roomEntity.velocityPosition.y, roomEntity.velocityPosition.z);
+						}
+					}
+				}
+				if( entityClass.isAffectedByGravity ) {
+					const vel = roomEntity.velocity ? roomEntity.velocity : ZERO_VECTOR;
+					roomEntity.velocity = addVector(vel, makeVector(0,10*interval,0));
+				}
 				if( roomEntity.velocity && !vectorIsZero(roomEntity.velocity) ) {
-					const snapGridSize = 1/8; // Maybe should vary based on entity size
-					const entityClass = this.gameDataManager.getEntityClass(entity.classRef);
 					const delta = scaleVector(roomEntity.velocity, interval);
 					const p0 = roomEntity.velocityPosition ? roomEntity.velocityPosition : roomEntity.position;
 					const movementBufferVector = makeVector();
+					
+					let newVLoc:RoomLocation = undefined;
+					let newLoc:RoomLocation = undefined;
+					let moved:boolean =  false;
 					
 					shoveIt:
 					for( let scale = 1; scale >= snapGridSize; scale /= 2 ) {
@@ -692,22 +722,28 @@ export class MazeGame {
 							scaleVector(delta, scale, movementBufferVector);
 							transform.multiplyVector(movementBufferVector, movementBufferVector);
 							addVector(p0, movementBufferVector, movementBufferVector);
-							const newVLoc:RoomLocation = this.fixLocation({
+							newVLoc = this.fixLocation({
 								roomRef: r,
 								position: movementBufferVector,
 							});
-							const newLoc:RoomLocation = {
+							newLoc = {
 								roomRef: newVLoc.roomRef, // As long as gridSize <= 1, this should be okay, I think?
 								position: roundVectorToGrid(newVLoc.position, snapGridSize)
 							};
-							if( this.collisionsAt(newLoc.roomRef, newLoc.position, entityClass.physicalBoundingBox, re).length == 0 ) {
+							if( this.collisionsAt(newLoc.roomRef, newLoc.position, entityBb, re).length == 0 ) {
 								this.updateRoomEntity(r, re, {
 									roomRef: newLoc.roomRef,
 									position: newLoc.position,
 									velocityPosition: newVLoc.position
 								});
+								moved = true; 
 								break shoveIt;
 							}
+						}
+						
+						if( !moved ) {
+							delete roomEntity.velocity;
+							delete roomEntity.velocityPosition;
 						}
 					}
 				}
@@ -868,7 +904,7 @@ export function startDemo(canv:HTMLCanvasElement) : MazeDemo {
 		tilingBoundingBox: HUNIT_CUBE,
 		physicalBoundingBox: new Cuboid(-0.25, -0.5, 0.25, 0.25, 0.5, 0.25),
 		visualBoundingBox: HUNIT_CUBE,
-		isAffectedByGravity: false,
+		isAffectedByGravity: true,
 		visualRef: playerImgRef,
 		normalWalkingSpeed: 4,
 		normalClimbingSpeed: 2,

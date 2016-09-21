@@ -46,3 +46,16 @@ export default class Cuboid {
 		return Cuboid.containsVector( this, v );
 	}
 };
+
+export function makeCuboid(minX:number, minY:number=0, minZ:number=0, maxX:number=0, maxY:number=0, maxZ:number=0) {
+	return new Cuboid(minX, minY, minZ, maxX, maxY, maxZ);
+}
+export function cuboidWidth(cuboid:Cuboid) {
+	return cuboid.maxX - cuboid.minX;
+}
+export function cuboidHeight(cuboid:Cuboid) {
+	return cuboid.maxY - cuboid.minY;
+}
+export function cuboidDepth(cuboid:Cuboid) {
+	return cuboid.maxZ - cuboid.minZ;
+}
