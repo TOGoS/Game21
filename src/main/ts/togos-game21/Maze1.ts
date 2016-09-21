@@ -499,6 +499,15 @@ function sceneToMazeViewage( roomRef:string, roomX:number, roomY:number, gdm:Gam
 	}
 }
 
+enum XYZDirection {
+	POSITIVE_X = 0x100,
+	POSITIVE_Y = 0x010,
+	POSITIVE_Z = 0x001,
+	NEGATIVE_X = 0x300,
+	NEGATIVE_Y = 0x030,
+	NEGATIVE_Z = 0x003,
+};
+
 enum CardinalDirection {
 	EAST = 0,
 	SOUTHEAST = 1,
@@ -531,11 +540,13 @@ interface RoomEntityUpdate {
 }
 
 interface Collision {
-	/* For now I don't care, but here's some info that may be useful later:
 	roomRef : string;
-	relativePosition : Vector3D;
+	roomEntityId : string;
 	roomEntity : RoomEntity;
-	*/
+	
+	// Individual entity that was collided-with
+	entity : Entity;
+	entityPosition : Vector3D;
 }
 
 const entityPositionBuffer:Vector3D = makeVector(0,0,0);
@@ -552,7 +563,7 @@ export class MazeGamePhysics {
 	
 	protected impulses:KeyedList<KeyedList<Vector3D>> = {};	
 	
-	public reigsterImpulse( aRef:string, bRef:string, impulse:Vector3D ):void {
+	public registerImpulse( aRef:string, bRef:string, impulse:Vector3D ):void {
 		if( bRef > aRef ) {
 			let t = aRef;
 			aRef = bRef;
@@ -573,10 +584,65 @@ export class MazeGamePhysics {
 		}
 	}
 	
+	protected borderingCuboid( roomRef:string, bb:Cuboid, dir:XYZDirection, gridSize:number ):Cuboid {
+		switch( dir ) {
+		case XYZDirection.NEGATIVE_X:
+			return makeCuboid(
+				bb.minX-gridSize, bb.minY, bb.minZ,
+				bb.minX         , bb.maxY, bb.maxZ
+			);
+		case XYZDirection.POSITIVE_X:
+			return makeCuboid(
+				bb.maxX         , bb.minY, bb.minZ,
+				bb.maxX+gridSize, bb.maxY, bb.maxZ
+			);
+		case XYZDirection.NEGATIVE_Y:
+			return makeCuboid(
+				bb.minX, bb.minY-gridSize, bb.minZ,
+				bb.maxX, bb.minY         , bb.maxZ
+			);
+		case XYZDirection.POSITIVE_Y:
+			return makeCuboid(
+				bb.minX, bb.maxY         , bb.minZ,
+				bb.maxX, bb.maxY+gridSize, bb.maxZ
+			);
+		default:
+			throw new Error("Unsupported XYZDirection: 0x"+dir.toString(16));
+		}
+	}
+	
+	protected borderingCollisions( roomRef:string, pos:Vector3D, bb:Cuboid, dir:XYZDirection, gridSize:number, ignoreEntityId:string ):Collision[] {
+		const border = this.borderingCuboid(roomRef, bb, dir, gridSize);
+		return this.game.collisionsAt( roomRef, pos, border, ignoreEntityId );
+	}
+	
+	protected massivestCollision( collisions:Collision[] ) {
+		let maxMass = 0;
+		let massivest = undefined;
+		for( let c in collisions ) {
+			const coll = collisions[c];
+			const entityClass = this.game.gameDataManager.getEntityClass(coll.roomEntity.entity.classRef);
+			if( entityClass.mass > maxMass ) {
+				maxMass = entityClass.mass;
+				massivest = c;
+			}
+		}
+		return massivest;
+	}
+	
+	/**
+	 * Finds the most massive (interactive, rigid) object in the space specified
+	 */
+	protected massivestBorderingCollision( roomRef:string, pos:Vector3D, bb:Cuboid, dir:XYZDirection, gridSize:number, ignoreEntityId:string ):Collision|undefined {
+		return this.massivestCollision( this.borderingCollisions(roomRef, pos, bb, dir, gridSize, ignoreEntityId) );
+	}
+	
 	public updateEntities(interval:number):void {
 		const game = this.game;
+		this.impulses = {};
 		/** lesser object ID => greater object ID => force exerted from lesser to greater */
 		const gravRef:string = "gravity";
+		const gravVec = ;
 		const rooms = game.activeRooms;
 		for( let r in rooms ) {
 			let room = rooms[r];
@@ -587,6 +653,9 @@ export class MazeGamePhysics {
 				const entityBb = entityClass.physicalBoundingBox;
 				const snapGridSize = 1/8; // Maybe should vary based on entity size
 				if( entityClass.isAffectedByGravity ) {
+					const gravImpulse = makeVector(0, 10*interval*entityClass.mass, 0);
+					this.registerImpulse(gravRef, re, gravImpulse);
+				}
 					const floorCuboid = makeCuboid(
 						entityBb.minX, entityBb.maxY             , entityBb.minZ,
 						entityBb.maxX, entityBb.maxY+snapGridSize, entityBb.maxZ
@@ -944,6 +1013,7 @@ export function startDemo(canv:HTMLCanvasElement) : MazeDemo {
 		physicalBoundingBox: new Cuboid(-0.25, -0.5, 0.25, 0.25, 0.5, 0.25),
 		visualBoundingBox: HUNIT_CUBE,
 		isAffectedByGravity: true,
+		mass: 45, // 100 lbs; he's a small guy
 		visualRef: playerImgRef,
 		normalWalkingSpeed: 4,
 		normalClimbingSpeed: 2,
