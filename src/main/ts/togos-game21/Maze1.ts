@@ -77,7 +77,7 @@ function numberToFillStyle( col:number ):string {
 		((col>>24)&0xFF)+','+
 		((col>>16)&0xFF)+','+
 		((col>> 8)&0xFF)+','+
-		(((col>> 0)&0xFF)/255)+')';
+		(((col>>0)&0xFF)/255)+')';
 }
 
 function parseOneBitImageDataToDataUrl( enc:string, w:number, h:number, color0:number, color1:number ):string {
