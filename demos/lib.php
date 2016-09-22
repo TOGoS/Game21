@@ -110,7 +110,7 @@ function require_game21_js_libs( $inline=false, $requireModuleNames=null ) {
 		}
 		$squishFile = $tempDir.'/'.hash('sha1', implode(',', $requireModuleNames).'-'.filemtime($libsFile));
 		$squishCmd = "$rp/bin/pruneamd -m ".escapeshellarg(implode(',', $requireModuleNames))." < $libsFile > $squishFile";
-		fwrite(STDERR, "$ $squishCmd\n");
+		//fwrite(STDERR, "$ $squishCmd\n");
 		system($squishCmd, $pruneStatus);
 		if( $pruneStatus !== 0 ) {
 			throw new Exception("Failed to run pruner!");
