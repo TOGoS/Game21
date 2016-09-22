@@ -6,7 +6,7 @@ function roundToNearestMultiple(n:number, gridSize:number):number {
 }
 
 export function scaleVector( v:Vector3D, s:number, dest?:Vector3D ):Vector3D {
-	if( s == 1 && dest == null ) return this;
+	if( s == 1 && dest == null ) return v;
 	return setVector(dest, v.x*s, v.y*s, v.z*s);
 }
 
