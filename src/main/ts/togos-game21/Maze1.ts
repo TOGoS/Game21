@@ -500,36 +500,34 @@ function sceneToMazeViewage( roomRef:string, roomX:number, roomY:number, gdm:Gam
 }
 
 enum XYZDirection {
+	NONE = 0x000,
 	POSITIVE_X = 0x100,
+	POSITIVE_X_POSITIVE_Y = 0x110,
 	POSITIVE_Y = 0x010,
-	POSITIVE_Z = 0x001,
+	NEGATIVE_X_POSITIVE_Y = 0x310,
 	NEGATIVE_X = 0x300,
+	NEGATIVE_X_NEGATIVE_Y = 0x330,
 	NEGATIVE_Y = 0x030,
+	POSITIVE_X_NEGATIVE_Y = 0x130,
+	// Fill these in as needed
+	POSITIVE_Z = 0x001,
 	NEGATIVE_Z = 0x003,
 };
 
-enum CardinalDirection {
-	EAST = 0,
-	SOUTHEAST = 1,
-	SOUTH = 2,
-	SOUTHWEST = 3,
-	WEST = 4,
-	NORTHWEST = 5,
-	NORTH = 6,
-	NORTHEAST = 7
-}
-
-function cardinalDirectionToVec( dir:CardinalDirection ):Vector3D {
-	switch( dir ) {
-	case CardinalDirection.EAST: return makeVector(1,0,0);
-	case CardinalDirection.SOUTHEAST: return makeVector(1,1,0);
-	case CardinalDirection.SOUTH: return makeVector(0,1,0);
-	case CardinalDirection.SOUTHWEST: return makeVector(-1,1,0);
-	case CardinalDirection.WEST: return makeVector(-1,0,0);
-	case CardinalDirection.NORTHWEST: return makeVector(-1,-1,0);
-	case CardinalDirection.NORTH: return makeVector(0,-1,0);
-	case CardinalDirection.NORTHEAST: return makeVector(1,-1,0);
-	default: return ZERO_VECTOR;
+const xyzDirectionVectors:{[dir:number]:Vector3D} = {};
+{
+	// encode component
+	const ec = function(i:number):number {
+		return i == 0 ? 0 : i > 0 ? 1 : 3;
+	}
+	
+	for( let z=-1; z<=1; ++z ) {
+		for( let y=-1; y<=1; ++y ) {
+			for( let x=-1; x<=1; ++x ) {
+				const xyzDirection = (ec(x)<<8) | (ec(y)<<4) | ec(z);
+				xyzDirectionVectors[xyzDirection] = xyzDirection == 0 ? ZERO_VECTOR : makeVector(x,y,z);
+			}
+		}
 	}
 }
 
@@ -550,12 +548,7 @@ interface Collision {
 	entityClass : EntityClass; // since we have it anyway!
 }
 
-interface BounceBox {
-	left  : Collision|undefined;
-	bottom: Collision|undefined;
-	right : Collision|undefined;
-	top   : Collision|undefined;
-}
+type BounceBox = { [k:number]: Collision|undefined }
 
 const entityPositionBuffer:Vector3D = makeVector(0,0,0);
 const rotate45Clockwise:TransformationMatrix3D        = deepFreeze(TransformationMatrix3D.fromXYZAxisAngle(0,0,1,+Math.PI/4));
@@ -599,38 +592,34 @@ export class MazeGamePhysics {
 		
 	
 	public registerImpulsePair( aRef:string, bRef:string, impulse:Vector3D ):void {
+		if( vectorIsZero(impulse) ) return; // Save ourselves a little bit of work
 		this.registerImpulse( bRef, impulse );
 		this.registerImpulse( aRef, scaleVector(impulse,-1) );
 	}
 	
-	protected borderingCuboid( roomRef:string, bb:Cuboid, dir:XYZDirection, gridSize:number ):Cuboid {
-		switch( dir ) {
-		case XYZDirection.NEGATIVE_X:
-			return makeCuboid(
-				bb.minX-gridSize, bb.minY, bb.minZ,
-				bb.minX         , bb.maxY, bb.maxZ
-			);
-		case XYZDirection.POSITIVE_X:
-			return makeCuboid(
-				bb.maxX         , bb.minY, bb.minZ,
-				bb.maxX+gridSize, bb.maxY, bb.maxZ
-			);
-		case XYZDirection.NEGATIVE_Y:
-			return makeCuboid(
-				bb.minX, bb.minY-gridSize, bb.minZ,
-				bb.maxX, bb.minY         , bb.maxZ
-			);
-		case XYZDirection.POSITIVE_Y:
-			return makeCuboid(
-				bb.minX, bb.maxY         , bb.minZ,
-				bb.maxX, bb.maxY+gridSize, bb.maxZ
-			);
-		default:
-			throw new Error("Unsupported XYZDirection: 0x"+dir.toString(16));
+	protected borderingCuboid( roomRef:string, bb:Cuboid, dir:Vector3D, gridSize:number ):Cuboid {
+		let minX = bb.minX, maxX = bb.maxX;
+		let minY = bb.minY, maxY = bb.maxY;
+		let minZ = bb.minZ, maxZ = bb.maxZ;
+		if( dir.x < 0 ) {
+			maxX = minX; minX -= gridSize; 
+		} else if( dir.x > 0 ) {
+			minX = maxX; maxX += gridSize;
 		}
+		if( dir.y < 0 ) {
+			maxY = minY; minY -= gridSize; 
+		} else if( dir.y > 0 ) {
+			minY = maxY; maxY += gridSize;
+		}
+		if( dir.z < 0 ) {
+			maxZ = minZ; minZ -= gridSize; 
+		} else if( dir.x > 0 ) {
+			minZ = maxZ; maxZ += gridSize;
+		}
+		return makeCuboid( minX,minY,minZ, maxX,maxY,maxZ );
 	}
 	
-	protected borderingCollisions( roomRef:string, pos:Vector3D, bb:Cuboid, dir:XYZDirection, gridSize:number, ignoreEntityId:string ):Collision[] {
+	protected borderingCollisions( roomRef:string, pos:Vector3D, bb:Cuboid, dir:Vector3D, gridSize:number, ignoreEntityId:string ):Collision[] {
 		const border = this.borderingCuboid(roomRef, bb, dir, gridSize);
 		return this.game.collisionsAt( roomRef, pos, border, ignoreEntityId );
 	}
@@ -652,20 +641,20 @@ export class MazeGamePhysics {
 	/**
 	 * Finds the most massive (interactive, rigid) object in the space specified
 	 */
-	protected massivestBorderingCollision( roomRef:string, pos:Vector3D, bb:Cuboid, dir:XYZDirection, gridSize:number, ignoreEntityId:string ):Collision|undefined {
+	protected massivestBorderingCollision( roomRef:string, pos:Vector3D, bb:Cuboid, dir:Vector3D, gridSize:number, ignoreEntityId:string ):Collision|undefined {
 		return this.massivestCollision( this.borderingCollisions(roomRef, pos, bb, dir, gridSize, ignoreEntityId) );
 	}
 	
 	/**
-	 * direction gives attempted movement direction; we only care about stuff that way!
+	 * What's around the entity?
 	 */
-	protected entityBounceBox( roomRef:string, pos:Vector3D, bb:Cuboid, direction:Vector3D, gridSize:number, ignoreEntityId:string ):BounceBox {
-		return {
-			right : direction.x > 0 ? this.massivestBorderingCollision(roomRef, pos, bb, XYZDirection.POSITIVE_X, gridSize, ignoreEntityId) : undefined,
-			bottom: direction.y > 0 ? this.massivestBorderingCollision(roomRef, pos, bb, XYZDirection.POSITIVE_Y, gridSize, ignoreEntityId) : undefined,
-			left  : direction.x < 0 ? this.massivestBorderingCollision(roomRef, pos, bb, XYZDirection.NEGATIVE_X, gridSize, ignoreEntityId) : undefined,
-			top   : direction.y < 0 ? this.massivestBorderingCollision(roomRef, pos, bb, XYZDirection.NEGATIVE_Y, gridSize, ignoreEntityId) : undefined,
-		};
+	protected entityBounceBox( roomRef:string, pos:Vector3D, bb:Cuboid, gridSize:number, ignoreEntityId:string ):BounceBox {
+		const bounceBox:BounceBox = {};
+		for( let xyzDir in xyzDirectionVectors ) {
+			const vec = xyzDirectionVectors[xyzDir];
+			bounceBox[xyzDir] = this.massivestBorderingCollision(roomRef, pos, bb, vec, gridSize, ignoreEntityId);
+		}
+		return bounceBox;
 	}
 	
 	public updateEntities(interval:number):void {
@@ -674,7 +663,8 @@ export class MazeGamePhysics {
 		const gravRef:string = "gravity";
 		const gravVec = makeVector(0, 10, 0);
 		const rooms = game.activeRooms;
-		const walkForce = 450; // ~100 pounds of force?
+		const maxWalkForce = 450; // ~100 pounds of force?
+		const maxJumpImpulse = 300;
 		
 		const snapGridSize = 1/8;
 		
@@ -694,7 +684,8 @@ export class MazeGamePhysics {
 				}
 				
 				const floorCollision = this.massivestBorderingCollision(
-					r, roomEntity.position, entityClass.physicalBoundingBox, XYZDirection.POSITIVE_Y, snapGridSize, re);
+					r, roomEntity.position, entityClass.physicalBoundingBox,
+					xyzDirectionVectors[XYZDirection.POSITIVE_Y], snapGridSize, re);
 				
 				/*
 				 * Possible forces:
@@ -705,7 +696,7 @@ export class MazeGamePhysics {
 				 */
 				
 				// TODO: Do this in a generic way for any 'walking' entities
-				if( floorCollision ) {
+				if( entityVelocity(roomEntity).y >= 0 && floorCollision ) {
 					const dmd = entity.desiredMovementDirection || ZERO_VECTOR;
 					
 					/** Actual velocity relative to surface */
@@ -715,14 +706,13 @@ export class MazeGamePhysics {
 					const targetDvx = entityClass.normalWalkingSpeed * oneify(dmx);
 					/** Desired velocity change */
 					const attemptDdvx = targetDvx - dvx;
-					const maxWalkingForce = 1000; // TODO: Depends on entity, friction
 					// Attempt to change to target velocity in single tick
-					const walkForce = clampAbs( -attemptDdvx*entityClass.mass/interval, maxWalkingForce );
+					const walkForce = clampAbs( -attemptDdvx*entityClass.mass/interval, maxWalkForce );
 					const walkImpulse = {x:walkForce*interval, y:0, z:0};
 					this.registerImpulsePair(re, floorCollision.roomEntityId, walkImpulse);
 					
 					if( dmd.y < 0 ) {
-						const jumpImpulse:Vector3D = {x:0, y:maxWalkingForce, z:0};
+						const jumpImpulse:Vector3D = {x:0, y:maxJumpImpulse, z:0};
 						this.registerImpulsePair(re, floorCollision.roomEntityId, jumpImpulse);
 					}
 				} else {
@@ -762,8 +752,8 @@ export class MazeGamePhysics {
 			let room = rooms[r];
 			for( let re in room.roomEntities ) {
 				const roomEntity = room.roomEntities[re];
-				const velocity = roomEntity.velocity;
-				if( !velocity || vectorIsZero(velocity) ) continue;
+				const velocity:Vector3D|undefined = roomEntity.velocity;
+				if( velocity == null ) continue;
 				
 				const entity = roomEntity.entity;
 				const entityClass = game.gameDataManager.getEntityClass(entity.classRef);
@@ -801,7 +791,6 @@ export class MazeGamePhysics {
 					const newPosition = roundVectorToGrid(newVelocityLocation.position, snapGridSize);
 					const collisions = game.collisionsAt(newVelocityLocation.roomRef, newPosition, entityBb, re);
 					if( collisions.length == 0 ) {
-						//console.log("No collision; moving entity by "+vectorToString(deltaPos));
 						game.updateRoomEntity(r, re, {
 							roomRef: newRoomRef,
 							position: newPosition,
@@ -818,39 +807,78 @@ export class MazeGamePhysics {
 					// Need to take that into account, zero out part or all of our displacement
 					// based on where the obstacle was, register some impulses
 					
-					const bounceBox = this.entityBounceBox(
-						entityRoomRef, roomEntity.position, entityBb, displacement, snapGridSize, re );
-					
-					// Apply impulses to obstacles
-					if( bounceBox.bottom ) {
-						const dvy = velocity.y - entityVelocity(bounceBox.bottom.roomEntity).y;
-						// Need a big enough impulse to correct our own velocity
-						// in one tick
-						// with bouncinees, use more.
-						// this isn't quite right.
-						// probably need to take center of momentum, etc into account
-						const bounceImpulseY = (1 + bounceFactor(entityClass, bounceBox.bottom.entityClass)) * dvy * entityClass.mass;
-						this.registerImpulsePair( re, bounceBox.bottom.roomEntityId, makeVector(
-							0, bounceImpulseY, 0
-						))
+					{
+						const bounceBox:BounceBox = this.entityBounceBox(
+							entityRoomRef, roomEntity.position, entityBb, snapGridSize, re );
+						
+						let maxDvx = 0;
+						let maxDvxColl:Collision|undefined;
+						let maxDvy = 0;
+						let maxDvyColl:Collision|undefined;
+						
+						// Is there a less repetetive way to write this?
+						// Check up/down/left/right to find collisions.
+						// If nothing found, then it must be a diagonal collision!
+						// So then check diagonals.
+						let coll:Collision|undefined;
+						if( displacement.x > 0 && (coll = bounceBox[XYZDirection.POSITIVE_X]) ) {
+							const collVel = entityVelocity(coll.roomEntity);
+							const dvx = velocity.x - collVel.x;
+							if( dvx > maxDvx ) {
+								maxDvx = dvx;
+								maxDvxColl = coll;
+							}
+						}
+						if( displacement.x < 0 && (coll = bounceBox[XYZDirection.NEGATIVE_X]) ) {
+							const collVel = entityVelocity(coll.roomEntity);
+							const dvx = velocity.x - collVel.x;
+							if( dvx < maxDvx ) {
+								maxDvx = dvx;
+								maxDvxColl = coll;
+							}
+						}
+						if( displacement.y > 0 && (coll = bounceBox[XYZDirection.POSITIVE_Y]) ) {
+							const collVel = entityVelocity(coll.roomEntity);
+							const dvy = velocity.y - collVel.y;
+							if( dvy > maxDvy ) {
+								maxDvy = dvy;
+								maxDvyColl = coll;
+							}
+						}
+						if( displacement.y < 0 && (coll = bounceBox[XYZDirection.NEGATIVE_Y]) ) {
+							const collVel = entityVelocity(coll.roomEntity);
+							const dvy = velocity.y - collVel.y;
+							if( dvy < maxDvy ) {
+								maxDvy = dvy;
+								maxDvyColl = coll;
+							}
+						}
+						// TODO: check diagonals
+						
+						if( maxDvxColl ) {
+							const bounceImpulseX = (1 + bounceFactor(entityClass, maxDvxColl.entityClass)) * maxDvx * entityClass.mass;	
+							this.registerImpulsePair( re, maxDvxColl.roomEntityId, makeVector(bounceImpulseX, 0, 0));
+						}
+						if( maxDvyColl ) {
+							const bounceImpulseY = (1 + bounceFactor(entityClass, maxDvyColl.entityClass)) * maxDvy * entityClass.mass;
+							this.registerImpulsePair( re, maxDvyColl.roomEntityId, makeVector(0, bounceImpulseY, 0));
+						}
+						
+						// New displacement = displacement without the components that
+						// would take us into obstacles:
+						const remainingVx = maxDvxColl ? 0 : displacement.x;
+						const remainingVy = maxDvyColl ? 0 : displacement.y;
+						if( remainingVx != 0 && remainingVy != 0 ) {
+							console.log("Hmm, collision, but no stoppage (maybe a diagonal hit); velocity:", velocity)
+							break displacementStep;
+						}
+						
+						displacement = { x: remainingVx, y: remainingVy, z: 0 };
 					}
-					
-					// New displacement = displacement without the components that
-					// would take us into obstacles:
-					let remainingVx = displacement.x;
-					let remainingVy = displacement.y;
-					if( bounceBox.bottom || bounceBox.top   ) remainingVy = 0;
-					if( bounceBox.left   || bounceBox.right ) remainingVx = 0;
-					if( remainingVx != 0 && remainingVy != 0 ) {
-						console.log("Hmm, collision, but no bouncebox; velocity:", velocity)
-						break displacementStep;
-					}
-					
-					displacement = { x: remainingVx, y: remainingVy, z: 0 };
 					
 					++iter;
 					if( iter > 2 ) {
-						console.log("Too many displacement steps! "+iter)
+						console.log("Too many displacement steps; iter:", iter, "velocity:", velocity)
 						break displacementStep;
 					}
 				}
@@ -986,14 +1014,13 @@ export class MazeGame {
 	}
 	
 	public playerEntityId?:string;
-	public playerMoveDir:CardinalDirection|undefined = undefined;
+	public playerDesiredMovementDirection:Vector3D = ZERO_VECTOR;
 	public update(interval:number=1/16) {
 		for( let r in this.rooms ) {
 			let room = this.rooms[r];
 			for( let re in room.roomEntities ) {
 				if( re == this.playerEntityId ) {
-					room.roomEntities[re].entity.desiredMovementDirection = this.playerMoveDir != null ?
-						cardinalDirectionToVec(this.playerMoveDir) : undefined;
+					room.roomEntities[re].entity.desiredMovementDirection = this.playerDesiredMovementDirection;
 				}
 			}
 		}
@@ -1048,10 +1075,6 @@ export class MazeDemo {
 		this.updateView();
 	}
 
-	public walk(dir:CardinalDirection|undefined):void {
-		this.game.playerMoveDir = dir;
-	}
-	
 	public updateView() {
 		this.view.viewage = { items: [] };
 		
@@ -1121,16 +1144,10 @@ export class MazeDemo {
 		if( left && right ) left = right = false;
 		if( up && down ) up = down = false;
 		
-		this.game.playerMoveDir =
-			right && up ? CardinalDirection.NORTHEAST :
-			right && down ? CardinalDirection.SOUTHEAST :
-			right ? CardinalDirection.EAST :
-			left && up ? CardinalDirection.NORTHWEST :
-			left && down ? CardinalDirection.SOUTHWEST :
-			left ? CardinalDirection.WEST :
-			up ? CardinalDirection.NORTH :
-			down ? CardinalDirection.SOUTH :
-			undefined;
+		let moveX = right ? +1 : left ? -1 : 0;
+		let moveY = down  ? +1 : up   ? -1 : 0;
+		
+		this.game.playerDesiredMovementDirection = makeVector(moveX, moveY, 0);
 	}
 	public keyDown(keyEvent:KeyboardEvent):void {
 		this.keysDown[keyEvent.keyCode] = true;
@@ -1151,7 +1168,7 @@ export function startDemo(canv:HTMLCanvasElement) : MazeDemo {
 	const playerClass:EntityClass = {
 		structureType: StructureType.INDIVIDUAL,
 		tilingBoundingBox: HUNIT_CUBE,
-		physicalBoundingBox: new Cuboid(-0.25, -0.5, 0.25, 0.25, 0.5, 0.25),
+		physicalBoundingBox: new Cuboid(-0.25, -0.25, 0.25, 0.25, 0.5, 0.25),
 		visualBoundingBox: HUNIT_CUBE,
 		isInteractive: true,
 		isAffectedByGravity: true,
