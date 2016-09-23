@@ -566,10 +566,24 @@ const movementAttemptTransforms = [
 	rotate45CounterClockwise
 ];
 
+function entityVelocity( roomEntity:RoomEntity ):Vector3D {
+	return roomEntity.velocity || ZERO_VECTOR;
+}
+
 function bounceFactor( ec0:EntityClass, ec1:EntityClass ):number {
 	const bf0 = ec0.bounciness == null ? 0.5 : ec0.bounciness;
 	const bf1 = ec1.bounciness == null ? 0.5 : ec1.bounciness;
 	return bf0*bf1;
+}
+
+function oneify( val:number ):number {
+	return val == 0 ? 0 : val > 0 ? 1 : -1;
+}
+
+function clampAbs( val:number, maxAbs:number ):number {
+	if( val > maxAbs  ) return maxAbs;
+	if( val < -maxAbs ) return -maxAbs;
+	return val;
 }
 
 export class MazeGamePhysics {
@@ -681,21 +695,40 @@ export class MazeGamePhysics {
 				
 				const floorCollision = this.massivestBorderingCollision(
 					r, roomEntity.position, entityClass.physicalBoundingBox, XYZDirection.POSITIVE_Y, snapGridSize, re);
+				
 				/*
+				 * Possible forces:
+				 * * Gravity pulls everything down
+				 * - Entities may push directly off any surfaces (jump)
+				 * - Entities may push sideways against surfaces that they are pressed against (e.g. floor)
+				 * - Entities may climb along ladders or other climbable things
+				 */
+				
+				// TODO: Do this in a generic way for any 'walking' entities
 				if( floorCollision ) {
-					// TODO: use impulses
-					if( entity.desiredMovementDirection ) {
-						//const walkImpulse = normalizeVector(entity.desiredMovementDirection, -walkForce*interval);
-						//this.registerImpulsePair(re, floorCollision.roomEntityId, walkImpulse);
-						roomEntity.velocity = normalizeVector(entity.desiredMovementDirection, entityClass.normalWalkingSpeed);
-					} else {
-						roomEntity.velocity = ZERO_VECTOR;
+					const dmd = entity.desiredMovementDirection || ZERO_VECTOR;
+					
+					/** Actual velocity relative to surface */
+					const dvx = entityVelocity(roomEntity).x - entityVelocity(floorCollision.roomEntity).x;
+					const dmx = dmd.x;
+					/** Desired velocity relative to surface */
+					const targetDvx = entityClass.normalWalkingSpeed * oneify(dmx);
+					/** Desired velocity change */
+					const attemptDdvx = targetDvx - dvx;
+					const maxWalkingForce = 1000; // TODO: Depends on entity, friction
+					// Attempt to change to target velocity in single tick
+					const walkForce = clampAbs( -attemptDdvx*entityClass.mass/interval, maxWalkingForce );
+					const walkImpulse = {x:walkForce*interval, y:0, z:0};
+					this.registerImpulsePair(re, floorCollision.roomEntityId, walkImpulse);
+					
+					if( dmd.y < 0 ) {
+						const jumpImpulse:Vector3D = {x:0, y:maxWalkingForce, z:0};
+						this.registerImpulsePair(re, floorCollision.roomEntityId, jumpImpulse);
 					}
 				} else {
 					// Drag!
 					//roomEntity.velocity = scaleVector(roomEntity.velocity || ZERO_VECTOR, Math.pow(0.9, interval));
 				}
-				*/
 			}
 		}
 		
@@ -790,7 +823,7 @@ export class MazeGamePhysics {
 					
 					// Apply impulses to obstacles
 					if( bounceBox.bottom ) {
-						const dvy = velocity.y - (bounceBox.bottom.roomEntity.velocity || ZERO_VECTOR).y;
+						const dvy = velocity.y - entityVelocity(bounceBox.bottom.roomEntity).y;
 						// Need a big enough impulse to correct our own velocity
 						// in one tick
 						// with bouncinees, use more.
