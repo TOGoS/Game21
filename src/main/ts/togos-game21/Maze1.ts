@@ -406,7 +406,7 @@ function makeTileEntityPalette( gdm:GameDataManager ):string {
 }
 
 function makeRoom( gdm:GameDataManager ):string {
-	const tileTreeRef = makeTileTreeRef( makeTileEntityPalette(gdm), 16, 16, 1, mazeData, gdm );
+	const tileTreeRef = makeTileTreeRef( makeTileEntityPalette(gdm), 16, 16, 1, mazeData, gdm, { infiniteMass: true } );
 	const roomRef = newUuidRef();
 	const roomBounds = new Cuboid(-8, -8, -0.5, 8, 8, 0.5);
 	const room:Room = {
@@ -665,17 +665,28 @@ export class MazeGamePhysics {
 				const roomEntity = room.roomEntities[re];
 				const entity = roomEntity.entity;
 				const entityClass = game.gameDataManager.getEntityClass(entity.classRef);
+				
 				const entityBb = entityClass.physicalBoundingBox;
 				if( entityClass.isAffectedByGravity && entityClass.mass != null && entityClass.mass != Infinity ) {
 					const gravImpulse = scaleVector(gravVec, entityClass.mass * interval);
 					this.registerImpulsePair(gravRef, re, gravImpulse);
 				}
-				walk: if( entity.desiredMovementDirection ) {
-					const floorCollision = this.massivestBorderingCollision(
-						r, roomEntity.position, entityClass.physicalBoundingBox, XYZDirection.POSITIVE_Y, snapGridSize, re);
-					if( !floorCollision ) break walk;
-					this.registerImpulsePair(re, floorCollision.roomEntityId,
-						normalizeVector(entity.desiredMovementDirection, walkForce * interval) );
+				
+				const floorCollision = this.massivestBorderingCollision(
+					r, roomEntity.position, entityClass.physicalBoundingBox, XYZDirection.POSITIVE_Y, snapGridSize, re);
+				
+				if( floorCollision ) {
+					// TODO: use impulses
+					if( entity.desiredMovementDirection ) {
+						//const walkImpulse = normalizeVector(entity.desiredMovementDirection, -walkForce*interval);
+						//this.registerImpulsePair(re, floorCollision.roomEntityId, walkImpulse);
+						roomEntity.velocity = normalizeVector(entity.desiredMovementDirection, entityClass.normalWalkingSpeed);
+					} else {
+						roomEntity.velocity = ZERO_VECTOR;
+					}
+				} else {
+					// Drag!
+					//roomEntity.velocity = scaleVector(roomEntity.velocity || ZERO_VECTOR, Math.pow(0.9, interval));
 				}
 			}
 		}
@@ -1095,6 +1106,7 @@ export function startDemo(canv:HTMLCanvasElement) : MazeDemo {
 		tilingBoundingBox: HUNIT_CUBE,
 		physicalBoundingBox: new Cuboid(-0.25, -0.5, 0.25, 0.25, 0.5, 0.25),
 		visualBoundingBox: HUNIT_CUBE,
+		isInteractive: true,
 		isAffectedByGravity: true,
 		mass: 45, // 100 lbs; he's a small guy
 		visualRef: playerImgRef,

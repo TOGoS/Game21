@@ -91,7 +91,7 @@ export function eachSubEntity<T>(
 	return undefined;
 }
 
-export function makeTileTreeNode( palette:any, w:number, h:number, d:number, indexes:number[], gdm:GameDataManager ):TileTree {
+export function makeTileTreeNode( palette:any, w:number, h:number, d:number, indexes:number[], gdm:GameDataManager, opts:MakeTileTreeOptions={} ):TileTree {
 	if( indexes.length != w*h*d ) {
 		throw new Error("Expected 'indexes' to be array of length "+(w*d*h)+"; but it had length "+indexes.length);
 	}
@@ -115,6 +115,7 @@ export function makeTileTreeNode( palette:any, w:number, h:number, d:number, ind
 
 	let totalOpacity:number = 0;
 	let isInteractive:boolean = false;
+	let totalMass:number = 0;
 	for( let i = w*d*h-1; i >= 0; --i ) {
 		const tileEntity = tilePalette[indexes[i]];
 		if( tileEntity == null ) continue;
@@ -123,6 +124,7 @@ export function makeTileTreeNode( palette:any, w:number, h:number, d:number, ind
 		if( tileClass == null ) throw new Error("Failed to get tile class "+tileEntity.entity.classRef);
 		totalOpacity += tileClass.opacity ? tileClass.opacity : 0;
 		if( tileClass.isInteractive !== false ) isInteractive = true;
+		totalMass += tileClass.mass == null ? Infinity : tileClass.mass;
 	}
 	
 	const tilingBoundingBox = new Cuboid(-tileW*w/2, -tileH*h/2, -tileD*d/2, +tileW*w/2, +tileH*h/2, +tileD*d/2);
@@ -138,6 +140,7 @@ export function makeTileTreeNode( palette:any, w:number, h:number, d:number, ind
 		childEntityPaletteRef: _paletteRef,
 		childEntityIndexes: indexes,
 		isInteractive: isInteractive,
+		mass: opts.infiniteMass ? Infinity : totalMass,
 		// These don't really make sense to have to have on a tile tree
 		// isAffectedByGravity: false,
 		// visualRef: undefined,
@@ -145,8 +148,13 @@ export function makeTileTreeNode( palette:any, w:number, h:number, d:number, ind
 	}
 }
 
-export function makeTileTreeRef( palette:any, w:number, h:number, d:number, indexes:any, gdm:GameDataManager ):string {
-	const tt:TileTree = makeTileTreeNode(palette, w, h, d, indexes, gdm);
+export interface MakeTileTreeOptions {
+	/** If set, make the tile tree mass = infinity, even if child nodes are not */
+	infiniteMass? : boolean;
+}
+
+export function makeTileTreeRef( palette:any, w:number, h:number, d:number, indexes:any, gdm:GameDataManager, opts:MakeTileTreeOptions={} ):string {
+	const tt:TileTree = makeTileTreeNode(palette, w, h, d, indexes, gdm, opts);
 	return gdm.fastStoreObject(tt);
 }
 
