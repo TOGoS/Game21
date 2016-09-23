@@ -795,8 +795,8 @@ export class MazeGamePhysics {
 					let remainingVy = displacement.y;
 					if( bounceBox.bottom || bounceBox.top   ) remainingVy = 0;
 					if( bounceBox.left   || bounceBox.right ) remainingVx = 0;
-					if( remainingVy != 0 && remainingVy != 0 ) {
-						console.log("Hmm, collision, but no bouncebox.")
+					if( remainingVx != 0 && remainingVy != 0 ) {
+						console.log("Hmm, collision, but no bouncebox; velocity:", velocity)
 						break displacementStep;
 					}
 					
