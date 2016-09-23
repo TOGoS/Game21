@@ -547,6 +547,7 @@ interface Collision {
 	// Individual entity that was collided-with
 	entity : Entity;
 	entityPosition : Vector3D;
+	entityClass : EntityClass; // since we have it anyway!
 }
 
 interface BounceBox {
@@ -564,6 +565,12 @@ const movementAttemptTransforms = [
 	rotate45Clockwise,
 	rotate45CounterClockwise
 ];
+
+function bounceFactor( ec0:EntityClass, ec1:EntityClass ):number {
+	const bf0 = ec0.bounciness == null ? 0.5 : ec0.bounciness;
+	const bf1 = ec1.bounciness == null ? 0.5 : ec1.bounciness;
+	return bf0*bf1;
+}
 
 export class MazeGamePhysics {
 	constructor( protected game:MazeGame ) { }
@@ -638,7 +645,7 @@ export class MazeGamePhysics {
 	/**
 	 * direction gives attempted movement direction; we only care about stuff that way!
 	 */
-	protected entityBounceBox( roomRef:string, pos:Vector3D, bb:Cuboid, direction:Vector3D, gridSize:number, ignoreEntityId:string ) {
+	protected entityBounceBox( roomRef:string, pos:Vector3D, bb:Cuboid, direction:Vector3D, gridSize:number, ignoreEntityId:string ):BounceBox {
 		return {
 			right : direction.x > 0 ? this.massivestBorderingCollision(roomRef, pos, bb, XYZDirection.POSITIVE_X, gridSize, ignoreEntityId) : undefined,
 			bottom: direction.y > 0 ? this.massivestBorderingCollision(roomRef, pos, bb, XYZDirection.POSITIVE_Y, gridSize, ignoreEntityId) : undefined,
@@ -674,7 +681,7 @@ export class MazeGamePhysics {
 				
 				const floorCollision = this.massivestBorderingCollision(
 					r, roomEntity.position, entityClass.physicalBoundingBox, XYZDirection.POSITIVE_Y, snapGridSize, re);
-				
+				/*
 				if( floorCollision ) {
 					// TODO: use impulses
 					if( entity.desiredMovementDirection ) {
@@ -688,6 +695,7 @@ export class MazeGamePhysics {
 					// Drag!
 					//roomEntity.velocity = scaleVector(roomEntity.velocity || ZERO_VECTOR, Math.pow(0.9, interval));
 				}
+				*/
 			}
 		}
 		
@@ -711,8 +719,12 @@ export class MazeGamePhysics {
 			}
 		}
 		
-		// Apply velocity to positions
+		// They've been applied!
 		this.impulses = {};
+		
+		// Apply velocity to positions,
+		// do collision detection,
+		// collect impulses for next frame
 		for( let r in rooms ) {
 			let room = rooms[r];
 			for( let re in room.roomEntities ) {
@@ -771,21 +783,22 @@ export class MazeGamePhysics {
 					
 					// Uh oh, we've collided somehow.
 					// Need to take that into account, zero out part or all of our displacement
-					// based on where the obstacle was, apply some impulses, and loop again.
+					// based on where the obstacle was, register some impulses
 					
 					const bounceBox = this.entityBounceBox(
 						entityRoomRef, roomEntity.position, entityBb, displacement, snapGridSize, re );
 					
 					// Apply impulses to obstacles
 					if( bounceBox.bottom ) {
-						const dvy = velocity.y - (bounceBox.bottom.roomEntity.velocity || ZERO_VECTOR).y
+						const dvy = velocity.y - (bounceBox.bottom.roomEntity.velocity || ZERO_VECTOR).y;
 						// Need a big enough impulse to correct our own velocity
 						// in one tick
 						// with bouncinees, use more.
 						// this isn't quite right.
 						// probably need to take center of momentum, etc into account
+						const bounceImpulseY = (1 + bounceFactor(entityClass, bounceBox.bottom.entityClass)) * dvy * entityClass.mass;
 						this.registerImpulsePair( re, bounceBox.bottom.roomEntityId, makeVector(
-							0, 2 * dvy / entityClass.mass, 0
+							0, bounceImpulseY, 0
 						))
 					}
 					
@@ -815,6 +828,7 @@ export class MazeGamePhysics {
 
 export class MazeGame {
 	protected rooms:KeyedList<Room> = {};
+	protected phys = new MazeGamePhysics(this);
 
 	public constructor( public gameDataManager:GameDataManager ) { }
 	
@@ -898,7 +912,8 @@ export class MazeGame {
 					roomEntityId: roomEntityId,
 					roomEntity: roomEntity,
 					entityPosition: entityPos,
-					entity: entity
+					entity: entity,
+					entityClass: proto,
 				} );
 			}
 		} else {
@@ -949,8 +964,7 @@ export class MazeGame {
 				}
 			}
 		}
-		const phys = new MazeGamePhysics(this);
-		phys.updateEntities(interval);
+		this.phys.updateEntities(interval);
 		for( let r in this.rooms ) {
 			const room = this.rooms[r];
 			if( !isDeepFrozen(room) ) {
@@ -1109,6 +1123,7 @@ export function startDemo(canv:HTMLCanvasElement) : MazeDemo {
 		isInteractive: true,
 		isAffectedByGravity: true,
 		mass: 45, // 100 lbs; he's a small guy
+		bounciness: 0.5,
 		visualRef: playerImgRef,
 		normalWalkingSpeed: 4,
 		normalClimbingSpeed: 2,
