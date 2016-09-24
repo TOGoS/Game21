@@ -78,11 +78,11 @@ export default class GameDataManager {
 		this.objectCache = {};
 	}
 	
-	protected updateMap( updates:KeyedList<string> ):Promise<string> {
+	public updateMap( updates:KeyedList<string> ):Promise<string> {
 		return this.objectMapManager.storeValues( updates );
 	}
 	
-	public storeObject( obj:any, _name?:string ):Promise<string> {
+	public storeObject<T>( obj:T, _name?:string ):Promise<string> {
 		obj = deepFreeze(obj);
 		const urnProm = storeObject( obj, this.datastore );
 		const name = _name; // Make it const so later references check out

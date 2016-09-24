@@ -32,7 +32,7 @@ function entityClassRef( op:any, gdm?:GameDataManager ):string {
  * Palette can either be an ID of a TileEntityPalette,
  * or a list of tile tree entity class refs.
  */
-export function tileEntityPaletteRef( palette:any, gdm?:GameDataManager ):string {
+export function makeTileEntityPaletteRef( palette:any, gdm?:GameDataManager ):string {
 	if( typeof palette == 'string' ) return palette;
 	
 	if( gdm == null ) throw new Error("Can't generate palette ref without game object"); // Well, really we should be able to for hash URN things eventually
@@ -95,7 +95,7 @@ export function makeTileTreeNode( palette:any, w:number, h:number, d:number, ind
 	if( indexes.length != w*h*d ) {
 		throw new Error("Expected 'indexes' to be array of length "+(w*d*h)+"; but it had length "+indexes.length);
 	}
-	const _paletteRef = tileEntityPaletteRef(palette, gdm);
+	const _paletteRef = makeTileEntityPaletteRef(palette, gdm);
 	
 	const tilePalette = gdm.getObject<TileEntityPalette>(_paletteRef);
 	if( tilePalette == null ) throw new Error("Failed to get tile palette "+_paletteRef);

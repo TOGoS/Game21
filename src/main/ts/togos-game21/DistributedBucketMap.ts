@@ -175,7 +175,7 @@ export class DistributedBucketMapManager<T> {
 		
 		// Otherwise we have to make currentUpdatePromise
 		let storeUpdates : ()=>Promise<string>;
-		storeUpdates = () => Promise.resolve("xxx oh no"); // To trick compiler into letting me use it down below 
+		storeUpdates = () => Promise.reject("xxx oh no"); // To trick compiler into letting me use it down below 
 		storeUpdates = () => {
 			let anyUpdates = false;
 			for( let u in this.pendingUpdates ) {

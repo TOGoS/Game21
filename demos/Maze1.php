@@ -65,9 +65,21 @@ html, body {
 .maze-canvas {
 	background: black;
 	border: 1px solid #333344;
-	width: 640px;
-	height: 480px;
+	width: 320px;
+	height: 240px;
 	box-sizing: content-box;
+}
+@media (min-width: 640px) and (min-height: 500px) {
+	.maze-canvas {
+		width: 640px;
+		height: 480px;
+	}
+}
+@media (min-width: 960) and (min-height: 740) {
+	.maze-canvas {
+		width: 960px;
+		height: 720px;
+	}
 }
 /* ]]> */</style>
 

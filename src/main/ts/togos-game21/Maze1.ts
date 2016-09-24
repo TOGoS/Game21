@@ -4,7 +4,7 @@ import HTTPHashDatastore from './HTTPHashDatastore';
 import MemoryDatastore from './MemoryDatastore';
 import { DistributedBucketMapManager } from './DistributedBucketMap';
 import KeyedList from './KeyedList';
-import Cuboid, { makeCuboid, cuboidHeight } from './Cuboid';
+import Cuboid, { makeCuboid, cuboidWidth, cuboidHeight } from './Cuboid';
 import Vector3D from './Vector3D';
 import { makeVector, vectorToString, ZERO_VECTOR } from './vector3ds';
 import { addVector, subtractVector, vectorIsZero, scaleVector, normalizeVector, roundVectorToGrid } from './vector3dmath';
@@ -12,7 +12,7 @@ import Quaternion from './Quaternion';
 import TransformationMatrix3D from './TransformationMatrix3D';
 import SceneShader, { ShadeRaster } from './SceneShader';
 import { uuidUrn, newType4Uuid } from '../tshash/uuids';
-import { makeTileTreeRef, tileEntityPaletteRef, eachSubEntity } from './worldutil';
+import { makeTileTreeRef, makeTileEntityPaletteRef, eachSubEntity } from './worldutil';
 import {
 	Room,
 	RoomEntity,
@@ -173,17 +173,32 @@ const plant1Pix = [
 	0,0,0,0,0,0,0,1,1,0,0,0,1,0,0,0,
 	0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,
 ];
+const ballPix = [
+   0,0,0,1,1,1,0,0,
+	0,1,1,1,1,1,1,0,
+	1,1,1,1,1,1,1,1,
+	1,1,1,1,1,1,0,1,
+	1,1,1,1,1,1,0,1,
+	1,1,1,1,1,0,0,1,
+	0,1,1,0,0,0,1,0,
+	0,0,1,1,1,1,0,0,
+];
 
 interface BitImageInfo {
 	bitstr : string;
 	color0 : number;
 	color1 : number;
+	width : number;
+	height: number;
 }
 
 const oneBitImageDataRegex = /^bitimg:([^,]+),([0-9a-f]+)$/;
 function parseBitImg( m:RegExpExecArray ):BitImageInfo {
 	const modStrs = m[1].split(';');
+	const bitStr:string = m[2];
 	const modVals:KeyedList<any> = {}; // Actually strings!  But any makes |0 happy.
+	const length = bitStr.length * 4;
+	const defaultWidth = Math.sqrt(length), defaultHeight = length/defaultWidth;  
 	for( let i = 0; i < modStrs.length; ++i ) {
 		const p = modStrs[i].split('=',2);
 		if( p.length == 2 ) {
@@ -195,9 +210,11 @@ function parseBitImg( m:RegExpExecArray ):BitImageInfo {
 		}
 	}
 	return {
-		bitstr: m[2],
+		bitstr: bitStr,
 		color0: modVals['color0']|0,
 		color1: modVals['color1']|0,
+		width : modVals['width'] |0 || defaultWidth,
+		height: modVals['height']|0 || defaultHeight
 	}
 }
 
@@ -229,18 +246,19 @@ const brikImgRef = "bitimg:color0=0;color1="+rgbaToNumber(255,255,128,255)+","+h
 const bigBrikImgRef = "bitimg:color0=0;color1="+rgbaToNumber(255,255,128,255)+","+hexEncodeBits(bigBrikPix);
 const playerImgRef = "bitimg:color0=0;color1="+rgbaToNumber(255,255,96,255)+","+hexEncodeBits(playerPix);
 const plant1ImgRef = "bitimg:color0=0;color1="+rgbaToNumber(64,255,64,255)+","+hexEncodeBits(plant1Pix);
+const ballImgRef = "bitimg:color0=0;color1="+rgbaToNumber(128,48,48,255)+","+hexEncodeBits(ballPix);
 
-const mazeData = [
+const room1Data = [
 	1,1,1,1,1,1,0,0,1,1,0,1,1,1,1,1,
-	0,0,0,0,0,1,0,1,1,0,0,0,1,0,1,0,
-	1,1,0,0,0,1,0,0,0,0,0,0,1,0,0,0,
-	1,1,1,0,1,1,1,1,1,1,1,0,1,0,1,1,
+	0,0,0,0,0,1,0,1,1,0,0,0,0,0,0,0,
+	1,1,0,0,0,1,0,0,0,0,0,0,0,0,0,1,
+	1,1,1,0,1,1,1,1,1,1,2,0,2,0,2,1,
 	1,1,1,0,1,1,1,1,0,0,0,0,0,0,1,1,
 	1,1,1,0,1,1,1,2,2,2,2,0,0,0,1,1,
 	1,0,0,0,0,1,1,2,0,0,0,0,0,0,0,0,
 	1,0,2,2,2,1,1,2,0,1,1,1,1,3,1,0,
 	1,0,2,1,1,1,1,2,0,1,0,0,1,1,1,0,
-	1,0,2,2,2,2,2,2,0,1,0,0,1,1,1,1,
+	1,0,0,0,2,2,2,2,0,1,0,0,1,1,1,1,
 	0,0,0,0,0,0,0,0,0,0,0,3,1,0,0,0,
 	1,1,0,1,1,1,1,1,1,1,1,1,1,0,1,1,
 	1,1,0,1,1,0,0,2,2,2,2,1,0,0,0,1,
@@ -248,6 +266,26 @@ const mazeData = [
 	1,3,3,3,1,1,0,2,2,2,0,1,0,0,0,1,
 	1,1,1,1,1,1,0,0,1,1,0,1,1,1,1,1,
 ];
+const room2Data = [
+	1,2,0,0,2,1,0,0,1,1,0,1,1,1,1,1,
+	0,0,0,0,0,0,0,0,0,0,0,0,1,0,1,0,
+	1,0,0,0,0,1,0,0,0,0,0,0,1,0,0,0,
+	1,1,1,0,1,1,1,2,0,0,0,0,1,0,0,1,
+	1,1,1,0,1,1,1,2,0,0,0,0,0,0,1,1,
+	1,1,1,0,1,1,1,2,0,0,0,2,2,2,1,1,
+	1,0,0,0,0,1,1,2,0,0,0,0,0,0,0,0,
+	1,0,2,2,2,1,1,2,0,0,0,0,1,3,1,0,
+	1,0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,
+	1,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,
+	0,0,0,0,0,0,0,0,0,0,0,3,1,0,0,0,
+	1,2,0,1,1,1,1,1,1,3,3,3,1,0,1,1,
+	1,2,0,1,1,0,0,2,2,2,2,1,1,0,0,1,
+	1,2,0,0,0,0,0,0,0,1,0,0,0,0,0,1,
+	1,2,0,0,2,1,0,2,2,2,0,1,0,0,0,1,
+	1,2,0,0,2,1,0,0,1,1,0,1,1,1,1,1,
+];
+
+
 
 export class MazeView {
 	public gameDataManager:GameDataManager;
@@ -265,7 +303,8 @@ export class MazeView {
 		let xRef = ref;
 		if( bitImgRee ) {
 			const bitImgInfo = parseBitImg(bitImgRee);
-			xRef = parseOneBitImageDataToDataUrl( bitImgInfo.bitstr, 16, 16, bitImgInfo.color0, bitImgInfo.color1 );
+			console.log(ref+" -> ", bitImgInfo)
+			xRef = parseOneBitImageDataToDataUrl( bitImgInfo.bitstr, bitImgInfo.width, bitImgInfo.height, bitImgInfo.color0, bitImgInfo.color1 );
 		} else {
 			throw new Error(ref+" not parse!");
 		}
@@ -365,85 +404,174 @@ export class MazeView {
 }
 
 const HUNIT_CUBE:Cuboid = new Cuboid(-0.5, -0.5, -0.5, 0.5, 0.5, 0.5); 
+const QUNIT_CUBE:Cuboid = new Cuboid(-0.25, -0.25, -0.52, 0.25, 0.25, 0.25); 
 
-function makeTileEntityPalette( gdm:GameDataManager ):string {
-	return tileEntityPaletteRef( [
-		null,
-		gdm.fastStoreObject<EntityClass>( {
+const ballEntityClassId   = 'urn:uuid:762f0209-0b91-4084-b1e0-3aac3ca5f5ab';
+const tileEntityPaletteId = 'urn:uuid:50c19be4-7ab9-4dda-a52f-cf4cfe2562ac';
+const playerEntityClassId = 'urn:uuid:416bfc18-7412-489f-a45e-6ff4c6a4e08b';
+const playerEntityId      = 'urn:uuid:d42a8340-ec03-482b-ae4c-a1bfdec4ba32';
+const ballEntityId        = 'urn:uuid:10070a44-2a0f-41a1-bcfb-b9e6a6f1b590';
+const room1TileTreeId     = 'urn:uuid:a11ed6ae-f096-4b30-bd39-2a78d39a1385';
+const room2TileTreeId     = 'urn:uuid:67228411-243c-414c-99d7-960f1151b970';
+
+function initData( gdm:GameDataManager ):Promise<any> {
+	return Promise.all([
+		gdm.updateMap({[tileEntityPaletteId]: makeTileEntityPaletteRef( [
+			null,
+			gdm.fastStoreObject<EntityClass>( {
+				structureType: StructureType.INDIVIDUAL,
+				tilingBoundingBox: HUNIT_CUBE,
+				physicalBoundingBox: HUNIT_CUBE,
+				visualBoundingBox: HUNIT_CUBE,
+				isInteractive: true,
+				isRigid: true,
+				mass: Infinity,
+				opacity: 1,
+				visualRef: brikImgRef
+			} ),
+			gdm.fastStoreObject<EntityClass>( {
+				structureType: StructureType.INDIVIDUAL,
+				tilingBoundingBox: HUNIT_CUBE,
+				physicalBoundingBox: HUNIT_CUBE,
+				visualBoundingBox: HUNIT_CUBE,
+				isInteractive: true,
+				isRigid: true,
+				mass: Infinity,
+				opacity: 1,
+				visualRef: bigBrikImgRef
+			} ),
+			gdm.fastStoreObject<EntityClass>( {
+				structureType: StructureType.INDIVIDUAL,
+				tilingBoundingBox: HUNIT_CUBE,
+				physicalBoundingBox: HUNIT_CUBE,
+				visualBoundingBox: HUNIT_CUBE,
+				isInteractive: false,
+				isRigid: false,
+				mass: Infinity,
+				opacity: 0.25,
+				visualRef: plant1ImgRef
+			} ),
+		], gdm )}),
+		
+		gdm.storeObject( {
 			structureType: StructureType.INDIVIDUAL,
 			tilingBoundingBox: HUNIT_CUBE,
-			physicalBoundingBox: HUNIT_CUBE,
+			physicalBoundingBox: new Cuboid(-0.25, -0.25, 0.25, 0.25, 0.5, 0.25),
 			visualBoundingBox: HUNIT_CUBE,
 			isInteractive: true,
-			isRigid: true,
-			mass: Infinity,
-			opacity: 1,
-			visualRef: brikImgRef
-		} ),
-		gdm.fastStoreObject<EntityClass>( {
+			isAffectedByGravity: true,
+			mass: 45, // 100 lbs; he's a small guy
+			bounciness: 0.5,
+			visualRef: playerImgRef,
+			normalWalkingSpeed: 4,
+			normalClimbingSpeed: 2,
+		}, playerEntityClassId ),
+
+		gdm.storeObject( {
 			structureType: StructureType.INDIVIDUAL,
-			tilingBoundingBox: HUNIT_CUBE,
-			physicalBoundingBox: HUNIT_CUBE,
-			visualBoundingBox: HUNIT_CUBE,
+			tilingBoundingBox: QUNIT_CUBE,
+			physicalBoundingBox: QUNIT_CUBE,
+			visualBoundingBox: QUNIT_CUBE,
 			isInteractive: true,
 			isRigid: true,
-			mass: Infinity,
-			opacity: 1,
-			visualRef: bigBrikImgRef
-		} ),
-		gdm.fastStoreObject<EntityClass>( {
-			structureType: StructureType.INDIVIDUAL,
-			tilingBoundingBox: HUNIT_CUBE,
-			physicalBoundingBox: HUNIT_CUBE,
-			visualBoundingBox: HUNIT_CUBE,
-			isInteractive: false,
-			isRigid: false,
-			mass: Infinity,
+			isAffectedByGravity: true,
+			mass: 10,
+			bounciness: 1,
 			opacity: 0.25,
-			visualRef: plant1ImgRef
-		} ),
-	], gdm );
-}
-
-function makeRoom( gdm:GameDataManager ):string {
-	const tileTreeRef = makeTileTreeRef( makeTileEntityPalette(gdm), 16, 16, 1, mazeData, gdm, { infiniteMass: true } );
-	const roomRef = newUuidRef();
-	const roomBounds = new Cuboid(-8, -8, -0.5, 8, 8, 0.5);
-	const room:Room = {
-		bounds: roomBounds,
-		roomEntities: {
-			[newUuidRef()]: {
-				position: makeVector(0,0,0),
-				entity: {
-					classRef: tileTreeRef
+			visualRef: ballImgRef
+		}, ballEntityClassId ),
+	]).then( () => {
+		console.log("Fetching "+tileEntityPaletteId+"...");
+		return gdm.fetchObject(tileEntityPaletteId).then( (pal) => {
+			console.log("Okay, loaded tile entity palette "+tileEntityPaletteId+"!");
+		}).catch( (err) => {
+			return Promise.reject(new Error("Hmm.  Tile entity palette "+tileEntityPaletteId+" not stored somehow."));
+		})
+	}).then( () => {
+		// do this as second step because we need to reference that tile tree palette by ID
+		const roomBounds = new Cuboid(-8, -8, -0.5, 8, 8, 0.5);
+		return Promise.all([
+			gdm.storeObject<Room>({
+				bounds: roomBounds,
+				roomEntities: {
+					[room1TileTreeId]: {
+						position: makeVector(0,0,0),
+						entity: {
+							classRef: makeTileTreeRef( tileEntityPaletteId, 16, 16, 1, room1Data, gdm, { infiniteMass: true } )
+						}
+					},
+					[ballEntityId]: {
+						position: makeVector(-5.5, -1.5, 0),
+						entity: {
+							classRef: ballEntityClassId
+						}
+					},
+					[playerEntityId]: {
+						position: makeVector(-6.5, -1.5, 0),
+						entity: {
+							id: playerEntityId,
+							classRef: playerEntityClassId
+						}
+					}
+				},
+				neighbors: {
+					"w": {
+						offset: makeVector(-16, 0, 0),
+						bounds: roomBounds,
+						roomRef: room2Id
+					},
+					"e": {
+						offset: makeVector(+16, 0, 0),
+						bounds: roomBounds,
+						roomRef: room2Id					},
+					"n": {
+						offset: makeVector(0, -16, 0),
+						bounds: roomBounds,
+						roomRef: room1Id
+					},
+					"s": {
+						offset: makeVector(0, +16, 0),
+						bounds: roomBounds,
+						roomRef: room1Id
+					},
 				}
-			}
-		},
-		neighbors: {
-			"w": {
-				offset: makeVector(-16, 0, 0),
+			}, room1Id),
+
+			gdm.storeObject<Room>({
 				bounds: roomBounds,
-				roomRef: roomRef
-			},
-			"e": {
-				offset: makeVector(+16, 0, 0),
-				bounds: roomBounds,
-				roomRef: roomRef
-			},
-			"n": {
-				offset: makeVector(0, -16, 0),
-				bounds: roomBounds,
-				roomRef: roomRef
-			},
-			"s": {
-				offset: makeVector(0, +16, 0),
-				bounds: roomBounds,
-				roomRef: roomRef
-			},
-		}
-	}
-	gdm.fastStoreObject(room, roomRef);
-	return roomRef;
+				roomEntities: {
+					[room2TileTreeId]: {
+						position: makeVector(0,0,0),
+						entity: {
+							classRef: makeTileTreeRef( tileEntityPaletteId, 16, 16, 1, room2Data, gdm, { infiniteMass: true } )
+						}
+					}
+				},
+				neighbors: {
+					"w": {
+						offset: makeVector(-16, 0, 0),
+						bounds: roomBounds,
+						roomRef: room1Id
+					},
+					"e": {
+						offset: makeVector(+16, 0, 0),
+						bounds: roomBounds,
+						roomRef: room1Id
+					},
+					"n": {
+						offset: makeVector(0, -16, 0),
+						bounds: roomBounds,
+						roomRef: room2Id
+					},
+					"s": {
+						offset: makeVector(0, +16, 0),
+						bounds: roomBounds,
+						roomRef: room2Id
+					},
+				}
+			}, room2Id)
+		])
+	});
 }
 
 function roomToMazeViewage( roomRef:string, roomX:number, roomY:number, gdm:GameDataManager, viewage:MazeViewage, visibility:ShadeRaster ):void {
@@ -474,8 +602,8 @@ function roomToMazeViewage( roomRef:string, roomX:number, roomY:number, gdm:Game
 				x: position.x,
 				y: position.y,
 				visual: {
-					width: 1,
-					height: 1,
+					width: cuboidWidth(entityClass.visualBoundingBox),
+					height: cuboidHeight(entityClass.visualBoundingBox),
 					imageRef: entityClass.visualRef
 				}
 			})
@@ -712,6 +840,7 @@ export class MazeGamePhysics {
 					this.registerImpulsePair(re, floorCollision.roomEntityId, walkImpulse);
 					
 					if( dmd.y < 0 ) {
+						console.log(re+" jumps!");
 						const jumpImpulse:Vector3D = {x:0, y:maxJumpImpulse, z:0};
 						this.registerImpulsePair(re, floorCollision.roomEntityId, jumpImpulse);
 					}
@@ -734,6 +863,12 @@ export class MazeGamePhysics {
 					
 					// Δv = impulse / m
 					
+					// Apparently the 1/entityClass.mass velocity vector scale doesn't quite do the job, so:
+					if( entityClass.mass == Infinity ) {
+						//console.log("No moving for "+re+"; it has infinite mass");
+						continue;
+					}
+
 					roomEntity.velocity = addVector(
 						roomEntity.velocity || ZERO_VECTOR,
 						scaleVector(this.impulses[re], 1/entityClass.mass)
@@ -878,7 +1013,7 @@ export class MazeGamePhysics {
 					
 					++iter;
 					if( iter > 2 ) {
-						console.log("Too many displacement steps; iter:", iter, "velocity:", velocity)
+						console.log("Too many displacement steps while moving "+re+"; iter:", iter, "velocity:", velocity)
 						break displacementStep;
 					}
 				}
@@ -1061,6 +1196,9 @@ function isAllNonZero( data:ArrayLike<number> ) {
 	return true;
 }
 
+const room1Id = 'urn:uuid:9d424151-1abf-45c1-b581-170c6eec5941';
+const room2Id = 'urn:uuid:9d424151-1abf-45c1-b581-170c6eec5942';
+
 export class MazeDemo {
 	public game : MazeGame;
 	public view : MazeView;
@@ -1164,37 +1302,8 @@ export function startDemo(canv:HTMLCanvasElement) : MazeDemo {
 	const dbmm = new DistributedBucketMapManager<string>(ds);
 	const gdm = new GameDataManager(ds, dbmm);
 	
-	const playerId = newUuidRef();
-	const playerClass:EntityClass = {
-		structureType: StructureType.INDIVIDUAL,
-		tilingBoundingBox: HUNIT_CUBE,
-		physicalBoundingBox: new Cuboid(-0.25, -0.25, 0.25, 0.25, 0.5, 0.25),
-		visualBoundingBox: HUNIT_CUBE,
-		isInteractive: true,
-		isAffectedByGravity: true,
-		mass: 45, // 100 lbs; he's a small guy
-		bounciness: 0.5,
-		visualRef: playerImgRef,
-		normalWalkingSpeed: 4,
-		normalClimbingSpeed: 2,
-	};
-	const playerRoomEntity:RoomEntity = {
-		position: makeVector(-6.5, -1.5, 0),
-		entity: {
-			id: playerId,
-			classRef: gdm.fastStoreObject<EntityClass>(playerClass)
-		}
-	};
-	
-	const roomRef = makeRoom(gdm);
-	const room = thaw(gdm.getRoom(roomRef));
-	if( room == null ) throw new Error("Failed to load "+roomRef);
-	room.roomEntities = thaw(room.roomEntities);
-	room.roomEntities[playerId] = playerRoomEntity;
-	gdm.fastStoreObject(room, roomRef);
-	
 	const game = new MazeGame(gdm);
-	game.playerEntityId = playerId;
+	game.playerEntityId = playerEntityId;
 	
 	const v = new MazeView(canv);
 	v.gameDataManager = gdm;
@@ -1203,11 +1312,14 @@ export function startDemo(canv:HTMLCanvasElement) : MazeDemo {
 	const demo = new MazeDemo();
 	demo.game = game;
 	demo.view = v;
-	demo.playerId = playerId;
-	demo.startSimulation();
+	demo.playerId = playerEntityId;
 	
-	game.fullyLoadRoom( roomRef ).then( (room) => {
+	initData(gdm).then( () => Promise.all([
+		game.fullyLoadRoom(room1Id),
+		game.fullyLoadRoom(room2Id),
+	])).then( () => {
 		demo.updateView();
+		demo.startSimulation();
 	});
 	
 	return demo;
