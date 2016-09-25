@@ -509,54 +509,54 @@ function initData( gdm:GameDataManager ):Promise<any> {
 		visualRef: ballImgRef
 	}, ballEntityClassId );
 
-	return Promise.all([
-		gdm.updateMap({[tileEntityPaletteId]: makeTileEntityPaletteRef( [
-			null,
-			gdm.fastStoreObject<EntityClass>( {
-				debugLabel: "bricks",
-				structureType: StructureType.INDIVIDUAL,
-				tilingBoundingBox: UNIT_CUBE,
-				physicalBoundingBox: UNIT_CUBE,
-				visualBoundingBox: UNIT_CUBE,
-				isSolid: true,
-				opacity: 1,
-				visualRef: brikImgRef
-			} ),
-			gdm.fastStoreObject<EntityClass>( {
-				debugLabel: "big bricks",
-				structureType: StructureType.INDIVIDUAL,
-				tilingBoundingBox: UNIT_CUBE,
-				physicalBoundingBox: UNIT_CUBE,
-				visualBoundingBox: UNIT_CUBE,
-				isSolid: true,
-				opacity: 1,
-				visualRef: bigBrikImgRef
-			} ),
-			gdm.fastStoreObject<EntityClass>( {
-				debugLabel: "plant",
-				structureType: StructureType.INDIVIDUAL,
-				tilingBoundingBox: UNIT_CUBE,
-				physicalBoundingBox: UNIT_CUBE,
-				visualBoundingBox: UNIT_CUBE,
-				isSolid: false,
-				opacity: 0.25,
-				visualRef: plant1ImgRef
-			} ),
-			gdm.fastStoreObject<TileTree>( {
-				debugLabel: "Door frame",
-				structureType: StructureType.TILE_TREE,
-				tilingBoundingBox: UNIT_CUBE,
-				physicalBoundingBox: UNIT_CUBE,
-				visualBoundingBox: UNIT_CUBE,
-				xDivisions: 4,
-				yDivisions: 4,
-				zDivisions: 4,
-				opacity: 0,
-				childEntityPaletteRef: doorFrameBlockEntityPaletteRef,
-				childEntityIndexes: doorFrameBlockData
-			}),
-		], gdm )}),
-	]).then( () => {
+	const regularTileEntityPaletteRef = makeTileEntityPaletteRef( [
+		null,
+		gdm.fastStoreObject<EntityClass>( {
+			debugLabel: "bricks",
+			structureType: StructureType.INDIVIDUAL,
+			tilingBoundingBox: UNIT_CUBE,
+			physicalBoundingBox: UNIT_CUBE,
+			visualBoundingBox: UNIT_CUBE,
+			isSolid: true,
+			opacity: 1,
+			visualRef: brikImgRef
+		} ),
+		gdm.fastStoreObject<EntityClass>( {
+			debugLabel: "big bricks",
+			structureType: StructureType.INDIVIDUAL,
+			tilingBoundingBox: UNIT_CUBE,
+			physicalBoundingBox: UNIT_CUBE,
+			visualBoundingBox: UNIT_CUBE,
+			isSolid: true,
+			opacity: 1,
+			visualRef: bigBrikImgRef
+		} ),
+		gdm.fastStoreObject<EntityClass>( {
+			debugLabel: "plant",
+			structureType: StructureType.INDIVIDUAL,
+			tilingBoundingBox: UNIT_CUBE,
+			physicalBoundingBox: UNIT_CUBE,
+			visualBoundingBox: UNIT_CUBE,
+			isSolid: false,
+			opacity: 0.25,
+			visualRef: plant1ImgRef
+		} ),
+		gdm.fastStoreObject<TileTree>( {
+			debugLabel: "Door frame",
+			structureType: StructureType.TILE_TREE,
+			tilingBoundingBox: UNIT_CUBE,
+			physicalBoundingBox: UNIT_CUBE,
+			visualBoundingBox: UNIT_CUBE,
+			xDivisions: 4,
+			yDivisions: 4,
+			zDivisions: 4,
+			opacity: 0,
+			childEntityPaletteRef: doorFrameBlockEntityPaletteRef,
+			childEntityIndexes: doorFrameBlockData
+		})
+	], gdm);
+
+	return gdm.updateMap({[tileEntityPaletteId]: regularTileEntityPaletteRef}).then( () => {
 		console.log("Fetching "+tileEntityPaletteId+"...");
 		return gdm.fetchObject(tileEntityPaletteId).then( (pal) => {
 			console.log("Okay, loaded tile entity palette "+tileEntityPaletteId+"!");
@@ -573,7 +573,7 @@ function initData( gdm:GameDataManager ):Promise<any> {
 					[room1TileTreeId]: {
 						position: makeVector(0,0,0),
 						entity: {
-							classRef: makeTileTreeRef( tileEntityPaletteId, 16, 16, 1, room1Data, gdm, { infiniteMass: true } )
+							classRef: makeTileTreeRef( regularTileEntityPaletteRef, 16, 16, 1, room1Data, gdm, { infiniteMass: true } )
 						}
 					},
 					[ballEntityId]: {
@@ -619,7 +619,7 @@ function initData( gdm:GameDataManager ):Promise<any> {
 					[room2TileTreeId]: {
 						position: makeVector(0,0,0),
 						entity: {
-							classRef: makeTileTreeRef( tileEntityPaletteId, 16, 16, 1, room2Data, gdm, { infiniteMass: true } )
+							classRef: makeTileTreeRef( regularTileEntityPaletteRef, 16, 16, 1, room2Data, gdm, { infiniteMass: true } )
 						}
 					}
 				},
@@ -1519,12 +1519,14 @@ export class MazeDemo {
 	public loadGame(save:SaveGame):Promise<MazeGame> {
 		this.stopSimulation();
 		const gdm = new GameDataManager(this.datastore, save.gameDataRef);
+		this.view.gameDataManager = gdm;
 		this.game = new MazeGame(gdm);
 		console.log("Loading "+save.gameDataRef+"...");
 		return this.game.fullyLoadRooms( save.rootRoomId ).then( () => {
 			console.log("Loaded!");
-			this.game.playerEntityId = save.playerId;
-			this.startSimulation();
+			this.playerId = this.game.playerEntityId = save.playerId;
+			this.updateView();
+			//this.startSimulation();
 			return this.game;
 		});
 	}
@@ -1541,21 +1543,28 @@ interface SaveGame {
 
 export function startDemo(canv:HTMLCanvasElement) : MazeDemo {
 	const ds = MemoryDatastore.createSha1Based(0); //HTTPHashDatastore();
-	const gdm = new GameDataManager(ds);
-	const game = new MazeGame(gdm);
-	game.playerEntityId = playerEntityId;
+	//const game = new MazeGame(gdm);
+	//game.playerEntityId = playerEntityId;
 	
 	const v = new MazeView(canv);
-	v.gameDataManager = gdm;
+	//v.gameDataManager = gdm;
 	const viewItems : MazeViewageItem[] = [];
 	
 	const demo = new MazeDemo();
 	demo.datastore = ds;
-	demo.game = game;
+	//demo.game = game;
 	demo.view = v;
-	demo.playerId = playerEntityId;
+	//demo.playerId = playerEntityId;
 	
-	initData(gdm).then( () => game.fullyLoadRooms(room1Id) ).then( () => {
+	const tempGdm = new GameDataManager(ds);
+	initData(tempGdm).then( () => tempGdm.flushUpdates() ).then( (rootNodeUri) => {
+		demo.loadGame( {
+			gameDataRef: rootNodeUri,
+			playerId: playerEntityId,
+			rootRoomId: room1Id,
+		});
+		/*
+		game.fullyLoadRooms(room1Id) ).then( () => {
 		const room2 = game.activeRooms[room2Id];
 		for( let i=0; i<10; ++i ) {
 			const newBallId = newUuidRef();
@@ -1569,6 +1578,7 @@ export function startDemo(canv:HTMLCanvasElement) : MazeDemo {
 		}
 		demo.updateView();
 		demo.startSimulation();
+		*/
 	});
 	
 	return demo;
