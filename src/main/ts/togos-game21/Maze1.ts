@@ -1104,7 +1104,7 @@ export class MazeGamePhysics {
 				const eAClass = this.game.gameDataManager.getEntityClass(collision.roomEntityA.entity.classRef);
 				const eBClass = this.game.gameDataManager.getEntityClass(collision.roomEntityB.entity.classRef);
 				// TODO: Figure out collision physics better.
-				const impulse = scaleVector(collision.velocity, Math.min(eAClass.mass, eBClass.mass)*(1+bounceFactor(eAClass, eBClass)));
+				const impulse = scaleVector(collision.velocity, Math.min(entityMass(eAClass), entityMass(eBClass))*(1+bounceFactor(eAClass, eBClass)));
 				this.registerImpulse( collEntityAId, collision.roomEntityA, collEntityBId, collision.roomEntityB, impulse );
 			}
 		}
@@ -1413,7 +1413,7 @@ export function startDemo(canv:HTMLCanvasElement) : MazeDemo {
 		for( let i=0; i<10; ++i ) {
 			const newBallId = newUuidRef();
 			// add some balls!
-			let position;
+			let position:Vector3D;
 			while( game.solidEntitiesAt(room2Id, position = makeVector(0.5+3*Math.random(), -0.5-3*Math.random(), 0), QUNIT_CUBE, null).length > 0 );
 			room2.roomEntities[newBallId] = {
 				position: position,
