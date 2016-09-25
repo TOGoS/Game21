@@ -794,19 +794,17 @@ interface Collision {
 	velocity : Vector3D;
 }
 
-let updatePhase:string = 'unstarted';
-
 export class MazeGamePhysics {
 	constructor( protected game:MazeGame ) { }
 	
-	protected inducedVelocityChanges:KeyedList<Vector3D> = {};
+	protected pendingVelocityUpdates:KeyedList<Vector3D> = {};
 	
 	public induceVelocityChange( entityId:string, dv:Vector3D ):void {
 		if( vectorIsZero(dv) ) return; // Save ourselves a little bit of work
-		if( this.inducedVelocityChanges[entityId] == null ) {
-			this.inducedVelocityChanges[entityId] = dv;
+		if( this.pendingVelocityUpdates[entityId] == null ) {
+			this.pendingVelocityUpdates[entityId] = dv;
 		} else {
-			this.inducedVelocityChanges[entityId] = addVector(this.inducedVelocityChanges[entityId], dv);
+			this.pendingVelocityUpdates[entityId] = addVector(this.pendingVelocityUpdates[entityId], dv);
 		}
 	}
 	
@@ -846,6 +844,50 @@ export class MazeGamePhysics {
 		if( bRat != 0 ) this.induceVelocityChange(entityBId, scaleVector(impulse, +bRat/eBMass));
 	}
 	
+	protected applyVelocityChanges() {
+		const game = this.game;
+		const rooms = this.game.activeRooms;
+		for( let r in rooms ) {
+			let room = rooms[r];
+			for( let re in room.roomEntities ) {
+				if( this.pendingVelocityUpdates[re] ) {
+					const roomEntity = room.roomEntities[re];
+					const entity = roomEntity.entity;
+					const entityClass = game.gameDataManager.getEntityClass(entity.classRef);
+					const entityBb = entityClass.physicalBoundingBox;
+					
+					// Δv = impulse / m
+					
+					// Apparently the 1/entityClass.mass velocity vector scale doesn't quite do the job, so:
+					if( entityClass.mass == Infinity ) {
+						//console.log("No moving for "+re+"; it has infinite mass");
+						continue;
+					}
+
+					roomEntity.velocity = addVector(
+						roomEntity.velocity || ZERO_VECTOR,
+						this.pendingVelocityUpdates[re]
+					);
+				}
+			}
+		}
+		this.pendingVelocityUpdates = {};
+	}
+
+	protected applyCollisions() {
+		for( let collEntityAId in this.collisions ) {
+			for( let collEntityBId in this.collisions[collEntityAId] ) {
+				const collision = this.collisions[collEntityAId][collEntityBId];
+				const eAClass = this.game.gameDataManager.getEntityClass(collision.roomEntityA.entity.classRef);
+				const eBClass = this.game.gameDataManager.getEntityClass(collision.roomEntityB.entity.classRef);
+				// TODO: Figure out collision physics better?
+				const impulse = scaleVector(collision.velocity, Math.min(entityMass(eAClass), entityMass(eBClass))*(1+bounceFactor(eAClass, eBClass)));
+				this.registerImpulse( collEntityAId, collision.roomEntityA, collEntityBId, collision.roomEntityB, impulse );
+			}
+		}
+		this.collisions = {};
+	}
+
 	protected collisions:KeyedList<KeyedList<Collision>>;
 	public registerCollision( eAId:string, eA:RoomEntity, eBId:string, eB:RoomEntity, velocity:Vector3D ):void {
 		if( eAId > eBId ) {
@@ -939,7 +981,6 @@ export class MazeGamePhysics {
 		
 		// Collect impulses
 		// impulses from previous step are also included.
-		updatePhase = 'auto-impulse-collection';
 		for( let r in rooms ) {
 			let room = rooms[r];
 			for( let re in room.roomEntities ) {
@@ -995,36 +1036,6 @@ export class MazeGamePhysics {
 			}
 		}
 		
-		updatePhase = 'impulse-application';
-		// Apply impulses
-		for( let r in rooms ) {
-			let room = rooms[r];
-			for( let re in room.roomEntities ) {
-				if( this.inducedVelocityChanges[re] ) {
-					const roomEntity = room.roomEntities[re];
-					const entity = roomEntity.entity;
-					const entityClass = game.gameDataManager.getEntityClass(entity.classRef);
-					const entityBb = entityClass.physicalBoundingBox;
-					
-					// Δv = impulse / m
-					
-					// Apparently the 1/entityClass.mass velocity vector scale doesn't quite do the job, so:
-					if( entityClass.mass == Infinity ) {
-						//console.log("No moving for "+re+"; it has infinite mass");
-						continue;
-					}
-
-					roomEntity.velocity = addVector(
-						roomEntity.velocity || ZERO_VECTOR,
-						this.inducedVelocityChanges[re]
-					);
-				}
-			}
-		}
-		
-		// They've been applied!
-		this.inducedVelocityChanges = {};
-		
 		// Apply velocity to positions,
 		// do collision detection to prevent overlap and collection collisions
 		this.collisions = {};
@@ -1035,8 +1046,6 @@ export class MazeGamePhysics {
 				const roomEntity = room.roomEntities[re];
 				const velocity:Vector3D|undefined = roomEntity.velocity;
 				if( velocity == null || vectorIsZero(velocity) ) continue;
-				
-				updatePhase = 'displacement';
 				
 				const entity = roomEntity.entity;
 				const entityClass = game.gameDataManager.getEntityClass(entity.classRef);
@@ -1085,8 +1094,6 @@ export class MazeGamePhysics {
 						displacement = addVector(displacement, scaleVector(displacement, -stepDisplacementRatio));
 						continue displacementStep;
 					}
-					
-					updatePhase = 'bounce';
 					
 					// Uh oh, we've collided somehow.
 					// Need to take that into account, zero out part or all of our displacement
@@ -1182,18 +1189,8 @@ export class MazeGamePhysics {
 			}
 		}
 		
-		for( let collEntityAId in this.collisions ) {
-			for( let collEntityBId in this.collisions[collEntityAId] ) {
-				const collision = this.collisions[collEntityAId][collEntityBId];
-				const eAClass = this.game.gameDataManager.getEntityClass(collision.roomEntityA.entity.classRef);
-				const eBClass = this.game.gameDataManager.getEntityClass(collision.roomEntityB.entity.classRef);
-				// TODO: Figure out collision physics better.
-				const impulse = scaleVector(collision.velocity, Math.min(entityMass(eAClass), entityMass(eBClass))*(1+bounceFactor(eAClass, eBClass)));
-				this.registerImpulse( collEntityAId, collision.roomEntityA, collEntityBId, collision.roomEntityB, impulse );
-			}
-		}
-		
-		this.collisions = {};
+		this.applyCollisions();
+		this.applyVelocityChanges();
 	}
 }
 
