@@ -91,6 +91,7 @@ html, body {
 <script type="text/javascript">//<![CDATA[
 	require(['togos-game21/Maze1'], function(_Maze1) {
 		var demo = _Maze1.startDemo(document.getElementById('maze-canvas'));
+		window.maze1Demo = demo;
 		window.addEventListener('keydown', demo.keyDown.bind(demo));
 		window.addEventListener('keyup', demo.keyUp.bind(demo));
 	});

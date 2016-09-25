@@ -1,5 +1,6 @@
 import { deepFreeze, thaw, deepThaw, isDeepFrozen } from './DeepFreezer';
 import GameDataManager from './GameDataManager';
+import Datastore from './Datastore';
 import HTTPHashDatastore from './HTTPHashDatastore';
 import MemoryDatastore from './MemoryDatastore';
 import { DistributedBucketMapManager } from './DistributedBucketMap';
@@ -478,7 +479,35 @@ function initData( gdm:GameDataManager ):Promise<any> {
 		opacity: 1,
 		visualRef: doorFrameImgRef
 	}, doorFramePieceEntityId );
-	console.log("Stored door track entity palette", gdm.getObject(doorFrameBlockEntityPaletteRef));
+
+	gdm.fastStoreObject<EntityClass>( {
+		debugLabel: "player",
+		structureType: StructureType.INDIVIDUAL,
+		tilingBoundingBox: UNIT_CUBE,
+		physicalBoundingBox: new Cuboid(-0.25, -0.25, -0.25, 0.25, 0.5, 0.25),
+		visualBoundingBox: UNIT_CUBE,
+		isSolid: true,
+		isAffectedByGravity: true,
+		mass: 45, // 100 lbs; he's a small guy
+		bounciness: 0.5,
+		visualRef: playerImgRef,
+		normalWalkingSpeed: 4,
+		normalClimbingSpeed: 2,
+	}, playerEntityClassId );
+
+	gdm.storeObject<EntityClass>({
+		debugLabel: "bouncy ball",
+		structureType: StructureType.INDIVIDUAL,
+		tilingBoundingBox: HUNIT_CUBE,
+		physicalBoundingBox: HUNIT_CUBE,
+		visualBoundingBox: HUNIT_CUBE,
+		isSolid: true,
+		isAffectedByGravity: true,
+		mass: 10,
+		bounciness: 1,
+		opacity: 0.25,
+		visualRef: ballImgRef
+	}, ballEntityClassId );
 
 	return Promise.all([
 		gdm.updateMap({[tileEntityPaletteId]: makeTileEntityPaletteRef( [
@@ -527,34 +556,6 @@ function initData( gdm:GameDataManager ):Promise<any> {
 				childEntityIndexes: doorFrameBlockData
 			}),
 		], gdm )}),
-		
-		gdm.storeObject<EntityClass>( {
-			debugLabel: "player",
-			structureType: StructureType.INDIVIDUAL,
-			tilingBoundingBox: UNIT_CUBE,
-			physicalBoundingBox: new Cuboid(-0.25, -0.25, -0.25, 0.25, 0.5, 0.25),
-			visualBoundingBox: UNIT_CUBE,
-			isSolid: true,
-			isAffectedByGravity: true,
-			mass: 45, // 100 lbs; he's a small guy
-			bounciness: 0.5,
-			visualRef: playerImgRef,
-			normalWalkingSpeed: 4,
-			normalClimbingSpeed: 2,
-		}, playerEntityClassId ),
-		gdm.storeObject<EntityClass>({
-			debugLabel: "bouncy ball",
-			structureType: StructureType.INDIVIDUAL,
-			tilingBoundingBox: HUNIT_CUBE,
-			physicalBoundingBox: HUNIT_CUBE,
-			visualBoundingBox: HUNIT_CUBE,
-			isSolid: true,
-			isAffectedByGravity: true,
-			mass: 10,
-			bounciness: 1,
-			opacity: 0.25,
-			visualRef: ballImgRef
-		}, ballEntityClassId ),
 	]).then( () => {
 		console.log("Fetching "+tileEntityPaletteId+"...");
 		return gdm.fetchObject(tileEntityPaletteId).then( (pal) => {
@@ -1231,6 +1232,29 @@ export class MazeGame {
 			return this.getMutableRoom(roomId);
 		});
 	}
+
+	protected roomLoadPromises:KeyedList<Promise<Room>> = {};
+	protected fullyLoadRooms2( rootRoomId:string ):Promise<Room> {
+		if( this.roomLoadPromises[rootRoomId] ) return this.roomLoadPromises[rootRoomId];
+		this.roomLoadPromises[rootRoomId] = this.fullyLoadRoom( rootRoomId );
+		return this.roomLoadPromises[rootRoomId].then( (room) => {
+			const lProms:Promise<Room>[] = [];
+			for( let n in room.neighbors ) {
+				const nRoomRef = room.neighbors[n].roomRef;
+				if( !this.rooms[nRoomRef] && !this.roomLoadPromises[nRoomRef] ) {
+					lProms.push(this.fullyLoadRooms2(nRoomRef));
+				}
+			}
+			return Promise.all(lProms).then( () => room );
+		});
+	}
+
+	public fullyLoadRooms( rootRoomId:string ):Promise<KeyedList<Room>> {
+		return this.fullyLoadRooms2(rootRoomId).then( () => {
+			this.roomLoadPromises = {};
+			return this.rooms;
+		} );
+	}
 	
 	public fixLocation(loc:RoomLocation):RoomLocation {
 		let room = this.getMutableRoom(loc.roomRef);
@@ -1331,15 +1355,20 @@ export class MazeGame {
 			}
 		}
 		this.phys.updateEntities(interval);
+		// For now we have to do this so that the view will see them,
+		// since gdm doesn't have any way to track objects without saving them.
+		// But it should eventually store our mutable rooms for us.
+		this.flushUpdates();
+	}
+
+	public flushUpdates():Promise<String> {
 		for( let r in this.rooms ) {
 			const room = this.rooms[r];
 			if( !isDeepFrozen(room) ) {
-				// For now we have to do this so that the view will see them,
-				// since gdm doesn't have any way to track objects without saving them.
-				// But it should eventually.
 				const urn = this.gameDataManager.fastStoreObject(room, r);
 			}
 		}
+		return this.gameDataManager.flushUpdates();
 	}
 
 	public locateRoomEntity( id:string ):RoomLocation|undefined {
@@ -1371,12 +1400,22 @@ const room1Id = 'urn:uuid:9d424151-1abf-45c1-b581-170c6eec5941';
 const room2Id = 'urn:uuid:9d424151-1abf-45c1-b581-170c6eec5942';
 
 export class MazeDemo {
+	public datastore : Datastore<Uint16Array>;
 	public game : MazeGame;
 	public view : MazeView;
 	public playerId : string;
+	protected tickTimerId? : number;
 
 	public startSimulation() {
-		setInterval(this.tick.bind(this), 1000/16);
+		if( this.tickTimerId == undefined ) {
+			this.tickTimerId = setInterval(this.tick.bind(this), 1000/16);
+		}
+	}
+	public stopSimulation() {
+		if( this.tickTimerId != undefined ) {
+			clearInterval(this.tickTimerId);
+			this.tickTimerId = undefined;
+		}
 	}
 	
 	protected tick() {
@@ -1466,13 +1505,43 @@ export class MazeDemo {
 		delete this.keysDown[keyEvent.keyCode];
 		this.keysUpdated();
 	}
+	public save():Promise<SaveGame> {
+		return this.game.gameDataManager.flushUpdates().then( (gameDataRef) => {
+			const saveGame = {
+				gameDataRef: gameDataRef,
+				rootRoomId: room1Id,
+				playerId: this.playerId
+			};
+			console.log("Save:",saveGame);
+			return saveGame;
+		});
+	}
+	public loadGame(save:SaveGame):Promise<MazeGame> {
+		this.stopSimulation();
+		const gdm = new GameDataManager(this.datastore, save.gameDataRef);
+		this.game = new MazeGame(gdm);
+		console.log("Loading "+save.gameDataRef+"...");
+		return this.game.fullyLoadRooms( save.rootRoomId ).then( () => {
+			console.log("Loaded!");
+			this.game.playerEntityId = save.playerId;
+			this.startSimulation();
+			return this.game;
+		});
+	}
+	public inspect(ref:string):Promise<any> {
+		return this.game.gameDataManager.fetchObject(ref);
+	}
+}
+
+interface SaveGame {
+	gameDataRef: string,
+	rootRoomId: string,
+	playerId: string,
 }
 
 export function startDemo(canv:HTMLCanvasElement) : MazeDemo {
 	const ds = MemoryDatastore.createSha1Based(0); //HTTPHashDatastore();
-	const dbmm = new DistributedBucketMapManager<string>(ds);
-	const gdm = new GameDataManager(ds, dbmm);
-	
+	const gdm = new GameDataManager(ds);
 	const game = new MazeGame(gdm);
 	game.playerEntityId = playerEntityId;
 	
@@ -1481,14 +1550,12 @@ export function startDemo(canv:HTMLCanvasElement) : MazeDemo {
 	const viewItems : MazeViewageItem[] = [];
 	
 	const demo = new MazeDemo();
+	demo.datastore = ds;
 	demo.game = game;
 	demo.view = v;
 	demo.playerId = playerEntityId;
 	
-	initData(gdm).then( () => Promise.all([
-		game.fullyLoadRoom(room1Id),
-		game.fullyLoadRoom(room2Id),
-	])).then( () => {
+	initData(gdm).then( () => game.fullyLoadRooms(room1Id) ).then( () => {
 		const room2 = game.activeRooms[room2Id];
 		for( let i=0; i<10; ++i ) {
 			const newBallId = newUuidRef();

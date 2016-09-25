@@ -24,9 +24,9 @@ export default class GameDataManager {
 	protected storing: KeyedList<boolean> = {};
 	protected fetching: KeyedList<Promise<any>> = {};
 	
-	public constructor( ds:Datastore<Uint8Array>, omm:DistributedBucketMapManager<string> ) {
+	public constructor( ds:Datastore<Uint8Array>, rootNodeUri?:string ) {
 		this.datastore = ds;
-		this.objectMapManager = omm;
+		this.objectMapManager = new DistributedBucketMapManager<string>(ds, rootNodeUri);
 	}
 	
 	public getObjectIfLoaded<T>( ref:string, initiateFetch:boolean=false ):T|undefined {
@@ -61,7 +61,7 @@ export default class GameDataManager {
 		} else {
 			return this.fetching[ref] = this.objectMapManager.fetchValue(ref).then( (realRef:string) => {
 				if( realRef == null ) {
-					return Promise.reject("No mapping for "+ref);
+					return Promise.reject("No mapping for "+ref+" in "+this.objectMapManager.rootNodeUri);
 				} else {
 					return this.fetchObject(realRef).then( (v:any) => {
 						this.cache(ref, v);
@@ -73,6 +73,12 @@ export default class GameDataManager {
 		}
 	}
 	
+	public flushUpdates():Promise<string> {
+		// If we end up storing mutable stuff here, we'll want
+		// to store it first.
+		return this.objectMapManager.flushUpdates();
+	}
+
 	public clearCache():void {
 		// Well, might not want to clear stuff out that we're in the process of storing.
 		// But maybe we do if explicitly asked to clearCache().  *shrug*

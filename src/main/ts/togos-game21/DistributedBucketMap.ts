@@ -151,6 +151,8 @@ export class DistributedBucketMapManager<T> {
 		return Promise.resolve(this._rootNodeUri);
 	}
 	
+	public get rootNodeUri() { return this._rootNodeUri; }
+
 	protected pendingUpdates : KeyedList<T|undefined> = {};
 	protected currentUpdates : KeyedList<T|undefined> = {};
 

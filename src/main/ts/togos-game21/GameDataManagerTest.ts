@@ -11,8 +11,7 @@ interface Thingy {
 }
 
 function testGameDataManager( testNamePrefix:string, ds:Datastore<Uint8Array> ) {
-	const objectMapManager = new DistributedBucketMapManager<string>(ds);
-	const gdm = new GameDataManager(ds, objectMapManager);
+	const gdm = new GameDataManager(ds);
 	
 	const storeProm = gdm.storeObject( <Thingy>{
 		name: "Ken",
