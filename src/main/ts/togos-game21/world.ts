@@ -1,8 +1,8 @@
 import ObjectVisual, {MAObjectVisual} from './ObjectVisual';
-import Cuboid from './Cuboid';
 import Quaternion from './Quaternion';
 import KeyedList from './KeyedList';
 import Vector3D from './Vector3D';
+import AABB from './AABB';
 import SurfaceMaterial from './SurfaceMaterial';
 
 import { deepFreeze } from './DeepFreezer';
@@ -25,7 +25,7 @@ export interface RoomNeighbor {
 	 * The room's bounding box, relative to its offset.
 	 * This is duplicated from the room's own data.
 	 */
-	bounds:Cuboid;
+	bounds:AABB;
 	roomRef:RoomRef;
 }
 
@@ -51,15 +51,15 @@ export interface EntityClass {
 	//   shapeFunc : (state:EntityState) => Shape // or somesuch
 	
 	// Bounding boxes are relative to the object's position (whether indicated externally or internally)
-	tilingBoundingBox:Cuboid; // Used by tile trees to determine division, etc
-	physicalBoundingBox:Cuboid;
-	visualBoundingBox:Cuboid;
+	tilingBoundingBox:AABB; // Used by tile trees to determine division, etc
+	physicalBoundingBox:AABB;
+	visualBoundingBox:AABB;
 	
 	isAffectedByGravity?:boolean;
 	isSolid?:boolean; // things can collide with it/it can collide with things
 	opacity?:number; // For space-filling trees, this should be something like the average of contained items' opacities
 
-	mass?:number;
+	mass?:number; // Null means infinity because zero is serializable as JSON and Infinity isn't.  ;P
 	bounciness?:number;
 	coefficientOfFriction?:number; // How rubby is it?
 	climbability?:number; // 0 = only as much as friction allows; 1 = anyone can stick themself to it, even stupid babies with no grip strength.
@@ -113,7 +113,7 @@ export interface TileTree extends EntityClass {
 }
 
 export interface Room {
-	bounds : Cuboid;
+	bounds : AABB;
 	roomEntities : KeyedList<RoomEntity>;
 	neighbors : KeyedList<RoomNeighbor>;
 }
@@ -134,5 +134,3 @@ export interface Game {
 	rooms: KeyedList<Room>;
 	time: number; // Current time in the world
 }
-
-export const HUNIT_CUBE:Cuboid = deepFreeze(new Cuboid(-0.5,-0.5,-0.5, +0.5,+0.5,+0.5));

@@ -2,7 +2,8 @@ import Vector3D from './Vector3D';
 import { makeVector, setVector, vectorToArray, ZERO_VECTOR } from './vector3ds';
 import { scaleVector } from './vector3dmath';
 import Quaternion from './Quaternion';
-import Cuboid from './Cuboid';
+import AABB from './AABB';
+import { makeAabb, aabbWidth, aabbHeight, aabbDepth } from './aabbs';
 import { Room, RoomEntity, Entity, EntityClass, StructureType, TileTree, TileEntityPalette } from './world';
 import GameDataManager from './GameDataManager';
 import { deepFreeze } from './DeepFreezer';
@@ -72,12 +73,12 @@ export function eachSubEntity<T>(
 		const tilePaletteIndexes = tt.childEntityIndexes;
 		const tilePalette = gdm.getObject<TileEntityPalette>(tt.childEntityPaletteRef);
 		if( tilePalette == null ) return;
-		const xd = tt.tilingBoundingBox.width/tt.xDivisions;
-		const yd = tt.tilingBoundingBox.height/tt.yDivisions;
-		const zd = tt.tilingBoundingBox.depth/tt.zDivisions;
-		const x0 = pos.x - tt.tilingBoundingBox.width/2  + xd/2;
-		const y0 = pos.y - tt.tilingBoundingBox.height/2 + yd/2;
-		const z0 = pos.z - tt.tilingBoundingBox.depth/2  + zd/2;
+		const xd = aabbWidth( tt.tilingBoundingBox)/tt.xDivisions;
+		const yd = aabbHeight(tt.tilingBoundingBox)/tt.yDivisions;
+		const zd = aabbDepth( tt.tilingBoundingBox)/tt.zDivisions;
+		const x0 = pos.x - aabbWidth( tt.tilingBoundingBox)/2 + xd/2;
+		const y0 = pos.y - aabbHeight(tt.tilingBoundingBox)/2 + yd/2;
+		const z0 = pos.z - aabbDepth( tt.tilingBoundingBox)/2 + zd/2;
 		for( let i=0, z=0; z < tt.zDivisions; ++z ) for( let y=0; y < tt.yDivisions; ++y ) for( let x=0; x < tt.xDivisions; ++x, ++i ) {
 			const tileEntity = tilePalette[tilePaletteIndexes[i]];
 			if( tileEntity != null ) {
@@ -108,9 +109,9 @@ export function makeTileTreeNode( palette:any, w:number, h:number, d:number, ind
 		const tileClassRef = tileEntity.entity.classRef;
 		const tileClass = gdm.getObject<EntityClass>(tileClassRef);
 		if( tileClass == null ) throw new Error("Couldn't find entity class "+tileClassRef+" while calculating size for tile tree; given palette: "+JSON.stringify(palette)+"; "+JSON.stringify(tilePalette));
-		tileW = Math.max(tileClass.tilingBoundingBox.width , tileW);
-		tileH = Math.max(tileClass.tilingBoundingBox.height, tileH);
-		tileD = Math.max(tileClass.tilingBoundingBox.depth , tileD);
+		tileW = Math.max(aabbWidth( tileClass.tilingBoundingBox), tileW);
+		tileH = Math.max(aabbHeight(tileClass.tilingBoundingBox), tileH);
+		tileD = Math.max(aabbDepth( tileClass.tilingBoundingBox) , tileD);
 	}
 
 	let totalOpacity:number = 0;
@@ -129,7 +130,7 @@ export function makeTileTreeNode( palette:any, w:number, h:number, d:number, ind
 		totalMass += tileClass.mass == null ? Infinity : tileClass.mass;
 	}
 	
-	const tilingBoundingBox = new Cuboid(-tileW*w/2, -tileH*h/2, -tileD*d/2, +tileW*w/2, +tileH*h/2, +tileD*d/2);
+	const tilingBoundingBox = makeAabb(-tileW*w/2, -tileH*h/2, -tileD*d/2, +tileW*w/2, +tileH*h/2, +tileD*d/2);
 	
 	return {
 		visualBoundingBox: tilingBoundingBox, // TODO: potentially different!

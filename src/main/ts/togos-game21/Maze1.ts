@@ -5,8 +5,9 @@ import HTTPHashDatastore from './HTTPHashDatastore';
 import MemoryDatastore from './MemoryDatastore';
 import { DistributedBucketMapManager } from './DistributedBucketMap';
 import KeyedList from './KeyedList';
-import Cuboid, { makeCuboid, cuboidWidth, cuboidHeight } from './Cuboid';
 import Vector3D from './Vector3D';
+import AABB from './AABB';
+import { makeAabb, aabbWidth, aabbHeight, aabbDepth, aabbContainsVector, aabbIntersectsWithOffset } from './aabbs';
 import { makeVector, vectorToString, ZERO_VECTOR } from './vector3ds';
 import { addVector, subtractVector, vectorLength, vectorIsZero, scaleVector, normalizeVector, roundVectorToGrid } from './vector3dmath';
 import Quaternion from './Quaternion';
@@ -452,9 +453,9 @@ export class MazeView {
 	}
 }
 
-const UNIT_CUBE:Cuboid = new Cuboid(-0.5, -0.5, -0.5, 0.5, 0.5, 0.5); 
-const HUNIT_CUBE:Cuboid = new Cuboid(-0.25, -0.25, -0.25, 0.25, 0.25, 0.25);
-const QUNIT_CUBE:Cuboid = new Cuboid(-0.125, -0.125, -0.125, 0.125, 0.125, 0.125);
+const UNIT_CUBE :AABB = makeAabb(-0.5, -0.5, -0.5, 0.5, 0.5, 0.5); 
+const HUNIT_CUBE:AABB = makeAabb(-0.25, -0.25, -0.25, 0.25, 0.25, 0.25);
+const QUNIT_CUBE:AABB = makeAabb(-0.125, -0.125, -0.125, 0.125, 0.125, 0.125);
 
 const ballEntityClassId   = 'urn:uuid:762f0209-0b91-4084-b1e0-3aac3ca5f5ab';
 const doorFramePieceEntityId   = 'urn:uuid:3709e285-3444-420d-9753-ef101fd7924b';
@@ -484,7 +485,7 @@ function initData( gdm:GameDataManager ):Promise<any> {
 		debugLabel: "player",
 		structureType: StructureType.INDIVIDUAL,
 		tilingBoundingBox: UNIT_CUBE,
-		physicalBoundingBox: new Cuboid(-0.25, -0.25, -0.25, 0.25, 0.5, 0.25),
+		physicalBoundingBox: makeAabb(-0.25, -0.25, -0.25, 0.25, 0.5, 0.25),
 		visualBoundingBox: UNIT_CUBE,
 		isSolid: true,
 		isAffectedByGravity: true,
@@ -565,7 +566,7 @@ function initData( gdm:GameDataManager ):Promise<any> {
 		})
 	}).then( () => {
 		// do this as second step because we need to reference that tile tree palette by ID
-		const roomBounds = new Cuboid(-8, -8, -0.5, 8, 8, 0.5);
+		const roomBounds = makeAabb(-8, -8, -0.5, 8, 8, 0.5);
 		return Promise.all([
 			gdm.storeObject<Room>({
 				bounds: roomBounds,
@@ -678,8 +679,8 @@ function roomToMazeViewage( roomRef:string, roomX:number, roomY:number, gdm:Game
 				x: position.x,
 				y: position.y,
 				visual: {
-					width: cuboidWidth(entityClass.visualBoundingBox),
-					height: cuboidHeight(entityClass.visualBoundingBox),
+					width: aabbWidth(entityClass.visualBoundingBox),
+					height: aabbHeight(entityClass.visualBoundingBox),
 					imageRef: entityClass.visualRef
 				}
 			})
@@ -704,36 +705,37 @@ function sceneToMazeViewage( roomRef:string, roomX:number, roomY:number, gdm:Gam
 }
 
 enum XYZDirection {
-	NONE = 0x000,
-	POSITIVE_X = 0x100,
-	POSITIVE_X_POSITIVE_Y = 0x110,
-	POSITIVE_Y = 0x010,
-	NEGATIVE_X_POSITIVE_Y = 0x310,
-	NEGATIVE_X = 0x300,
-	NEGATIVE_X_NEGATIVE_Y = 0x330,
-	NEGATIVE_Y = 0x030,
-	POSITIVE_X_NEGATIVE_Y = 0x130,
+	NONE = 0x00,
+	POSITIVE_X = 0x1,
+	NEGATIVE_X = 0x2,
+	POSITIVE_Y = 0x4,
+	NEGATIVE_Y = 0x8,
+	POSITIVE_X_POSITIVE_Y = 0x5,
+	NEGATIVE_X_NEGATIVE_Y = 0xA,
+	NEGATIVE_X_POSITIVE_Y = 0x6,
+	POSITIVE_X_NEGATIVE_Y = 0x9,
 	// Fill these in as needed
-	POSITIVE_Z = 0x001,
-	NEGATIVE_Z = 0x003,
+	POSITIVE_Z = 0x10,
+	NEGATIVE_Z = 0x20,
 };
 
 const xyzDirectionVectors:{[dir:number]:Vector3D} = {};
 {
 	// encode component
 	const ec = function(i:number):number {
-		return i == 0 ? 0 : i > 0 ? 1 : 3;
+		return i == 0 ? 0 : i > 0 ? 1 : 2;
 	}
 	
 	for( let z=-1; z<=1; ++z ) {
 		for( let y=-1; y<=1; ++y ) {
 			for( let x=-1; x<=1; ++x ) {
-				const xyzDirection = (ec(x)<<8) | (ec(y)<<4) | ec(z);
+				const xyzDirection = (ec(x)) | (ec(y)<<2) | (ec(z)<<4);
 				xyzDirectionVectors[xyzDirection] = xyzDirection == 0 ? ZERO_VECTOR : makeVector(x,y,z);
 			}
 		}
 	}
 }
+console.log("direction vectors:", xyzDirectionVectors);
 
 interface RoomEntityUpdate {
 	roomRef? : string;
@@ -862,7 +864,7 @@ export class MazeGamePhysics {
 		}
 	}
 	
-	protected borderingCuboid( roomRef:string, bb:Cuboid, dir:Vector3D, gridSize:number ):Cuboid {
+	protected borderingCuboid( roomRef:string, bb:AABB, dir:Vector3D, gridSize:number ):AABB {
 		let minX = bb.minX, maxX = bb.maxX;
 		let minY = bb.minY, maxY = bb.maxY;
 		let minZ = bb.minZ, maxZ = bb.maxZ;
@@ -881,10 +883,10 @@ export class MazeGamePhysics {
 		} else if( dir.z > 0 ) {
 			minZ = maxZ; maxZ += gridSize;
 		}
-		return makeCuboid( minX,minY,minZ, maxX,maxY,maxZ );
+		return makeAabb( minX,minY,minZ, maxX,maxY,maxZ );
 	}
 	
-	protected borderingCollisions( roomRef:string, pos:Vector3D, bb:Cuboid, dir:Vector3D, gridSize:number, ignoreEntityId:string ):FoundEntity[] {
+	protected borderingCollisions( roomRef:string, pos:Vector3D, bb:AABB, dir:Vector3D, gridSize:number, ignoreEntityId:string ):FoundEntity[] {
 		const border = this.borderingCuboid(roomRef, bb, dir, gridSize);
 		return this.game.solidEntitiesAt( roomRef, pos, border, ignoreEntityId );
 	}
@@ -895,8 +897,9 @@ export class MazeGamePhysics {
 		for( let c in collisions ) {
 			const coll = collisions[c];
 			const entityClass = this.game.gameDataManager.getEntityClass(coll.roomEntity.entity.classRef);
-			if( entityClass.mass != null && entityClass.mass > maxMass ) {
-				maxMass = entityClass.mass;
+			const mass = entityMass(entityClass);
+			if( mass > maxMass ) {
+				maxMass = mass;
 				massivest = coll;
 			}
 		}
@@ -906,14 +909,14 @@ export class MazeGamePhysics {
 	/**
 	 * Finds the most massive (interactive, rigid) object in the space specified
 	 */
-	protected massivestBorderingCollision( roomRef:string, pos:Vector3D, bb:Cuboid, dir:Vector3D, gridSize:number, ignoreEntityId:string ):FoundEntity|undefined {
+	protected massivestBorderingCollision( roomRef:string, pos:Vector3D, bb:AABB, dir:Vector3D, gridSize:number, ignoreEntityId:string ):FoundEntity|undefined {
 		return this.massivestCollision( this.borderingCollisions(roomRef, pos, bb, dir, gridSize, ignoreEntityId) );
 	}
 	
 	/**
 	 * What's around the entity?
 	 */
-	protected entityBounceBox( roomRef:string, pos:Vector3D, bb:Cuboid, gridSize:number, ignoreEntityId:string ):BounceBox {
+	protected entityBounceBox( roomRef:string, pos:Vector3D, bb:AABB, gridSize:number, ignoreEntityId:string ):BounceBox {
 		const bounceBox:BounceBox = {};
 		for( let xyzDir in xyzDirectionVectors ) {
 			if( xyzDir == '0' ) continue;
@@ -1171,7 +1174,7 @@ export class MazeGamePhysics {
 
 						++iter;
 						if( iter > 2 ) {
-							console.log("Too many displacement steps while moving "+re+"; iter:", iter, "velocity:", velocity, "displacement:", displacement, "bounceBox:", bounceBox, "max dvx coll:", maxDvxColl, "max dby coll:", maxDvyColl);
+							console.log("Too many displacement steps while moving "+re+":", roomEntity, "class:", entityClass, "iter:", iter, "velocity:", velocity, "displacement:", displacement, "bounceBox:", bounceBox, "max dvx coll:", maxDvxColl, "max dby coll:", maxDvyColl);
 							break displacementStep;
 						}
 					}
@@ -1258,10 +1261,10 @@ export class MazeGame {
 	
 	public fixLocation(loc:RoomLocation):RoomLocation {
 		let room = this.getMutableRoom(loc.roomRef);
-		if( !Cuboid.containsVector(room.bounds, loc.position) ) for( let n in room.neighbors ) {
+		if( !aabbContainsVector(room.bounds, loc.position) ) for( let n in room.neighbors ) {
 			const neighb = room.neighbors[n];
 			const fixedPos = subtractVector(loc.position, neighb.offset);
-			if( Cuboid.containsVector(neighb.bounds, fixedPos) ) {
+			if( aabbContainsVector(neighb.bounds, fixedPos) ) {
 				return {
 					roomRef: neighb.roomRef,
 					position: fixedPos,
@@ -1289,12 +1292,12 @@ export class MazeGame {
 	protected solidEntitiesAt3(
 		roomRef:string, roomEntityId:string, roomEntity:RoomEntity, // Root roomEntity
 		entityPos:Vector3D, entity:Entity, // Individual entity being checked against (may be a sub-entity of the roomEntity)
-		checkPos:Vector3D, checkBb:Cuboid, // Sample box
+		checkPos:Vector3D, checkBb:AABB, // Sample box
 		into:FoundEntity[]
 	):void {
 		const proto = this.gameDataManager.getEntityClass( entity.classRef );
 		if( proto.isSolid === false ) return;
-		if( !Cuboid.intersectsWithOffset(entityPos, proto.physicalBoundingBox, checkPos, checkBb) ) return;
+		if( !aabbIntersectsWithOffset(entityPos, proto.physicalBoundingBox, checkPos, checkBb) ) return;
 		
 		if( proto.structureType == StructureType.INDIVIDUAL ) {
 			if( proto.isSolid ) {
@@ -1314,7 +1317,7 @@ export class MazeGame {
 		};
 	}
 	
-	protected solidEntitiesAt2( roomPos:Vector3D, roomRef:string, checkPos:Vector3D, checkBb:Cuboid, ignoreEntityId:string|undefined=undefined, into:FoundEntity[] ):void {
+	protected solidEntitiesAt2( roomPos:Vector3D, roomRef:string, checkPos:Vector3D, checkBb:AABB, ignoreEntityId:string|undefined=undefined, into:FoundEntity[] ):void {
 		// Room bounds have presumably already been determined to intersect
 		// with that of the box being checked, so we'll skip that and go
 		// straight to checking entities.
@@ -1328,15 +1331,15 @@ export class MazeGame {
 	}
 	
 	/** Overly simplistic 'is there anything at this exact point' check */
-	public solidEntitiesAt( roomRef:string, pos:Vector3D, bb:Cuboid, ignoreEntityId?:string ):FoundEntity[] {
+	public solidEntitiesAt( roomRef:string, pos:Vector3D, bb:AABB, ignoreEntityId?:string ):FoundEntity[] {
 		const collisions:FoundEntity[] = [];
 		const room = this.getRoom(roomRef);
-		if( Cuboid.intersectsWithOffset(ZERO_VECTOR, room.bounds, pos, bb) ) {
+		if( aabbIntersectsWithOffset(ZERO_VECTOR, room.bounds, pos, bb) ) {
 			this.solidEntitiesAt2( ZERO_VECTOR, roomRef, pos, bb, ignoreEntityId, collisions );
 		}
 		for( let n in room.neighbors ) {
 			const neighb = room.neighbors[n];
-			if( Cuboid.intersectsWithOffset(neighb.offset, neighb.bounds, pos, bb) ) {
+			if( aabbIntersectsWithOffset(neighb.offset, neighb.bounds, pos, bb) ) {
 				this.solidEntitiesAt2( neighb.offset, neighb.roomRef, pos, bb, ignoreEntityId, collisions );
 			}
 		}
@@ -1526,7 +1529,7 @@ export class MazeDemo {
 			console.log("Loaded!");
 			this.playerId = this.game.playerEntityId = save.playerId;
 			this.updateView();
-			//this.startSimulation();
+			this.startSimulation();
 			return this.game;
 		});
 	}
