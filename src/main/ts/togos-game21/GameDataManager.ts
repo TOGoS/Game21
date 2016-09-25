@@ -48,6 +48,7 @@ export default class GameDataManager {
 	}
 	
 	public fetchObject<T>( ref:string ):Promise<T> {
+		if( ref == null ) throw new Error("Null ref passed to fetchObject");
 		if( this.objectCache[ref] ) return Promise.resolve(this.objectCache[ref]);
 		if( this.fetching[ref] ) return this.fetching[ref];
 		
@@ -119,7 +120,9 @@ export default class GameDataManager {
 			const itemPromises:Promise<EntityClass>[] = [];
 			for( let te in tep ) {
 				const tileEntity = tep[te];
-				if( tileEntity ) itemPromises.push(this.fullyCacheEntityClass(tileEntity.entity.classRef));
+				if( !tileEntity ) continue;
+				if( !tileEntity.entity.classRef ) return Promise.reject("Tile entity palette "+paletteRef+" entry "+te+" has no classRef: "+JSON.stringify(tileEntity, null, "\t"));
+				itemPromises.push(this.fullyCacheEntityClass(tileEntity.entity.classRef));
 			}
 			return Promise.all(itemPromises).then( () => tep );
 		});
@@ -134,7 +137,11 @@ export default class GameDataManager {
 				break;
 			case StructureType.TILE_TREE:
 				const tt:TileTree = <TileTree>ec;
+				if( !tt.childEntityPaletteRef ) return Promise.reject("TileTree has no childEntityPaletteRef: "+JSON.stringify(ec,null,"\t"));
 				itemPromises.push(this.fullyCacheTileEntityPalette(tt.childEntityPaletteRef));
+				break;
+			default:
+				console.warn("Unrecognized entity structure type: "+ec.structureType);
 			}
 			return Promise.all(itemPromises).then( () => ec );
 		});
