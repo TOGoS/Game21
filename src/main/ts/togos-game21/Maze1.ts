@@ -423,8 +423,7 @@ function initData( gdm:GameDataManager ):Promise<any> {
 				tilingBoundingBox: HUNIT_CUBE,
 				physicalBoundingBox: HUNIT_CUBE,
 				visualBoundingBox: HUNIT_CUBE,
-				isInteractive: true,
-				isRigid: true,
+				isSolid: true,
 				mass: Infinity,
 				opacity: 1,
 				visualRef: brikImgRef
@@ -434,8 +433,7 @@ function initData( gdm:GameDataManager ):Promise<any> {
 				tilingBoundingBox: HUNIT_CUBE,
 				physicalBoundingBox: HUNIT_CUBE,
 				visualBoundingBox: HUNIT_CUBE,
-				isInteractive: true,
-				isRigid: true,
+				isSolid: true,
 				mass: Infinity,
 				opacity: 1,
 				visualRef: bigBrikImgRef
@@ -445,8 +443,7 @@ function initData( gdm:GameDataManager ):Promise<any> {
 				tilingBoundingBox: HUNIT_CUBE,
 				physicalBoundingBox: HUNIT_CUBE,
 				visualBoundingBox: HUNIT_CUBE,
-				isInteractive: false,
-				isRigid: false,
+				isSolid: false,
 				mass: Infinity,
 				opacity: 0.25,
 				visualRef: plant1ImgRef
@@ -459,6 +456,7 @@ function initData( gdm:GameDataManager ):Promise<any> {
 			physicalBoundingBox: new Cuboid(-0.25, -0.25, 0.25, 0.25, 0.5, 0.25),
 			visualBoundingBox: HUNIT_CUBE,
 			isInteractive: true,
+			isRigid: true,
 			isAffectedByGravity: true,
 			mass: 45, // 100 lbs; he's a small guy
 			bounciness: 0.5,
@@ -507,7 +505,7 @@ function initData( gdm:GameDataManager ):Promise<any> {
 						}
 					},
 					[playerEntityId]: {
-						position: makeVector(-6.5, -1.5, 0),
+						position: makeVector(-4.5, -1.5, 0),
 						entity: {
 							id: playerEntityId,
 							classRef: playerEntityClassId
@@ -1098,11 +1096,11 @@ export class MazeGame {
 		into:Collision[]
 	):void {
 		const proto = this.gameDataManager.getEntityClass( entity.classRef );
-		if( proto.isInteractive === false ) return;
+		if( proto.isSolid === false ) return;
 		if( !Cuboid.intersectsWithOffset(entityPos, proto.physicalBoundingBox, checkPos, checkBb) ) return;
-
+		
 		if( proto.structureType == StructureType.INDIVIDUAL ) {
-			if( proto.isInteractive && proto.isRigid ) {
+			if( proto.isSolid ) {
 				into.push( {
 					roomRef: roomRef,
 					roomEntityId: roomEntityId,

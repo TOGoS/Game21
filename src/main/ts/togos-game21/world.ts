@@ -55,8 +55,7 @@ export interface EntityClass {
 	visualBoundingBox:Cuboid;
 	
 	isAffectedByGravity?:boolean;
-	isInteractive?:boolean; // Does it need to be taken into account by collision detection?
-	isRigid?:boolean;
+	isSolid?:boolean; // things can collide with it/it can collide with things
 	opacity?:number; // For space-filling trees, this should be something like the average of contained items' opacities
 
 	bounciness?:number;

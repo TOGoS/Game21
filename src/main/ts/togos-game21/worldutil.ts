@@ -114,7 +114,8 @@ export function makeTileTreeNode( palette:any, w:number, h:number, d:number, ind
 	}
 
 	let totalOpacity:number = 0;
-	let isInteractive:boolean = false;
+	let isCompletelyUnsolid:boolean = true;
+	let isCompletelySolid:boolean = true;
 	let totalMass:number = 0;
 	for( let i = w*d*h-1; i >= 0; --i ) {
 		const tileEntity = tilePalette[indexes[i]];
@@ -123,7 +124,8 @@ export function makeTileTreeNode( palette:any, w:number, h:number, d:number, ind
 		const tileClass = gdm.getObject<EntityClass>(tileEntity.entity.classRef);
 		if( tileClass == null ) throw new Error("Failed to get tile class "+tileEntity.entity.classRef);
 		totalOpacity += tileClass.opacity ? tileClass.opacity : 0;
-		if( tileClass.isInteractive !== false ) isInteractive = true;
+		if( tileClass.isSolid === true ) isCompletelyUnsolid = false;
+		if( tileClass.isSolid === false ) isCompletelySolid = false;
 		totalMass += tileClass.mass == null ? Infinity : tileClass.mass;
 	}
 	
@@ -139,7 +141,7 @@ export function makeTileTreeNode( palette:any, w:number, h:number, d:number, ind
 		zDivisions: d,
 		childEntityPaletteRef: _paletteRef,
 		childEntityIndexes: indexes,
-		isInteractive: isInteractive,
+		isSolid: isCompletelyUnsolid ? false : isCompletelySolid ? true : undefined,
 		mass: opts.infiniteMass ? Infinity : totalMass,
 		// These don't really make sense to have to have on a tile tree
 		// isAffectedByGravity: false,
