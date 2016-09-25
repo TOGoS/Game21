@@ -1224,7 +1224,7 @@ export class MazeGame {
 	}
 	
 	/** Overly simplistic 'is there anything at this exact point' check */
-	public solidEntitiesAt( roomRef:string, pos:Vector3D, bb:Cuboid, ignoreEntityId:string ):FoundEntity[] {
+	public solidEntitiesAt( roomRef:string, pos:Vector3D, bb:Cuboid, ignoreEntityId?:string ):FoundEntity[] {
 		const collisions:FoundEntity[] = [];
 		const room = this.getRoom(roomRef);
 		if( Cuboid.intersectsWithOffset(ZERO_VECTOR, room.bounds, pos, bb) ) {
@@ -1414,7 +1414,7 @@ export function startDemo(canv:HTMLCanvasElement) : MazeDemo {
 			const newBallId = newUuidRef();
 			// add some balls!
 			let position:Vector3D;
-			while( game.solidEntitiesAt(room2Id, position = makeVector(0.5+3*Math.random(), -0.5-3*Math.random(), 0), QUNIT_CUBE, null).length > 0 );
+			while( game.solidEntitiesAt(room2Id, position = makeVector(0.5+3*Math.random(), -0.5-3*Math.random(), 0), QUNIT_CUBE).length > 0 );
 			room2.roomEntities[newBallId] = {
 				position: position,
 				entity: { classRef: ballEntityClassId }
