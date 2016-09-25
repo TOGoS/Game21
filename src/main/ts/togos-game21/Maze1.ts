@@ -685,6 +685,9 @@ const movementAttemptTransforms = [
 function entityVelocity( roomEntity:RoomEntity ):Vector3D {
 	return roomEntity.velocity || ZERO_VECTOR;
 }
+function entityMass( entityClass:EntityClass ):number {
+	return entityClass.mass == null ? Infinity : entityClass.mass;
+}
 
 function bounceFactor( ec0:EntityClass, ec1:EntityClass ):number {
 	const bf0 = ec0.bounciness == null ? 0.5 : ec0.bounciness;
@@ -702,22 +705,56 @@ function clampAbs( val:number, maxAbs:number ):number {
 	return val;
 }
 
+let updatePhase:string = 'unstarted';
+
 export class MazeGamePhysics {
 	constructor( protected game:MazeGame ) { }
 	
-	protected impulses:KeyedList<Vector3D> = {};	
+	protected inducedVelocityChanges:KeyedList<Vector3D> = {};
 	
-	public registerImpulse( entityRef:string, impulse:Vector3D ):void {
-		const impulses = this.impulses;
-		const current:Vector3D = impulses[entityRef] || ZERO_VECTOR; 
-		impulses[entityRef] = addVector(impulse, current);
+	public induceVelocityChange( entityId:string, dv:Vector3D ):void {
+		if( vectorIsZero(dv) ) return; // Save ourselves a little bit of work
+		if( this.inducedVelocityChanges[entityId] == null ) {
+			this.inducedVelocityChanges[entityId] = dv;
+		} else {
+			this.inducedVelocityChanges[entityId] = addVector(this.inducedVelocityChanges[entityId], dv);
+		}
 	}
-		
 	
-	public registerImpulsePair( aRef:string, bRef:string, impulse:Vector3D ):void {
+	public registerImpulse( entityAId:string, entityA:RoomEntity, entityBId:string, entityB:RoomEntity, impulse:Vector3D ):void {
 		if( vectorIsZero(impulse) ) return; // Save ourselves a little bit of work
-		this.registerImpulse( bRef, impulse );
-		this.registerImpulse( aRef, scaleVector(impulse,-1) );
+		
+		const eAClass = this.game.gameDataManager.getEntityClass(entityA.entity.classRef);
+		const eBClass = this.game.gameDataManager.getEntityClass(entityB.entity.classRef);
+		
+		const eAMass = entityMass(eAClass);
+		const eBMass = entityMass(eBClass);
+		
+		if( eAMass == Infinity && eBMass == Infinity ) return; // Nothing's going to happen
+		
+		const eAVel = entityVelocity(entityA);
+		const eBVel = entityVelocity(entityB);
+		
+		let systemMass:number;
+		let aRat:number, bRat:number;
+		//let systemVelocity:Vector3D;
+		if( eAMass == Infinity ) {
+			systemMass = Infinity;
+			aRat = 0; bRat = 1;
+			//systemVelocity = eAVel;
+		} else if( eBMass == Infinity ) {
+			systemMass = Infinity;
+			aRat = 1; bRat = 0;
+			//systemVelocity = eBVel;
+		} else {
+			systemMass = eAMass + eBMass;
+			aRat = (systemMass-eAMass)/systemMass;
+			bRat = (systemMass-eBMass)/systemMass;
+			//systemVelocity = addVector(scaleVector(eAVel, eAMass/systemMass), scaleVector(eBVel, eBMass/systemMass));
+		}
+		
+		if( aRat != 0 ) this.induceVelocityChange(entityAId, scaleVector(impulse, -aRat/eAMass));
+		if( bRat != 0 ) this.induceVelocityChange(entityBId, scaleVector(impulse, +bRat/eBMass));
 	}
 	
 	protected borderingCuboid( roomRef:string, bb:Cuboid, dir:Vector3D, gridSize:number ):Cuboid {
@@ -774,6 +811,7 @@ export class MazeGamePhysics {
 	protected entityBounceBox( roomRef:string, pos:Vector3D, bb:Cuboid, gridSize:number, ignoreEntityId:string ):BounceBox {
 		const bounceBox:BounceBox = {};
 		for( let xyzDir in xyzDirectionVectors ) {
+			if( xyzDir == '0' ) continue;
 			const vec = xyzDirectionVectors[xyzDir];
 			bounceBox[xyzDir] = this.massivestBorderingCollision(roomRef, pos, bb, vec, gridSize, ignoreEntityId);
 		}
@@ -784,7 +822,7 @@ export class MazeGamePhysics {
 		const game = this.game;
 		/** lesser object ID => greater object ID => force exerted from lesser to greater */
 		const gravRef:string = "gravity";
-		const gravVec = makeVector(0, 10, 0);
+		const gravDv = makeVector(0, 10*interval, 0);
 		const rooms = game.activeRooms;
 		const maxWalkForce = 450; // ~100 pounds of force?
 		const maxJumpImpulse = 300;
@@ -793,6 +831,7 @@ export class MazeGamePhysics {
 		
 		// Collect impulses
 		// impulses from previous step are also included.
+		updatePhase = 'auto-impulse-collection';
 		for( let r in rooms ) {
 			let room = rooms[r];
 			for( let re in room.roomEntities ) {
@@ -802,8 +841,7 @@ export class MazeGamePhysics {
 				
 				const entityBb = entityClass.physicalBoundingBox;
 				if( entityClass.isAffectedByGravity && entityClass.mass != null && entityClass.mass != Infinity ) {
-					const gravImpulse = scaleVector(gravVec, entityClass.mass * interval);
-					this.registerImpulsePair(gravRef, re, gravImpulse);
+					this.induceVelocityChange(re, gravDv);
 				}
 				
 				const floorCollision = this.massivestBorderingCollision(
@@ -832,12 +870,15 @@ export class MazeGamePhysics {
 					// Attempt to change to target velocity in single tick
 					const walkForce = clampAbs( -attemptDdvx*entityClass.mass/interval, maxWalkForce );
 					const walkImpulse = {x:walkForce*interval, y:0, z:0};
-					this.registerImpulsePair(re, floorCollision.roomEntityId, walkImpulse);
+					this.registerImpulse(
+						re, roomEntity,
+						floorCollision.roomEntityId, floorCollision.roomEntity,
+						walkImpulse);
 					
 					if( dmd.y < 0 ) {
-						console.log(re+" jumps!");
+						//console.log(re+" jumps!");
 						const jumpImpulse:Vector3D = {x:0, y:maxJumpImpulse, z:0};
-						this.registerImpulsePair(re, floorCollision.roomEntityId, jumpImpulse);
+						this.registerImpulse(re, roomEntity, floorCollision.roomEntityId, floorCollision.roomEntity, jumpImpulse);
 					}
 				} else {
 					// Drag!
@@ -846,11 +887,12 @@ export class MazeGamePhysics {
 			}
 		}
 		
+		updatePhase = 'impulse-application';
 		// Apply impulses
 		for( let r in rooms ) {
 			let room = rooms[r];
 			for( let re in room.roomEntities ) {
-				if( this.impulses[re] ) {
+				if( this.inducedVelocityChanges[re] ) {
 					const roomEntity = room.roomEntities[re];
 					const entity = roomEntity.entity;
 					const entityClass = game.gameDataManager.getEntityClass(entity.classRef);
@@ -866,14 +908,14 @@ export class MazeGamePhysics {
 
 					roomEntity.velocity = addVector(
 						roomEntity.velocity || ZERO_VECTOR,
-						scaleVector(this.impulses[re], 1/entityClass.mass)
+						this.inducedVelocityChanges[re]
 					);
 				}
 			}
 		}
 		
 		// They've been applied!
-		this.impulses = {};
+		this.inducedVelocityChanges = {};
 		
 		// Apply velocity to positions,
 		// do collision detection,
@@ -883,14 +925,16 @@ export class MazeGamePhysics {
 			for( let re in room.roomEntities ) {
 				const roomEntity = room.roomEntities[re];
 				const velocity:Vector3D|undefined = roomEntity.velocity;
-				if( velocity == null ) continue;
+				if( velocity == null || vectorIsZero(velocity) ) continue;
+				
+				updatePhase = 'displacement';
 				
 				const entity = roomEntity.entity;
 				const entityClass = game.gameDataManager.getEntityClass(entity.classRef);
 				const entityBb = entityClass.physicalBoundingBox;
 
 				let entityRoomRef = r;
-								
+				
 				let displacement = scaleVector( velocity, interval );
 				
 				// Strategy here is:
@@ -911,7 +955,7 @@ export class MazeGamePhysics {
 					// Attempt displacing!
 					const stepDeltaPos = scaleVector( displacement, stepDisplacementRatio ); 
 					const newVelocityLocation = game.fixLocation({
-						roomRef: r,
+						roomRef: entityRoomRef,
 						position: addVector(
 							roomEntity.velocityPosition || roomEntity.position,
 							stepDeltaPos
@@ -921,7 +965,7 @@ export class MazeGamePhysics {
 					const newPosition = roundVectorToGrid(newVelocityLocation.position, snapGridSize);
 					const collisions = game.collisionsAt(newVelocityLocation.roomRef, newPosition, entityBb, re);
 					if( collisions.length == 0 ) {
-						game.updateRoomEntity(r, re, {
+						game.updateRoomEntity(entityRoomRef, re, {
 							roomRef: newRoomRef,
 							position: newPosition,
 							velocityPosition: newVelocityLocation.position
@@ -932,6 +976,8 @@ export class MazeGamePhysics {
 						displacement = addVector(displacement, scaleVector(displacement, -stepDisplacementRatio));
 						continue displacementStep;
 					}
+					
+					updatePhase = 'bounce';
 					
 					// Uh oh, we've collided somehow.
 					// Need to take that into account, zero out part or all of our displacement
@@ -970,7 +1016,7 @@ export class MazeGamePhysics {
 						if( displacement.y > 0 && (coll = bounceBox[XYZDirection.POSITIVE_Y]) ) {
 							const collVel = entityVelocity(coll.roomEntity);
 							const dvy = velocity.y - collVel.y;
-							if( dvy > maxDvy ) {
+							if( maxDvyColl == null || dvy > maxDvy ) {
 								maxDvy = dvy;
 								maxDvyColl = coll;
 							}
@@ -978,44 +1024,42 @@ export class MazeGamePhysics {
 						if( displacement.y < 0 && (coll = bounceBox[XYZDirection.NEGATIVE_Y]) ) {
 							const collVel = entityVelocity(coll.roomEntity);
 							const dvy = velocity.y - collVel.y;
-							if( dvy < maxDvy ) {
+							if( maxDvyColl == null || dvy < maxDvy ) {
 								maxDvy = dvy;
 								maxDvyColl = coll;
 							}
 						}
-						// TODO: check diagonals
 						
 						if( maxDvxColl ) {
-							const bounceImpulseX = (1 + bounceFactor(entityClass, maxDvxColl.entityClass)) * maxDvx * entityClass.mass;	
-							this.registerImpulsePair( re, maxDvxColl.roomEntityId, makeVector(bounceImpulseX, 0, 0));
+							const bounceImpulseX = (1 + bounceFactor(entityClass, maxDvxColl.entityClass)) * maxDvx * entityClass.mass;
+							this.registerImpulse( re, roomEntity, maxDvxColl.roomEntityId, maxDvxColl.roomEntity, makeVector(bounceImpulseX, 0, 0));
 						}
 						if( maxDvyColl ) {
 							const bounceImpulseY = (1 + bounceFactor(entityClass, maxDvyColl.entityClass)) * maxDvy * entityClass.mass;
-							this.registerImpulsePair( re, maxDvyColl.roomEntityId, makeVector(0, bounceImpulseY, 0));
+							this.registerImpulse( re, roomEntity, maxDvyColl.roomEntityId, maxDvyColl.roomEntity, makeVector(0, bounceImpulseY, 0));
 						}
 						
 						// New displacement = displacement without the components that
 						// would take us into obstacles:
-						let remainingVx = maxDvxColl ? 0 : displacement.x;
-						let remainingVy = maxDvyColl ? 0 : displacement.y;
-						if( remainingVx != 0 && remainingVy != 0 ) {
-							console.log("Hmm, collision, but no stoppage (maybe a diagonal hit); velocity:", velocity)
-							// Take the larger velocity component
-							if( Math.abs(remainingVx) < Math.abs(remainingVy) ) {
-								remainingVx = 0;
+						let remainingDx = maxDvxColl ? 0 : displacement.x;
+						let remainingDy = maxDvyColl ? 0 : displacement.y;
+						if( remainingDx != 0 && remainingDy != 0 ) {
+							// A diagonal hit, probably.
+							// Keep the larger velocity component
+							if( Math.abs(remainingDx) < Math.abs(remainingDy) ) {
+								remainingDx = 0;
 							} else {
-								remainingVy = 0;
+								remainingDy = 0;
 							}
-							//break displacementStep;
 						}
 						
-						displacement = { x: remainingVx, y: remainingVy, z: 0 };
-					}
-					
-					++iter;
-					if( iter > 2 ) {
-						console.log("Too many displacement steps while moving "+re+"; iter:", iter, "velocity:", velocity)
-						break displacementStep;
+						displacement = { x: remainingDx, y: remainingDy, z: 0 };
+
+						++iter;
+						if( iter > 2 ) {
+							console.log("Too many displacement steps while moving "+re+"; iter:", iter, "velocity:", velocity, "displacement:", displacement, "bounceBox:", bounceBox, "max dvx coll:", maxDvxColl, "max dby coll:", maxDvyColl);
+							break displacementStep;
+						}
 					}
 				}
 			}
