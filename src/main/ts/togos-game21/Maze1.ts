@@ -404,7 +404,7 @@ export class MazeView {
 }
 
 const HUNIT_CUBE:Cuboid = new Cuboid(-0.5, -0.5, -0.5, 0.5, 0.5, 0.5); 
-const QUNIT_CUBE:Cuboid = new Cuboid(-0.25, -0.25, -0.52, 0.25, 0.25, 0.25); 
+const QUNIT_CUBE:Cuboid = new Cuboid(-0.25, -0.25, -0.25, 0.25, 0.25, 0.25);
 
 const ballEntityClassId   = 'urn:uuid:762f0209-0b91-4084-b1e0-3aac3ca5f5ab';
 const tileEntityPaletteId = 'urn:uuid:50c19be4-7ab9-4dda-a52f-cf4cfe2562ac';
@@ -450,13 +450,12 @@ function initData( gdm:GameDataManager ):Promise<any> {
 			} ),
 		], gdm )}),
 		
-		gdm.storeObject( {
+		gdm.storeObject<EntityClass>( {
 			structureType: StructureType.INDIVIDUAL,
 			tilingBoundingBox: HUNIT_CUBE,
-			physicalBoundingBox: new Cuboid(-0.25, -0.25, 0.25, 0.25, 0.5, 0.25),
+			physicalBoundingBox: new Cuboid(-0.25, -0.25, -0.25, 0.25, 0.5, 0.25),
 			visualBoundingBox: HUNIT_CUBE,
-			isInteractive: true,
-			isRigid: true,
+			isSolid: true,
 			isAffectedByGravity: true,
 			mass: 45, // 100 lbs; he's a small guy
 			bounciness: 0.5,
@@ -465,13 +464,12 @@ function initData( gdm:GameDataManager ):Promise<any> {
 			normalClimbingSpeed: 2,
 		}, playerEntityClassId ),
 
-		gdm.storeObject( {
+		gdm.storeObject<EntityClass>( {
 			structureType: StructureType.INDIVIDUAL,
 			tilingBoundingBox: QUNIT_CUBE,
 			physicalBoundingBox: QUNIT_CUBE,
 			visualBoundingBox: QUNIT_CUBE,
-			isInteractive: true,
-			isRigid: true,
+			isSolid: true,
 			isAffectedByGravity: true,
 			mass: 10,
 			bounciness: 1,
@@ -499,13 +497,13 @@ function initData( gdm:GameDataManager ):Promise<any> {
 						}
 					},
 					[ballEntityId]: {
-						position: makeVector(-5.5, -1.5, 0),
+						position: makeVector(-4.5, -1.5, 0),
 						entity: {
 							classRef: ballEntityClassId
 						}
 					},
 					[playerEntityId]: {
-						position: makeVector(-4.5, -1.5, 0),
+						position: makeVector(-4.5, -2.5, 0),
 						entity: {
 							id: playerEntityId,
 							classRef: playerEntityClassId
