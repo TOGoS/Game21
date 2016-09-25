@@ -173,8 +173,20 @@ const plant1Pix = [
 	0,0,0,0,0,0,0,1,1,0,0,0,1,0,0,0,
 	0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,
 ];
+const doorFramePix = [
+	1,1,0,1,
+	1,0,1,1,
+	1,1,0,1,
+	1,0,0,1,
+];
+const doorTrackPix = [
+	0,0,0,0,
+	1,0,1,0,
+	0,1,0,1,
+	0,0,0,0,
+];
 const ballPix = [
-   0,0,0,1,1,1,0,0,
+   0,0,1,1,1,1,0,0,
 	0,1,1,1,1,1,1,0,
 	1,1,1,1,1,1,1,1,
 	1,1,1,1,1,1,0,1,
@@ -247,15 +259,34 @@ const bigBrikImgRef = "bitimg:color0=0;color1="+rgbaToNumber(255,255,128,255)+",
 const playerImgRef = "bitimg:color0=0;color1="+rgbaToNumber(255,255,96,255)+","+hexEncodeBits(playerPix);
 const plant1ImgRef = "bitimg:color0=0;color1="+rgbaToNumber(64,255,64,255)+","+hexEncodeBits(plant1Pix);
 const ballImgRef = "bitimg:color0=0;color1="+rgbaToNumber(128,48,48,255)+","+hexEncodeBits(ballPix);
+const doorFrameImgRef = "bitimg:color1="+rgbaToNumber(64,64,64,255)+","+hexEncodeBits(doorFramePix);
 
+const doorFrameBlockData = [
+	1,0,0,1,
+	1,0,0,1,
+	1,0,0,1,
+	1,0,0,1,
+	0,0,0,0,
+	0,0,0,0,
+	0,0,0,0,
+	0,0,0,0,
+	0,0,0,0,
+	0,0,0,0,
+	0,0,0,0,
+	0,0,0,0,
+	1,0,0,1,
+	1,0,0,1,
+	1,0,0,1,
+	1,0,0,1,
+];
 const room1Data = [
 	1,1,1,1,1,1,0,0,1,1,0,1,1,1,1,1,
 	0,0,0,0,0,1,0,1,1,0,0,0,0,0,0,0,
 	1,1,0,0,0,1,0,0,0,0,0,0,0,0,0,1,
-	1,1,1,0,1,1,1,1,1,1,2,0,2,0,2,1,
+	1,1,1,0,1,1,1,1,1,1,2,0,2,0,1,1,
 	1,1,1,0,1,1,1,1,0,0,0,0,0,0,1,1,
-	1,1,1,0,1,1,1,2,2,2,2,0,0,0,1,1,
-	1,0,0,0,0,1,1,2,0,0,0,0,0,0,0,0,
+	1,1,1,0,1,1,1,2,2,2,2,0,0,0,4,1,
+	1,0,0,0,0,1,1,2,0,0,0,0,0,0,4,0,
 	1,0,2,2,2,1,1,2,0,1,1,1,1,3,1,0,
 	1,0,2,1,1,1,1,2,0,1,0,0,1,1,1,0,
 	1,0,0,0,2,2,2,2,0,1,0,0,1,1,1,1,
@@ -272,12 +303,12 @@ const room2Data = [
 	1,0,0,0,0,1,0,0,0,0,0,0,1,0,0,0,
 	1,1,1,0,1,1,1,2,0,0,0,0,1,0,0,1,
 	1,1,1,0,1,1,1,2,0,0,0,0,0,0,1,1,
-	1,1,1,0,1,1,1,2,0,0,0,2,2,2,1,1,
-	1,0,0,0,0,1,1,2,0,0,0,0,0,0,0,0,
-	1,0,2,2,2,1,1,2,0,0,0,0,1,3,1,0,
-	1,0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,
-	1,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,
-	0,0,0,0,0,0,0,0,0,0,0,3,1,0,0,0,
+	1,1,1,0,1,1,4,2,0,0,0,2,2,2,1,1,
+	1,0,0,0,0,1,4,2,0,0,0,0,0,0,0,0,
+	1,0,2,2,2,1,4,2,0,0,0,0,1,3,1,0,
+	1,0,0,0,0,1,4,2,0,0,0,0,1,1,1,0,
+	1,0,0,0,0,0,4,0,0,0,0,0,1,1,1,1,
+	0,0,0,0,0,0,4,0,0,0,0,3,1,0,0,0,
 	1,2,0,1,1,1,1,1,1,3,3,3,1,0,1,1,
 	1,2,0,1,1,0,0,2,2,2,2,1,1,0,0,1,
 	1,2,0,0,0,0,0,0,0,1,0,0,0,0,0,1,
@@ -402,58 +433,89 @@ export class MazeView {
 	}
 }
 
-const HUNIT_CUBE:Cuboid = new Cuboid(-0.5, -0.5, -0.5, 0.5, 0.5, 0.5); 
-const QUNIT_CUBE:Cuboid = new Cuboid(-0.25, -0.25, -0.25, 0.25, 0.25, 0.25);
+const UNIT_CUBE:Cuboid = new Cuboid(-0.5, -0.5, -0.5, 0.5, 0.5, 0.5); 
+const HUNIT_CUBE:Cuboid = new Cuboid(-0.25, -0.25, -0.25, 0.25, 0.25, 0.25);
+const QUNIT_CUBE:Cuboid = new Cuboid(-0.125, -0.125, -0.125, 0.125, 0.125, 0.125);
 
 const ballEntityClassId   = 'urn:uuid:762f0209-0b91-4084-b1e0-3aac3ca5f5ab';
+const doorFramePieceEntityId   = 'urn:uuid:3709e285-3444-420d-9753-ef101fd7924b';
 const tileEntityPaletteId = 'urn:uuid:50c19be4-7ab9-4dda-a52f-cf4cfe2562ac';
 const playerEntityClassId = 'urn:uuid:416bfc18-7412-489f-a45e-6ff4c6a4e08b';
 const playerEntityId      = 'urn:uuid:d42a8340-ec03-482b-ae4c-a1bfdec4ba32';
-const ballEntityId        = 'urn:uuid:10070a44-2a0f-41a1-bcfb-b9e6a6f1b590';
+const ballEntityId        = 'urn:uuid:10070a44-2a0f-41a1-bcfb-b9e16a6f1b590';
 const room1TileTreeId     = 'urn:uuid:a11ed6ae-f096-4b30-bd39-2a78d39a1385';
 const room2TileTreeId     = 'urn:uuid:67228411-243c-414c-99d7-960f1151b970';
 
 function initData( gdm:GameDataManager ):Promise<any> {
+	const doorFrameBlockEntityPaletteRef = makeTileEntityPaletteRef([
+		null,
+		doorFramePieceEntityId
+	], gdm);
+	gdm.fastStoreObject<EntityClass>( {
+		structureType: StructureType.INDIVIDUAL,
+		tilingBoundingBox:   QUNIT_CUBE,
+		physicalBoundingBox: QUNIT_CUBE,
+		visualBoundingBox:   QUNIT_CUBE,
+		isSolid: true,
+		opacity: 1,
+		visualRef: doorFrameImgRef
+	}, doorFramePieceEntityId );
+	console.log("Stored door track entity palette", gdm.getObject(doorFrameBlockEntityPaletteRef));
+
 	return Promise.all([
 		gdm.updateMap({[tileEntityPaletteId]: makeTileEntityPaletteRef( [
 			null,
 			gdm.fastStoreObject<EntityClass>( {
+				debugLabel: "bricks",
 				structureType: StructureType.INDIVIDUAL,
-				tilingBoundingBox: HUNIT_CUBE,
-				physicalBoundingBox: HUNIT_CUBE,
-				visualBoundingBox: HUNIT_CUBE,
+				tilingBoundingBox: UNIT_CUBE,
+				physicalBoundingBox: UNIT_CUBE,
+				visualBoundingBox: UNIT_CUBE,
 				isSolid: true,
-				mass: Infinity,
 				opacity: 1,
 				visualRef: brikImgRef
 			} ),
 			gdm.fastStoreObject<EntityClass>( {
+				debugLabel: "big bricks",
 				structureType: StructureType.INDIVIDUAL,
-				tilingBoundingBox: HUNIT_CUBE,
-				physicalBoundingBox: HUNIT_CUBE,
-				visualBoundingBox: HUNIT_CUBE,
+				tilingBoundingBox: UNIT_CUBE,
+				physicalBoundingBox: UNIT_CUBE,
+				visualBoundingBox: UNIT_CUBE,
 				isSolid: true,
-				mass: Infinity,
 				opacity: 1,
 				visualRef: bigBrikImgRef
 			} ),
 			gdm.fastStoreObject<EntityClass>( {
+				debugLabel: "plant",
 				structureType: StructureType.INDIVIDUAL,
-				tilingBoundingBox: HUNIT_CUBE,
-				physicalBoundingBox: HUNIT_CUBE,
-				visualBoundingBox: HUNIT_CUBE,
+				tilingBoundingBox: UNIT_CUBE,
+				physicalBoundingBox: UNIT_CUBE,
+				visualBoundingBox: UNIT_CUBE,
 				isSolid: false,
-				mass: Infinity,
 				opacity: 0.25,
 				visualRef: plant1ImgRef
 			} ),
+			gdm.fastStoreObject<TileTree>( {
+				debugLabel: "Door frame",
+				structureType: StructureType.TILE_TREE,
+				tilingBoundingBox: UNIT_CUBE,
+				physicalBoundingBox: UNIT_CUBE,
+				visualBoundingBox: UNIT_CUBE,
+				xDivisions: 4,
+				yDivisions: 4,
+				zDivisions: 4,
+				opacity: 0,
+				childEntityPaletteRef: doorFrameBlockEntityPaletteRef,
+				childEntityIndexes: doorFrameBlockData
+			}),
 		], gdm )}),
 		
 		gdm.storeObject<EntityClass>( {
+			debugLabel: "player",
 			structureType: StructureType.INDIVIDUAL,
-			tilingBoundingBox: HUNIT_CUBE,
+			tilingBoundingBox: UNIT_CUBE,
 			physicalBoundingBox: new Cuboid(-0.25, -0.25, -0.25, 0.25, 0.5, 0.25),
-			visualBoundingBox: HUNIT_CUBE,
+			visualBoundingBox: UNIT_CUBE,
 			isSolid: true,
 			isAffectedByGravity: true,
 			mass: 45, // 100 lbs; he's a small guy
@@ -462,12 +524,12 @@ function initData( gdm:GameDataManager ):Promise<any> {
 			normalWalkingSpeed: 4,
 			normalClimbingSpeed: 2,
 		}, playerEntityClassId ),
-
-		gdm.storeObject<EntityClass>( {
+		gdm.storeObject<EntityClass>({
+			debugLabel: "bouncy ball",
 			structureType: StructureType.INDIVIDUAL,
-			tilingBoundingBox: QUNIT_CUBE,
-			physicalBoundingBox: QUNIT_CUBE,
-			visualBoundingBox: QUNIT_CUBE,
+			tilingBoundingBox: HUNIT_CUBE,
+			physicalBoundingBox: HUNIT_CUBE,
+			visualBoundingBox: HUNIT_CUBE,
 			isSolid: true,
 			isAffectedByGravity: true,
 			mass: 10,
@@ -1210,7 +1272,7 @@ export class MazeGame {
 		};
 	}
 	
-	protected solidEntitiesAt2( roomPos:Vector3D, roomRef:string, checkPos:Vector3D, checkBb:Cuboid, ignoreEntityId:string, into:FoundEntity[] ):void {
+	protected solidEntitiesAt2( roomPos:Vector3D, roomRef:string, checkPos:Vector3D, checkBb:Cuboid, ignoreEntityId:string|undefined=undefined, into:FoundEntity[] ):void {
 		// Room bounds have presumably already been determined to intersect
 		// with that of the box being checked, so we'll skip that and go
 		// straight to checking entities.
@@ -1414,7 +1476,7 @@ export function startDemo(canv:HTMLCanvasElement) : MazeDemo {
 			const newBallId = newUuidRef();
 			// add some balls!
 			let position:Vector3D;
-			while( game.solidEntitiesAt(room2Id, position = makeVector(0.5+3*Math.random(), -0.5-3*Math.random(), 0), QUNIT_CUBE).length > 0 );
+			while( game.solidEntitiesAt(room2Id, position = makeVector(0.5+3*Math.random(), -0.5-3*Math.random(), 0), HUNIT_CUBE).length > 0 );
 			room2.roomEntities[newBallId] = {
 				position: position,
 				entity: { classRef: ballEntityClassId }

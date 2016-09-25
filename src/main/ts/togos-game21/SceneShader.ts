@@ -66,7 +66,9 @@ export default class SceneShader {
 		if( pos.y + vbb.minY >= destBounds.maxY ) return;
 		if( pos.z + vbb.maxZ <= destBounds.minZ ) return;
 		
-		if( proto.opacity != null && proto.opacity == 1 ) {
+		if( proto.opacity === 0 ) return;
+		
+		if( proto.opacity === 1 ) {
 			const destMap = this.destShadeMap;
 			const tbb = proto.tilingBoundingBox;
 			const opacityByte = Math.round(255*proto.opacity); 

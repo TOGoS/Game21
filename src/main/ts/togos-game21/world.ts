@@ -41,6 +41,7 @@ export enum StructureType {
  */
 export interface EntityClass {
 	structureType : StructureType;
+	debugLabel? : string;
 	
 	// Thoughts:
 	// bounding boxes need to be overridden sometimes,
