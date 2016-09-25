@@ -234,9 +234,9 @@ function parseBitImg( m:RegExpExecArray ):BitImageInfo {
 	for( let i = 0; i < modStrs.length; ++i ) {
 		const p = modStrs[i].split('=',2);
 		if( p.length == 2 ) {
-			let v = p[1];
+			let v:any = p[1];
 			if( v[0] == '0' && v[1] == 'x' ) {
-				throw new Error("Don't handle 0x... colors et");
+				v = parseInt(v.substr(2, 16));
 			}
 			modVals[p[0]] = v;
 		}
@@ -280,6 +280,7 @@ const playerImgRef = "bitimg:color0=0;color1="+rgbaToNumber(255,255,96,255)+","+
 const plant1ImgRef = "bitimg:color0=0;color1="+rgbaToNumber(64,255,64,255)+","+hexEncodeBits(plant1Pix);
 const ballImgRef = "bitimg:color0=0;color1="+rgbaToNumber(128,48,48,255)+","+hexEncodeBits(ballPix);
 const doorFrameImgRef = "bitimg:color1="+rgbaToNumber(64,64,64,255)+","+hexEncodeBits(doorFramePix);
+const ladderImgRef = "bitimg:color1="+rgbaToNumber(128,96,96,255)+","+hexEncodeBits(ladder1Pix);
 
 const doorFrameBlockData = [
 	1,0,0,1,
@@ -303,37 +304,37 @@ const room1Data = [
 	1,1,1,1,1,1,0,0,1,1,0,1,1,1,1,1,
 	0,0,0,0,0,1,0,1,1,0,0,0,0,0,0,0,
 	1,1,0,0,0,1,0,0,0,0,0,0,0,0,0,1,
-	1,1,1,0,1,1,1,1,1,1,2,0,2,0,1,1,
-	1,1,1,0,1,1,1,1,0,0,0,0,0,0,1,1,
-	1,1,1,0,1,1,1,2,2,2,2,0,0,0,4,1,
-	1,0,0,0,0,1,1,2,0,0,0,0,0,0,4,0,
-	1,0,2,2,2,1,1,2,0,1,1,1,1,3,1,0,
-	1,0,2,1,1,1,1,2,0,1,0,0,1,1,1,0,
-	1,0,0,0,2,2,2,2,0,1,0,0,1,1,1,1,
-	0,0,0,0,0,0,0,0,0,0,0,3,1,0,0,0,
-	1,1,0,1,1,1,1,1,1,1,1,1,1,0,1,1,
-	1,1,0,1,1,0,0,2,2,2,2,1,0,0,0,1,
-	1,0,0,0,0,0,0,0,0,1,0,0,0,0,0,1,
-	1,3,3,3,1,1,0,2,2,2,0,1,0,0,0,1,
+	1,1,1,0,1,1,1,1,1,1,2,0,0,2,1,1,
+	1,1,1,0,1,1,1,1,0,0,0,0,0,2,1,1,
+	1,1,1,0,1,1,1,2,2,2,2,2,0,2,4,1,
+	1,0,0,0,0,1,1,2,5,0,0,0,0,0,4,0,
+	1,0,2,2,2,1,1,2,5,1,1,1,1,3,1,0,
+	1,0,2,1,1,1,1,2,5,1,0,0,1,1,1,0,
+	1,0,0,0,2,2,2,2,5,1,0,0,1,1,1,1,
+	0,0,5,0,0,0,0,0,5,0,0,3,1,0,0,0,
+	1,1,5,1,1,1,1,1,1,1,1,1,1,0,1,1,
+	1,1,5,1,1,0,0,2,2,2,2,1,0,0,0,1,
+	1,0,5,0,0,0,0,0,0,1,0,0,0,0,0,1,
+	1,3,5,3,1,1,0,2,2,2,0,1,0,0,0,1,
 	1,1,1,1,1,1,0,0,1,1,0,1,1,1,1,1,
 ];
 const room2Data = [
-	1,2,0,0,2,1,0,0,1,1,0,1,1,1,1,1,
-	0,0,0,0,0,0,0,0,0,0,0,0,1,0,1,0,
-	1,0,0,0,0,1,0,0,0,0,0,0,1,0,0,0,
+	1,2,5,0,2,1,0,0,1,1,0,1,1,1,1,1,
+	0,0,5,0,0,0,0,0,0,0,0,0,1,0,1,0,
+	1,0,5,0,0,1,0,0,0,0,0,0,1,0,0,0,
 	1,1,1,0,1,1,1,2,0,0,0,0,1,0,0,1,
 	1,1,1,0,1,1,1,2,0,0,0,0,0,0,1,1,
 	1,1,1,0,1,1,4,2,0,0,0,2,2,2,1,1,
-	1,0,0,0,0,1,4,2,0,0,0,0,0,0,0,0,
-	1,0,2,2,2,1,4,2,0,0,0,0,1,3,1,0,
-	1,0,0,0,0,1,4,2,0,0,0,0,1,1,1,0,
-	1,0,0,0,0,0,4,0,0,0,0,0,1,1,1,1,
-	0,0,0,0,0,0,4,0,0,0,0,3,1,0,0,0,
-	1,2,0,1,1,1,1,1,1,3,3,3,1,0,1,1,
-	1,2,0,1,1,0,0,2,2,2,2,1,1,0,0,1,
-	1,2,0,0,0,0,0,0,0,1,0,0,0,0,0,1,
-	1,2,0,0,2,1,0,2,2,2,0,1,0,0,0,1,
-	1,2,0,0,2,1,0,0,1,1,0,1,1,1,1,1,
+	1,0,0,0,0,1,4,2,0,0,0,5,0,0,0,0,
+	1,0,2,2,2,1,4,2,0,0,0,5,1,3,1,0,
+	1,0,0,0,0,1,4,2,0,0,0,5,1,1,1,0,
+	1,0,0,0,0,0,4,0,0,0,0,5,1,1,1,1,
+	0,0,5,0,0,0,4,0,0,0,0,5,1,0,0,0,
+	1,2,5,1,1,1,1,1,1,3,3,5,1,0,1,1,
+	1,2,5,1,1,0,0,2,2,2,2,1,1,0,0,1,
+	1,2,5,0,0,0,0,0,0,1,0,0,0,0,0,1,
+	1,2,5,0,2,1,0,2,2,2,0,1,0,0,0,1,
+	1,2,5,0,2,1,0,0,1,1,0,1,1,1,1,1,
 ];
 
 
@@ -456,6 +457,7 @@ export class MazeView {
 const UNIT_CUBE :AABB = makeAabb(-0.5, -0.5, -0.5, 0.5, 0.5, 0.5); 
 const HUNIT_CUBE:AABB = makeAabb(-0.25, -0.25, -0.25, 0.25, 0.25, 0.25);
 const QUNIT_CUBE:AABB = makeAabb(-0.125, -0.125, -0.125, 0.125, 0.125, 0.125);
+const NORTH_SIDE_BB:AABB = makeAabb(-0.5,-0.5,-0.5, +0.5,+0.5,-0.25);
 
 const ballEntityClassId   = 'urn:uuid:762f0209-0b91-4084-b1e0-3aac3ca5f5ab';
 const doorFramePieceEntityId   = 'urn:uuid:3709e285-3444-420d-9753-ef101fd7924b';
@@ -494,6 +496,7 @@ function initData( gdm:GameDataManager ):Promise<any> {
 		visualRef: playerImgRef,
 		normalWalkingSpeed: 4,
 		normalClimbingSpeed: 2,
+		climbingSkill: 0.5,
 	}, playerEntityClassId );
 
 	gdm.storeObject<EntityClass>({
@@ -542,7 +545,7 @@ function initData( gdm:GameDataManager ):Promise<any> {
 			opacity: 0.25,
 			visualRef: plant1ImgRef
 		} ),
-		gdm.fastStoreObject<TileTree>( {
+		/* 4: */ gdm.fastStoreObject<TileTree>( {
 			debugLabel: "Door frame",
 			structureType: StructureType.TILE_TREE,
 			tilingBoundingBox: UNIT_CUBE,
@@ -554,7 +557,18 @@ function initData( gdm:GameDataManager ):Promise<any> {
 			opacity: 0,
 			childEntityPaletteRef: doorFrameBlockEntityPaletteRef,
 			childEntityIndexes: doorFrameBlockData
-		})
+		}),
+		/* 5: */ gdm.fastStoreObject<EntityClass>( {
+			debugLabel: "Ladder (+Z)",
+			structureType: StructureType.INDIVIDUAL,
+			tilingBoundingBox: NORTH_SIDE_BB,
+			physicalBoundingBox: NORTH_SIDE_BB,
+			visualBoundingBox: NORTH_SIDE_BB,
+			opacity: 0.125,
+			climbability: 0.75,
+			isSolid: true,
+			visualRef: ladderImgRef,
+		}),
 	], gdm);
 
 	return gdm.updateMap({[tileEntityPaletteId]: regularTileEntityPaletteRef}).then( () => {
@@ -735,13 +749,23 @@ const xyzDirectionVectors:{[dir:number]:Vector3D} = {};
 		}
 	}
 }
-console.log("direction vectors:", xyzDirectionVectors);
+const sideDirections:XYZDirection[] = [
+	XYZDirection.POSITIVE_X,
+	XYZDirection.POSITIVE_Y,
+	XYZDirection.POSITIVE_Z,
+	XYZDirection.NEGATIVE_X,
+	XYZDirection.NEGATIVE_Y,
+	XYZDirection.NEGATIVE_Z,
+];
+const ALL_SIDES = 0x3F;
 
 interface RoomEntityUpdate {
 	roomRef? : string;
 	position? : Vector3D;
 	velocityPosition? : Vector3D;
 }
+
+type EntityFilter = (roomEntityId:string, roomEntity:RoomEntity, entity:Entity, entityClass:EntityClass)=>boolean; 
 
 interface FoundEntity {
 	roomRef : string;
@@ -888,6 +912,26 @@ export class MazeGamePhysics {
 		this.collisions = {};
 	}
 
+	/**
+	 * Calculate the impulse that entity A should exert onto entity B
+	 * in order to affect the desired change in B's relative velocity, dv.
+	 */
+	protected dvImpulse( desiredDv:Vector3D, entityAMass:number|undefined, entityBMass:number|undefined, maxImpulseMagnitude:number, multiplier:number=1 ):Vector3D {
+		if( entityAMass == null ) entityAMass = Infinity;
+		if( entityBMass == null ) entityBMass = Infinity;
+		const minMass = Math.min(entityAMass, entityBMass);
+		if( minMass == Infinity ) {
+			// maximum impulse!
+			return normalizeVector(desiredDv, maxImpulseMagnitude*multiplier);
+		}
+		const desiredImpulse = scaleVector(desiredDv, minMass);
+		const desiredImpulseMagnitude = vectorLength(desiredImpulse);
+		if( desiredImpulseMagnitude > maxImpulseMagnitude ) {
+			multiplier *= maxImpulseMagnitude / desiredImpulseMagnitude;
+		}
+		return scaleVector(desiredImpulse, multiplier);
+	}
+
 	protected collisions:KeyedList<KeyedList<Collision>>;
 	public registerCollision( eAId:string, eA:RoomEntity, eBId:string, eB:RoomEntity, velocity:Vector3D ):void {
 		if( eAId > eBId ) {
@@ -928,9 +972,9 @@ export class MazeGamePhysics {
 		return makeAabb( minX,minY,minZ, maxX,maxY,maxZ );
 	}
 	
-	protected borderingCollisions( roomRef:string, pos:Vector3D, bb:AABB, dir:Vector3D, gridSize:number, ignoreEntityId:string ):FoundEntity[] {
+	protected borderingEntities( roomRef:string, pos:Vector3D, bb:AABB, dir:Vector3D, gridSize:number, filter:EntityFilter ):FoundEntity[] {
 		const border = this.borderingCuboid(roomRef, bb, dir, gridSize);
-		return this.game.solidEntitiesAt( roomRef, pos, border, ignoreEntityId );
+		return this.game.entitiesAt( roomRef, pos, border, filter );
 	}
 	
 	protected massivestCollision( collisions:FoundEntity[] ):FoundEntity|undefined {
@@ -951,19 +995,31 @@ export class MazeGamePhysics {
 	/**
 	 * Finds the most massive (interactive, rigid) object in the space specified
 	 */
-	protected massivestBorderingCollision( roomRef:string, pos:Vector3D, bb:AABB, dir:Vector3D, gridSize:number, ignoreEntityId:string ):FoundEntity|undefined {
-		return this.massivestCollision( this.borderingCollisions(roomRef, pos, bb, dir, gridSize, ignoreEntityId) );
+	protected massivestBorderingEntity( roomRef:string, pos:Vector3D, bb:AABB, dir:Vector3D, gridSize:number, filter:EntityFilter ):FoundEntity|undefined {
+		return this.massivestCollision( this.borderingEntities(roomRef, pos, bb, dir, gridSize, filter) );
 	}
 	
+	protected neighboringEntities( roomRef:string, pos:Vector3D, bb:AABB, sideMask:number, gridSize:number, filter:EntityFilter ):KeyedList<FoundEntity[]> {
+		const neighbors:KeyedList<FoundEntity[]> = {};
+		for( let d in sideDirections ) {
+			const xyzDir = sideDirections[d];
+			if( ((+xyzDir)&sideMask) == 0 ) continue;
+			const vec = xyzDirectionVectors[xyzDir];
+			neighbors[xyzDir] = this.borderingEntities(roomRef, pos, bb, vec, gridSize, filter);
+		}
+		return neighbors;
+	}
+
 	/**
 	 * What's around the entity?
 	 */
-	protected entityBounceBox( roomRef:string, pos:Vector3D, bb:AABB, gridSize:number, ignoreEntityId:string ):BounceBox {
+	protected entityBounceBox( roomRef:string, pos:Vector3D, bb:AABB, sideMask:number, gridSize:number, filter:EntityFilter ):BounceBox {
 		const bounceBox:BounceBox = {};
-		for( let xyzDir in xyzDirectionVectors ) {
-			if( xyzDir == '0' ) continue;
+		for( let d in sideDirections ) {
+			const xyzDir = sideDirections[d];
+			if( ((+xyzDir)&sideMask) == 0 ) continue;
 			const vec = xyzDirectionVectors[xyzDir];
-			bounceBox[xyzDir] = this.massivestBorderingCollision(roomRef, pos, bb, vec, gridSize, ignoreEntityId);
+			bounceBox[xyzDir] = this.massivestBorderingEntity(roomRef, pos, bb, vec, gridSize, filter);
 		}
 		return bounceBox;
 	}
@@ -988,14 +1044,53 @@ export class MazeGamePhysics {
 				const entity = roomEntity.entity;
 				const entityClass = game.gameDataManager.getEntityClass(entity.classRef);
 				
-				const entityBb = entityClass.physicalBoundingBox;
-				if( entityClass.isAffectedByGravity && entityClass.mass != null && entityClass.mass != Infinity ) {
+				const otherEntityFilter:EntityFilter =
+					(roomEntityId:string, roomEntity:RoomEntity, entity:Entity, entityClass:EntityClass) =>
+						roomEntityId != re;
+
+				const dmd = entity.desiredMovementDirection;
+				let climbing = false;
+
+				if( dmd != null && entityClass.climbingSkill ) {
+					const minClimbability = 1 - entityClass.climbingSkill;
+					let mostClimbable:FoundEntity|undefined;
+					let maxClimbability = 0;
+					const neighbEnts = this.neighboringEntities( r, roomEntity.position, entityClass.physicalBoundingBox, ALL_SIDES, snapGridSize, otherEntityFilter );
+					for( let dir in neighbEnts ) {
+						const neighbEnts2 = neighbEnts[dir];
+						for( let e in neighbEnts2 ) {
+							const climbability = neighbEnts2[e].entityClass.climbability;
+							if( climbability != null && climbability >= minClimbability && climbability >= maxClimbability ) {
+								// Aw yih we can climb that!
+								// Theoretically we would take direction of movement into account,
+								// so if you wanted to go up you'd prefer a ladder that's itself moving that way.
+								mostClimbable = neighbEnts2[e];
+								maxClimbability = climbability;
+							}
+						}
+					}
+					if( mostClimbable ) {
+						climbing = true;
+						const currentRv:Vector3D = subtractVector(entityVelocity(roomEntity), entityVelocity(mostClimbable.roomEntity));
+						const targetRv:Vector3D = normalizeVector(dmd, entityClass.normalClimbingSpeed || entityClass.normalWalkingSpeed || 0);
+						const targetDrv:Vector3D = subtractVector(targetRv, currentRv);
+						const maxClimbForce = 300;
+						const maxClimbImpulse = maxClimbForce*interval;
+						const clumbImpulse = this.dvImpulse(targetDrv, entityClass.mass, mostClimbable.entityClass.mass, maxClimbImpulse, -1);
+						this.registerImpulse( re, roomEntity, mostClimbable.roomEntityId, mostClimbable.roomEntity, clumbImpulse);
+					}
+				}
+
+				if( !climbing && entityClass.isAffectedByGravity && entityClass.mass != null && entityClass.mass != Infinity ) {
 					this.induceVelocityChange(re, gravDv);
 				}
-				
-				const floorCollision = this.massivestBorderingCollision(
+
+				const solidOtherEntityFilter:EntityFilter =
+					(roomEntityId:string, roomEntity:RoomEntity, entity:Entity, entityClass:EntityClass) =>
+						roomEntityId != re && entityClass.isSolid !== false;
+				const floorCollision = this.massivestBorderingEntity(
 					r, roomEntity.position, entityClass.physicalBoundingBox,
-					xyzDirectionVectors[XYZDirection.POSITIVE_Y], snapGridSize, re);
+					xyzDirectionVectors[XYZDirection.POSITIVE_Y], snapGridSize, solidOtherEntityFilter);
 				
 				/*
 				 * Possible forces:
@@ -1006,14 +1101,12 @@ export class MazeGamePhysics {
 				 */
 				
 				// TODO: Do this in a generic way for any 'walking' entities
-				if( entityVelocity(roomEntity).y >= 0 && floorCollision && entity.desiredMovementDirection != null ) {
-					const dmd = entity.desiredMovementDirection;
+				if( entityVelocity(roomEntity).y >= 0 && floorCollision && dmd != null ) {
 					
 					/** Actual velocity relative to surface */
 					const dvx = entityVelocity(roomEntity).x - entityVelocity(floorCollision.roomEntity).x;
-					const dmx = dmd.x;
 					/** Desired velocity relative to surface */
-					const targetDvx = (entityClass.normalWalkingSpeed || 0) * oneify(dmx);
+					const targetDvx = (entityClass.normalWalkingSpeed || 0) * oneify(dmd.x);
 					/** Desired velocity change */
 					const attemptDdvx = targetDvx - dvx;
 					// Attempt to change to target velocity in single tick
@@ -1054,6 +1147,10 @@ export class MazeGamePhysics {
 				let entityRoomRef = r;
 				
 				let displacement = scaleVector( velocity, interval );
+
+				const solidOtherEntityFilter:EntityFilter =
+					(roomEntityId:string, roomEntity:RoomEntity, entity:Entity, entityClass:EntityClass) =>
+						roomEntityId != re && entityClass.isSolid !== false;
 				
 				// Strategy here is:
 				// figure [remaining] displacement based on velocity*interval
@@ -1081,7 +1178,7 @@ export class MazeGamePhysics {
 					});
 					const newRoomRef = newVelocityLocation.roomRef;
 					const newPosition = roundVectorToGrid(newVelocityLocation.position, snapGridSize);
-					const collisions = game.solidEntitiesAt(newVelocityLocation.roomRef, newPosition, entityBb, re);
+					const collisions = game.entitiesAt(newVelocityLocation.roomRef, newPosition, entityBb, solidOtherEntityFilter);
 					if( collisions.length == 0 ) {
 						game.updateRoomEntity(entityRoomRef, re, {
 							roomRef: newRoomRef,
@@ -1094,7 +1191,7 @@ export class MazeGamePhysics {
 						displacement = addVector(displacement, scaleVector(displacement, -stepDisplacementRatio));
 						continue displacementStep;
 					}
-					
+
 					// Uh oh, we've collided somehow.
 					// Need to take that into account, zero out part or all of our displacement
 					// based on where the obstacle was, register some impulses
@@ -1102,7 +1199,7 @@ export class MazeGamePhysics {
 					{
 						// TODO: Only need bounce box for directions moving in
 						const bounceBox:BounceBox = this.entityBounceBox(
-							entityRoomRef, roomEntity.position, entityBb, snapGridSize, re );
+							entityRoomRef, roomEntity.position, entityBb, ALL_SIDES, snapGridSize, solidOtherEntityFilter );
 						
 						let maxDvx = 0;
 						let maxDvxColl:FoundEntity|undefined;
@@ -1286,58 +1383,56 @@ export class MazeGame {
 		}
 	}
 
-	protected solidEntitiesAt3(
+	protected entitiesAt3(
 		roomRef:string, roomEntityId:string, roomEntity:RoomEntity, // Root roomEntity
 		entityPos:Vector3D, entity:Entity, // Individual entity being checked against (may be a sub-entity of the roomEntity)
 		checkPos:Vector3D, checkBb:AABB, // Sample box
+		filter:EntityFilter,
 		into:FoundEntity[]
 	):void {
 		const proto = this.gameDataManager.getEntityClass( entity.classRef );
-		if( proto.isSolid === false ) return;
+		if( !filter(roomEntityId, roomEntity, entity, proto) ) return;
 		if( !aabbIntersectsWithOffset(entityPos, proto.physicalBoundingBox, checkPos, checkBb) ) return;
 		
 		if( proto.structureType == StructureType.INDIVIDUAL ) {
-			if( proto.isSolid ) {
-				into.push( {
-					roomRef: roomRef,
-					roomEntityId: roomEntityId,
-					roomEntity: roomEntity,
-					entityPosition: entityPos,
-					entity: entity,
-					entityClass: proto,
-				} );
-			}
+			into.push( {
+				roomRef: roomRef,
+				roomEntityId: roomEntityId,
+				roomEntity: roomEntity,
+				entityPosition: entityPos,
+				entity: entity,
+				entityClass: proto,
+			} );
 		} else {
 			eachSubEntity( entity, entityPos, this.gameDataManager, (subEnt, subEntPos, ori) => {
-				this.solidEntitiesAt3( roomRef, roomEntityId, roomEntity, subEntPos, subEnt, checkPos, checkBb, into );
+				this.entitiesAt3( roomRef, roomEntityId, roomEntity, subEntPos, subEnt, checkPos, checkBb, filter, into );
 			}, this, entityPos);
 		};
 	}
 	
-	protected solidEntitiesAt2( roomPos:Vector3D, roomRef:string, checkPos:Vector3D, checkBb:AABB, ignoreEntityId:string|undefined=undefined, into:FoundEntity[] ):void {
+	protected entitiesAt2( roomPos:Vector3D, roomRef:string, checkPos:Vector3D, checkBb:AABB, filter:EntityFilter, into:FoundEntity[] ):void {
 		// Room bounds have presumably already been determined to intersect
 		// with that of the box being checked, so we'll skip that and go
 		// straight to checking entities.
 		const room:Room = this.getRoom(roomRef);
 		for( let re in room.roomEntities ) {
-			if( re == ignoreEntityId ) continue;
 			const roomEntity = room.roomEntities[re];
 			addVector( roomPos, roomEntity.position, entityPositionBuffer );
-			this.solidEntitiesAt3(roomRef, re, roomEntity, entityPositionBuffer, roomEntity.entity, checkPos, checkBb, into)
+			this.entitiesAt3(roomRef, re, roomEntity, entityPositionBuffer, roomEntity.entity, checkPos, checkBb, filter, into)
 		}
 	}
 	
 	/** Overly simplistic 'is there anything at this exact point' check */
-	public solidEntitiesAt( roomRef:string, pos:Vector3D, bb:AABB, ignoreEntityId?:string ):FoundEntity[] {
+	public entitiesAt( roomRef:string, pos:Vector3D, bb:AABB, filter:EntityFilter ):FoundEntity[] {
 		const collisions:FoundEntity[] = [];
 		const room = this.getRoom(roomRef);
 		if( aabbIntersectsWithOffset(ZERO_VECTOR, room.bounds, pos, bb) ) {
-			this.solidEntitiesAt2( ZERO_VECTOR, roomRef, pos, bb, ignoreEntityId, collisions );
+			this.entitiesAt2( ZERO_VECTOR, roomRef, pos, bb, filter, collisions );
 		}
 		for( let n in room.neighbors ) {
 			const neighb = room.neighbors[n];
 			if( aabbIntersectsWithOffset(neighb.offset, neighb.bounds, pos, bb) ) {
-				this.solidEntitiesAt2( neighb.offset, neighb.roomRef, pos, bb, ignoreEntityId, collisions );
+				this.entitiesAt2( neighb.offset, neighb.roomRef, pos, bb, filter, collisions );
 			}
 		}
 		return collisions;
