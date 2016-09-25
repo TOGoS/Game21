@@ -59,10 +59,14 @@ export interface EntityClass {
 	isSolid?:boolean; // things can collide with it/it can collide with things
 	opacity?:number; // For space-filling trees, this should be something like the average of contained items' opacities
 
-	bounciness?:number;
 	mass?:number;
-	normalWalkingSpeed? : number;
-	normalClimbingSpeed? : number;
+	bounciness?:number;
+	coefficientOfFriction?:number; // How rubby is it?
+	climbability?:number; // 0 = only as much as friction allows; 1 = anyone can stick themself to it, even stupid babies with no grip strength.
+	normalWalkingSpeed? : number; // Normal maximum speed attained while walking
+	maxWalkingForce? : number; // Maximum force (newtons) that can be exerted along ground when walking; may also apply to climbing
+	climbingSkill? : number; // can climb things with 1-climbingSkill climbability; default = 0
+	normalClimbingSpeed? : number; // Normal maximum speed attained while climbing; default = walking speed
 	
 	visualRef? : string;
 }
