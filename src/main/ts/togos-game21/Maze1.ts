@@ -7,7 +7,7 @@ import KeyedList from './KeyedList';
 import Cuboid, { makeCuboid, cuboidWidth, cuboidHeight } from './Cuboid';
 import Vector3D from './Vector3D';
 import { makeVector, vectorToString, ZERO_VECTOR } from './vector3ds';
-import { addVector, subtractVector, vectorIsZero, scaleVector, normalizeVector, roundVectorToGrid } from './vector3dmath';
+import { addVector, subtractVector, vectorLength, vectorIsZero, scaleVector, normalizeVector, roundVectorToGrid } from './vector3dmath';
 import Quaternion from './Quaternion';
 import TransformationMatrix3D from './TransformationMatrix3D';
 import SceneShader, { ShadeRaster } from './SceneShader';
@@ -660,7 +660,7 @@ interface RoomEntityUpdate {
 	velocityPosition? : Vector3D;
 }
 
-interface Collision {
+interface FoundEntity {
 	roomRef : string;
 	roomEntityId : string;
 	roomEntity : RoomEntity;
@@ -671,7 +671,7 @@ interface Collision {
 	entityClass : EntityClass; // since we have it anyway!
 }
 
-type BounceBox = { [k:number]: Collision|undefined }
+type BounceBox = { [k:number]: FoundEntity|undefined }
 
 const entityPositionBuffer:Vector3D = makeVector(0,0,0);
 const rotate45Clockwise:TransformationMatrix3D        = deepFreeze(TransformationMatrix3D.fromXYZAxisAngle(0,0,1,+Math.PI/4));
@@ -703,6 +703,12 @@ function clampAbs( val:number, maxAbs:number ):number {
 	if( val > maxAbs  ) return maxAbs;
 	if( val < -maxAbs ) return -maxAbs;
 	return val;
+}
+
+interface Collision {
+	roomEntityA : RoomEntity;
+	roomEntityB : RoomEntity;
+	velocity : Vector3D;
 }
 
 let updatePhase:string = 'unstarted';
@@ -757,6 +763,24 @@ export class MazeGamePhysics {
 		if( bRat != 0 ) this.induceVelocityChange(entityBId, scaleVector(impulse, +bRat/eBMass));
 	}
 	
+	protected collisions:KeyedList<KeyedList<Collision>>;
+	public registerCollision( eAId:string, eA:RoomEntity, eBId:string, eB:RoomEntity, velocity:Vector3D ):void {
+		if( eAId > eBId ) {
+			return this.registerCollision( eBId, eB, eAId, eA, scaleVector(velocity, -1));
+		}
+		
+		if( !this.collisions[eAId] ) this.collisions[eAId] = {};
+		const already = this.collisions[eAId][eBId];
+		
+		if( already && vectorLength(already.velocity) > vectorLength(velocity) ) return;
+		
+		this.collisions[eAId][eBId] = {
+			roomEntityA: eA,
+			roomEntityB: eB,
+			velocity: velocity
+		}
+	}
+	
 	protected borderingCuboid( roomRef:string, bb:Cuboid, dir:Vector3D, gridSize:number ):Cuboid {
 		let minX = bb.minX, maxX = bb.maxX;
 		let minY = bb.minY, maxY = bb.maxY;
@@ -779,14 +803,14 @@ export class MazeGamePhysics {
 		return makeCuboid( minX,minY,minZ, maxX,maxY,maxZ );
 	}
 	
-	protected borderingCollisions( roomRef:string, pos:Vector3D, bb:Cuboid, dir:Vector3D, gridSize:number, ignoreEntityId:string ):Collision[] {
+	protected borderingCollisions( roomRef:string, pos:Vector3D, bb:Cuboid, dir:Vector3D, gridSize:number, ignoreEntityId:string ):FoundEntity[] {
 		const border = this.borderingCuboid(roomRef, bb, dir, gridSize);
-		return this.game.collisionsAt( roomRef, pos, border, ignoreEntityId );
+		return this.game.solidEntitiesAt( roomRef, pos, border, ignoreEntityId );
 	}
 	
-	protected massivestCollision( collisions:Collision[] ):Collision|undefined {
+	protected massivestCollision( collisions:FoundEntity[] ):FoundEntity|undefined {
 		let maxMass = 0;
-		let massivest:Collision|undefined = undefined;
+		let massivest:FoundEntity|undefined = undefined;
 		for( let c in collisions ) {
 			const coll = collisions[c];
 			const entityClass = this.game.gameDataManager.getEntityClass(coll.roomEntity.entity.classRef);
@@ -801,7 +825,7 @@ export class MazeGamePhysics {
 	/**
 	 * Finds the most massive (interactive, rigid) object in the space specified
 	 */
-	protected massivestBorderingCollision( roomRef:string, pos:Vector3D, bb:Cuboid, dir:Vector3D, gridSize:number, ignoreEntityId:string ):Collision|undefined {
+	protected massivestBorderingCollision( roomRef:string, pos:Vector3D, bb:Cuboid, dir:Vector3D, gridSize:number, ignoreEntityId:string ):FoundEntity|undefined {
 		return this.massivestCollision( this.borderingCollisions(roomRef, pos, bb, dir, gridSize, ignoreEntityId) );
 	}
 	
@@ -857,8 +881,8 @@ export class MazeGamePhysics {
 				 */
 				
 				// TODO: Do this in a generic way for any 'walking' entities
-				if( entityVelocity(roomEntity).y >= 0 && floorCollision ) {
-					const dmd = entity.desiredMovementDirection || ZERO_VECTOR;
+				if( entityVelocity(roomEntity).y >= 0 && floorCollision && entity.desiredMovementDirection != null ) {
+					const dmd = entity.desiredMovementDirection;
 					
 					/** Actual velocity relative to surface */
 					const dvx = entityVelocity(roomEntity).x - entityVelocity(floorCollision.roomEntity).x;
@@ -918,8 +942,9 @@ export class MazeGamePhysics {
 		this.inducedVelocityChanges = {};
 		
 		// Apply velocity to positions,
-		// do collision detection,
-		// collect impulses for next frame
+		// do collision detection to prevent overlap and collection collisions
+		this.collisions = {};
+		
 		for( let r in rooms ) {
 			let room = rooms[r];
 			for( let re in room.roomEntities ) {
@@ -963,7 +988,7 @@ export class MazeGamePhysics {
 					});
 					const newRoomRef = newVelocityLocation.roomRef;
 					const newPosition = roundVectorToGrid(newVelocityLocation.position, snapGridSize);
-					const collisions = game.collisionsAt(newVelocityLocation.roomRef, newPosition, entityBb, re);
+					const collisions = game.solidEntitiesAt(newVelocityLocation.roomRef, newPosition, entityBb, re);
 					if( collisions.length == 0 ) {
 						game.updateRoomEntity(entityRoomRef, re, {
 							roomRef: newRoomRef,
@@ -984,20 +1009,25 @@ export class MazeGamePhysics {
 					// based on where the obstacle was, register some impulses
 					
 					{
+						// TODO: Only need bounce box for directions moving in
 						const bounceBox:BounceBox = this.entityBounceBox(
 							entityRoomRef, roomEntity.position, entityBb, snapGridSize, re );
 						
 						let maxDvx = 0;
-						let maxDvxColl:Collision|undefined;
+						let maxDvxColl:FoundEntity|undefined;
 						let maxDvy = 0;
-						let maxDvyColl:Collision|undefined;
+						let maxDvyColl:FoundEntity|undefined;
 						
+						let remainingDx = displacement.x;
+						let remainingDy = displacement.y;
+
 						// Is there a less repetetive way to write this?
 						// Check up/down/left/right to find collisions.
 						// If nothing found, then it must be a diagonal collision!
 						// So then check diagonals.
-						let coll:Collision|undefined;
+						let coll:FoundEntity|undefined;
 						if( displacement.x > 0 && (coll = bounceBox[XYZDirection.POSITIVE_X]) ) {
+							remainingDx = 0;
 							const collVel = entityVelocity(coll.roomEntity);
 							const dvx = velocity.x - collVel.x;
 							if( dvx > maxDvx ) {
@@ -1006,6 +1036,7 @@ export class MazeGamePhysics {
 							}
 						}
 						if( displacement.x < 0 && (coll = bounceBox[XYZDirection.NEGATIVE_X]) ) {
+							remainingDx = 0;
 							const collVel = entityVelocity(coll.roomEntity);
 							const dvx = velocity.x - collVel.x;
 							if( dvx < maxDvx ) {
@@ -1014,6 +1045,7 @@ export class MazeGamePhysics {
 							}
 						}
 						if( displacement.y > 0 && (coll = bounceBox[XYZDirection.POSITIVE_Y]) ) {
+							remainingDy = 0;
 							const collVel = entityVelocity(coll.roomEntity);
 							const dvy = velocity.y - collVel.y;
 							if( maxDvyColl == null || dvy > maxDvy ) {
@@ -1022,27 +1054,28 @@ export class MazeGamePhysics {
 							}
 						}
 						if( displacement.y < 0 && (coll = bounceBox[XYZDirection.NEGATIVE_Y]) ) {
+							remainingDy = 0;
 							const collVel = entityVelocity(coll.roomEntity);
 							const dvy = velocity.y - collVel.y;
-							if( maxDvyColl == null || dvy < maxDvy ) {
+							if( dvy < maxDvy ) {
 								maxDvy = dvy;
 								maxDvyColl = coll;
 							}
 						}
 						
 						if( maxDvxColl ) {
-							const bounceImpulseX = (1 + bounceFactor(entityClass, maxDvxColl.entityClass)) * maxDvx * entityClass.mass;
-							this.registerImpulse( re, roomEntity, maxDvxColl.roomEntityId, maxDvxColl.roomEntity, makeVector(bounceImpulseX, 0, 0));
+							this.registerCollision(
+								re, roomEntity, maxDvxColl.roomEntityId, maxDvxColl.roomEntity, makeVector(maxDvx, 0, 0) 
+							);
 						}
 						if( maxDvyColl ) {
-							const bounceImpulseY = (1 + bounceFactor(entityClass, maxDvyColl.entityClass)) * maxDvy * entityClass.mass;
-							this.registerImpulse( re, roomEntity, maxDvyColl.roomEntityId, maxDvyColl.roomEntity, makeVector(0, bounceImpulseY, 0));
+							this.registerCollision(
+								re, roomEntity, maxDvyColl.roomEntityId, maxDvyColl.roomEntity, makeVector(0, maxDvy, 0)
+							);
 						}
 						
 						// New displacement = displacement without the components that
 						// would take us into obstacles:
-						let remainingDx = maxDvxColl ? 0 : displacement.x;
-						let remainingDy = maxDvyColl ? 0 : displacement.y;
 						if( remainingDx != 0 && remainingDy != 0 ) {
 							// A diagonal hit, probably.
 							// Keep the larger velocity component
@@ -1064,6 +1097,19 @@ export class MazeGamePhysics {
 				}
 			}
 		}
+		
+		for( let collEntityAId in this.collisions ) {
+			for( let collEntityBId in this.collisions[collEntityAId] ) {
+				const collision = this.collisions[collEntityAId][collEntityBId];
+				const eAClass = this.game.gameDataManager.getEntityClass(collision.roomEntityA.entity.classRef);
+				const eBClass = this.game.gameDataManager.getEntityClass(collision.roomEntityB.entity.classRef);
+				// TODO: Figure out collision physics better.
+				const impulse = scaleVector(collision.velocity, Math.min(eAClass.mass, eBClass.mass)*(1+bounceFactor(eAClass, eBClass)));
+				this.registerImpulse( collEntityAId, collision.roomEntityA, collEntityBId, collision.roomEntityB, impulse );
+			}
+		}
+		
+		this.collisions = {};
 	}
 }
 
@@ -1136,11 +1182,11 @@ export class MazeGame {
 		}
 	}
 
-	protected _collisionsAt3(
+	protected solidEntitiesAt3(
 		roomRef:string, roomEntityId:string, roomEntity:RoomEntity, // Root roomEntity
 		entityPos:Vector3D, entity:Entity, // Individual entity being checked against (may be a sub-entity of the roomEntity)
 		checkPos:Vector3D, checkBb:Cuboid, // Sample box
-		into:Collision[]
+		into:FoundEntity[]
 	):void {
 		const proto = this.gameDataManager.getEntityClass( entity.classRef );
 		if( proto.isSolid === false ) return;
@@ -1159,12 +1205,12 @@ export class MazeGame {
 			}
 		} else {
 			eachSubEntity( entity, entityPos, this.gameDataManager, (subEnt, subEntPos, ori) => {
-				this._collisionsAt3( roomRef, roomEntityId, roomEntity, subEntPos, subEnt, checkPos, checkBb, into );
+				this.solidEntitiesAt3( roomRef, roomEntityId, roomEntity, subEntPos, subEnt, checkPos, checkBb, into );
 			}, this, entityPos);
 		};
 	}
 	
-	protected _collisionsAt2( roomPos:Vector3D, roomRef:string, checkPos:Vector3D, checkBb:Cuboid, ignoreEntityId:string, into:Collision[] ):void {
+	protected solidEntitiesAt2( roomPos:Vector3D, roomRef:string, checkPos:Vector3D, checkBb:Cuboid, ignoreEntityId:string, into:FoundEntity[] ):void {
 		// Room bounds have presumably already been determined to intersect
 		// with that of the box being checked, so we'll skip that and go
 		// straight to checking entities.
@@ -1173,21 +1219,21 @@ export class MazeGame {
 			if( re == ignoreEntityId ) continue;
 			const roomEntity = room.roomEntities[re];
 			addVector( roomPos, roomEntity.position, entityPositionBuffer );
-			this._collisionsAt3(roomRef, re, roomEntity, entityPositionBuffer, roomEntity.entity, checkPos, checkBb, into)
+			this.solidEntitiesAt3(roomRef, re, roomEntity, entityPositionBuffer, roomEntity.entity, checkPos, checkBb, into)
 		}
 	}
 	
 	/** Overly simplistic 'is there anything at this exact point' check */
-	public collisionsAt( roomRef:string, pos:Vector3D, bb:Cuboid, ignoreEntityId:string ):Collision[] {
-		const collisions:Collision[] = [];
+	public solidEntitiesAt( roomRef:string, pos:Vector3D, bb:Cuboid, ignoreEntityId:string ):FoundEntity[] {
+		const collisions:FoundEntity[] = [];
 		const room = this.getRoom(roomRef);
 		if( Cuboid.intersectsWithOffset(ZERO_VECTOR, room.bounds, pos, bb) ) {
-			this._collisionsAt2( ZERO_VECTOR, roomRef, pos, bb, ignoreEntityId, collisions );
+			this.solidEntitiesAt2( ZERO_VECTOR, roomRef, pos, bb, ignoreEntityId, collisions );
 		}
 		for( let n in room.neighbors ) {
 			const neighb = room.neighbors[n];
 			if( Cuboid.intersectsWithOffset(neighb.offset, neighb.bounds, pos, bb) ) {
-				this._collisionsAt2( neighb.offset, neighb.roomRef, pos, bb, ignoreEntityId, collisions );
+				this.solidEntitiesAt2( neighb.offset, neighb.roomRef, pos, bb, ignoreEntityId, collisions );
 			}
 		}
 		return collisions;
@@ -1363,6 +1409,17 @@ export function startDemo(canv:HTMLCanvasElement) : MazeDemo {
 		game.fullyLoadRoom(room1Id),
 		game.fullyLoadRoom(room2Id),
 	])).then( () => {
+		const room2 = game.activeRooms[room2Id];
+		for( let i=0; i<10; ++i ) {
+			const newBallId = newUuidRef();
+			// add some balls!
+			let position;
+			while( game.solidEntitiesAt(room2Id, position = makeVector(0.5+3*Math.random(), -0.5-3*Math.random(), 0), QUNIT_CUBE, null).length > 0 );
+			room2.roomEntities[newBallId] = {
+				position: position,
+				entity: { classRef: ballEntityClassId }
+			};
+		}
 		demo.updateView();
 		demo.startSimulation();
 	});
