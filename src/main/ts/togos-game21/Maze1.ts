@@ -303,7 +303,6 @@ export class MazeView {
 		let xRef = ref;
 		if( bitImgRee ) {
 			const bitImgInfo = parseBitImg(bitImgRee);
-			console.log(ref+" -> ", bitImgInfo)
 			xRef = parseOneBitImageDataToDataUrl( bitImgInfo.bitstr, bitImgInfo.width, bitImgInfo.height, bitImgInfo.color0, bitImgInfo.color1 );
 		} else {
 			throw new Error(ref+" not parse!");
@@ -737,7 +736,7 @@ export class MazeGamePhysics {
 		}
 		if( dir.z < 0 ) {
 			maxZ = minZ; minZ -= gridSize; 
-		} else if( dir.x > 0 ) {
+		} else if( dir.z > 0 ) {
 			minZ = maxZ; maxZ += gridSize;
 		}
 		return makeCuboid( minX,minY,minZ, maxX,maxY,maxZ );
