@@ -831,7 +831,7 @@ export class MazeGamePhysics {
 					const dvx = entityVelocity(roomEntity).x - entityVelocity(floorCollision.roomEntity).x;
 					const dmx = dmd.x;
 					/** Desired velocity relative to surface */
-					const targetDvx = entityClass.normalWalkingSpeed * oneify(dmx);
+					const targetDvx = (entityClass.normalWalkingSpeed || 0) * oneify(dmx);
 					/** Desired velocity change */
 					const attemptDdvx = targetDvx - dvx;
 					// Attempt to change to target velocity in single tick
