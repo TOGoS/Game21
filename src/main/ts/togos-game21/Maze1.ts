@@ -997,11 +997,17 @@ export class MazeGamePhysics {
 						
 						// New displacement = displacement without the components that
 						// would take us into obstacles:
-						const remainingVx = maxDvxColl ? 0 : displacement.x;
-						const remainingVy = maxDvyColl ? 0 : displacement.y;
+						let remainingVx = maxDvxColl ? 0 : displacement.x;
+						let remainingVy = maxDvyColl ? 0 : displacement.y;
 						if( remainingVx != 0 && remainingVy != 0 ) {
 							console.log("Hmm, collision, but no stoppage (maybe a diagonal hit); velocity:", velocity)
-							break displacementStep;
+							// Take the larger velocity component
+							if( Math.abs(remainingVx) < Math.abs(remainingVy) ) {
+								remainingVx = 0;
+							} else {
+								remainingVy = 0;
+							}
+							//break displacementStep;
 						}
 						
 						displacement = { x: remainingVx, y: remainingVy, z: 0 };
