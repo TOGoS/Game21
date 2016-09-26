@@ -1,0 +1,38 @@
+#!/usr/bin/env node
+
+function hexDig(i) {
+	return String.fromCharCode( i < 10 ? 48 + i : 87 + i );
+}
+
+function hexEncode(data, begin, end) {
+	var astuff = new Array(data.length);
+	var i;
+	for( i=begin; i<end; ++i ) {
+		astuff[i] = hexDig(data[i] >> 4) + hexDig(data[i] & 0xF);
+	}
+	return astuff.join('');
+}
+
+function newType4Uuid() {
+	var uuid = new Uint8Array(16);
+	var i;
+	for( i=0; i<16; ++i ) uuid[i] = Math.floor(Math.random()*256);
+	uuid[6] |= 0x40;
+	uuid[6] &= 0x4F;
+	uuid[8] |= 0x80;
+	uuid[8] &= 0xBF;
+	return uuid;
+}
+
+function uuidString(uuid) {
+	return (
+		hexEncode(uuid,0,4)+'-'+
+		hexEncode(uuid,4,6)+'-'+hexEncode(uuid,6,8)+'-'+hexEncode(uuid,8,10)+'-'+
+		hexEncode(uuid,10,16)
+	);
+}
+
+var i;
+for( i=0; i<100; ++i ) {
+	console.log( uuidString(newType4Uuid()) );
+}
