@@ -569,6 +569,7 @@ function initData( gdm:GameDataManager ):Promise<any> {
 		mass: 45, // 100 lbs; he's a small guy
 		bounciness: 0.5,
 		visualRef: playerImgRef,
+		maxFlyingForce: 100,
 		normalWalkingSpeed: 4,
 		normalClimbingSpeed: 2,
 		climbingSkill: 0.5,
@@ -1021,6 +1022,13 @@ export class MazeGamePhysics {
 		}
 	}
 	
+	public registerReactionlessImpulse( entityId:string, roomEntity:RoomEntity, impulse:Vector3D ):void {
+		const entityClass = this.game.gameDataManager.getEntityClass(roomEntity.entity.classRef);
+		const mass = entityMass(entityClass);
+		if( mass == Infinity ) return; // Nothing's going to happen
+		this.induceVelocityChange(entityId, scaleVector(impulse, -1/mass));
+	}
+	
 	public registerImpulse( entityAId:string, entityA:RoomEntity, entityBId:string, entityB:RoomEntity, impulse:Vector3D ):void {
 		if( vectorIsZero(impulse) ) return; // Save ourselves a little bit of work
 		
@@ -1245,7 +1253,6 @@ export class MazeGamePhysics {
 					const minClimbability = 1 - entityClass.climbingSkill;
 					let mostClimbable:FoundEntity|undefined;
 					let maxClimbability = 0;
-					neighbEnts;
 					for( let dir in neighbEnts ) {
 						const neighbEnts2 = neighbEnts[dir];
 						for( let e in neighbEnts2 ) {
@@ -1276,9 +1283,13 @@ export class MazeGamePhysics {
 					this.induceVelocityChange(re, gravDv);
 				}
 
+				let onFloor = false;
+				
 				// TODO: Do this in a generic way for any 'walking' entities
-				if( entityVelocity(roomEntity).y >= 0 && floorCollision && dmd != null ) {
+				walk: if( entityVelocity(roomEntity).y >= 0 && floorCollision ) {
+					onFloor = true;
 					
+					if( dmd == null ) break walk;
 					/** Actual velocity relative to surface */
 					const dvx = entityVelocity(roomEntity).x - entityVelocity(floorCollision.roomEntity).x;
 					/** Desired velocity relative to surface */
@@ -1298,9 +1309,10 @@ export class MazeGamePhysics {
 						const jumpImpulse:Vector3D = {x:0, y:maxJumpImpulse, z:0};
 						this.registerImpulse(re, roomEntity, floorCollision.roomEntityId, floorCollision.roomEntity, jumpImpulse);
 					}
-				} else {
-					// Drag!
-					//roomEntity.velocity = scaleVector(roomEntity.velocity || ZERO_VECTOR, Math.pow(0.9, interval));
+				}
+				
+				if( !climbing && !onFloor && dmd && entityClass.maxFlyingForce ) {
+					this.registerReactionlessImpulse(re, roomEntity, scaleVector(dmd, -entityClass.maxFlyingForce*interval) );
 				}
 			}
 		}
