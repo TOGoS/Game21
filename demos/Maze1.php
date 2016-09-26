@@ -55,6 +55,13 @@ html, body {
 	color: white;
 	box-sizing: border-box;
 }
+.game-interface {
+	display: flex;
+	width: 100%;
+	height: 100vh;
+	flex-direction: column;
+	justify-content: space-around;
+}
 .maze-area {
 	width: 100%;
 	display: flex;
@@ -82,11 +89,13 @@ html, body {
 }
 /* ]]> */</style>
 
+<div class="game-interface">
 <div class="maze-area" id="maze-area">
 <canvas class="maze-canvas" id="maze-canvas" width="<?php eht($width); ?>" height="<?php eht($height); ?>"/>
 </div>
 
 <div id="button-area"></div>
+</div>
 
 <?php require_game21_js_libs($inlineResources, array('togos-game21/Maze1')); ?>
 <script type="text/javascript">//<![CDATA[
