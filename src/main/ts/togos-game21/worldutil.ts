@@ -33,7 +33,7 @@ function entityClassRef( op:any, gdm?:GameDataManager ):string {
  * Palette can either be an ID of a TileEntityPalette,
  * or a list of tile tree entity class refs.
  */
-export function makeTileEntityPaletteRef( palette:any, gdm?:GameDataManager ):string {
+export function makeTileEntityPaletteRef( palette:any, gdm?:GameDataManager, alias?:string ):string {
 	if( typeof palette == 'string' ) return palette;
 	
 	if( gdm == null ) throw new Error("Can't generate palette ref without game object"); // Well, really we should be able to for hash URN things eventually
@@ -49,7 +49,7 @@ export function makeTileEntityPaletteRef( palette:any, gdm?:GameDataManager ):st
 
 	console.log("saving tile palette", tilePalette);
 	
-	return gdm.fastStoreObject(tilePalette);
+	return gdm.fastStoreObject(tilePalette, alias);
 }
 
 /**
@@ -156,9 +156,9 @@ export interface MakeTileTreeOptions {
 	infiniteMass? : boolean;
 }
 
-export function makeTileTreeRef( palette:any, w:number, h:number, d:number, indexes:any, gdm:GameDataManager, opts:MakeTileTreeOptions={} ):string {
+export function makeTileTreeRef( palette:any, w:number, h:number, d:number, indexes:any, gdm:GameDataManager, opts:MakeTileTreeOptions={}, alias?:string ):string {
 	const tt:TileTree = makeTileTreeNode(palette, w, h, d, indexes, gdm, opts);
-	return gdm.fastStoreObject(tt);
+	return gdm.fastStoreObject(tt, alias);
 }
 
 export function connectRooms( gdm:GameDataManager, room0Ref:string, room1Ref:string, offset:Vector3D ):void {

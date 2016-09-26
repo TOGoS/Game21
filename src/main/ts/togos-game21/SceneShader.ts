@@ -70,14 +70,13 @@ export default class SceneShader {
 		
 		if( proto.opacity === 1 ) {
 			const destMap = this.destShadeMap;
-			const tbb = proto.tilingBoundingBox;
 			const opacityByte = Math.round(255*proto.opacity); 
 			// Round object's corners to nearest opacity raster cell corners.
 			// (this should have the effect that any cell whose center is covered by the object gets marked opaque)
-			const minCX = Math.max(0             , Math.round( (tbb.minX + pos.x + destMap.originX) * destMap.resolution));
-			const minCY = Math.max(0             , Math.round( (tbb.minY + pos.y + destMap.originY) * destMap.resolution));
-			const maxCX = Math.min(destMap.width , Math.round( (tbb.maxX + pos.x + destMap.originX) * destMap.resolution));
-			const maxCY = Math.min(destMap.height, Math.round( (tbb.maxY + pos.y + destMap.originY) * destMap.resolution));
+			const minCX = Math.max(0             , Math.round( (vbb.minX + pos.x + destMap.originX) * destMap.resolution));
+			const minCY = Math.max(0             , Math.round( (vbb.minY + pos.y + destMap.originY) * destMap.resolution));
+			const maxCX = Math.min(destMap.width , Math.round( (vbb.maxX + pos.x + destMap.originX) * destMap.resolution));
+			const maxCY = Math.min(destMap.height, Math.round( (vbb.maxY + pos.y + destMap.originY) * destMap.resolution));
 			for( let cy = minCY; cy < maxCY; ++cy ) {
 				for( let cx = minCX, ci = cy*destMap.width + cx; cx < maxCX; ++cx, ++ci ) {
 					// Slightly more complicated combination arithmetic

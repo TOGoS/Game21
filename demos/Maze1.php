@@ -57,7 +57,6 @@ html, body {
 }
 .maze-area {
 	width: 100%;
-	height: 100vh;
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -86,6 +85,8 @@ html, body {
 <div class="maze-area" id="maze-area">
 <canvas class="maze-canvas" id="maze-canvas" width="<?php eht($width); ?>" height="<?php eht($height); ?>"/>
 </div>
+
+<div id="button-area"></div>
 
 <?php require_game21_js_libs($inlineResources, array('togos-game21/Maze1')); ?>
 <script type="text/javascript">//<![CDATA[
