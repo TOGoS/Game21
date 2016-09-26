@@ -68,7 +68,7 @@ export default class SceneShader {
 		
 		if( proto.opacity === 0 ) return;
 		
-		if( proto.opacity === 1 ) {
+		if( proto.structureType == StructureType.INDIVIDUAL && proto.opacity != null ) {
 			const destMap = this.destShadeMap;
 			const opacityByte = Math.round(255*proto.opacity); 
 			// Round object's corners to nearest opacity raster cell corners.

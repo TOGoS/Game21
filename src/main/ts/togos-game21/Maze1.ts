@@ -360,8 +360,8 @@ const doorFrameBlockData = [
 const doorData = [1,1,1];
 const room1Data = [
 	1,1,1,1,1,1,0,0,1,1,0,1,1,1,1,1,
-	0,0,0,0,0,1,0,1,1,8,8,0,0,0,0,0,
-	1,1,0,0,0,1,0,0,0,8,8,0,0,0,0,1,
+	0,0,0,0,0,1,0,1,1,0,0,0,0,0,0,0,
+	1,1,0,0,0,1,0,0,0,0,0,0,0,0,0,1,
 	1,1,1,0,1,1,1,1,1,1,2,0,0,2,1,1,
 	1,1,1,0,1,3,8,8,8,8,0,0,0,2,1,1,
 	1,1,1,0,1,1,1,2,2,2,2,2,0,2,4,1,
@@ -589,6 +589,7 @@ function initData( gdm:GameDataManager ):Promise<any> {
 	const doorSegmentVizBounds = makeAabb(-5/16,-0.5,-0.5, +5/16,+0.5,+0.5);
 	// It is a little wider visually so that it always occludes things!
 	gdm.fastStoreObject<EntityClass>( {
+		debugLabel: "door segment",
 		structureType: StructureType.INDIVIDUAL,
 		tilingBoundingBox:   doorSegmentBounds,
 		physicalBoundingBox: doorSegmentBounds,
@@ -651,7 +652,7 @@ function initData( gdm:GameDataManager ):Promise<any> {
 			visualRef: plant1ImgRef
 		} ),
 		/* 4: */ gdm.fastStoreObject<TileTree>( {
-			debugLabel: "Door frame",
+			debugLabel: "door frame",
 			structureType: StructureType.TILE_TREE,
 			tilingBoundingBox: UNIT_CUBE,
 			physicalBoundingBox: UNIT_CUBE,
@@ -664,7 +665,7 @@ function initData( gdm:GameDataManager ):Promise<any> {
 			childEntityIndexes: doorFrameBlockData
 		}),
 		/* 5: */ gdm.fastStoreObject<EntityClass>( {
-			debugLabel: "Ladder (+Z)",
+			debugLabel: "ladder (+Z)",
 			structureType: StructureType.INDIVIDUAL,
 			tilingBoundingBox: UNIT_CUBE,
 			physicalBoundingBox: NORTH_SIDE_BB,
@@ -675,7 +676,7 @@ function initData( gdm:GameDataManager ):Promise<any> {
 			visualRef: ladder1FrontImgRef,
 		}),
 		/* 6: */ gdm.fastStoreObject<EntityClass>( {
-			debugLabel: "Ladder (+X)",
+			debugLabel: "ladder (+X)",
 			structureType: StructureType.INDIVIDUAL,
 			tilingBoundingBox: UNIT_CUBE,
 			physicalBoundingBox: EAST_SIDE_BB,
@@ -686,7 +687,7 @@ function initData( gdm:GameDataManager ):Promise<any> {
 			visualRef: ladder1SideImgRef,
 		}),
 		/* 7: */ gdm.fastStoreObject<EntityClass>( {
-			debugLabel: "Ladder (-X)",
+			debugLabel: "ladder (-X)",
 			structureType: StructureType.INDIVIDUAL,
 			tilingBoundingBox: UNIT_CUBE,
 			physicalBoundingBox: WEST_SIDE_BB,
@@ -703,7 +704,7 @@ function initData( gdm:GameDataManager ):Promise<any> {
 			physicalBoundingBox: UNIT_CUBE,
 			visualBoundingBox: UNIT_CUBE,
 			isSolid: false,
-			opacity: 127/128,
+			opacity: 3/4,
 			visualRef: vines1ImgRef
 		} ),
 
@@ -722,7 +723,7 @@ function initData( gdm:GameDataManager ):Promise<any> {
 				}
 			},
 			[ballEntityId]: {
-				position: makeVector(-4.5, -1.5, 0),
+				position: makeVector(-2.5, -3.5, 0),
 				entity: {
 					classRef: ballEntityClassId
 				}
@@ -1683,7 +1684,8 @@ export class MazeDemo {
 			sceneShader.sceneOpacityRaster(playerLoc.roomRef, scaleVector(playerLoc.position, -1), opacityRaster);
 			if( isAllZero(opacityRaster.data) ) console.log("Opacity raster is all zero!");
 			if( isAllNonZero(opacityRaster.data) ) console.log("Opacity raster is all nonzero!");
-			sceneShader.opacityTolVisibilityRaster(opacityRaster, rasterOriginX*rasterResolution, rasterOriginY*rasterResolution, distanceInPixels, visibilityRaster);
+			sceneShader.opacityTolVisibilityRaster(opacityRaster, (rasterOriginX-1/4)*rasterResolution, rasterOriginY*rasterResolution, distanceInPixels, visibilityRaster);
+			sceneShader.opacityTolVisibilityRaster(opacityRaster, (rasterOriginX+1/4)*rasterResolution, rasterOriginY*rasterResolution, distanceInPixels, visibilityRaster);
 			if( isAllZero(visibilityRaster.data) ) console.log("Visibility raster is all zero!");
 			if( isAllNonZero(visibilityRaster.data) ) console.log("Visibility raster is all nonzero!");
 			sceneShader.growVisibility(visibilityRaster); // Not quite!  Since this expands visibility into non-room space.
