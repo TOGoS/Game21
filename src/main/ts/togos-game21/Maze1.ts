@@ -1648,10 +1648,11 @@ export class MazeDemo {
 	public view : MazeView;
 	public playerId : string;
 	protected tickTimerId? : number;
+	protected tickRate = 1/32;
 
 	public startSimulation() {
 		if( this.tickTimerId == undefined ) {
-			this.tickTimerId = setInterval(this.tick.bind(this), 1000/16);
+			this.tickTimerId = setInterval(this.tick.bind(this), 1000*this.tickRate);
 		}
 	}
 	public stopSimulation() {
@@ -1662,7 +1663,7 @@ export class MazeDemo {
 	}
 	
 	protected tick() {
-		this.game.update(1/16);
+		this.game.update(this.tickRate);
 		this.updateView();
 	}
 
@@ -1672,10 +1673,10 @@ export class MazeDemo {
 		const playerLoc = this.game.locateRoomEntity(this.playerId);
 
 		if( playerLoc ) {
-			const rasterWidth = 31;
+			const rasterWidth = 41;
 			const rasterHeight = 31;
 			const rasterResolution = 2;
-			const distance = 16;
+			const distance = 21;
 			// Line up raster origin so it falls as close as possible to the center of the raster
 			// while lining up edges with world coordinates
 			const rasterOriginX = Math.floor(rasterWidth /rasterResolution/2) + playerLoc.position.x - Math.floor(playerLoc.position.x);
