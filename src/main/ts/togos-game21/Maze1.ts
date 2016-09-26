@@ -952,6 +952,55 @@ function clampAbs( val:number, maxAbs:number ):number {
 	return val;
 }
 
+function atLeast( desired:number, current:number ):number {
+	if( desired > 0 ) return Math.max(current,desired);
+	if( desired < 0 ) return Math.min(current,desired);
+	return 0;
+}
+
+function atLeastVector( desired:Vector3D, current:Vector3D ):Vector3D {
+	return {
+		x: atLeast(desired.x, current.x),
+		y: atLeast(desired.y, current.y),
+		z: atLeast(desired.z, current.z),
+	}
+}
+
+/**
+ * Calculate the impulse that entity A should exert onto entity B
+ * in order to affect the desired change in B's relative velocity, dv.
+ */
+function dvImpulse(
+	desiredDv:Vector3D, entityAMass:number|undefined, entityBMass:number|undefined,
+	maxImpulseMagnitude:number, multiplier:number=1
+):Vector3D {
+	if( entityAMass == null ) entityAMass = Infinity;
+	if( entityBMass == null ) entityBMass = Infinity;
+	const minMass = Math.min(entityAMass, entityBMass);
+	if( minMass == Infinity ) {
+		// maximum impulse!
+		return normalizeVector(desiredDv, maxImpulseMagnitude*multiplier);
+	}
+	const desiredImpulse = scaleVector(desiredDv, minMass);
+	const desiredImpulseMagnitude = vectorLength(desiredImpulse);
+	if( desiredImpulseMagnitude > maxImpulseMagnitude ) {
+		multiplier *= maxImpulseMagnitude / desiredImpulseMagnitude;
+	}
+	return scaleVector(desiredImpulse, multiplier);
+}
+
+function impulseForAtLeastDesiredVelocity(
+	desiredRelativeVelocity:Vector3D,
+	currentRelativeVelocity:Vector3D,
+	entityAMass:number|undefined, entityBMass:number|undefined,
+	maxSpeed:number, maxImpulse:number,
+	multiplier:number=1
+):Vector3D {
+	const targetRelativeVelocity = atLeastVector( normalizeVector(desiredRelativeVelocity, maxSpeed), currentRelativeVelocity );
+	const targetDeltaVelocity = subtractVector(targetRelativeVelocity, currentRelativeVelocity);
+	return dvImpulse( targetDeltaVelocity, entityAMass, entityBMass, maxImpulse, multiplier );
+}
+
 interface Collision {
 	roomEntityA : RoomEntity;
 	roomEntityB : RoomEntity;
@@ -1050,26 +1099,6 @@ export class MazeGamePhysics {
 			}
 		}
 		this.collisions = {};
-	}
-
-	/**
-	 * Calculate the impulse that entity A should exert onto entity B
-	 * in order to affect the desired change in B's relative velocity, dv.
-	 */
-	protected dvImpulse( desiredDv:Vector3D, entityAMass:number|undefined, entityBMass:number|undefined, maxImpulseMagnitude:number, multiplier:number=1 ):Vector3D {
-		if( entityAMass == null ) entityAMass = Infinity;
-		if( entityBMass == null ) entityBMass = Infinity;
-		const minMass = Math.min(entityAMass, entityBMass);
-		if( minMass == Infinity ) {
-			// maximum impulse!
-			return normalizeVector(desiredDv, maxImpulseMagnitude*multiplier);
-		}
-		const desiredImpulse = scaleVector(desiredDv, minMass);
-		const desiredImpulseMagnitude = vectorLength(desiredImpulse);
-		if( desiredImpulseMagnitude > maxImpulseMagnitude ) {
-			multiplier *= maxImpulseMagnitude / desiredImpulseMagnitude;
-		}
-		return scaleVector(desiredImpulse, multiplier);
 	}
 
 	protected collisions:KeyedList<KeyedList<Collision>>;
@@ -1187,15 +1216,36 @@ export class MazeGamePhysics {
 				const otherEntityFilter:EntityFilter =
 					(roomEntityId:string, roomEntity:RoomEntity, entity:Entity, entityClass:EntityClass) =>
 						roomEntityId != re;
-
+				
+				const neighbEnts = this.neighboringEntities(
+					r, roomEntity.position, entityClass.physicalBoundingBox, ALL_SIDES, snapGridSize, otherEntityFilter );
+				
+				// TODO: Just use neighbEnts rather than querying again.
+				const solidOtherEntityFilter:EntityFilter =
+					(roomEntityId:string, roomEntity:RoomEntity, entity:Entity, entityClass:EntityClass) =>
+						roomEntityId != re && entityClass.isSolid !== false;
+				
+				const floorCollision = this.massivestBorderingEntity(
+					r, roomEntity.position, entityClass.physicalBoundingBox,
+					xyzDirectionVectors[XYZDirection.POSITIVE_Y], snapGridSize, solidOtherEntityFilter);
+				
+				/*
+				 * Possible forces:
+				 * * Gravity pulls everything down
+				 * - Entities may push directly off any surfaces (jump)
+				 * - Entities may push sideways against surfaces that they are pressed against (e.g. floor)
+				 * - Entities may climb along ladders or other climbable things
+				 */
+				
 				const dmd = entity.desiredMovementDirection;
 				let climbing = false;
-
-				if( dmd != null && entityClass.climbingSkill ) {
+				let walking = false;
+				
+				if( dmd != null && entityClass.climbingSkill && (floorCollision == null || dmd.y != 0) ) {
 					const minClimbability = 1 - entityClass.climbingSkill;
 					let mostClimbable:FoundEntity|undefined;
 					let maxClimbability = 0;
-					const neighbEnts = this.neighboringEntities( r, roomEntity.position, entityClass.physicalBoundingBox, ALL_SIDES, snapGridSize, otherEntityFilter );
+					neighbEnts;
 					for( let dir in neighbEnts ) {
 						const neighbEnts2 = neighbEnts[dir];
 						for( let e in neighbEnts2 ) {
@@ -1212,34 +1262,20 @@ export class MazeGamePhysics {
 					if( mostClimbable ) {
 						climbing = true;
 						const currentRv:Vector3D = subtractVector(entityVelocity(roomEntity), entityVelocity(mostClimbable.roomEntity));
-						const targetRv:Vector3D = normalizeVector(dmd, entityClass.normalClimbingSpeed || entityClass.normalWalkingSpeed || 0);
-						const targetDrv:Vector3D = subtractVector(targetRv, currentRv);
-						const maxClimbForce = 300;
-						const maxClimbImpulse = maxClimbForce*interval;
-						const clumbImpulse = this.dvImpulse(targetDrv, entityClass.mass, mostClimbable.entityClass.mass, maxClimbImpulse, -1);
-						this.registerImpulse( re, roomEntity, mostClimbable.roomEntityId, mostClimbable.roomEntity, clumbImpulse);
+						const maxClimbSpeed = entityClass.normalClimbingSpeed || entityClass.normalWalkingSpeed || 0;
+						const climbImpulse = impulseForAtLeastDesiredVelocity(
+							scaleVector(dmd, maxClimbSpeed), currentRv,
+							entityClass.mass, mostClimbable.entityClass.mass,
+							maxClimbSpeed, 300, -1
+						);
+						this.registerImpulse( re, roomEntity, mostClimbable.roomEntityId, mostClimbable.roomEntity, climbImpulse);
 					}
 				}
-
+				
 				if( !climbing && entityClass.isAffectedByGravity && entityClass.mass != null && entityClass.mass != Infinity ) {
 					this.induceVelocityChange(re, gravDv);
 				}
 
-				const solidOtherEntityFilter:EntityFilter =
-					(roomEntityId:string, roomEntity:RoomEntity, entity:Entity, entityClass:EntityClass) =>
-						roomEntityId != re && entityClass.isSolid !== false;
-				const floorCollision = this.massivestBorderingEntity(
-					r, roomEntity.position, entityClass.physicalBoundingBox,
-					xyzDirectionVectors[XYZDirection.POSITIVE_Y], snapGridSize, solidOtherEntityFilter);
-				
-				/*
-				 * Possible forces:
-				 * * Gravity pulls everything down
-				 * - Entities may push directly off any surfaces (jump)
-				 * - Entities may push sideways against surfaces that they are pressed against (e.g. floor)
-				 * - Entities may climb along ladders or other climbable things
-				 */
-				
 				// TODO: Do this in a generic way for any 'walking' entities
 				if( entityVelocity(roomEntity).y >= 0 && floorCollision && dmd != null ) {
 					
