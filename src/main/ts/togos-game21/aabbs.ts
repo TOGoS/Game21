@@ -8,6 +8,8 @@ export function makeAabb( minX:number, minY:number, minZ:number, maxX:number, ma
 export function aabbWidth(  aabb:AABB ) { return aabb.maxX-aabb.minX; }
 export function aabbHeight( aabb:AABB ) { return aabb.maxY-aabb.minY; }
 export function aabbDepth(  aabb:AABB ) { return aabb.maxZ-aabb.minZ; }
+export function aabbAverageX(  aabb:AABB ) { return (aabb.maxX+aabb.minX)/2; }
+export function aabbAverageY(  aabb:AABB ) { return (aabb.maxY+aabb.minY)/2; }
 
 export function aabbIntersectsWithOffset( aPos:Vector3D, aBb:AABB, bPos:Vector3D, bBb:AABB ):boolean {
 	if( aPos.x + aBb.maxX <= bPos.x + bBb.minX ) return false;

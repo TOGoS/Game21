@@ -7,7 +7,7 @@ import { DistributedBucketMapManager } from './DistributedBucketMap';
 import KeyedList from './KeyedList';
 import Vector3D from './Vector3D';
 import AABB from './AABB';
-import { makeAabb, aabbWidth, aabbHeight, aabbDepth, aabbContainsVector, aabbIntersectsWithOffset } from './aabbs';
+import { makeAabb, aabbWidth, aabbHeight, aabbDepth, aabbAverageX, aabbAverageY, aabbContainsVector, aabbIntersectsWithOffset } from './aabbs';
 import { makeVector, vectorToString, ZERO_VECTOR } from './vector3ds';
 import { addVector, subtractVector, vectorLength, vectorIsZero, scaleVector, normalizeVector, roundVectorToGrid } from './vector3dmath';
 import Quaternion from './Quaternion';
@@ -175,7 +175,7 @@ const plant1Pix = [
 	0,0,0,0,0,0,0,1,1,0,0,0,1,0,0,0,
 	0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,
 ];
-const ladder1Pix = [
+const ladder1FrontPix = [
 	0,0,1,1,0,0,0,0,0,0,0,0,1,1,0,0,
 	0,0,1,1,0,0,0,0,0,0,0,0,1,1,0,0,
 	0,0,1,1,1,1,1,1,1,1,1,1,1,1,0,0,
@@ -192,6 +192,24 @@ const ladder1Pix = [
 	0,0,1,1,0,0,0,0,0,0,0,0,1,1,0,0,
 	0,0,1,1,1,1,1,1,1,1,1,1,1,1,0,0,
 	0,0,1,1,0,0,0,0,0,0,0,0,1,1,0,0,
+];
+const ladder1SidePix = [
+	0,1,1,0,
+	0,1,1,0,
+	1,1,1,1,
+	0,1,1,0,
+	0,1,1,0,
+	0,1,1,0,
+	1,1,1,1,
+	0,1,1,0,
+	0,1,1,0,
+	0,1,1,0,
+	1,1,1,1,
+	0,1,1,0,
+	0,1,1,0,
+	0,1,1,0,
+	1,1,1,1,
+	0,1,1,0,
 ];
 const doorFramePix = [
 	1,1,0,1,
@@ -280,7 +298,8 @@ const playerImgRef = "bitimg:color0=0;color1="+rgbaToNumber(255,255,96,255)+","+
 const plant1ImgRef = "bitimg:color0=0;color1="+rgbaToNumber(64,255,64,255)+","+hexEncodeBits(plant1Pix);
 const ballImgRef = "bitimg:color0=0;color1="+rgbaToNumber(128,48,48,255)+","+hexEncodeBits(ballPix);
 const doorFrameImgRef = "bitimg:color1="+rgbaToNumber(64,64,64,255)+","+hexEncodeBits(doorFramePix);
-const ladderImgRef = "bitimg:color1="+rgbaToNumber(128,96,96,255)+","+hexEncodeBits(ladder1Pix);
+const ladder1FrontImgRef = "bitimg:color1="+rgbaToNumber(128,96,96,255)+","+hexEncodeBits(ladder1FrontPix);
+const ladder1SideImgRef = "bitimg:width=4;height=16;color1="+rgbaToNumber(128,96,96,255)+","+hexEncodeBits(ladder1SidePix);
 
 const doorFrameBlockData = [
 	1,0,0,1,
@@ -322,15 +341,15 @@ const room2Data = [
 	1,2,5,0,2,1,0,0,1,1,0,1,1,1,1,1,
 	0,0,5,0,0,0,0,0,0,0,0,0,1,0,1,0,
 	1,0,5,0,0,1,0,0,0,0,0,0,1,0,0,0,
-	1,1,1,0,1,1,1,2,0,0,0,0,1,0,0,1,
-	1,1,1,0,1,1,1,2,0,0,0,0,0,0,1,1,
-	1,1,1,0,1,1,4,2,0,0,0,2,2,2,1,1,
-	1,0,0,0,0,1,4,2,0,0,0,5,0,0,0,0,
-	1,0,2,2,2,1,4,2,0,0,0,5,1,3,1,0,
-	1,0,0,0,0,1,4,2,0,0,0,5,1,1,1,0,
-	1,0,0,0,0,0,4,0,0,0,0,5,1,1,1,1,
-	0,0,5,0,0,0,4,0,0,0,0,5,1,0,0,0,
-	1,2,5,1,1,1,1,1,1,3,3,5,1,0,1,1,
+	1,1,1,0,1,1,1,2,7,0,0,0,1,0,0,1,
+	1,1,1,0,1,1,1,2,7,0,0,0,0,0,1,1,
+	1,1,1,0,1,1,4,2,7,0,0,2,2,2,1,1,
+	1,0,0,0,0,1,4,2,7,0,0,0,0,0,0,0,
+	1,0,2,2,2,1,4,2,7,0,0,6,1,3,3,7,
+	1,0,0,0,0,1,4,2,7,0,0,6,1,1,1,7,
+	1,0,0,0,0,0,4,0,0,0,0,6,1,1,1,1,
+	0,0,5,0,0,0,4,0,0,0,0,6,1,0,0,0,
+	1,2,5,1,1,1,1,1,1,3,3,6,1,0,1,1,
 	1,2,5,1,1,0,0,2,2,2,2,1,1,0,0,1,
 	1,2,5,0,0,0,0,0,0,1,0,0,0,0,0,1,
 	1,2,5,0,2,1,0,2,2,2,0,1,0,0,0,1,
@@ -458,6 +477,8 @@ const UNIT_CUBE :AABB = makeAabb(-0.5, -0.5, -0.5, 0.5, 0.5, 0.5);
 const HUNIT_CUBE:AABB = makeAabb(-0.25, -0.25, -0.25, 0.25, 0.25, 0.25);
 const QUNIT_CUBE:AABB = makeAabb(-0.125, -0.125, -0.125, 0.125, 0.125, 0.125);
 const NORTH_SIDE_BB:AABB = makeAabb(-0.5,-0.5,-0.5, +0.5,+0.5,-0.25);
+const EAST_SIDE_BB:AABB = makeAabb(+0.25,-0.5,-0.5, +0.5,+0.5,+0.5);
+const WEST_SIDE_BB:AABB = makeAabb(-0.5,-0.5,-0.5, -0.25,+0.5,+0.5);
 
 const ballEntityClassId   = 'urn:uuid:762f0209-0b91-4084-b1e0-3aac3ca5f5ab';
 const doorFramePieceEntityId   = 'urn:uuid:3709e285-3444-420d-9753-ef101fd7924b';
@@ -561,13 +582,35 @@ function initData( gdm:GameDataManager ):Promise<any> {
 		/* 5: */ gdm.fastStoreObject<EntityClass>( {
 			debugLabel: "Ladder (+Z)",
 			structureType: StructureType.INDIVIDUAL,
-			tilingBoundingBox: NORTH_SIDE_BB,
+			tilingBoundingBox: UNIT_CUBE,
 			physicalBoundingBox: NORTH_SIDE_BB,
-			visualBoundingBox: NORTH_SIDE_BB,
+			visualBoundingBox: UNIT_CUBE,
 			opacity: 0.125,
 			climbability: 0.75,
 			isSolid: true,
-			visualRef: ladderImgRef,
+			visualRef: ladder1FrontImgRef,
+		}),
+		/* 6: */ gdm.fastStoreObject<EntityClass>( {
+			debugLabel: "Ladder (+X)",
+			structureType: StructureType.INDIVIDUAL,
+			tilingBoundingBox: UNIT_CUBE,
+			physicalBoundingBox: EAST_SIDE_BB,
+			visualBoundingBox: EAST_SIDE_BB,
+			opacity: 0.125,
+			climbability: 0.75,
+			isSolid: true,
+			visualRef: ladder1SideImgRef,
+		}),
+		/* 7: */ gdm.fastStoreObject<EntityClass>( {
+			debugLabel: "Ladder (-X)",
+			structureType: StructureType.INDIVIDUAL,
+			tilingBoundingBox: UNIT_CUBE,
+			physicalBoundingBox: WEST_SIDE_BB,
+			visualBoundingBox: WEST_SIDE_BB,
+			opacity: 0.125,
+			climbability: 0.75,
+			isSolid: true,
+			visualRef: ladder1SideImgRef,
 		}),
 	], gdm);
 
@@ -690,8 +733,8 @@ function roomToMazeViewage( roomRef:string, roomX:number, roomY:number, gdm:Game
 
 			// TODO: Re-use items, visuals
 			if( visible ) viewage.items.push( {
-				x: position.x,
-				y: position.y,
+				x: position.x + aabbAverageX(entityClass.visualBoundingBox),
+				y: position.y + aabbAverageY(entityClass.visualBoundingBox),
 				visual: {
 					width: aabbWidth(entityClass.visualBoundingBox),
 					height: aabbHeight(entityClass.visualBoundingBox),
