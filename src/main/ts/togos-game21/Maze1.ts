@@ -229,6 +229,12 @@ const ladder1SidePix = [
 	1,1,1,1,
 	0,1,1,0,
 ];
+const ladder1TopPix = [
+	0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,
+	1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+	1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+	0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,
+];
 const doorFramePix = [
 	1,1,0,1,
 	1,0,1,1,
@@ -338,6 +344,7 @@ const doorFrameImgRef = "bitimg:color1="+rgbaToNumber(64,64,64,255)+","+hexEncod
 const doorSegmentImgRef = 'bitimg:width=10;height=16;color1='+rgbaToNumber(240,240,230,255)+","+hexEncodeBits(doorSegmentPix);
 const ladder1FrontImgRef = "bitimg:color1="+rgbaToNumber(128,96,96,255)+","+hexEncodeBits(ladder1FrontPix);
 const ladder1SideImgRef = "bitimg:width=4;height=16;color1="+rgbaToNumber(128,96,96,255)+","+hexEncodeBits(ladder1SidePix);
+const ladder1TopImgRef = "bitimg:width=16;height=4;color1="+rgbaToNumber(128,96,96,255)+","+hexEncodeBits(ladder1TopPix);
 
 const doorFrameBlockData = [
 	1,0,0,1,
@@ -378,7 +385,7 @@ const room1Data = [
 ];
 const room2Data = [
 	1,2,5,0,2,1,0,0,1,1,0,1,1,1,1,1,
-	0,0,5,0,0,0,0,0,0,0,0,0,1,0,1,0,
+	0,0,5,0,0,0,0,0,9,9,0,9,1,0,1,0,
 	1,0,5,0,0,1,0,0,0,0,0,0,1,0,0,0,
 	1,1,1,0,1,1,1,2,7,0,0,0,1,0,0,1,
 	1,1,1,0,1,1,1,2,7,0,0,0,0,0,1,1,
@@ -521,6 +528,7 @@ const QUNIT_CUBE:AABB = makeAabb(-0.125, -0.125, -0.125, 0.125, 0.125, 0.125);
 const NORTH_SIDE_BB:AABB = makeAabb(-0.5,-0.5,-0.5, +0.5,+0.5,-0.25);
 const EAST_SIDE_BB:AABB = makeAabb(+0.25,-0.5,-0.5, +0.5,+0.5,+0.5);
 const WEST_SIDE_BB:AABB = makeAabb(-0.5,-0.5,-0.5, -0.25,+0.5,+0.5);
+const TOP_SIDE_BB:AABB = makeAabb(-0.5,-0.5,-0.5, +0.5,-0.25,+0.5);
 
 const ballEntityClassId   = 'urn:uuid:762f0209-0b91-4084-b1e0-3aac3ca5f5ab';
 const doorFramePieceEntityId = 'urn:uuid:3709e285-3444-420d-9753-ef101fd7924b';
@@ -711,7 +719,17 @@ function initData( gdm:GameDataManager ):Promise<any> {
 			opacity: 3/4,
 			visualRef: vines1ImgRef
 		} ),
-
+		/* 9: */ gdm.fastStoreObject<EntityClass>( {
+			debugLabel: "ladder (-Y)",
+			structureType: StructureType.INDIVIDUAL,
+			tilingBoundingBox: UNIT_CUBE,
+			physicalBoundingBox: TOP_SIDE_BB,
+			visualBoundingBox: TOP_SIDE_BB,
+			opacity: 0.125,
+			climbability: 0.75,
+			isSolid: true,
+			visualRef: ladder1TopImgRef,
+		}),
 	], gdm, tileEntityPaletteId);
 
 	// do this as second step because we need to reference that tile tree palette by ID
