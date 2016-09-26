@@ -454,15 +454,18 @@ export class MazeView {
 		}
 
 		if( drawMargin ) {
-			const rastMinPx = Math.max(0, canvWidth /2 - (rast.originX*ppm));
-			const rastMinPy = Math.max(0, canvHeight/2 - (rast.originY*ppm));
-			const rastMaxPx = Math.min(canvWidth , rastMinPx + (rast.width /rast.resolution)*ppm);
-			const rastMaxPy = Math.min(canvHeight, rastMinPy + (rast.height/rast.resolution)*ppm);
-
-			ctx.fillRect(0,       0,canvWidth,rastMinPy           );
-			ctx.fillRect(0,rastMaxPy,canvWidth,canvHeight-rastMinPy);
-			ctx.fillRect(0       ,rastMinPy,rastMinPx          ,rastMaxPy-rastMinPy);
-			ctx.fillRect(rastMaxPx,rastMinPy,canvWidth-rastMaxPx,rastMaxPy-rastMinPy);
+			const rastMinPx = canvWidth /2 - (rast.originX*ppm);
+			const rastMinPy = canvHeight/2 - (rast.originY*ppm);
+			
+			const mx0 = Math.max(0, rastMinPx);
+			const my0 = Math.max(0, rastMinPy);
+			const mx1 = Math.min(canvWidth , rastMinPx + (rast.width /rast.resolution)*ppm);
+			const my1 = Math.min(canvHeight, rastMinPy + (rast.height/rast.resolution)*ppm);
+			
+			ctx.fillRect(  0,   0, canvWidth    , my0           ); // Top
+			ctx.fillRect(  0, my1, canvWidth    , canvHeight-my0); // Bottom
+			ctx.fillRect(  0, my0, mx0          , my1-my0       ); // Left
+			ctx.fillRect(mx1, my0, canvWidth-mx1, my1-my0       ); // Right
 		}
 
 		let i:number, y:number;
