@@ -43,7 +43,7 @@ const roomPosBuf:Vector3D = makeVector();
 const objPosBuf:Vector3D = makeVector();
 const objBB = new Cuboid;
 
-const plax = function(dx0,dy0,dx1,dy1,a,b) {
+const plax = function<T>(dx0:any,dy0:any,dx1:any,dy1:any,a:T,b:T):T {
 	return dx0 == dx1 && dy0 == dy1 ? a : b;
 }
 

@@ -1837,9 +1837,11 @@ export function startDemo(canv:HTMLCanvasElement) : MazeDemo {
 	closeDoorButton.appendChild(document.createTextNode("Close Door"));
 	closeDoorButton.onclick = () => demo.setDoorStatus(+1);
 	
-	const butta = document.getElementById('button-area')
-	butta.appendChild(openDoorButton);
-	butta.appendChild(closeDoorButton);
+	const butta = document.getElementById('button-area');
+	if( butta ) {
+		butta.appendChild(openDoorButton);
+		butta.appendChild(closeDoorButton);
+	}
 	
 	return demo;
 }
