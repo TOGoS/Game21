@@ -43,6 +43,10 @@ const roomPosBuf:Vector3D = makeVector();
 const objPosBuf:Vector3D = makeVector();
 const objBB = new Cuboid;
 
+const plax = function(dx0,dy0,dx1,dy1,a,b) {
+	return dx0 == dx1 && dy0 == dy1 ? a : b;
+}
+
 export default class SceneShader {
 	public constructor( protected gameDataManager:GameDataManager ) { } 
 
@@ -179,7 +183,7 @@ export default class SceneShader {
 	 * Fill dest with zeroes and then call this
 	 * for each cell with eyes.
 	 */
-	public opacityTolVisibilityRaster( opacity:ShadeRaster, x:number, y:number, maxDistance:number, dest:ShadeRaster ):void {
+	public opacityTolVisibilityRaster2( opacity:ShadeRaster, x:number, y:number, dx:number, dy:number, maxDistance:number, dest:ShadeRaster ):void {
 		if( x < 0 || y < 0 || x >= opacity.width || y >= opacity.height ) return;
 		x |= 0; y |= 0;
 		
@@ -189,11 +193,12 @@ export default class SceneShader {
 		if( maxDistance > dest.data[idx] ) {
 			dest.data[idx] = maxDistance;
 			if( maxDistance > 0 ) {
-				const maxDistanceMinus1 = maxDistance - 1;
-				this.opacityTolVisibilityRaster( opacity, x+1, y+0, maxDistanceMinus1, dest );
-				this.opacityTolVisibilityRaster( opacity, x+0, y+1, maxDistanceMinus1, dest );
-				this.opacityTolVisibilityRaster( opacity, x-1, y+0, maxDistanceMinus1, dest );
-				this.opacityTolVisibilityRaster( opacity, x+0, y-1, maxDistanceMinus1, dest );
+				const ndA = maxDistance - 1;
+				const ndB = (dx == 0 && dy == 0) ? ndA : Math.floor(maxDistance/2);
+				this.opacityTolVisibilityRaster2( opacity, x+1, y+0, +1,  0, plax(+1, 0,dx,dy,ndA,ndB), dest );
+				this.opacityTolVisibilityRaster2( opacity, x+0, y+1,  0, +1, plax( 0,+1,dx,dy,ndA,ndB), dest );
+				this.opacityTolVisibilityRaster2( opacity, x-1, y+0, -1,  0, plax(-1, 0,dx,dy,ndA,ndB), dest );
+				this.opacityTolVisibilityRaster2( opacity, x+0, y-1,  0, -1, plax( 0,-1,dx,dy,ndA,ndB), dest );
 				/*
 				this.opacityTolVisibilityRasterOptX( opacity, x+1, y  , maxDistanceMinus1, dest, +1 );
 				this.opacityTolVisibilityRasterOptY( opacity, x  , y+1, maxDistanceMinus1, dest, +1 );
@@ -202,6 +207,10 @@ export default class SceneShader {
 				*/
 			}
 		}
+	}
+	
+	public opacityTolVisibilityRaster( opacity:ShadeRaster, x:number, y:number, maxDistance:number, dest:ShadeRaster ):void {
+		this.opacityTolVisibilityRaster2( opacity, x, y, 0, 0, maxDistance, dest );
 	}
 	
 	/**
