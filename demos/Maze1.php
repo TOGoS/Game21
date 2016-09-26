@@ -49,7 +49,7 @@ extract($config, EXTR_SKIP|EXTR_REFS);
 
 <style scroped>/* <![CDATA[ */
 html, body {
-	background: rgba(96,64,64,1);
+	background: black;
 	margin: 0;
 	padding: 0;
 	color: white;
@@ -83,7 +83,7 @@ html, body {
 }
 /* ]]> */</style>
 
-<div class="maze-area">
+<div class="maze-area" id="maze-area">
 <canvas class="maze-canvas" id="maze-canvas" width="<?php eht($width); ?>" height="<?php eht($height); ?>"/>
 </div>
 
@@ -94,6 +94,10 @@ html, body {
 		window.maze1Demo = demo;
 		window.addEventListener('keydown', demo.keyDown.bind(demo));
 		window.addEventListener('keyup', demo.keyUp.bind(demo));
+		
+		const fogColor = 'rgba(58,58,64,1)';
+		demo.view.occlusionFillStyle = fogColor;
+		document.getElementById('maze-area').style.background = fogColor;
 	});
 //]]></script>
 
