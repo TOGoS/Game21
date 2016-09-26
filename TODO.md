@@ -1,6 +1,7 @@
 ## Demos
 
-- Simple maze game with discrete (though possibly in small unit, like 1/8m) movement
+* Simple maze world with discrete (though possibly in small unit, like 1/8m) movement
+- Make maze game with 'hey hey you win' point
 - Packet truck
 - Image with dynamic (via material map overrides) indicator lights?
 - Small game with signal wires?
@@ -16,6 +17,12 @@
 - Visibility calculations
 
 ## Misc to-do items
+
+Maze1:
+- Make jumping less unreasonable
+- Make jumping from on top of non-infinite-mass things workd
+- Doorbell to control the door
+- Keys, other inventory items
 
 Networking:
 - Use SLAAC to get address
@@ -88,7 +95,6 @@ ForthProceduralShapes scripts:
 - Allow importing definitions from other scripts
 
 For maze game:
-- quantized physics
 - a nicer map editor
 - perspective flattening in certain z range (focus -8 to +8 or somesuch)
 
@@ -163,3 +169,4 @@ Possibly outdated but maybe not:
 * Convert OBJ (from FreeCAD) to procedural shape script
   "Can only contain triangulated meshes." which should make my job easy.
   -- http://www.freecadweb.org/wiki/index.php?title=Manual:Import_and_export_to_other_filetypes
+* Decentish quantized physics (overlaps not allowed)
