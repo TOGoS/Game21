@@ -22,9 +22,11 @@ import {
 	Entity,
 	EntityClass,
 	TileTree,
+	TileTreeEntity,
 	StructureType,
 	TileEntityPalette
 } from './world';
+import { rewriteTileTree } from './tiletrees.ts';
 
 // Same format as an OSC message, minus the type header
 type EntityMessageData = any[];
@@ -1678,14 +1680,23 @@ export class MazeGame {
 		return collisions;
 	}
 	
-	protected setTileTreeBlockIndex( room:Room, pos:Vector3D, tileScale:number, index:number ):void {
+	protected setTileTreeBlockIndex( room:Room, pos:Vector3D, tileScale:number, newTileIndex:number ):void {
 		for( let re in room.roomEntities ) {
 			const roomEntity = room.roomEntities[re];
 			const entityClass = this.gameDataManager.getEntityClass(roomEntity.entity.classRef);
 			if( entityClass.structureType == StructureType.TILE_TREE ) {
 				const posWithinTt = subtractVector(pos, roomEntity.position);
 				if( aabbContainsVector(entityClass.tilingBoundingBox, posWithinTt) ) {
-					// TODO: rewrite it
+					roomEntity.entity.classRef = rewriteTileTree(
+						roomEntity.position, roomEntity.entity.classRef,
+						(ckPos:Vector3D, ckAabb:AABB, currentTileIndex:number, currentTileEntity:TileTreeEntity|null|undefined) => {
+							if( aabbContainsVector(ckAabb, pos) && aabbWidth(ckAabb) == tileScale ) {
+								return newTileIndex;
+							} else {
+								return currentTileIndex;
+							}
+						}, this.gameDataManager
+					);
 				}
 			}
 		}

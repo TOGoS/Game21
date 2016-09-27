@@ -5,6 +5,12 @@ import Vector3D from './Vector3D';
 export function makeAabb( minX:number, minY:number, minZ:number, maxX:number, maxY:number, maxZ:number ):AABB {
 	return {minX,minY,minZ,maxX,maxY,maxZ};
 }
+export function setAabb( aabb:AABB|undefined|null, minX:number, minY:number, minZ:number, maxX:number, maxY:number, maxZ:number ):AABB {
+	if( !aabb ) return makeAabb(minX,minY,minZ,maxX,maxY,maxZ);
+	aabb.minX = minX; aabb.minY = minY;	aabb.minZ = minZ;
+	aabb.maxX = maxX; aabb.maxY = maxY; aabb.maxZ = maxZ;
+	return aabb;
+}
 export function aabbWidth(  aabb:AABB ) { return aabb.maxX-aabb.minX; }
 export function aabbHeight( aabb:AABB ) { return aabb.maxY-aabb.minY; }
 export function aabbDepth(  aabb:AABB ) { return aabb.maxZ-aabb.minZ; }

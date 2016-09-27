@@ -110,7 +110,7 @@ export interface TileTree extends EntityClass {
 	yDivisions:number;
 	zDivisions:number;
 	childEntityPaletteRef:string;
-	childEntityIndexes:number[];
+	childEntityIndexes:number[]; // Uint8Array should do, but that doesn't serialize as JSON
 }
 
 export interface Room {
