@@ -6,10 +6,10 @@ import MemoryDatastore from './MemoryDatastore';
 import { DistributedBucketMapManager } from './DistributedBucketMap';
 import KeyedList from './KeyedList';
 import Vector3D from './Vector3D';
+import { makeVector, setVector, vectorToString, ZERO_VECTOR } from './vector3ds';
+import { addVector, subtractVector, vectorLength, vectorIsZero, scaleVector, normalizeVector, roundVectorToGrid } from './vector3dmath';
 import AABB from './AABB';
 import { makeAabb, aabbWidth, aabbHeight, aabbDepth, aabbAverageX, aabbAverageY, aabbContainsVector, aabbIntersectsWithOffset } from './aabbs';
-import { makeVector, vectorToString, ZERO_VECTOR } from './vector3ds';
-import { addVector, subtractVector, vectorLength, vectorIsZero, scaleVector, normalizeVector, roundVectorToGrid } from './vector3dmath';
 import Quaternion from './Quaternion';
 import TransformationMatrix3D from './TransformationMatrix3D';
 import SceneShader, { ShadeRaster } from './SceneShader';
@@ -25,6 +25,19 @@ import {
 	StructureType,
 	TileEntityPalette
 } from './world';
+
+// Same format as an OSC message, minus the type header
+type EntityMessageData = any[];
+
+function entityMessageDataPath(emd:EntityMessageData):string {
+	return ""+emd[0];
+}
+
+interface EntityMessage {
+	sourceId : string;
+	destinationId : string;
+	payload : EntityMessageData;
+}
 
 function newUuidRef():string { return uuidUrn(newType4Uuid()); }
 
@@ -410,9 +423,13 @@ export class MazeView {
 	
 	protected imageCache:KeyedList<HTMLImageElement> = {};
 	public viewage : MazeViewage = { items: [] };
+	public ppm = 16;
 
 	public occlusionFillStyle:string = 'rgba(96,64,64,1)';
 
+	protected get screenCenterX() { return this.canvas.width/2; }
+	protected get screenCenterY() { return this.canvas.height/2; }
+	
 	protected getImage( ref:string ):HTMLImageElement {
 		if( this.imageCache[ref] ) return this.imageCache[ref];
 
@@ -441,7 +458,7 @@ export class MazeView {
 		if( !ctx ) return;
 		const cx = this.canvas.width/2;
 		const cy = this.canvas.height/2;
-		const ppm = 16;
+		const ppm = this.ppm;
 		
 		const canvWidth = this.canvas.width;
 		const canvHeight = this.canvas.height;
@@ -519,6 +536,12 @@ export class MazeView {
 			ctx.drawImage(img, px, py);
 		}
 		if(this.viewage.visibility) this.drawOcclusionFog(this.viewage.visibility);
+	}
+	
+	public canvasPixelToWorldCoordinates(x:number, y:number, dest?:Vector3D ):Vector3D {
+		const pdx = x - this.screenCenterX, pdy = y - this.screenCenterY;
+		const ppm = this.ppm;
+		return setVector( dest, pdx/ppm, pdy/ppm, 0 );
 	}
 }
 
@@ -1497,11 +1520,22 @@ export class MazeGamePhysics {
 	}
 }
 
+// TODO: Rename to MazeGameSimulator,
+// move active room management to GameDataManager.
 export class MazeGame {
 	protected rooms:KeyedList<Room> = {};
 	protected phys = new MazeGamePhysics(this);
+	
+	protected entityMessages:KeyedList<EntityMessage[]> = {};
 
 	public constructor( public gameDataManager:GameDataManager ) { }
+	
+	public enqueueEntityMessage( em:EntityMessage ):void {
+		if( !this.entityMessages[em.destinationId] ) {
+			this.entityMessages[em.destinationId] = [];
+		}
+		this.entityMessages[em.destinationId].push(em);
+	}
 	
 	public get activeRooms() { return this.rooms; }
 	
@@ -1644,6 +1678,39 @@ export class MazeGame {
 		return collisions;
 	}
 	
+	protected setTileTreeBlockIndex( room:Room, pos:Vector3D, tileScale:number, index:number ):void {
+		for( let re in room.roomEntities ) {
+			const roomEntity = room.roomEntities[re];
+			const entityClass = this.gameDataManager.getEntityClass(roomEntity.entity.classRef);
+			if( entityClass.structureType == StructureType.TILE_TREE ) {
+				const posWithinTt = subtractVector(pos, roomEntity.position);
+				if( aabbContainsVector(entityClass.tilingBoundingBox, posWithinTt) ) {
+					// TODO: rewrite it
+				}
+			}
+		}
+	}
+	
+	protected processEntityMessage(
+		roomId:string, room:Room, entityId:string,
+		roomEntity:RoomEntity, em:EntityMessage
+	):void {
+		const md = em.payload;
+		const path = entityMessageDataPath(md);
+		console.log(entityId+" received message", md);
+		if( path == "/set-tile-tree-block-index" ) {
+			const relX = +md[1];
+			const relY = +md[2];
+			const relZ = +md[3];
+			const tileScale = +md[4] || 1;
+			const index = +md[5];
+			const rePos = roomEntity.position;
+			// TODO: Fix position
+			this.setTileTreeBlockIndex( room, makeVector(relX+rePos.x, relY+rePos.y, relZ+rePos.z), tileScale, index );
+			return;
+		}
+	}
+	
 	public playerEntityId?:string;
 	public playerDesiredMovementDirection:Vector3D = ZERO_VECTOR;
 	public doorDesiredMovementDirection:Vector3D = ZERO_VECTOR;
@@ -1657,8 +1724,13 @@ export class MazeGame {
 				} else if( re == door3EntityId ) {
 					roomEntity.entity.desiredMovementDirection = this.doorDesiredMovementDirection;
 				}
+				if( this.entityMessages[re] ) {
+					const msgs = this.entityMessages[re];
+					for( let m in msgs ) this.processEntityMessage( r, room, re, roomEntity, msgs[m] );
+				}
 			}
 		}
+		this.entityMessages = {};
 		this.phys.updateEntities(interval);
 		// For now we have to do this so that the view will see them,
 		// since gdm doesn't have any way to track objects without saving them.
@@ -1711,6 +1783,7 @@ const room2Id = 'urn:uuid:9d424151-1abf-45c1-b581-170c6eec5942';
 export class MazeDemo {
 	public datastore : Datastore<Uint16Array>;
 	public game : MazeGame;
+	public canvas:HTMLCanvasElement;
 	public view : MazeView;
 	public playerId : string;
 	protected tickTimerId? : number;
@@ -1847,6 +1920,28 @@ export class MazeDemo {
 	public setDoorStatus(dir:number):void {
 		if(this.game) this.game.setDoorStatus(dir);
 	}
+	
+	protected eventToCanvasPixelCoordinates(evt:MouseEvent):Vector3D {
+		const canv = this.canvas;
+		return {
+			x: evt.offsetX * (canv.width / canv.clientWidth),
+			y: evt.offsetY * (canv.height / canv.clientHeight),
+			z: 0
+		};
+	}
+	
+	public handleMouseEvent(evt:MouseEvent):void {
+		if( evt.buttons == 1 ) {
+			const cpCoords = this.eventToCanvasPixelCoordinates(evt);
+			const worldCoords = this.view.canvasPixelToWorldCoordinates(cpCoords.x, cpCoords.y);
+			this.game.enqueueEntityMessage({
+				sourceId: "ui",
+				destinationId: this.playerId,
+				payload: ["/set-tile-tree-block-index", worldCoords.x, worldCoords.y, worldCoords.z, 1, 0]
+			})
+			console.log(worldCoords.x+","+worldCoords.y);
+		}
+	}
 }
 
 interface SaveGame {
@@ -1857,18 +1952,14 @@ interface SaveGame {
 
 export function startDemo(canv:HTMLCanvasElement) : MazeDemo {
 	const ds = MemoryDatastore.createSha1Based(0); //HTTPHashDatastore();
-	//const game = new MazeGame(gdm);
-	//game.playerEntityId = playerEntityId;
 	
 	const v = new MazeView(canv);
-	//v.gameDataManager = gdm;
 	const viewItems : MazeViewageItem[] = [];
 	
 	const demo = new MazeDemo();
+	demo.canvas = canv;
 	demo.datastore = ds;
-	//demo.game = game;
 	demo.view = v;
-	//demo.playerId = playerEntityId;
 	
 	const tempGdm = new GameDataManager(ds);
 	initData(tempGdm).then( () => tempGdm.flushUpdates() ).then( (rootNodeUri) => {
@@ -1877,23 +1968,10 @@ export function startDemo(canv:HTMLCanvasElement) : MazeDemo {
 			playerId: playerEntityId,
 			rootRoomId: room1Id,
 		});
-		/*
-		game.fullyLoadRooms(room1Id) ).then( () => {
-		const room2 = game.activeRooms[room2Id];
-		for( let i=0; i<10; ++i ) {
-			const newBallId = newUuidRef();
-			// add some balls!
-			let position:Vector3D;
-			while( game.solidEntitiesAt(room2Id, position = makeVector(0.5+3*Math.random(), -0.5-3*Math.random(), 0), HUNIT_CUBE).length > 0 );
-			room2.roomEntities[newBallId] = {
-				position: position,
-				entity: { classRef: ballEntityClassId }
-			};
-		}
-		demo.updateView();
-		demo.startSimulation();
-		*/
 	});
+
+	canv.addEventListener('mousedown', demo.handleMouseEvent.bind(demo));
+	canv.addEventListener('mousemove', demo.handleMouseEvent.bind(demo));
 	
 	const openDoorButton = document.createElement('button');
 	openDoorButton.appendChild(document.createTextNode("Open Door"));
