@@ -2037,15 +2037,12 @@ export function startDemo(canv:HTMLCanvasElement) : MazeDemo {
 	const tpArea = document.getElementById('tile-palette-area');
 	if( tpArea ) {
 		const entityRenderer = (entity:Entity, orientation:Quaternion):Promise<string|null> => {
-			console.log("I need to render this thing...", entity);
 			if( entity == null ) return Promise.resolve(null);
 			return demo.game.gameDataManager.fetchObject<EntityClass>( entity.classRef ).then( (entityClass) => {
-				console.log("I need to render this class...", entityClass);
 				const visualRef = entityClass.visualRef;
 				if( visualRef == null ) return Promise.resolve(null);
 				const bitImgRee = oneBitImageDataRegex.exec(visualRef);
 				let xRef = visualRef;
-				console.log("Rendering "+visualRef);
 				if( bitImgRee ) {
 					const bitImgInfo = parseBitImg(bitImgRee);
 					return Promise.resolve(parseOneBitImageDataToDataUrl(
@@ -2061,7 +2058,6 @@ export function startDemo(canv:HTMLCanvasElement) : MazeDemo {
 		});
 		tpArea.appendChild( tpUi.element );
 		gameLoaded.then( (saveGame) => {
-			console.log("Set slot?!?!");
 			const initialPaletteEntityClassRefs:(string|null)[] = [
 				null, brikEntityClassId, bigBrikEntityClassId,
 				bigYellowBrikEntityClassId, vines1EntityClassId,
