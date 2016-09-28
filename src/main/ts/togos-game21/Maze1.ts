@@ -2065,7 +2065,8 @@ export function startDemo(canv:HTMLCanvasElement) : MazeDemo {
 			const initialPaletteEntityClassRefs:(string|null)[] = [
 				null, brikEntityClassId, bigBrikEntityClassId,
 				bigYellowBrikEntityClassId, vines1EntityClassId,
-				backLadderEntityClassId, plant1EntityClassId
+				backLadderEntityClassId, plant1EntityClassId,
+				doorFrameEntityClassId,
 			];
 			for( let i=0; i<initialPaletteEntityClassRefs.length; ++i ) {
 				tpUi.setSlot(i, initialPaletteEntityClassRefs[i]);

@@ -21,6 +21,7 @@
 Maze1:
 - Make jumping less unreasonable
 - Make jumping from on top of non-infinite-mass things workd
+- Physics gets screwy at room boundary?  e.g. payer can get stuck in door if using it as an elevator at that point.
 - Doorbell to control the door
 - Keys, other inventory items
 
