@@ -72,6 +72,13 @@ export interface EntityClass {
 	visualRef? : string;
 }
 
+/**
+ * A game object: class + internal state.
+ * An entity does not necessarily know its own ID or anything about its surroundings.
+ * A single entity instance may be referenced from multiple places
+ * (which makes the name 'entity' a bit of a misnomer, since it implies 'a single thing with inherent identity').
+ * Another object (a RoomEntity, a TileEntity) links an Entity to somewhere.
+ */
 export interface Entity {
 	id?: string;
 	classRef : EntityClassRef;
@@ -98,6 +105,11 @@ export interface RoomEntity {
 	entity : Entity;
 }
 
+/**
+ * A cell containing an entity which sits in the center, but might be rotated.
+ * The entity's tiling bounding box should match the implied (by whatever contains it)
+ * bounding box of the TileEntity.
+ */
 export interface TileEntity {
 	entity : Entity;
 	orientation : Quaternion;

@@ -26,7 +26,8 @@ import {
 	StructureType,
 	TileEntityPalette
 } from './world';
-import { rewriteTileTree } from './tiletrees.ts';
+import { rewriteTileTree } from './tiletrees';
+import TilePaletteUI from './ui/TilePalette';
 
 // Same format as an OSC message, minus the type header
 type EntityMessageData = any[];
@@ -562,6 +563,12 @@ const doorSegmentEntityClassId = 'urn:uuid:5da4e293-031f-4062-b83f-83241d6768e9'
 const door3EntityClassId  = 'urn:uuid:13a4aa97-7b26-49ee-b282-fc53eccdf9cb';
 const tileEntityPaletteId = 'urn:uuid:50c19be4-7ab9-4dda-a52f-cf4cfe2562ac';
 const playerEntityClassId = 'urn:uuid:416bfc18-7412-489f-a45e-6ff4c6a4e08b';
+const brikEntityClassId = 'urn:uuid:7164c409-9d00-4d75-8fc6-4f30a5755f77';
+const bigBrikEntityClassId = 'urn:uuid:de6fbe4f-a475-46fe-8613-1900d6a5d36c';
+const plant1EntityClassId = 'urn:uuid:159aa4e5-016a-473d-9be7-5ba492fa899b';
+const vines1EntityClassId = 'urn:uuid:4ee24c8f-7309-462e-b219-ed60505bdb52';
+const backLadderEntityClassId = 'urn:uuid:80cad088-4875-4fc4-892e-34c3035035cc';
+const doorFrameEntityClassId = 'urn:uuid:fde59aa4-d580-456b-b173-2b65f837fcb0';
 const bigYellowBrikEntityClassId = 'urn:uuid:6764a015-767e-4403-b565-4fbe94851f0e';
 
 const playerEntityId      = 'urn:uuid:d42a8340-ec03-482b-ae4c-a1bfdec4ba32';
@@ -669,62 +676,83 @@ function initData( gdm:GameDataManager ):Promise<any> {
 		climbingSkill: 15/16, // So it can climb the frames!
 	}, door3EntityClassId);
 	
+	gdm.fastStoreObject<EntityClass>( {
+		debugLabel: "bricks",
+		structureType: StructureType.INDIVIDUAL,
+		tilingBoundingBox: UNIT_CUBE,
+		physicalBoundingBox: UNIT_CUBE,
+		visualBoundingBox: UNIT_CUBE,
+		isSolid: true,
+		opacity: 1,
+		visualRef: brikImgRef
+	}, brikEntityClassId );
+	
+	gdm.fastStoreObject<EntityClass>( {
+		debugLabel: "big bricks",
+		structureType: StructureType.INDIVIDUAL,
+		tilingBoundingBox: UNIT_CUBE,
+		physicalBoundingBox: UNIT_CUBE,
+		visualBoundingBox: UNIT_CUBE,
+		isSolid: true,
+		opacity: 1,
+		visualRef: bigBrikImgRef
+	}, bigBrikEntityClassId )
+	
+	gdm.fastStoreObject<EntityClass>( {
+		debugLabel: "plant",
+		structureType: StructureType.INDIVIDUAL,
+		tilingBoundingBox: UNIT_CUBE,
+		physicalBoundingBox: UNIT_CUBE,
+		visualBoundingBox: UNIT_CUBE,
+		isSolid: false,
+		opacity: 0.25,
+		visualRef: plant1ImgRef
+	}, plant1EntityClassId );
+	
+	gdm.fastStoreObject<TileTree>( {
+		debugLabel: "door frame",
+		structureType: StructureType.TILE_TREE,
+		tilingBoundingBox: UNIT_CUBE,
+		physicalBoundingBox: UNIT_CUBE,
+		visualBoundingBox: UNIT_CUBE,
+		xDivisions: 4,
+		yDivisions: 4,
+		zDivisions: 4,
+		opacity: 0,
+		childEntityPaletteRef: doorFrameBlockEntityPaletteRef,
+		childEntityIndexes: doorFrameBlockData
+	}, doorFrameEntityClassId );
+
+	gdm.fastStoreObject<EntityClass>( {
+		debugLabel: "ladder (+Z)",
+		structureType: StructureType.INDIVIDUAL,
+		tilingBoundingBox: UNIT_CUBE,
+		physicalBoundingBox: NORTH_SIDE_BB,
+		visualBoundingBox: UNIT_CUBE,
+		opacity: 0.125,
+		climbability: 0.75,
+		isSolid: true,
+		visualRef: ladder1FrontImgRef,
+	}, backLadderEntityClassId );
+
+	gdm.fastStoreObject<EntityClass>( {
+		debugLabel: "vines",
+		structureType: StructureType.INDIVIDUAL,
+		tilingBoundingBox: UNIT_CUBE,
+		physicalBoundingBox: UNIT_CUBE,
+		visualBoundingBox: UNIT_CUBE,
+		isSolid: false,
+		opacity: 3/4,
+		visualRef: vines1ImgRef
+	}, vines1EntityClassId );
+	
 	const regularTileEntityPaletteRef = makeTileEntityPaletteRef( [
 		null,
-		gdm.fastStoreObject<EntityClass>( {
-			debugLabel: "bricks",
-			structureType: StructureType.INDIVIDUAL,
-			tilingBoundingBox: UNIT_CUBE,
-			physicalBoundingBox: UNIT_CUBE,
-			visualBoundingBox: UNIT_CUBE,
-			isSolid: true,
-			opacity: 1,
-			visualRef: brikImgRef
-		} ),
-		gdm.fastStoreObject<EntityClass>( {
-			debugLabel: "big bricks",
-			structureType: StructureType.INDIVIDUAL,
-			tilingBoundingBox: UNIT_CUBE,
-			physicalBoundingBox: UNIT_CUBE,
-			visualBoundingBox: UNIT_CUBE,
-			isSolid: true,
-			opacity: 1,
-			visualRef: bigBrikImgRef
-		} ),
-		gdm.fastStoreObject<EntityClass>( {
-			debugLabel: "plant",
-			structureType: StructureType.INDIVIDUAL,
-			tilingBoundingBox: UNIT_CUBE,
-			physicalBoundingBox: UNIT_CUBE,
-			visualBoundingBox: UNIT_CUBE,
-			isSolid: false,
-			opacity: 0.25,
-			visualRef: plant1ImgRef
-		} ),
-		/* 4: */ gdm.fastStoreObject<TileTree>( {
-			debugLabel: "door frame",
-			structureType: StructureType.TILE_TREE,
-			tilingBoundingBox: UNIT_CUBE,
-			physicalBoundingBox: UNIT_CUBE,
-			visualBoundingBox: UNIT_CUBE,
-			xDivisions: 4,
-			yDivisions: 4,
-			zDivisions: 4,
-			opacity: 0,
-			childEntityPaletteRef: doorFrameBlockEntityPaletteRef,
-			childEntityIndexes: doorFrameBlockData
-		}),
-		/* 5: */ gdm.fastStoreObject<EntityClass>( {
-			debugLabel: "ladder (+Z)",
-			structureType: StructureType.INDIVIDUAL,
-			tilingBoundingBox: UNIT_CUBE,
-			physicalBoundingBox: NORTH_SIDE_BB,
-			visualBoundingBox: UNIT_CUBE,
-			opacity: 0.125,
-			climbability: 0.75,
-			isSolid: true,
-			visualRef: ladder1FrontImgRef,
-		}),
+		brikEntityClassId,
+		bigBrikEntityClassId,
+		plant1EntityClassId,
+		/* 4: */ doorFrameEntityClassId,
+		/* 5: */ backLadderEntityClassId,
 		/* 6: */ gdm.fastStoreObject<EntityClass>( {
 			debugLabel: "ladder (+X)",
 			structureType: StructureType.INDIVIDUAL,
@@ -747,16 +775,7 @@ function initData( gdm:GameDataManager ):Promise<any> {
 			isSolid: true,
 			visualRef: ladder1SideImgRef,
 		}),
-		/* 8 */ gdm.fastStoreObject<EntityClass>( {
-			debugLabel: "vines",
-			structureType: StructureType.INDIVIDUAL,
-			tilingBoundingBox: UNIT_CUBE,
-			physicalBoundingBox: UNIT_CUBE,
-			visualBoundingBox: UNIT_CUBE,
-			isSolid: false,
-			opacity: 3/4,
-			visualRef: vines1ImgRef
-		} ),
+		/* 8 */ vines1EntityClassId,
 		/* 9: */ gdm.fastStoreObject<EntityClass>( {
 			debugLabel: "ladder (-Y)",
 			structureType: StructureType.INDIVIDUAL,
@@ -1693,7 +1712,7 @@ export class MazeGame {
 		return collisions;
 	}
 	
-	protected setTileTreeBlock( room:Room, pos:Vector3D, tileScale:number, newTile:TileEntity|number|string ):void {
+	protected setTileTreeBlock( room:Room, pos:Vector3D, tileScale:number, newTile:TileEntity|number|string|null ):void {
 		for( let re in room.roomEntities ) {
 			const roomEntity = room.roomEntities[re];
 			const entityClass = this.gameDataManager.getEntityClass(roomEntity.entity.classRef);
@@ -1727,7 +1746,7 @@ export class MazeGame {
 			const relZ = +md[3];
 			const tileScale = +md[4] || 1;
 			const block = md[5];
-			if( typeof block != 'string' && typeof block != 'number' ) {
+			if( typeof block != 'string' && typeof block != 'number' && block !== null ) {
 				console.log("Erps; bad block");
 				return;
 			}
@@ -1929,7 +1948,7 @@ export class MazeDemo {
 		delete this.keysDown[keyEvent.keyCode];
 		this.keysUpdated();
 	}
-	public save():Promise<SaveGame> {
+	public saveGame():Promise<SaveGame> {
 		return this.game.gameDataManager.flushUpdates().then( (gameDataRef) => {
 			const saveGame = {
 				gameDataRef: gameDataRef,
@@ -1969,6 +1988,8 @@ export class MazeDemo {
 			z: 0
 		};
 	}
+
+	public paintEntityClassRef:string|null = null;
 	
 	public handleMouseEvent(evt:MouseEvent):void {
 		if( evt.buttons == 1 ) {
@@ -1977,7 +1998,7 @@ export class MazeDemo {
 			this.game.enqueueEntityMessage({
 				sourceId: "ui",
 				destinationId: this.playerId,
-				payload: ["/set-tile-tree-block", worldCoords.x, worldCoords.y, worldCoords.z, 1, bigYellowBrikEntityClassId]
+				payload: ["/set-tile-tree-block", worldCoords.x, worldCoords.y, worldCoords.z, 1, this.paintEntityClassRef]
 			})
 		}
 	}
@@ -1994,15 +2015,15 @@ export function startDemo(canv:HTMLCanvasElement) : MazeDemo {
 	
 	const v = new MazeView(canv);
 	const viewItems : MazeViewageItem[] = [];
-	
+
 	const demo = new MazeDemo();
 	demo.canvas = canv;
 	demo.datastore = ds;
 	demo.view = v;
 	
 	const tempGdm = new GameDataManager(ds);
-	initData(tempGdm).then( () => tempGdm.flushUpdates() ).then( (rootNodeUri) => {
-		demo.loadGame( {
+	const gameLoaded = initData(tempGdm).then( () => tempGdm.flushUpdates() ).then( (rootNodeUri) => {
+		return demo.loadGame( {
 			gameDataRef: rootNodeUri,
 			playerId: playerEntityId,
 			rootRoomId: room1Id,
@@ -2011,6 +2032,45 @@ export function startDemo(canv:HTMLCanvasElement) : MazeDemo {
 
 	canv.addEventListener('mousedown', demo.handleMouseEvent.bind(demo));
 	canv.addEventListener('mousemove', demo.handleMouseEvent.bind(demo));
+	
+	const tpArea = document.getElementById('tile-palette-area');
+	if( tpArea ) {
+		const entityRenderer = (entity:Entity, orientation:Quaternion):Promise<string|null> => {
+			console.log("I need to render this thing...", entity);
+			if( entity == null ) return Promise.resolve(null);
+			return demo.game.gameDataManager.fetchObject<EntityClass>( entity.classRef ).then( (entityClass) => {
+				console.log("I need to render this class...", entityClass);
+				const visualRef = entityClass.visualRef;
+				if( visualRef == null ) return Promise.resolve(null);
+				const bitImgRee = oneBitImageDataRegex.exec(visualRef);
+				let xRef = visualRef;
+				console.log("Rendering "+visualRef);
+				if( bitImgRee ) {
+					const bitImgInfo = parseBitImg(bitImgRee);
+					return Promise.resolve(parseOneBitImageDataToDataUrl(
+						bitImgInfo.bitstr, bitImgInfo.width, bitImgInfo.height, bitImgInfo.color0, bitImgInfo.color1 ));
+				} else {
+					return Promise.reject(new Error(visualRef+" not parse as bit image!"));
+				}
+			});
+		}
+		const tpUi = new TilePaletteUI( 16, entityRenderer );
+		tpUi.on('select', (index:number, te:TileEntity|undefined|null) => {
+			demo.paintEntityClassRef = te ? te.entity.classRef : null;
+		});
+		tpArea.appendChild( tpUi.element );
+		gameLoaded.then( (saveGame) => {
+			console.log("Set slot?!?!");
+			const initialPaletteEntityClassRefs:(string|null)[] = [
+				null, brikEntityClassId, bigBrikEntityClassId,
+				bigYellowBrikEntityClassId, vines1EntityClassId,
+				backLadderEntityClassId, plant1EntityClassId
+			];
+			for( let i=0; i<initialPaletteEntityClassRefs.length; ++i ) {
+				tpUi.setSlot(i, initialPaletteEntityClassRefs[i]);
+			}
+		});
+	}
 	
 	const openDoorButton = document.createElement('button');
 	openDoorButton.appendChild(document.createTextNode("Open Door"));

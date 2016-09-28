@@ -13,7 +13,7 @@ import { StructureType, Entity, EntityClass, TileTree, TileEntity, TileEntityPal
 
 export type TileTreeRewriteFunction = (
 	pos:Vector3D, aabb:AABB, index:number, e:TileEntity|null|undefined
-) => number|TileEntity|string;
+) => number|TileEntity|string|null;
 
 class TileEntityPaletteManager {
 	protected _palette:TileEntityPalette|undefined;

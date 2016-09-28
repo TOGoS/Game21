@@ -74,7 +74,32 @@ html, body {
 	width: 320px;
 	height: 240px;
 	box-sizing: content-box;
+	image-rendering: pixelated;
 }
+
+ul.tile-palette {
+	display: flex;
+	flex-direction: row;
+	justify-conent: left;
+	margin: 0; padding: 0;
+	list-style-type: none;
+}
+ul.tile-palette li {
+	margin: 2px;
+	border: 1px solid #444;
+	padding: 2px;
+	box-sizing: content-box;
+	width: 32px;
+	height: 32px;
+	background-origin: content-box;
+	background-size: contain;
+	background-position: center;
+	image-rendering: pixelated;
+}
+ul.tile-palette li.selected {
+	border-color: #FFF;
+}
+
 @media (min-width: 640px) and (min-height: 500px) {
 	.maze-canvas {
 		width: 640px;
@@ -94,6 +119,7 @@ html, body {
 <canvas class="maze-canvas" id="maze-canvas" width="<?php eht($width); ?>" height="<?php eht($height); ?>"/>
 </div>
 
+<div id="tile-palette-area"></div>
 <div id="button-area"></div>
 </div>
 
