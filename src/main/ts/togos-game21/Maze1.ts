@@ -22,7 +22,7 @@ import {
 	Entity,
 	EntityClass,
 	TileTree,
-	TileTreeEntity,
+	TileEntity,
 	StructureType,
 	TileEntityPalette
 } from './world';
@@ -1693,7 +1693,7 @@ export class MazeGame {
 		return collisions;
 	}
 	
-	protected setTileTreeBlock( room:Room, pos:Vector3D, tileScale:number, newTile:TileTreeEntity|number|string ):void {
+	protected setTileTreeBlock( room:Room, pos:Vector3D, tileScale:number, newTile:TileEntity|number|string ):void {
 		for( let re in room.roomEntities ) {
 			const roomEntity = room.roomEntities[re];
 			const entityClass = this.gameDataManager.getEntityClass(roomEntity.entity.classRef);
@@ -1702,7 +1702,7 @@ export class MazeGame {
 				if( aabbContainsVector(entityClass.tilingBoundingBox, posWithinTt) ) {
 					roomEntity.entity.classRef = rewriteTileTree(
 						roomEntity.position, roomEntity.entity.classRef,
-						(ckPos:Vector3D, ckAabb:AABB, currentTileIndex:number, currentTileEntity:TileTreeEntity|null|undefined) => {
+						(ckPos:Vector3D, ckAabb:AABB, currentTileIndex:number, currentTileEntity:TileEntity|null|undefined) => {
 							if( aabbContainsVector(ckAabb, pos) && aabbWidth(ckAabb) == tileScale ) {
 								return newTile;
 							} else {

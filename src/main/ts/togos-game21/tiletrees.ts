@@ -9,11 +9,11 @@ import {
 	aabbAverageX, aabbAverageY, aabbContainsVector, aabbIntersectsWithOffset
 } from './aabbs';
 import GameDataManager from './GameDataManager';
-import { StructureType, Entity, EntityClass, TileTree, TileTreeEntity, TileEntityPalette } from './world';
+import { StructureType, Entity, EntityClass, TileTree, TileEntity, TileEntityPalette } from './world';
 
 export type TileTreeRewriteFunction = (
-	pos:Vector3D, aabb:AABB, index:number, e:TileTreeEntity|null|undefined
-) => number|TileTreeEntity|string;
+	pos:Vector3D, aabb:AABB, index:number, e:TileEntity|null|undefined
+) => number|TileEntity|string;
 
 class TileEntityPaletteManager {
 	protected _palette:TileEntityPalette|undefined;
@@ -36,11 +36,11 @@ class TileEntityPaletteManager {
 		}
 		return this._paletteRef;
 	}
-	protected addTileEntity( te:TileTreeEntity|null ):number {
+	protected addTileEntity( te:TileEntity|null ):number {
 		let pal = this.palette;
 		this._paletteRef = undefined;
 		if( Object.isFrozen(pal) ) {
-			const newPal:TileEntityPalette = new Array<TileTreeEntity>(pal.length);
+			const newPal:TileEntityPalette = new Array<TileEntity>(pal.length);
 			for( let i=0; i<pal.length; ++i ) newPal[i] = pal[i];
 			pal = newPal;
 		}
@@ -48,7 +48,7 @@ class TileEntityPaletteManager {
 		this._palette = pal;
 		return pal.length-1;
 	}
-	public findTileEntity( te:TileTreeEntity|null ):number {
+	public findTileEntity( te:TileEntity|null ):number {
 		const pal = this.palette;
 		for( let i=0; i<pal.length; ++i ) {
 			const palE = pal[i];
@@ -72,7 +72,7 @@ export function rewriteTileTree(
 	gdm:GameDataManager
 ):string {
 	// Eventually should define rewrite function to allow returning
-	// new TileTreeEntity and create a new palette if needed.
+	// new TileEntity and create a new palette if needed.
 	const entityClass = gdm.getEntityClass(ttRef);
 	if( entityClass.structureType != StructureType.TILE_TREE ) {
 		throw new Error("Can't rewrite "+entityClass+"; not a tile tree!");
@@ -99,7 +99,7 @@ export function rewriteTileTree(
 				if( typeof newIndex == 'string' ) {
 					newIndex = tepm.findTileEntity( {entity: {classRef:newIndex}, orientation: Quaternion.IDENTITY} );
 				} else if( typeof newIndex == 'object' ) {
-					newIndex = tepm.findTileEntity( <TileTreeEntity>newIndex );
+					newIndex = tepm.findTileEntity( <TileEntity>newIndex );
 				}
 				if( typeof newIndex != 'number' ) {
 					throw new Error('non-number return value from rewrite function not yet supported');

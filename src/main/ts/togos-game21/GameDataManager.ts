@@ -7,7 +7,7 @@ import { DistributedBucketMapManager } from './DistributedBucketMap';
 import { utf8Encode } from '../tshash/utils';
 import { fetchObject, storeObject, fastStoreObject } from './JSONObjectDatastore';
 import { shortcutThen, value as promiseValue } from './promises';
-import { Room, RoomEntity, Entity, EntityClass, StructureType, TileTree, TileEntityPalette, TileTreeEntity } from './world';
+import { Room, RoomEntity, Entity, EntityClass, StructureType, TileTree, TileEntityPalette, TileEntity } from './world';
 
 const hashUrnRegex = /^urn:(sha1|bitprint):.*/;
 

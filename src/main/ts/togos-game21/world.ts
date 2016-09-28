@@ -98,12 +98,12 @@ export interface RoomEntity {
 	entity : Entity;
 }
 
-export interface TileTreeEntity {
+export interface TileEntity {
 	entity : Entity;
 	orientation : Quaternion;
 }
 
-export type TileEntityPalette = Array<TileTreeEntity|null>;
+export type TileEntityPalette = Array<TileEntity|null>;
 
 export interface TileTree extends EntityClass {
 	xDivisions:number;
