@@ -1712,7 +1712,8 @@ export class MazeGame {
 		return collisions;
 	}
 	
-	protected setTileTreeBlock( room:Room, pos:Vector3D, tileScale:number, newTile:TileEntity|number|string|null ):void {
+	protected setTileTreeBlock( roomId:string, pos:Vector3D, tileScale:number, newTile:TileEntity|number|string|null ):void {
+		const room = this.getMutableRoom(roomId);
 		for( let re in room.roomEntities ) {
 			const roomEntity = room.roomEntities[re];
 			const entityClass = this.gameDataManager.getEntityClass(roomEntity.entity.classRef);
@@ -1764,8 +1765,8 @@ export class MazeGame {
 				}
 			}
 			const rePos = roomEntity.position;
-			// TODO: Fix position
-			this.setTileTreeBlock( room, makeVector(relX+rePos.x, relY+rePos.y, relZ+rePos.z), tileScale, block );
+			const blockLoc = this.fixLocation( {roomRef: roomId, position: makeVector(relX+rePos.x, relY+rePos.y, relZ+rePos.z)} );
+			this.setTileTreeBlock( blockLoc.roomRef, blockLoc.position, tileScale, block );
 			return;
 		}
 	}
