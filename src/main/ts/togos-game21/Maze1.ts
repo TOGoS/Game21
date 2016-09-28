@@ -351,6 +351,7 @@ interface MazeViewage {
 
 const brikImgRef = "bitimg:color0=0;color1="+rgbaToNumber(200,200,180,255)+","+hexEncodeBits(brikPix);
 const bigBrikImgRef = "bitimg:color0=0;color1="+rgbaToNumber(220,220,200,255)+","+hexEncodeBits(bigBrikPix);
+const bigYellowBrikImgRef = "bitimg:color0=0;color1="+rgbaToNumber(220,220,128,255)+","+hexEncodeBits(bigBrikPix);
 const playerImgRef = "bitimg:color0=0;color1="+rgbaToNumber(224,224,96,255)+","+hexEncodeBits(playerPix);
 const plant1ImgRef = "bitimg:color0=0;color1="+rgbaToNumber(64,192,64,255)+","+hexEncodeBits(plant1Pix);
 const vines1ImgRef = "bitimg:color0=0;color1="+rgbaToNumber(64,192,64,255)+","+hexEncodeBits(vines1Pix);
@@ -561,6 +562,7 @@ const doorSegmentEntityClassId = 'urn:uuid:5da4e293-031f-4062-b83f-83241d6768e9'
 const door3EntityClassId  = 'urn:uuid:13a4aa97-7b26-49ee-b282-fc53eccdf9cb';
 const tileEntityPaletteId = 'urn:uuid:50c19be4-7ab9-4dda-a52f-cf4cfe2562ac';
 const playerEntityClassId = 'urn:uuid:416bfc18-7412-489f-a45e-6ff4c6a4e08b';
+const bigYellowBrikEntityClassId = 'urn:uuid:6764a015-767e-4403-b565-4fbe94851f0e';
 
 const playerEntityId      = 'urn:uuid:d42a8340-ec03-482b-ae4c-a1bfdec4ba32';
 const ballEntityId        = 'urn:uuid:10070a44-2a0f-41a1-bcfb-b9e16a6f1b59';
@@ -590,6 +592,17 @@ function initData( gdm:GameDataManager ):Promise<any> {
 		climbability: 1/16,
 		visualRef: doorFrameImgRef
 	}, doorFramePieceEntityId );
+
+	gdm.fastStoreObject<EntityClass>( {
+		debugLabel: "big yellow bricks",
+		structureType: StructureType.INDIVIDUAL,
+		tilingBoundingBox:   UNIT_CUBE,
+		physicalBoundingBox: UNIT_CUBE,
+		visualBoundingBox:   UNIT_CUBE,
+		isSolid: true,
+		opacity: 1,
+		visualRef: bigYellowBrikImgRef
+	}, bigYellowBrikEntityClassId );
 	
 	gdm.fastStoreObject<EntityClass>( {
 		debugLabel: "player",
@@ -1680,7 +1693,7 @@ export class MazeGame {
 		return collisions;
 	}
 	
-	protected setTileTreeBlockIndex( room:Room, pos:Vector3D, tileScale:number, newTileIndex:number ):void {
+	protected setTileTreeBlock( room:Room, pos:Vector3D, tileScale:number, newTile:TileTreeEntity|number|string ):void {
 		for( let re in room.roomEntities ) {
 			const roomEntity = room.roomEntities[re];
 			const entityClass = this.gameDataManager.getEntityClass(roomEntity.entity.classRef);
@@ -1691,7 +1704,7 @@ export class MazeGame {
 						roomEntity.position, roomEntity.entity.classRef,
 						(ckPos:Vector3D, ckAabb:AABB, currentTileIndex:number, currentTileEntity:TileTreeEntity|null|undefined) => {
 							if( aabbContainsVector(ckAabb, pos) && aabbWidth(ckAabb) == tileScale ) {
-								return newTileIndex;
+								return newTile;
 							} else {
 								return currentTileIndex;
 							}
@@ -1708,16 +1721,32 @@ export class MazeGame {
 	):void {
 		const md = em.payload;
 		const path = entityMessageDataPath(md);
-		console.log(entityId+" received message", md);
-		if( path == "/set-tile-tree-block-index" ) {
+		if( path == "/set-tile-tree-block" ) {
 			const relX = +md[1];
 			const relY = +md[2];
 			const relZ = +md[3];
 			const tileScale = +md[4] || 1;
-			const index = +md[5];
+			const block = md[5];
+			if( typeof block != 'string' && typeof block != 'number' ) {
+				console.log("Erps; bad block");
+				return;
+			}
+			if( typeof block == 'string' ) {
+				if( this.gameDataManager.getObjectIfLoaded<EntityClass>( block ) == null ) {
+					console.log("Entity class "+block+" not loaded.  Try again later.");
+					// Try to load it up and ignore this request for now.
+					// User can click again. :P
+					this.gameDataManager.fetchObject<EntityClass>( block ).then( (entiyClass) => {
+						console.log("Entity class "+block+" loaded, now!  You should be able to place it, now.");
+					}).catch( (err) => {
+						console.error("Failed to load entity class "+block);
+					});
+					return;
+				}
+			}
 			const rePos = roomEntity.position;
 			// TODO: Fix position
-			this.setTileTreeBlockIndex( room, makeVector(relX+rePos.x, relY+rePos.y, relZ+rePos.z), tileScale, index );
+			this.setTileTreeBlock( room, makeVector(relX+rePos.x, relY+rePos.y, relZ+rePos.z), tileScale, block );
 			return;
 		}
 	}
@@ -1948,9 +1977,8 @@ export class MazeDemo {
 			this.game.enqueueEntityMessage({
 				sourceId: "ui",
 				destinationId: this.playerId,
-				payload: ["/set-tile-tree-block-index", worldCoords.x, worldCoords.y, worldCoords.z, 1, 0]
+				payload: ["/set-tile-tree-block", worldCoords.x, worldCoords.y, worldCoords.z, 1, bigYellowBrikEntityClassId]
 			})
-			console.log(worldCoords.x+","+worldCoords.y);
 		}
 	}
 }

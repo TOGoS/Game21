@@ -47,8 +47,6 @@ export function makeTileEntityPaletteRef( palette:any, gdm?:GameDataManager, ali
 		},
 	}) );
 
-	console.log("saving tile palette", tilePalette);
-	
 	return gdm.fastStoreObject(tilePalette, alias);
 }
 
@@ -100,7 +98,6 @@ export function makeTileTreeNode( palette:any, w:number, h:number, d:number, ind
 	
 	const tilePalette = gdm.getObject<TileEntityPalette>(_paletteRef);
 	if( tilePalette == null ) throw new Error("Failed to get tile palette "+_paletteRef);
-	console.log("got tile palette", tilePalette);
 	let tileW = 0, tileH = 0, tileD = 0;
 	for( let t in tilePalette ) {
 		const tileEntity = tilePalette[t];
