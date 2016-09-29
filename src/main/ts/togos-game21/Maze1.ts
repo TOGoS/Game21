@@ -2182,9 +2182,19 @@ export function startDemo(canv:HTMLCanvasElement) : MazeDemo {
 	
 	const butta = document.getElementById('button-area');
 	if( butta ) {
-		const targetEntityIdBox:HTMLInputElement = document.createElement("input");
-		targetEntityIdBox.type = "text";
+		const targetEntityIdBox:HTMLSelectElement = document.createElement("select");
 		targetEntityIdBox.value = door3EntityId;
+		const selectable = {
+			"Door": door3EntityId,
+			"Lift": platformEntityId
+		}
+		
+		for( let s in selectable ) {
+			const opt = document.createElement("option");
+			opt.value = selectable[s];
+			opt.appendChild(document.createTextNode(s));
+			targetEntityIdBox.appendChild(opt);
+		}
 		
 		const openDoorButton = document.createElement('button');
 		openDoorButton.appendChild(document.createTextNode("Up"));
