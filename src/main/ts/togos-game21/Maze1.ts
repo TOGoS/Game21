@@ -1147,15 +1147,9 @@ interface Collision {
 export class MazeGamePhysics {
 	constructor( protected game:MazeGame ) { }
 	
-	protected pendingVelocityUpdates:KeyedList<Vector3D> = {};
-	
 	public induceVelocityChange( entityId:string, roomEntity:RoomEntity, dv:Vector3D ):void {
 		if( vectorIsZero(dv) ) return; // Save ourselves a little bit of work
-		if( this.pendingVelocityUpdates[entityId] == null ) {
-			this.pendingVelocityUpdates[entityId] = dv;
-		} else {
-			this.pendingVelocityUpdates[entityId] = addVector(this.pendingVelocityUpdates[entityId], dv);
-		}
+		roomEntity.velocity = addVector(entityVelocity(roomEntity), dv);
 	}
 	
 	public registerReactionlessImpulse( entityId:string, roomEntity:RoomEntity, impulse:Vector3D ):void {
@@ -1202,36 +1196,6 @@ export class MazeGamePhysics {
 		
 		if( aRat != 0 ) this.induceVelocityChange(entityAId, entityA, scaleVector(relativeDv, -aRat));
 		if( bRat != 0 ) this.induceVelocityChange(entityBId, entityB, scaleVector(relativeDv, +bRat));
-	}
-	
-	protected applyVelocityChanges() {
-		const game = this.game;
-		const rooms = this.game.activeRooms;
-		for( let r in rooms ) {
-			let room = rooms[r];
-			for( let re in room.roomEntities ) {
-				if( this.pendingVelocityUpdates[re] ) {
-					const roomEntity = room.roomEntities[re];
-					const entity = roomEntity.entity;
-					const entityClass = game.gameDataManager.getEntityClass(entity.classRef);
-					const entityBb = entityClass.physicalBoundingBox;
-					
-					// Δv = impulse / m
-					
-					// Apparently the 1/entityClass.mass velocity vector scale doesn't quite do the job, so:
-					if( entityClass.mass == Infinity ) {
-						//console.log("No moving for "+re+"; it has infinite mass");
-						continue;
-					}
-
-					roomEntity.velocity = addVector(
-						roomEntity.velocity || ZERO_VECTOR,
-						this.pendingVelocityUpdates[re]
-					);
-				}
-			}
-		}
-		this.pendingVelocityUpdates = {};
 	}
 
 	protected applyCollisions() {
@@ -1620,7 +1584,6 @@ export class MazeGamePhysics {
 		}
 		
 		this.applyCollisions();
-		this.applyVelocityChanges();
 	}
 }
 
