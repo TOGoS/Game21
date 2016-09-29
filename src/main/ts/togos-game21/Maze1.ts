@@ -7,7 +7,7 @@ import { DistributedBucketMapManager } from './DistributedBucketMap';
 import KeyedList from './KeyedList';
 import Vector3D from './Vector3D';
 import { makeVector, setVector, vectorToString, ZERO_VECTOR } from './vector3ds';
-import { addVector, subtractVector, vectorLength, vectorIsZero, scaleVector, normalizeVector, roundVectorToGrid } from './vector3dmath';
+import { addVector, subtractVector, vectorLength, vectorIsZero, scaleVector, normalizeVector, dotProduct, roundVectorToGrid } from './vector3dmath';
 import AABB from './AABB';
 import { makeAabb, aabbWidth, aabbHeight, aabbDepth, aabbAverageX, aabbAverageY, aabbContainsVector, aabbIntersectsWithOffset } from './aabbs';
 import Quaternion from './Quaternion';
@@ -1007,7 +1007,7 @@ enum XYZDirection {
 	NEGATIVE_Z = 0x20,
 };
 
-const xyzDirectionVectors:{[dir:number]:Vector3D} = {};
+const xyzDirectionVectors:KeyedList<Vector3D> = {};
 {
 	// encode component
 	const ec = function(i:number):number {
@@ -1314,6 +1314,8 @@ export class MazeGamePhysics {
 		
 		const snapGridSize = 1/8;
 		
+		const entitiesToMove:{roomId:string, entityId:string, moveOrder:number}[] = [];
+		
 		// Collect impulses
 		// impulses from previous step are also included.
 		for( let r in rooms ) {
@@ -1423,17 +1425,26 @@ export class MazeGamePhysics {
 				if( !climbing && !onFloor && dmd && entityClass.maxFlyingForce ) {
 					this.registerReactionlessImpulse(re, roomEntity, scaleVector(dmd, -entityClass.maxFlyingForce*interval) );
 				}
+				
+				if( roomEntity.velocity && !vectorIsZero(roomEntity.velocity) ) {
+					const moveOrder = -dotProduct(roomEntity.position, roomEntity.velocity);
+					entitiesToMove.push( {roomId: r, entityId: re, moveOrder} );
+				}
 			}
 		}
+		
+		entitiesToMove.sort( (a,b):number => a.moveOrder - b.moveOrder );
 		
 		// Apply velocity to positions,
 		// do collision detection to prevent overlap and collection collisions
 		this.collisions = {};
 		
-		for( let r in rooms ) {
-			let room = rooms[r];
-			for( let re in room.roomEntities ) {
-				const roomEntity = room.roomEntities[re];
+		for( const etm in entitiesToMove ) {
+			const entityToMove = entitiesToMove[etm];
+			const room = rooms[entityToMove.roomId];
+			const entityId = entityToMove.entityId;
+			{
+				const roomEntity = room.roomEntities[entityId];
 				const velocity:Vector3D|undefined = roomEntity.velocity;
 				if( velocity == null || vectorIsZero(velocity) ) continue;
 				
@@ -1441,13 +1452,13 @@ export class MazeGamePhysics {
 				const entityClass = game.gameDataManager.getEntityClass(entity.classRef);
 				const entityBb = entityClass.physicalBoundingBox;
 
-				let entityRoomRef = r;
+				let entityRoomRef = entityToMove.roomId;
 				
 				let displacement = scaleVector( velocity, interval );
 
 				const solidOtherEntityFilter:EntityFilter =
 					(roomEntityId:string, roomEntity:RoomEntity, entity:Entity, entityClass:EntityClass) =>
-						roomEntityId != re && entityClass.isSolid !== false;
+						roomEntityId != entityId && entityClass.isSolid !== false;
 				
 				// Strategy here is:
 				// figure [remaining] displacement based on velocity*interval
@@ -1477,7 +1488,7 @@ export class MazeGamePhysics {
 					const newPosition = roundVectorToGrid(newVelocityLocation.position, snapGridSize);
 					const collisions = game.entitiesAt(newVelocityLocation.roomRef, newPosition, entityBb, solidOtherEntityFilter);
 					if( collisions.length == 0 ) {
-						game.updateRoomEntity(entityRoomRef, re, {
+						game.updateRoomEntity(entityRoomRef, entityId, {
 							roomRef: newRoomRef,
 							position: newPosition,
 							velocityPosition: newVelocityLocation.position
@@ -1550,12 +1561,12 @@ export class MazeGamePhysics {
 						
 						if( maxDvxColl ) {
 							this.registerCollision(
-								re, roomEntity, maxDvxColl.roomEntityId, maxDvxColl.roomEntity, makeVector(maxDvx, 0, 0) 
+								entityId, roomEntity, maxDvxColl.roomEntityId, maxDvxColl.roomEntity, makeVector(maxDvx, 0, 0) 
 							);
 						}
 						if( maxDvyColl ) {
 							this.registerCollision(
-								re, roomEntity, maxDvyColl.roomEntityId, maxDvyColl.roomEntity, makeVector(0, maxDvy, 0)
+								entityId, roomEntity, maxDvyColl.roomEntityId, maxDvyColl.roomEntity, makeVector(0, maxDvy, 0)
 							);
 						}
 						
@@ -1575,7 +1586,7 @@ export class MazeGamePhysics {
 
 						++iter;
 						if( iter > 2 ) {
-							console.log("Too many displacement steps while moving "+re+":", roomEntity, "class:", entityClass, "iter:", iter, "velocity:", velocity, "displacement:", displacement, "bounceBox:", bounceBox, "max dvx coll:", maxDvxColl, "max dby coll:", maxDvyColl);
+							console.log("Too many displacement steps while moving "+entityId+":", roomEntity, "class:", entityClass, "iter:", iter, "velocity:", velocity, "displacement:", displacement, "bounceBox:", bounceBox, "max dvx coll:", maxDvxColl, "max dby coll:", maxDvyColl);
 							break displacementStep;
 						}
 					}
@@ -2147,7 +2158,7 @@ export function startDemo(canv:HTMLCanvasElement) : MazeDemo {
 	if( butta ) {
 		const targetEntityIdBox:HTMLSelectElement = document.createElement("select");
 		targetEntityIdBox.value = door3EntityId;
-		const selectable = {
+		const selectable:KeyedList<string> = {
 			"Door": door3EntityId,
 			"Lift": platformEntityId
 		}
