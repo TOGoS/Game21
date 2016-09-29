@@ -99,6 +99,7 @@ ul.tile-palette li {
 	background-origin: content-box;
 	background-size: contain;
 	background-position: center;
+	background-repeat: no-repeat;
 	image-rendering: pixelated;
 }
 ul.tile-palette li.selected {
