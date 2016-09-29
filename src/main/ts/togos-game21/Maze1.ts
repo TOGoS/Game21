@@ -1812,7 +1812,9 @@ export class MazeGame {
 	):void {
 		const md = em.payload;
 		const path = entityMessageDataPath(md);
-		if( path == "/set-tile-tree-block" ) {
+		if( path == "/set-desired-movement-direction" ) {
+			roomEntity.entity.desiredMovementDirection = makeVector(+md[1],+md[2],+md[3]);
+		} else if( path == "/set-tile-tree-block" ) {
 			const relX = +md[1];
 			const relY = +md[2];
 			const relZ = +md[3];
@@ -1844,7 +1846,6 @@ export class MazeGame {
 	
 	public playerEntityId?:string;
 	public playerDesiredMovementDirection:Vector3D = ZERO_VECTOR;
-	public doorDesiredMovementDirection:Vector3D = ZERO_VECTOR;
 	public update(interval:number=1/16) {
 		for( let r in this.rooms ) {
 			let room = this.rooms[r];
@@ -1852,8 +1853,6 @@ export class MazeGame {
 				const roomEntity = room.roomEntities[re];
 				if( re == this.playerEntityId ) {
 					roomEntity.entity.desiredMovementDirection = this.playerDesiredMovementDirection;
-				} else if( re == door3EntityId ) {
-					roomEntity.entity.desiredMovementDirection = this.doorDesiredMovementDirection;
 				}
 				if( this.entityMessages[re] ) {
 					const msgs = this.entityMessages[re];
@@ -1867,10 +1866,6 @@ export class MazeGame {
 		// since gdm doesn't have any way to track objects without saving them.
 		// But it should eventually store our mutable rooms for us.
 		this.flushUpdates();
-	}
-	
-	public setDoorStatus(dir:number) {
-		this.doorDesiredMovementDirection = makeVector(0,dir,0);
 	}
 	
 	public flushUpdates():Promise<String> {
@@ -2080,9 +2075,6 @@ export class MazeDemo {
 	public inspect(ref:string):Promise<any> {
 		return this.game.gameDataManager.fetchObject(ref);
 	}
-	public setDoorStatus(dir:number):void {
-		if(this.game) this.game.setDoorStatus(dir);
-	}
 	
 	protected eventToCanvasPixelCoordinates(evt:MouseEvent):Vector3D {
 		const canv = this.canvas;
@@ -2188,16 +2180,33 @@ export function startDemo(canv:HTMLCanvasElement) : MazeDemo {
 		});
 	}
 	
-	const openDoorButton = document.createElement('button');
-	openDoorButton.appendChild(document.createTextNode("Open Door"));
-	openDoorButton.onclick = () => demo.setDoorStatus(-1);
-	
-	const closeDoorButton = document.createElement('button');
-	closeDoorButton.appendChild(document.createTextNode("Close Door"));
-	closeDoorButton.onclick = () => demo.setDoorStatus(+1);
-	
 	const butta = document.getElementById('button-area');
 	if( butta ) {
+		const targetEntityIdBox:HTMLInputElement = document.createElement("input");
+		targetEntityIdBox.type = "text";
+		targetEntityIdBox.value = door3EntityId;
+		
+		const openDoorButton = document.createElement('button');
+		openDoorButton.appendChild(document.createTextNode("Up"));
+		openDoorButton.onclick = () => {
+			demo.game.enqueueEntityMessage({
+				sourceId: "ui",
+				destinationId: targetEntityIdBox.value,
+				payload: ["/set-desired-movement-direction", 0, -1, 0]
+			})
+		}
+		
+		const closeDoorButton = document.createElement('button');
+		closeDoorButton.appendChild(document.createTextNode("Down"));
+		closeDoorButton.onclick = () => {
+			demo.game.enqueueEntityMessage({
+				sourceId: "ui",
+				destinationId: targetEntityIdBox.value,
+				payload: ["/set-desired-movement-direction", 0, +1, 0]
+			})
+		}
+
+		butta.appendChild(targetEntityIdBox);
 		butta.appendChild(openDoorButton);
 		butta.appendChild(closeDoorButton);
 	}
