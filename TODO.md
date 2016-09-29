@@ -19,11 +19,12 @@
 ## Misc to-do items
 
 Maze1:
-- Fix: Can't jump off platform that's moving up
-  Problem: to successfully move, a RoomEntity (the platform, in this case) must have space above it.
-  So it won't move until the player is no longer touching it!
-  A proposed solution: Allow entities to shove one another as part of physics step
-    so that they move as one and remain touching
+- Platform physics:
+  - e.g. if a platform is moved after an player above it,
+    the player will never be touching the platform during its
+    'am I on anything' phase, resulting in never being able to jump.
+    - Changing the objects' order 'fixes' this, but causes
+      movements the other way to work differently.
 - Background layer! (just draw darker than fg)
 - Create, connect new rooms interactively
 - Make jumping less unreasonable

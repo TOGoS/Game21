@@ -1149,7 +1149,7 @@ export class MazeGamePhysics {
 	
 	protected pendingVelocityUpdates:KeyedList<Vector3D> = {};
 	
-	public induceVelocityChange( entityId:string, dv:Vector3D ):void {
+	public induceVelocityChange( entityId:string, roomEntity:RoomEntity, dv:Vector3D ):void {
 		if( vectorIsZero(dv) ) return; // Save ourselves a little bit of work
 		if( this.pendingVelocityUpdates[entityId] == null ) {
 			this.pendingVelocityUpdates[entityId] = dv;
@@ -1162,7 +1162,7 @@ export class MazeGamePhysics {
 		const entityClass = this.game.gameDataManager.getEntityClass(roomEntity.entity.classRef);
 		const mass = entityMass(entityClass);
 		if( mass == Infinity ) return; // Nothing's going to happen
-		this.induceVelocityChange(entityId, scaleVector(impulse, -1/mass));
+		this.induceVelocityChange(entityId, roomEntity, scaleVector(impulse, -1/mass));
 	}
 	
 	public registerImpulse( entityAId:string, entityA:RoomEntity, entityBId:string, entityB:RoomEntity, impulse:Vector3D ):void {
@@ -1196,12 +1196,12 @@ export class MazeGamePhysics {
 			bRat = (systemMass-eBMass)/systemMass;
 			//systemVelocity = addVector(scaleVector(eAVel, eAMass/systemMass), scaleVector(eBVel, eBMass/systemMass));
 		}
-
+		
 		const relativeDv = scaleVector(impulse, 1/eBMass + 1/eAMass);
 		//const eADv = scaleVector(impulse, -1/eAMass);
 		
-		if( aRat != 0 ) this.induceVelocityChange(entityAId, scaleVector(relativeDv, -aRat));
-		if( bRat != 0 ) this.induceVelocityChange(entityBId, scaleVector(relativeDv, +bRat));
+		if( aRat != 0 ) this.induceVelocityChange(entityAId, entityA, scaleVector(relativeDv, -aRat));
+		if( bRat != 0 ) this.induceVelocityChange(entityBId, entityB, scaleVector(relativeDv, +bRat));
 	}
 	
 	protected applyVelocityChanges() {
@@ -1421,13 +1421,13 @@ export class MazeGamePhysics {
 				// Should induce Δv due to gravity and just
 				// have climb impulse take that into account.
 				if( !climbing && entityClass.isAffectedByGravity && entityClass.mass != null && entityClass.mass != Infinity ) {
-					this.induceVelocityChange(re, gravDv);
+					this.induceVelocityChange(re, roomEntity, gravDv);
 				}
 				
 				let onFloor = false;
 				
 				// TODO: Do this in a generic way for any 'walking' entities
-				walk: if( entityVelocity(roomEntity).y >= 0 && floorCollision ) {
+				walk: if( floorCollision && entityVelocity(roomEntity).y - entityVelocity(floorCollision.roomEntity).y >= 0 ) {
 					onFloor = true;
 					
 					if( dmd == null ) break walk;
