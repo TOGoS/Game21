@@ -19,6 +19,8 @@
 ## Misc to-do items
 
 Maze1:
+- Background layer! (just draw darker than fg)
+- Create, connect new rooms interactively
 - Make jumping less unreasonable
 - Make jumping from on top of non-infinite-mass things workd
 - Doorbell to control the door
