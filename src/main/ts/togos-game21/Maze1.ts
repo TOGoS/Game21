@@ -1840,6 +1840,12 @@ function isAllNonZero( data:ArrayLike<number> ) {
 
 const room1Id = 'urn:uuid:9d424151-1abf-45c1-b581-170c6eec5941';
 const room2Id = 'urn:uuid:9d424151-1abf-45c1-b581-170c6eec5942';
+const simulatorId = 'urn:uuid:002ae5c8-1c7f-470c-8b5d-cf79e58aa561';
+
+enum DemoMode {
+	PLAY = 0,
+	EDIT = 1
+}
 
 export class MazeDemo {
 	public datastore : Datastore<Uint16Array>;
@@ -1849,7 +1855,21 @@ export class MazeDemo {
 	public playerId : string;
 	protected tickTimerId? : number;
 	protected tickRate = 1/32;
-
+	protected mode:DemoMode = DemoMode.PLAY;
+	public tilePaletteUi:TilePaletteUI;
+	
+	public switchToNextMode() {
+		this.mode++;
+		if( this.mode > 1 ) {
+			this.mode = 0;
+		}
+		if( this.mode == DemoMode.EDIT ) {
+			this.tilePaletteUi.element.style.display = "";
+		} else {
+			this.tilePaletteUi.element.style.display = "none";
+		}
+	}
+	
 	public startSimulation() {
 		if( this.tickTimerId == undefined ) {
 			this.tickTimerId = setInterval(this.tick.bind(this), 1000*this.tickRate);
@@ -1880,20 +1900,26 @@ export class MazeDemo {
 			const distance = 21;
 			// Line up raster origin so it falls as close as possible to the center of the raster
 			// while lining up edges with world coordinates
+			// TODO: shouldn't need to snap to integer world coords; raster coords would be fine.
 			const rasterOriginX = Math.floor(rasterWidth /rasterResolution/2) + playerLoc.position.x - Math.floor(playerLoc.position.x);
 			const rasterOriginY = Math.floor(rasterHeight/rasterResolution/2) + playerLoc.position.y - Math.floor(playerLoc.position.y);
-			const distanceInPixels = rasterResolution*distance;
-			const opacityRaster = new ShadeRaster(rasterWidth, rasterHeight, rasterResolution, rasterOriginX, rasterOriginY);
 			const visibilityRaster   = new ShadeRaster(rasterWidth, rasterHeight, rasterResolution, rasterOriginX, rasterOriginY);
-			const sceneShader = new SceneShader(this.game.gameDataManager);
-			sceneShader.sceneOpacityRaster(playerLoc.roomRef, scaleVector(playerLoc.position, -1), opacityRaster);
-			if( isAllZero(opacityRaster.data) ) console.log("Opacity raster is all zero!");
-			if( isAllNonZero(opacityRaster.data) ) console.log("Opacity raster is all nonzero!");
-			sceneShader.opacityTolVisibilityRaster(opacityRaster, (rasterOriginX-1/4)*rasterResolution, rasterOriginY*rasterResolution, distanceInPixels, visibilityRaster);
-			sceneShader.opacityTolVisibilityRaster(opacityRaster, (rasterOriginX+1/4)*rasterResolution, rasterOriginY*rasterResolution, distanceInPixels, visibilityRaster);
-			if( isAllZero(visibilityRaster.data) ) console.log("Visibility raster is all zero!");
-			if( isAllNonZero(visibilityRaster.data) ) console.log("Visibility raster is all nonzero!");
-			sceneShader.growVisibility(visibilityRaster); // Not quite!  Since this expands visibility into non-room space.
+			let opacityRaster:ShadeRaster|undefined;
+			if( this.mode == DemoMode.EDIT ) {
+				visibilityRaster.data.fill(255);
+			} else {
+				const distanceInPixels = rasterResolution*distance;
+				opacityRaster = new ShadeRaster(rasterWidth, rasterHeight, rasterResolution, rasterOriginX, rasterOriginY);
+				const sceneShader = new SceneShader(this.game.gameDataManager);
+				sceneShader.sceneOpacityRaster(playerLoc.roomRef, scaleVector(playerLoc.position, -1), opacityRaster);
+				if( isAllZero(opacityRaster.data) ) console.log("Opacity raster is all zero!");
+				if( isAllNonZero(opacityRaster.data) ) console.log("Opacity raster is all nonzero!");
+				sceneShader.opacityTolVisibilityRaster(opacityRaster, (rasterOriginX-1/4)*rasterResolution, rasterOriginY*rasterResolution, distanceInPixels, visibilityRaster);
+				sceneShader.opacityTolVisibilityRaster(opacityRaster, (rasterOriginX+1/4)*rasterResolution, rasterOriginY*rasterResolution, distanceInPixels, visibilityRaster);
+				if( isAllZero(visibilityRaster.data) ) console.log("Visibility raster is all zero!");
+				if( isAllNonZero(visibilityRaster.data) ) console.log("Visibility raster is all nonzero!");
+				sceneShader.growVisibility(visibilityRaster); // Not quite!  Since this expands visibility into non-room space.
+			}
 			/*
 			for( let i=0, y=0; y<visibilityRaster.height; ++y ) {
 				for( let x=0; x<visibilityRaster.width; ++x, ++i ) {
@@ -1944,6 +1970,11 @@ export class MazeDemo {
 		this.game.playerDesiredMovementDirection = makeVector(moveX, moveY, 0);
 	}
 	public keyDown(keyEvent:KeyboardEvent):void {
+		if( keyEvent.keyCode == 9 ) {
+			this.switchToNextMode();
+			keyEvent.preventDefault();
+			return;
+		}
 		this.keysDown[keyEvent.keyCode] = true;
 		this.keysUpdated();
 	}
@@ -1997,6 +2028,7 @@ export class MazeDemo {
 	protected paintCoordinates:Vector3D|undefined;
 	
 	protected maybePaint() {
+		if( this.mode != DemoMode.EDIT ) return;
 		const coords = this.paintCoordinates;
 		if( coords ) {
 			this.game.enqueueEntityMessage({
@@ -2067,6 +2099,8 @@ export function startDemo(canv:HTMLCanvasElement) : MazeDemo {
 			});
 		}
 		const tpUi = new TilePaletteUI( 16, entityRenderer );
+		tpUi.element.style.display = 'none';
+		demo.tilePaletteUi = tpUi;
 		tpUi.on('select', (index:number, te:TileEntity|undefined|null) => {
 			demo.paintEntityClassRef = te ? te.entity.classRef : null;
 		});
