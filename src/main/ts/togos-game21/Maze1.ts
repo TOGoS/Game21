@@ -620,12 +620,13 @@ function initData( gdm:GameDataManager ):Promise<any> {
 		isSolid: true,
 		isAffectedByGravity: true,
 		mass: 45, // 100 lbs; he's a small guy
-		bounciness: 0.5,
+		bounciness: 1/64,
 		visualRef: playerImgRef,
 		maxFlyingForce: 100,
 		normalWalkingSpeed: 4,
 		normalClimbingSpeed: 2,
 		climbingSkill: 0.5,
+		maxJumpImpulse: 300,
 	}, playerEntityClassId );
 
 	gdm.storeObject<EntityClass>({
@@ -1138,9 +1139,12 @@ export class MazeGamePhysics {
 			bRat = (systemMass-eBMass)/systemMass;
 			//systemVelocity = addVector(scaleVector(eAVel, eAMass/systemMass), scaleVector(eBVel, eBMass/systemMass));
 		}
+
+		const relativeDv = scaleVector(impulse, 1/eBMass + 1/eAMass);
+		//const eADv = scaleVector(impulse, -1/eAMass);
 		
-		if( aRat != 0 ) this.induceVelocityChange(entityAId, scaleVector(impulse, -aRat/eAMass));
-		if( bRat != 0 ) this.induceVelocityChange(entityBId, scaleVector(impulse, +bRat/eBMass));
+		if( aRat != 0 ) this.induceVelocityChange(entityAId, scaleVector(relativeDv, -aRat));
+		if( bRat != 0 ) this.induceVelocityChange(entityBId, scaleVector(relativeDv, +bRat));
 	}
 	
 	protected applyVelocityChanges() {
@@ -1286,7 +1290,6 @@ export class MazeGamePhysics {
 		const gravDv = makeVector(0, 10*interval, 0);
 		const rooms = game.activeRooms;
 		const maxWalkForce = 450; // ~100 pounds of force?
-		const maxJumpImpulse = 300;
 		
 		const snapGridSize = 1/8;
 		
@@ -1357,10 +1360,13 @@ export class MazeGamePhysics {
 					}
 				}
 				
+				// This is slightly cheating.
+				// Should induce Δv due to gravity and just
+				// have climb impulse take that into account.
 				if( !climbing && entityClass.isAffectedByGravity && entityClass.mass != null && entityClass.mass != Infinity ) {
 					this.induceVelocityChange(re, gravDv);
 				}
-
+				
 				let onFloor = false;
 				
 				// TODO: Do this in a generic way for any 'walking' entities
@@ -1382,10 +1388,14 @@ export class MazeGamePhysics {
 						floorCollision.roomEntityId, floorCollision.roomEntity,
 						walkImpulse);
 					
-					if( dmd.y < 0 ) {
-						//console.log(re+" jumps!");
-						const jumpImpulse:Vector3D = {x:0, y:maxJumpImpulse, z:0};
+					if( dmd.y < 0 && entityClass.maxJumpImpulse ) {
+						console.log(re+" jumps!");
+						const jumpImpulse:Vector3D = {x:0, y:entityClass.maxJumpImpulse, z:0};
 						this.registerImpulse(re, roomEntity, floorCollision.roomEntityId, floorCollision.roomEntity, jumpImpulse);
+					}
+				} else {
+					if( dmd && dmd.y < 0 && entityClass.maxJumpImpulse ) {
+						console.log(re+" can't jump; not on floor.", dmd.y);
 					}
 				}
 				

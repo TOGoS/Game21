@@ -65,6 +65,7 @@ export interface EntityClass {
 	climbability?:number; // 0 = only as much as friction allows; 1 = anyone can stick themself to it, even stupid babies with no grip strength.
 	normalWalkingSpeed? : number; // Normal maximum speed attained while walking
 	maxWalkingForce? : number; // Maximum force (newtons) that can be exerted along ground when walking; may also apply to climbing
+	maxJumpImpulse? : number; // Maximum impulse (newton-seconds) that can be exerted against the floor for a jump
 	maxFlyingForce? : number; // Maximum force that can be exerted against the universe so that an entity can maneuver itself in the air
 	climbingSkill? : number; // can climb things with 1-climbingSkill climbability; default = 0
 	normalClimbingSpeed? : number; // Normal maximum speed attained while climbing; default = walking speed
