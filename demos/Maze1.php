@@ -33,7 +33,12 @@ $configProperties = [
 		'valueType' => 'number',
 		'defaultValue' => 240,
 		'affects' => 'pageGeneration',
-	],	
+	],
+	'pageTitle' => [
+		'valueType' => 'string',
+		'defaultValue' => 'Maze',
+		'affects' => 'pageGeneration',
+	],
 ];
 
 $config = config_from_env($configProperties, $config);
@@ -43,7 +48,7 @@ extract($config, EXTR_SKIP|EXTR_REFS);
 <!DOCTYPE html>
 <html>
 <head>
-<title>Maze</title>
+<title><?php eht($pageTitle); ?></title>
 </head>
 <body>
 
