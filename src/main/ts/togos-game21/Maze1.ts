@@ -1812,9 +1812,9 @@ export class MazeGame {
 	):void {
 		const md = em.payload;
 		const path = entityMessageDataPath(md);
-		if( path == "/set-desired-movement-direction" ) {
+		if( path == "/desiredmovementdirection" ) {
 			roomEntity.entity.desiredMovementDirection = makeVector(+md[1],+md[2],+md[3]);
-		} else if( path == "/set-tile-tree-block" ) {
+		} else if( path == "/painttiletreeblock" ) {
 			const relX = +md[1];
 			const relY = +md[2];
 			const relZ = +md[3];
@@ -2096,7 +2096,7 @@ export class MazeDemo {
 			this.game.enqueueEntityMessage({
 				sourceId: "ui",
 				destinationId: this.playerId,
-				payload: ["/set-tile-tree-block", coords.x, coords.y, coords.z, 1, this.paintEntityClassRef]
+				payload: ["/painttiletreeblock", coords.x, coords.y, coords.z, 1, this.paintEntityClassRef]
 			})
 		};
 	}
@@ -2192,7 +2192,7 @@ export function startDemo(canv:HTMLCanvasElement) : MazeDemo {
 			demo.game.enqueueEntityMessage({
 				sourceId: "ui",
 				destinationId: targetEntityIdBox.value,
-				payload: ["/set-desired-movement-direction", 0, -1, 0]
+				payload: ["/desiredmovementdirection", 0, -1, 0]
 			})
 		}
 		
@@ -2202,7 +2202,7 @@ export function startDemo(canv:HTMLCanvasElement) : MazeDemo {
 			demo.game.enqueueEntityMessage({
 				sourceId: "ui",
 				destinationId: targetEntityIdBox.value,
-				payload: ["/set-desired-movement-direction", 0, +1, 0]
+				payload: ["/desiredmovementdirection", 0, +1, 0]
 			})
 		}
 
