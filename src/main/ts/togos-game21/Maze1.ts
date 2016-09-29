@@ -1705,9 +1705,10 @@ export class MazeGame {
 		}
 		for( let n in room.neighbors ) {
 			const neighb = room.neighbors[n];
-			if( aabbIntersectsWithOffset(neighb.offset, neighb.bounds, pos, bb) ) {
-				this.entitiesAt2( neighb.offset, neighb.roomRef, pos, bb, filter, collisions );
-			}
+			// I used to check that bb overlapped neighb.bounds.
+			// That results in missing collisions with entities whose physical bounds
+			// go beyond that of the room they're in, duh.	
+			this.entitiesAt2( neighb.offset, neighb.roomRef, pos, bb, filter, collisions );
 		}
 		return collisions;
 	}
