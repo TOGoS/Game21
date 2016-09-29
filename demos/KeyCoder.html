@@ -1,0 +1,39 @@
+<html>
+<body>
+
+<style scoped>
+html, body {
+	box-sizing: border-box;
+	margin: 0;
+	padding: 0;
+	background: black;
+	color: white;
+}
+.content {
+	width: 100vw;
+	height: 100vh;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+}
+#key-pee {
+	font-size: 32px;
+	text-align: center;
+}
+</style>
+
+<div class="content">
+<p id="key-pee">hit a key; I'll tell you it's keyCode.</p>
+</div>
+
+<script type="text/javascript">
+(function() {
+	var keyPee = document.getElementById('key-pee');
+	window.addEventListener('keydown', function(keyEvent) {
+		keyPee.firstChild.nodeValue = ""+keyEvent.keyCode;
+	});
+})();
+</script>
+
+</body>
+</html>
