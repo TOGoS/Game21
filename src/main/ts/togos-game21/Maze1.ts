@@ -1028,17 +1028,17 @@ function clampAbs( val:number, maxAbs:number ):number {
 	return val;
 }
 
-function atLeast( desired:number, current:number ):number {
-	if( desired > 0 ) return Math.max(current,desired);
-	if( desired < 0 ) return Math.min(current,desired);
-	return 0;
+function directionate( dir:number, current:number ):number {
+	if( dir > 0 && current > 0 ) return current;
+	if( dir < 0 && current < 0 ) return current;
+	return current;
 }
 
-function atLeastVector( desired:Vector3D, current:Vector3D ):Vector3D {
+function directionateVector( desired:Vector3D, current:Vector3D ):Vector3D {
 	return {
-		x: atLeast(desired.x, current.x),
-		y: atLeast(desired.y, current.y),
-		z: atLeast(desired.z, current.z),
+		x: directionate(desired.x, current.x),
+		y: directionate(desired.y, current.y),
+		z: directionate(desired.z, current.z),
 	}
 }
 
@@ -1072,8 +1072,11 @@ function impulseForAtLeastDesiredVelocity(
 	maxSpeed:number, maxImpulse:number,
 	multiplier:number=1
 ):Vector3D {
-	const targetRelativeVelocity = atLeastVector( normalizeVector(desiredRelativeVelocity, maxSpeed), currentRelativeVelocity );
-	const targetDeltaVelocity = subtractVector(targetRelativeVelocity, currentRelativeVelocity);
+	const targetRelativeVelocity = normalizeVector(desiredRelativeVelocity, maxSpeed);
+	const targetDeltaVelocity = directionateVector(
+		desiredRelativeVelocity,
+		subtractVector(targetRelativeVelocity, currentRelativeVelocity)
+	);
 	return dvImpulse( targetDeltaVelocity, entityAMass, entityBMass, maxImpulse, multiplier );
 }
 
