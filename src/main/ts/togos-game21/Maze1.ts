@@ -281,6 +281,16 @@ const doorSegmentPix = [
 	0,1,1,0,0,0,0,1,1,0,
 	0,0,1,1,1,1,1,1,0,0,
 ];
+const platformSegmentPix = [
+	1,1,1,1,1,1,1,1,
+	1,1,1,1,1,1,1,1,
+	1,0,0,0,0,0,0,1,
+	1,1,1,1,1,1,1,1,
+	1,0,0,0,0,0,0,1,
+	0,1,0,0,0,0,1,0,
+	0,0,1,0,0,1,0,0,
+	1,1,1,1,1,1,1,1,
+]
 const ballPix = [
    0,0,1,1,1,1,0,0,
 	0,1,1,1,1,1,1,0,
@@ -359,6 +369,7 @@ const vines1ImgRef = "bitimg:color0=0;color1="+rgbaToNumber(64,192,64,255)+","+h
 const ballImgRef = "bitimg:color0=0;color1="+rgbaToNumber(128,48,48,255)+","+hexEncodeBits(ballPix);
 const doorFrameImgRef = "bitimg:color1="+rgbaToNumber(64,64,64,255)+","+hexEncodeBits(doorFramePix);
 const doorSegmentImgRef = 'bitimg:width=10;height=16;color1='+rgbaToNumber(240,240,230,255)+","+hexEncodeBits(doorSegmentPix);
+const platformSegmentImgRef = 'bitimg:color1='+rgbaToNumber(240,240,160,255)+","+hexEncodeBits(platformSegmentPix);
 const ladder1FrontImgRef = "bitimg:color1="+rgbaToNumber(128,96,96,255)+","+hexEncodeBits(ladder1FrontPix);
 const ladder1SideImgRef = "bitimg:width=4;height=16;color1="+rgbaToNumber(128,96,96,255)+","+hexEncodeBits(ladder1SidePix);
 const ladder1TopImgRef = "bitimg:width=16;height=4;color1="+rgbaToNumber(128,96,96,255)+","+hexEncodeBits(ladder1TopPix);
@@ -383,22 +394,22 @@ const doorFrameBlockData = [
 ];
 const doorData = [1,1,1];
 const room1Data = [
-	1,1,1,1,1,1,0,0,1,1,0,1,1,1,1,1,
-	0,0,0,0,0,1,0,1,1,0,0,0,0,0,0,0,
-	1,1,0,0,0,1,0,0,0,0,0,0,0,0,0,1,
-	1,1,1,0,1,1,1,1,1,1,2,0,0,2,1,1,
-	1,1,1,0,1,3,8,8,8,8,0,0,0,2,1,1,
-	1,1,1,0,1,1,1,2,2,2,2,2,0,2,4,1,
-	1,0,0,0,0,1,1,2,5,0,0,0,0,0,4,0,
-	1,0,2,2,2,1,1,2,5,1,1,1,1,3,1,0,
-	1,0,2,1,1,1,1,2,5,1,0,0,1,1,1,0,
-	1,0,0,0,2,2,2,2,5,1,0,0,1,1,1,1,
-	0,0,5,0,0,0,0,0,5,0,0,3,1,0,0,0,
-	1,1,5,1,1,1,1,1,1,1,1,1,1,0,1,1,
-	1,1,5,1,1,0,0,2,2,2,2,1,0,0,0,1,
-	1,0,5,0,0,0,0,0,0,1,0,0,0,0,0,1,
-	1,3,5,3,1,1,0,2,2,2,0,1,0,0,0,1,
-	1,1,1,1,1,1,0,0,1,1,0,1,1,1,1,1,
+	1,1,1,1,1,1,0,0,1,1,0,1,0,4,0,1,
+	0,0,0,0,0,1,0,1,1,0,0,0,0,4,0,0,
+	1,1,0,0,0,1,0,0,0,0,0,0,0,4,0,1,
+	1,1,1,0,1,1,1,1,1,1,2,0,0,4,0,1,
+	1,1,1,0,1,3,8,8,8,8,0,0,0,4,0,1,
+	1,1,1,0,1,1,1,2,2,2,2,2,0,4,0,1,
+	1,0,0,0,0,0,0,0,5,0,0,0,0,4,0,1,
+	1,0,2,2,2,1,1,2,5,1,1,1,0,4,0,0,
+	1,0,2,1,1,1,1,2,5,1,0,2,0,4,0,0,
+	1,0,0,0,2,2,2,2,5,1,0,2,0,4,0,1,
+	0,0,5,0,0,0,0,0,5,0,0,2,0,4,0,0,
+	1,1,5,1,1,1,1,1,1,1,1,1,0,4,0,1,
+	1,1,5,1,1,0,0,2,2,2,2,1,0,4,0,1,
+	1,0,5,0,0,0,0,0,0,1,0,0,0,4,0,1,
+	1,3,5,3,1,1,0,2,2,2,0,1,0,4,0,1,
+	1,1,1,1,1,1,0,0,1,1,0,1,0,4,0,1,
 ];
 const room2Data = [
 	1,2,5,0,2,1,0,0,1,1,0,1,1,1,1,1,
@@ -561,6 +572,8 @@ const ballEntityClassId   = 'urn:uuid:762f0209-0b91-4084-b1e0-3aac3ca5f5ab';
 const doorFramePieceEntityId = 'urn:uuid:3709e285-3444-420d-9753-ef101fd7924b';
 const doorSegmentEntityClassId = 'urn:uuid:5da4e293-031f-4062-b83f-83241d6768e9';
 const door3EntityClassId  = 'urn:uuid:13a4aa97-7b26-49ee-b282-fc53eccdf9cb';
+const platformSegmentEntityClassId = 'urn:uuid:819f8257-bcad-4d2f-a64e-0a855ad9dd6e';
+const platform3EntityClassId = 'urn:uuid:585927b9-b225-49d7-a49a-dff0445a1f78';
 const tileEntityPaletteId = 'urn:uuid:50c19be4-7ab9-4dda-a52f-cf4cfe2562ac';
 const playerEntityClassId = 'urn:uuid:416bfc18-7412-489f-a45e-6ff4c6a4e08b';
 const brikEntityClassId = 'urn:uuid:7164c409-9d00-4d75-8fc6-4f30a5755f77';
@@ -574,6 +587,7 @@ const bigYellowBrikEntityClassId = 'urn:uuid:6764a015-767e-4403-b565-4fbe94851f0
 const playerEntityId      = 'urn:uuid:d42a8340-ec03-482b-ae4c-a1bfdec4ba32';
 const ballEntityId        = 'urn:uuid:10070a44-2a0f-41a1-bcfb-b9e16a6f1b59';
 const door3EntityId       = 'urn:uuid:1a8455be-8cce-4721-8ccb-7f5644e30081';
+const platformEntityId    = 'urn:uuid:27c27635-99ba-4ef3-b3ff-445eb9b132e5';
 const room1TileTreeId     = 'urn:uuid:a11ed6ae-f096-4b30-bd39-2a78d39a1385';
 const room2TileTreeId     = 'urn:uuid:67228411-243c-414c-99d7-960f1151b970';
 
@@ -586,6 +600,11 @@ function initData( gdm:GameDataManager ):Promise<any> {
 	const doorEntityPaletteRef = makeTileEntityPaletteRef([
 		null,
 		doorSegmentEntityClassId,
+	], gdm);
+	
+	const platformEntityPaletteRef = makeTileEntityPaletteRef([
+		null,
+		platformSegmentEntityClassId,
 	], gdm);
 	
 	gdm.fastStoreObject<EntityClass>( {
@@ -642,6 +661,37 @@ function initData( gdm:GameDataManager ):Promise<any> {
 		opacity: 0.25,
 		visualRef: ballImgRef
 	}, ballEntityClassId );
+	
+	const platformSegmentBounds = makeAabb(-0.25,-0.25,-0.25, +0.25,+0.25,+0.25);
+	gdm.fastStoreObject<EntityClass>( {
+		debugLabel: "platform segment",
+		structureType: StructureType.INDIVIDUAL,
+		tilingBoundingBox:   platformSegmentBounds,
+		physicalBoundingBox: platformSegmentBounds,
+		visualBoundingBox:   platformSegmentBounds,
+		isSolid: true,
+		mass: 10,
+		opacity: 1,
+		visualRef: platformSegmentImgRef
+	}, platformSegmentEntityClassId );
+	
+	const platform3Bounds = makeAabb(-1.5,-0.25,-0.25, +1.5,+0.25,+0.25);
+	gdm.fastStoreObject<TileTree>( {
+		debugLabel: "1.5m-wide platform",
+		structureType: StructureType.TILE_TREE,
+		tilingBoundingBox: platform3Bounds,
+		physicalBoundingBox: platform3Bounds,
+		visualBoundingBox: platform3Bounds,
+		xDivisions: 6,
+		yDivisions: 1,
+		zDivisions: 1,
+		opacity: 0.5,
+		childEntityPaletteRef: platformEntityPaletteRef,
+		childEntityIndexes: [1,1,1,1,1,1],
+		mass: 60,
+		normalClimbingSpeed: 4,
+		climbingSkill: 15/16,
+	}, platform3EntityClassId);
 	
 	const doorSegmentBounds = makeAabb(-0.25,-0.5,-0.5, +0.25,+0.5,+0.5);
 	const doorSegmentVizBounds = makeAabb(-5/16,-0.5,-0.5, +5/16,+0.5,+0.5);
@@ -796,6 +846,13 @@ function initData( gdm:GameDataManager ):Promise<any> {
 	gdm.fastStoreObject<Room>({
 		bounds: roomBounds,
 		roomEntities: {
+			[playerEntityId]: {
+				position: makeVector(-4.5, -2.5, 0),
+				entity: {
+					id: playerEntityId,
+					classRef: playerEntityClassId
+				}
+			},
 			[room1TileTreeId]: {
 				position: makeVector(0,0,0),
 				entity: {
@@ -808,13 +865,13 @@ function initData( gdm:GameDataManager ):Promise<any> {
 					classRef: ballEntityClassId
 				}
 			},
-			[playerEntityId]: {
-				position: makeVector(-4.5, -2.5, 0),
+			[platformEntityId]: {
+				position: makeVector(5.5, 0, 0),
 				entity: {
-					id: playerEntityId,
-					classRef: playerEntityClassId
+					classRef: platform3EntityClassId,
+					desiredMovementDirection: makeVector(0, -1.0, 0),
 				}
-			}
+			},
 		},
 		neighbors: {
 			"w": {
