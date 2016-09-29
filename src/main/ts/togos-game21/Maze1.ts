@@ -1868,6 +1868,7 @@ export class MazeDemo {
 	}
 
 	public updateView() {
+		this.maybePaint();
 		this.view.viewage = { items: [] };
 		
 		const playerLoc = this.game.locateRoomEntity(this.playerId);
@@ -1993,15 +1994,26 @@ export class MazeDemo {
 
 	public paintEntityClassRef:string|null = null;
 	
-	public handleMouseEvent(evt:MouseEvent):void {
-		if( evt.buttons == 1 ) {
-			const cpCoords = this.eventToCanvasPixelCoordinates(evt);
-			const worldCoords = this.view.canvasPixelToWorldCoordinates(cpCoords.x, cpCoords.y);
+	protected paintCoordinates:Vector3D|undefined;
+	
+	protected maybePaint() {
+		const coords = this.paintCoordinates;
+		if( coords ) {
 			this.game.enqueueEntityMessage({
 				sourceId: "ui",
 				destinationId: this.playerId,
-				payload: ["/set-tile-tree-block", worldCoords.x, worldCoords.y, worldCoords.z, 1, this.paintEntityClassRef]
+				payload: ["/set-tile-tree-block", coords.x, coords.y, coords.z, 1, this.paintEntityClassRef]
 			})
+		};
+	}
+	
+	public handleMouseEvent(evt:MouseEvent):void {
+		if( evt.buttons == 1 ) {
+			const cpCoords = this.eventToCanvasPixelCoordinates(evt);
+			this.paintCoordinates = this.view.canvasPixelToWorldCoordinates(cpCoords.x, cpCoords.y);
+			this.maybePaint();
+		} else {
+			this.paintCoordinates = undefined;
 		}
 	}
 }
@@ -2033,6 +2045,7 @@ export function startDemo(canv:HTMLCanvasElement) : MazeDemo {
 	});
 
 	canv.addEventListener('mousedown', demo.handleMouseEvent.bind(demo));
+	canv.addEventListener('mouseup'  , demo.handleMouseEvent.bind(demo));
 	canv.addEventListener('mousemove', demo.handleMouseEvent.bind(demo));
 	
 	const tpArea = document.getElementById('tile-palette-area');
