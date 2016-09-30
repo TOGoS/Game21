@@ -2076,7 +2076,7 @@ interface SaveGame {
 	playerId: string,
 }
 
-export function startDemo(canv:HTMLCanvasElement) : MazeDemo {
+export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string) : MazeDemo {
 	const ds = new HTTPHashDatastore(); //MemoryDatastore.createSha1Based(0); //HTTPHashDatastore();
 	
 	const v = new MazeView(canv);
@@ -2088,14 +2088,16 @@ export function startDemo(canv:HTMLCanvasElement) : MazeDemo {
 	demo.view = v;
 	
 	const tempGdm = new GameDataManager(ds);
-	const gameLoaded = initData(tempGdm).then( () => tempGdm.flushUpdates() ).then( (rootNodeUri) => {
-		storeObject( {
+	const gameLoaded:Promise<MazeGame> = saveGameRef ? demo.loadGame(saveGameRef) :
+		initData(tempGdm)
+		.then( () => tempGdm.flushUpdates() )
+		.then( (rootNodeUri) => storeObject( {
 			gameDataRef: rootNodeUri,
 			playerId: playerEntityId,
 			rootRoomId: room1Id,
-		}, ds ).then( (saveRef) => demo.loadGame(saveRef) );
-	});
-
+		}, ds ))
+		.then( (saveRef) => demo.loadGame(saveRef) );
+	
 	canv.addEventListener('mousedown', demo.handleMouseEvent.bind(demo));
 	canv.addEventListener('mouseup'  , demo.handleMouseEvent.bind(demo));
 	canv.addEventListener('mousemove', demo.handleMouseEvent.bind(demo));

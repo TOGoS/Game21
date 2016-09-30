@@ -39,6 +39,11 @@ $configProperties = [
 		'defaultValue' => 'Maze',
 		'affects' => 'pageGeneration',
 	],
+	'saveGameRef' => [
+		'valueType' => 'string',
+		'defaultValue' => null,
+		'affects' => 'pageGeneration',
+	],
 ];
 
 $config = config_from_env($configProperties, $config);
@@ -132,7 +137,7 @@ ul.tile-palette li.selected {
 <?php require_game21_js_libs($inlineResources, array('togos-game21/Maze1')); ?>
 <script type="text/javascript">//<![CDATA[
 	require(['togos-game21/Maze1'], function(_Maze1) {
-		var demo = _Maze1.startDemo(document.getElementById('maze-canvas'));
+		var demo = _Maze1.startDemo(document.getElementById('maze-canvas'), <?php ejsv($saveGameRef); ?>);
 		window.maze1Demo = demo;
 		window.addEventListener('keydown', demo.keyDown.bind(demo));
 		window.addEventListener('keyup', demo.keyUp.bind(demo));
