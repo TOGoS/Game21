@@ -147,7 +147,7 @@ export class DistributedBucketMapManager<T> {
 	}
 
 	public flushUpdates():Promise<string> {
-		if( this.currentUpdatePromise ) return this.currentUpdatePromise;
+		if( this.allUpdatesPromise ) return this.allUpdatesPromise;
 		return Promise.resolve(this._rootNodeUri);
 	}
 	
