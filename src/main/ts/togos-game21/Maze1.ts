@@ -1417,13 +1417,12 @@ export class MazeGamePhysics {
 						walkImpulse);
 					
 					if( dmd.y < 0 && entityClass.maxJumpImpulse ) {
-						console.log(re+" jumps!");
 						const jumpImpulse:Vector3D = {x:0, y:entityClass.maxJumpImpulse, z:0};
 						this.registerImpulse(re, roomEntity, floorCollision.roomEntityId, floorCollision.roomEntity, jumpImpulse);
 					}
 				} else {
 					if( dmd && dmd.y < 0 && entityClass.maxJumpImpulse ) {
-						console.log(re+" can't jump; not on floor.", dmd.y);
+						//console.log(re+" can't jump; not on floor.", dmd.y);
 					}
 				}
 				
