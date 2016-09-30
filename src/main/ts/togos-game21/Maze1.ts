@@ -1,6 +1,7 @@
 import { deepFreeze, thaw, deepThaw, isDeepFrozen } from './DeepFreezer';
 import GameDataManager from './GameDataManager';
 import Datastore from './Datastore';
+import { fetchObject, storeObject } from './JSONObjectDatastore';
 import HTTPHashDatastore from './HTTPHashDatastore';
 import MemoryDatastore from './MemoryDatastore';
 import { DistributedBucketMapManager } from './DistributedBucketMap';
@@ -1621,27 +1622,16 @@ export class MazeGame {
 	
 	public get activeRooms() { return this.rooms; }
 	
-	public getMutableRoom( roomId:string ):Room {
+	protected getMutableRoom( roomId:string ):Room {
 		if( this.rooms[roomId] ) return this.rooms[roomId];
-		
-		let room = this.gameDataManager.getRoom(roomId);
-		
-		room = thaw(room);
-		room.roomEntities = thaw(room.roomEntities);
-		for( let re in room.roomEntities ) {
-			room.roomEntities[re] = thaw(room.roomEntities[re]);
-			room.roomEntities[re].entity = thaw(room.roomEntities[re].entity);
-		}
-		// Apparently deepThaw doesn't quite work, yet
-		this.rooms[roomId] = room; // deepThaw(room);
-		return room;
+		return this.rooms[roomId] = this.gameDataManager.getMutableRoom(roomId);
 	}
 	
 	public getRoom( roomId:string ):Room {
 		if( this.rooms[roomId] ) return this.rooms[roomId];
 		return this.gameDataManager.getRoom(roomId);
 	}
-
+	
 	public fullyCacheRoom( roomId:string ):Promise<Room> {
 		return this.gameDataManager.fullyCacheRoom(roomId);
 	}
@@ -1840,19 +1830,9 @@ export class MazeGame {
 		}
 		this.entityMessages = {};
 		this.phys.updateEntities(interval);
-		// For now we have to do this so that the view will see them,
-		// since gdm doesn't have any way to track objects without saving them.
-		// But it should eventually store our mutable rooms for us.
-		this.flushUpdates();
 	}
 	
 	public flushUpdates():Promise<String> {
-		for( let r in this.rooms ) {
-			const room = this.rooms[r];
-			if( !isDeepFrozen(room) ) {
-				const urn = this.gameDataManager.fastStoreObject(room, r);
-			}
-		}
 		return this.gameDataManager.flushUpdates();
 	}
 
@@ -2025,24 +2005,25 @@ export class MazeDemo {
 		delete this.keysDown[keyEvent.keyCode];
 		this.keysUpdated();
 	}
-	public saveGame():Promise<SaveGame> {
-		return this.game.gameDataManager.flushUpdates().then( (gameDataRef) => {
+	public saveGame():Promise<string> {
+		return this.game.flushUpdates().then( (gameDataRef) => {
 			const saveGame = {
 				gameDataRef: gameDataRef,
 				rootRoomId: room1Id,
 				playerId: this.playerId
 			};
-			console.log("Save:",saveGame);
-			return saveGame;
+			return storeObject(saveGame, this.datastore);
 		});
 	}
-	public loadGame(save:SaveGame):Promise<MazeGame> {
+	public loadGame(saveRef:string):Promise<MazeGame> {
 		this.stopSimulation();
-		const gdm = new GameDataManager(this.datastore, save.gameDataRef);
-		this.view.gameDataManager = gdm;
-		this.game = new MazeGame(gdm);
-		console.log("Loading "+save.gameDataRef+"...");
-		return this.game.fullyLoadRooms( save.rootRoomId ).then( () => {
+		return fetchObject(saveRef, this.datastore, true).then( (save) => {
+			const gdm = new GameDataManager(this.datastore, save.gameDataRef);
+			this.view.gameDataManager = gdm;
+			this.game = new MazeGame(gdm);
+			console.log("Loading "+save.gameDataRef+"...");
+			return this.game.fullyLoadRooms( save.rootRoomId ).then( () => save );
+		}).then( (save) => {
 			console.log("Loaded!");
 			this.playerId = this.game.playerEntityId = save.playerId;
 			this.updateView();
@@ -2097,7 +2078,7 @@ interface SaveGame {
 }
 
 export function startDemo(canv:HTMLCanvasElement) : MazeDemo {
-	const ds = MemoryDatastore.createSha1Based(0); //HTTPHashDatastore();
+	const ds = new HTTPHashDatastore(); //MemoryDatastore.createSha1Based(0); //HTTPHashDatastore();
 	
 	const v = new MazeView(canv);
 	const viewItems : MazeViewageItem[] = [];
@@ -2109,11 +2090,11 @@ export function startDemo(canv:HTMLCanvasElement) : MazeDemo {
 	
 	const tempGdm = new GameDataManager(ds);
 	const gameLoaded = initData(tempGdm).then( () => tempGdm.flushUpdates() ).then( (rootNodeUri) => {
-		return demo.loadGame( {
+		storeObject( {
 			gameDataRef: rootNodeUri,
 			playerId: playerEntityId,
 			rootRoomId: room1Id,
-		});
+		}, ds ).then( (saveRef) => demo.loadGame(saveRef) );
 	});
 
 	canv.addEventListener('mousedown', demo.handleMouseEvent.bind(demo));

@@ -1,6 +1,6 @@
 ///<reference path="../Promise.d.ts"/>
 
-import { deepFreeze } from './DeepFreezer';
+import { deepFreeze, thaw } from './DeepFreezer';
 import Datastore from './Datastore';
 import KeyedList from './KeyedList';
 import { DistributedBucketMapManager } from './DistributedBucketMap';
@@ -24,22 +24,51 @@ export default class GameDataManager {
 	protected storing: KeyedList<boolean> = {};
 	protected fetching: KeyedList<Promise<any>> = {};
 	
+	protected mutableObjects: KeyedList<any> = {};
+	
 	public constructor( ds:Datastore<Uint8Array>, rootNodeUri?:string ) {
 		this.datastore = ds;
 		this.objectMapManager = new DistributedBucketMapManager<string>(ds, rootNodeUri);
 	}
 	
 	public getObjectIfLoaded<T>( ref:string, initiateFetch:boolean=false ):T|undefined {
-		const v = this.objectCache[ref];
+		let v = this.mutableObjects[ref];
+		if( v == null ) v = this.objectCache[ref];
 		if( v == null && initiateFetch && !this.fetching[ref] ) this.fetchObject(ref);
 		return v;
 	}
-	public getObject<T>( ref:string, initiateFetch:boolean=false ):T {
-		const v = this.getObjectIfLoaded<T>(ref, initiateFetch);
+	
+	public getMutableObject<T>( ref:string ):T {
+		if( this.mutableObjects[ref] ) return this.mutableObjects[ref];
+		throw new Error(ref+" not in mutable object store");
+	}
+	
+	public getObject<T>( ref:string ):T {
+		const v = this.getObjectIfLoaded<T>(ref, false);
 		if( v == null ) throw new Error(ref+" not loaded");
 		return v;
 	}
-
+	
+	public putMutableObject<T>( ref:string, obj:T ):void {
+		this.mutableObjects[ref] = obj;
+	}
+	
+	public getMutableRoom( roomId:string ):Room {
+		if( this.mutableObjects[roomId] ) return this.mutableObjects[roomId];
+		
+		let room = this.getRoom(roomId);
+		
+		// Apparently deepThaw doesn't quite work, yet
+		room = thaw(room);
+		room.roomEntities = thaw(room.roomEntities);
+		for( let re in room.roomEntities ) {
+			room.roomEntities[re] = thaw(room.roomEntities[re]);
+			room.roomEntities[re].entity = thaw(room.roomEntities[re].entity);
+		}
+		this.putMutableObject( roomId, room );
+		return room;
+	}
+	
 	public getRoom( ref:string ):Room { return this.getObject<Room>(ref); }
 	public getEntityClass( ref:string ):EntityClass { return this.getObject<EntityClass>(ref); }
 	
@@ -74,8 +103,11 @@ export default class GameDataManager {
 	}
 	
 	public flushUpdates():Promise<string> {
-		// If we end up storing mutable stuff here, we'll want
-		// to store it first.
+		for( let k in this.mutableObjects ) {
+			const obj = this.mutableObjects[k];
+			this.fastStoreObject(obj, k);
+		}
+		
 		return this.objectMapManager.flushUpdates();
 	}
 
