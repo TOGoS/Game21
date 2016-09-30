@@ -1,9 +1,13 @@
-import { deepFreeze, thaw, deepThaw, isDeepFrozen } from './DeepFreezer';
-import GameDataManager from './GameDataManager';
+import { sha1Urn } from '../tshash/index';
 import Datastore from './Datastore';
-import { fetchObject, storeObject } from './JSONObjectDatastore';
 import HTTPHashDatastore from './HTTPHashDatastore';
 import MemoryDatastore from './MemoryDatastore';
+import CachingDatastore from './CachingDatastore';
+import MultiDatastore from './MultiDatastore';
+
+import { deepFreeze, thaw, deepThaw, isDeepFrozen } from './DeepFreezer';
+import GameDataManager from './GameDataManager';
+import { fetchObject, storeObject } from './JSONObjectDatastore';
 import { DistributedBucketMapManager } from './DistributedBucketMap';
 import KeyedList from './KeyedList';
 import Vector3D from './Vector3D';
@@ -2077,7 +2081,10 @@ interface SaveGame {
 }
 
 export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string) : MazeDemo {
-	const ds = new HTTPHashDatastore(); //MemoryDatastore.createSha1Based(0); //HTTPHashDatastore();
+	const dataIdent = sha1Urn;
+	const ds = new CachingDatastore(dataIdent, new MultiDatastore(dataIdent, [
+		new HTTPHashDatastore()
+	]));
 	
 	const v = new MazeView(canv);
 	const viewItems : MazeViewageItem[] = [];

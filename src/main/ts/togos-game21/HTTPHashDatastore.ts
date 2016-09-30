@@ -8,8 +8,8 @@ export default class HTTPHashDatastore implements Datastore<Uint8Array> {
 	}
 	
 	/** Returns the data if immediately available.  Otherwise returns null. */
-	get( uri:string ):Uint8Array|null {
-		return null; // We don't keep anything on hand
+	get( uri:string ):Uint8Array|undefined {
+		return undefined; // We don't keep anything on hand
 	}
 	fetch( urn:string ):Promise<Uint8Array> {
 		const url = this.n2rUrl+"?"+urn;
