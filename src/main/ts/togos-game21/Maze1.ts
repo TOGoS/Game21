@@ -642,6 +642,7 @@ function initData( gdm:GameDataManager ):Promise<any> {
 		bounciness: 1/64,
 		visualRef: playerImgRef,
 		maxFlyingForce: 100,
+		maxClimbForce: 1000,
 		normalWalkingSpeed: 4,
 		normalClimbingSpeed: 2,
 		climbingSkill: 0.5,
@@ -670,7 +671,7 @@ function initData( gdm:GameDataManager ):Promise<any> {
 		physicalBoundingBox: platformSegmentBounds,
 		visualBoundingBox:   platformSegmentBounds,
 		isSolid: true,
-		mass: 10,
+		mass: 20,
 		opacity: 1,
 		visualRef: platformSegmentImgRef
 	}, platformSegmentEntityClassId );
@@ -688,9 +689,11 @@ function initData( gdm:GameDataManager ):Promise<any> {
 		opacity: 0.5,
 		childEntityPaletteRef: platformEntityPaletteRef,
 		childEntityIndexes: [1,1,1,1,1,1],
-		mass: 60,
+		mass: 120,
+		isAffectedByGravity: true,
 		normalClimbingSpeed: 4,
 		climbingSkill: 15/16,
+		maxClimbForce: 5000,
 	}, platform3EntityClassId);
 	
 	const doorSegmentBounds = makeAabb(-0.25,-0.5,-0.5, +0.25,+0.5,+0.5);
@@ -703,7 +706,7 @@ function initData( gdm:GameDataManager ):Promise<any> {
 		physicalBoundingBox: doorSegmentBounds,
 		visualBoundingBox:   doorSegmentVizBounds,
 		isSolid: true,
-		mass: 20,
+		mass: 40,
 		opacity: 1,
 		visualRef: doorSegmentImgRef
 	}, doorSegmentEntityClassId );
@@ -722,8 +725,10 @@ function initData( gdm:GameDataManager ):Promise<any> {
 		opacity: 1, // should be 1; smaller for testing
 		childEntityPaletteRef: doorEntityPaletteRef,
 		childEntityIndexes: [1,1,1],
-		mass: 60,
+		mass: 120,
+		isAffectedByGravity: true,
 		normalClimbingSpeed: 4,
+		maxClimbForce: 3000,
 		climbingSkill: 15/16, // So it can climb the frames!
 	}, door3EntityClassId);
 	
@@ -1306,6 +1311,7 @@ export class MazeGamePhysics {
 	
 	public updateEntities(interval:number):void {
 		const game = this.game;
+		const gdm = game.gameDataManager;
 		/** lesser object ID => greater object ID => force exerted from lesser to greater */
 		const gravRef:string = "gravity";
 		const gravDv = makeVector(0, 10*interval, 0);
@@ -1323,10 +1329,14 @@ export class MazeGamePhysics {
 			for( let re in room.roomEntities ) {
 				const roomEntity = room.roomEntities[re];
 				const entity = roomEntity.entity;
-				const entityClass = game.gameDataManager.getEntityClass(entity.classRef);
+				const entityClass = gdm.getEntityClass(entity.classRef);
+				
+				if( entityClass.isAffectedByGravity && entityClass.mass != null && entityClass.mass != Infinity ) {
+					this.induceVelocityChange(re, roomEntity, gravDv);
+				}
 				
 				const otherEntityFilter:EntityFilter =
-					(roomEntityId:string, roomEntity:RoomEntity, entity:Entity, entityClass:EntityClass) =>
+					(roomEntityId:string, roomEntity:RoomEntity, entity:Entity, _entityClass:EntityClass) =>
 						roomEntityId != re;
 				
 				const neighbEnts = this.neighboringEntities(
@@ -1372,22 +1382,16 @@ export class MazeGamePhysics {
 					}
 					if( mostClimbable ) {
 						climbing = true;
+						const maxClimbForce = entityClass.maxClimbForce || 0;
 						const currentRv:Vector3D = subtractVector(entityVelocity(roomEntity), entityVelocity(mostClimbable.roomEntity));
 						const maxClimbSpeed = entityClass.normalClimbingSpeed || entityClass.normalWalkingSpeed || 0;
 						const climbImpulse = impulseForAtLeastDesiredVelocity(
-							scaleVector(dmd, maxClimbSpeed), currentRv,
-							entityClass.mass, mostClimbable.entityClass.mass,
-							maxClimbSpeed, 300, -1
+							dmd, currentRv,
+							entityClass.mass, gdm.getEntityClass(mostClimbable.roomEntity.entity.classRef).mass,
+							maxClimbSpeed, interval*maxClimbForce, -1
 						);
 						this.registerImpulse( re, roomEntity, mostClimbable.roomEntityId, mostClimbable.roomEntity, climbImpulse);
 					}
-				}
-				
-				// This is slightly cheating.
-				// Should induce Δv due to gravity and just
-				// have climb impulse take that into account.
-				if( !climbing && entityClass.isAffectedByGravity && entityClass.mass != null && entityClass.mass != Infinity ) {
-					this.induceVelocityChange(re, roomEntity, gravDv);
 				}
 				
 				let onFloor = false;
@@ -1449,7 +1453,7 @@ export class MazeGamePhysics {
 				if( velocity == null || vectorIsZero(velocity) ) continue;
 				
 				const entity = roomEntity.entity;
-				const entityClass = game.gameDataManager.getEntityClass(entity.classRef);
+				const entityClass = gdm.getEntityClass(entity.classRef);
 				const entityBb = entityClass.physicalBoundingBox;
 
 				let entityRoomRef = entityToMove.roomId;

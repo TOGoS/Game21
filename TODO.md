@@ -25,6 +25,8 @@ Maze1:
     'am I on anything' phase, resulting in never being able to jump.
     - Changing the objects' order 'fixes' this, but causes
       movements the other way to work differently.
+    - Silly but kinda works solution:
+      - move entities 'moving away' (from the centers of their rooms) first
 - Background layer! (just draw darker than fg)
 - Create, connect new rooms interactively
 - Make jumping less unreasonable
