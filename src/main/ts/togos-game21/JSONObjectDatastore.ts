@@ -2,12 +2,18 @@ import { deepFreeze } from './DeepFreezer';
 import Datastore from './Datastore';
 import ErrorInfo from './ErrorInfo';
 import { utf8Encode, utf8Decode } from '../tshash/utils';
+import PrettierJSONEncoder from './PrettierJSONEncoder';
+
+function stringify(v:any):string {
+	//return JSON.stringify(v);
+	return PrettierJSONEncoder.stringify(v);
+}
 
 export function storeObject( v:any, datastore:Datastore<Uint8Array> ):Promise<string> {
 	if( v instanceof Uint8Array ) {
 		return datastore.store(v);
 	}
-	const json = JSON.stringify(v, null, "\t")+"\n";
+	const json = stringify(v);
 	return datastore.store( utf8Encode(json) ).then( (dataurn) => dataurn+"#" );
 }
 
@@ -15,7 +21,7 @@ export function fastStoreObject<T>( v:T, datastore:Datastore<Uint8Array> ):strin
 	if( v instanceof Uint8Array ) {
 		return datastore.fastStore(v);
 	}
-	const json = JSON.stringify(v, null, "\t")+"\n";
+	const json = stringify(v);
 	return datastore.fastStore( utf8Encode(json) )+'#';
 }
 
