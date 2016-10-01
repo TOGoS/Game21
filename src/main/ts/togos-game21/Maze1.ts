@@ -307,6 +307,16 @@ const ballPix = [
 	0,1,1,0,0,0,1,0,
 	0,0,1,1,1,1,0,0,
 ];
+const latticeColumnPix = [
+	1,1,1,1,1,1,1,1,
+	1,1,0,0,0,0,1,1,
+	1,1,1,0,0,1,1,1,
+	1,1,0,1,1,0,1,1,
+	1,1,0,1,1,0,1,1,
+	1,1,1,0,0,1,1,1,
+	1,1,0,0,0,0,1,1,
+	1,1,1,1,1,1,1,1,
+];
 
 interface BitImageInfo {
 	bitstr : string;
@@ -379,6 +389,8 @@ const platformSegmentImgRef = 'bitimg:color1='+rgbaToNumber(240,240,160,255)+","
 const ladder1FrontImgRef = "bitimg:color1="+rgbaToNumber(128,96,96,255)+","+hexEncodeBits(ladder1FrontPix);
 const ladder1SideImgRef = "bitimg:width=4;height=16;color1="+rgbaToNumber(128,96,96,255)+","+hexEncodeBits(ladder1SidePix);
 const ladder1TopImgRef = "bitimg:width=16;height=4;color1="+rgbaToNumber(128,96,96,255)+","+hexEncodeBits(ladder1TopPix);
+const latticeColumnImgRef = "bitimg:color1="+rgbaToNumber(192,192,192,255)+","+hexEncodeBits(latticeColumnPix);
+const latticeColumnBgImgRef = "bitimg:color1="+rgbaToNumber(64,64,64,255)+","+hexEncodeBits(latticeColumnPix);
 
 const doorFrameBlockData = [
 	1,0,0,1,
@@ -597,6 +609,14 @@ const platformEntityId    = 'urn:uuid:27c27635-99ba-4ef3-b3ff-445eb9b132e5';
 const room1TileTreeId     = 'urn:uuid:a11ed6ae-f096-4b30-bd39-2a78d39a1385';
 const room2TileTreeId     = 'urn:uuid:67228411-243c-414c-99d7-960f1151b970';
 
+const latticeColumnEntityClassId = 'urn:uuid:601fb61a-df00-49bf-8189-877497cf492f';
+const latticeColumnRightBlockEntityClassId = 'urn:uuid:02056297-7242-4ff2-af15-69055671e5c5';
+const latticeColumnLeftBlockEntityClassId = 'urn:uuid:9bee7432-5ad0-4f9d-9759-9d1a6fa02a85';
+
+const latticeColumnBgEntityClassId = 'urn:uuid:b64789e4-023c-49ea-98b5-a9d892688bbb';
+const latticeColumnBgRightBlockEntityClassId = 'urn:uuid:c447986a-19d2-447a-ab39-afe9df781dbe';
+const latticeColumnBgLeftBlockEntityClassId = 'urn:uuid:c145afdd-bc60-4c97-bad8-b6fcb3e1846f';
+
 function initData( gdm:GameDataManager ):Promise<any> {
 	const doorFrameBlockEntityPaletteRef = makeTileEntityPaletteRef([
 		null,
@@ -624,7 +644,7 @@ function initData( gdm:GameDataManager ):Promise<any> {
 		climbability: 1/16,
 		visualRef: doorFrameImgRef
 	}, doorFramePieceEntityId );
-
+	
 	gdm.fastStoreObject<EntityClass>( {
 		debugLabel: "big yellow bricks",
 		structureType: StructureType.INDIVIDUAL,
@@ -669,7 +689,7 @@ function initData( gdm:GameDataManager ):Promise<any> {
 		visualRef: ballImgRef
 	}, ballEntityClassId );
 	
-	const platformSegmentBounds = makeAabb(-0.25,-0.25,-0.25, +0.25,+0.25,+0.25);
+	const platformSegmentBounds = makeAabb(-0.25,-0.25,-0.5, +0.25,+0.25,+0.5);
 	gdm.fastStoreObject<EntityClass>( {
 		debugLabel: "platform segment",
 		structureType: StructureType.INDIVIDUAL,
@@ -678,11 +698,11 @@ function initData( gdm:GameDataManager ):Promise<any> {
 		visualBoundingBox:   platformSegmentBounds,
 		isSolid: true,
 		mass: 20,
-		opacity: 1,
+		opacity: 0.5,
 		visualRef: platformSegmentImgRef
 	}, platformSegmentEntityClassId );
 	
-	const platform3Bounds = makeAabb(-1.5,-0.25,-0.25, +1.5,+0.25,+0.25);
+	const platform3Bounds = makeAabb(-1.5,-0.25,-0.5, +1.5,+0.25,+0.5);
 	gdm.fastStoreObject<TileTree>( {
 		debugLabel: "1.5m-wide platform",
 		structureType: StructureType.TILE_TREE,
@@ -807,6 +827,80 @@ function initData( gdm:GameDataManager ):Promise<any> {
 		opacity: 3/4,
 		visualRef: vines1ImgRef
 	}, vines1EntityClassId );
+
+	gdm.fastStoreObject<EntityClass>( {
+		debugLabel: "small lattice column",
+		structureType: StructureType.INDIVIDUAL,
+		tilingBoundingBox: HUNIT_CUBE,
+		physicalBoundingBox: HUNIT_CUBE,
+		visualBoundingBox: HUNIT_CUBE,
+		isSolid: true,
+		opacity: 1/4,
+		climbability: 1/16,
+		visualRef: latticeColumnImgRef
+	}, latticeColumnEntityClassId);
+	gdm.fastStoreObject<TileTree>( {
+		debugLabel: "small lattice column block (+x)",
+		structureType: StructureType.TILE_TREE,
+		tilingBoundingBox: UNIT_CUBE,
+		physicalBoundingBox: UNIT_CUBE,
+		visualBoundingBox: UNIT_CUBE,
+		xDivisions: 2,
+		yDivisions: 2,
+		zDivisions: 2,
+		childEntityPaletteRef: makeTileEntityPaletteRef([null, latticeColumnEntityClassId], gdm),
+		childEntityIndexes: [0,1,0,1,0,1,0,1]
+	}, latticeColumnRightBlockEntityClassId );
+	gdm.fastStoreObject<TileTree>( {
+		debugLabel: "small lattice column block (-x)",
+		structureType: StructureType.TILE_TREE,
+		tilingBoundingBox: UNIT_CUBE,
+		physicalBoundingBox: UNIT_CUBE,
+		visualBoundingBox: UNIT_CUBE,
+		xDivisions: 2,
+		yDivisions: 2,
+		zDivisions: 2,
+		childEntityPaletteRef: makeTileEntityPaletteRef([null, latticeColumnEntityClassId], gdm),
+		childEntityIndexes: [1,0,1,0,1,0,1,0]
+	}, latticeColumnLeftBlockEntityClassId );
+	
+	const bgLatticeBounds = makeAabb(-0.25,-0.25,-0.125, +0.25,+0.25,+0.125);
+	
+	gdm.fastStoreObject<EntityClass>( {
+		debugLabel: "small lattice column (background)",
+		structureType: StructureType.INDIVIDUAL,
+		tilingBoundingBox: bgLatticeBounds,
+		physicalBoundingBox: bgLatticeBounds,
+		visualBoundingBox: bgLatticeBounds,
+		isSolid: true,
+		opacity: 1/4,
+		climbability: 1/16,
+		visualRef: latticeColumnBgImgRef
+	}, latticeColumnBgEntityClassId);
+	gdm.fastStoreObject<TileTree>( {
+		debugLabel: "small lattice column block (+x)",
+		structureType: StructureType.TILE_TREE,
+		tilingBoundingBox: UNIT_CUBE,
+		physicalBoundingBox: UNIT_CUBE,
+		visualBoundingBox: UNIT_CUBE,
+		xDivisions: 2,
+		yDivisions: 2,
+		zDivisions: 4,
+		childEntityPaletteRef: makeTileEntityPaletteRef([null, latticeColumnBgEntityClassId], gdm),
+		childEntityIndexes: [0,1,0,1,0,0,0,0,0,0,0,0,0,1,0,1]
+	}, latticeColumnBgRightBlockEntityClassId );
+	gdm.fastStoreObject<TileTree>( {
+		debugLabel: "small lattice column block (-x)",
+		structureType: StructureType.TILE_TREE,
+		tilingBoundingBox: UNIT_CUBE,
+		physicalBoundingBox: UNIT_CUBE,
+		visualBoundingBox: UNIT_CUBE,
+		xDivisions: 2,
+		yDivisions: 2,
+		zDivisions: 4,
+		childEntityPaletteRef: makeTileEntityPaletteRef([null, latticeColumnBgEntityClassId], gdm),
+		childEntityIndexes: [1,0,1,0,0,0,0,0,0,0,0,0,1,0,1,0]
+	}, latticeColumnBgLeftBlockEntityClassId );
 	
 	const regularTileEntityPaletteRef = makeTileEntityPaletteRef( [
 		null,
@@ -849,6 +943,10 @@ function initData( gdm:GameDataManager ):Promise<any> {
 			isSolid: true,
 			visualRef: ladder1TopImgRef,
 		}),
+		/* 10 */ latticeColumnRightBlockEntityClassId,
+		/* 11 */ latticeColumnLeftBlockEntityClassId,
+		/* 12 */ latticeColumnBgRightBlockEntityClassId,
+		/* 13 */ latticeColumnBgLeftBlockEntityClassId,
 	], gdm, tileEntityPaletteId);
 
 	// do this as second step because we need to reference that tile tree palette by ID
@@ -2148,6 +2246,10 @@ export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string) : MazeDem
 				bigYellowBrikEntityClassId, vines1EntityClassId,
 				backLadderEntityClassId, plant1EntityClassId,
 				doorFrameEntityClassId,
+				latticeColumnRightBlockEntityClassId,
+				latticeColumnLeftBlockEntityClassId,
+				latticeColumnBgRightBlockEntityClassId,
+				latticeColumnBgLeftBlockEntityClassId,
 			];
 			for( let i=0; i<initialPaletteEntityClassRefs.length; ++i ) {
 				tpUi.setSlot(i, initialPaletteEntityClassRefs[i]);

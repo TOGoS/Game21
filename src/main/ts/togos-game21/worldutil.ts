@@ -24,7 +24,7 @@ function toUint8Array(src:ArrayLike<number>):Uint8Array {
 function entityClassRef( op:any, gdm?:GameDataManager ):string {
 	if( typeof op == 'string' ) return op;
 	
-	if( gdm == null ) throw new Error("Can't generate object prototype ref without game object"); // Well, really we should be able to for hash URN things eventually
+	if( gdm == null ) throw new Error("Can't generate object prototype ref without GameDataManager");
 	
 	return gdm.fastStoreObject(op);
 }
@@ -36,7 +36,7 @@ function entityClassRef( op:any, gdm?:GameDataManager ):string {
 export function makeTileEntityPaletteRef( palette:any, gdm?:GameDataManager, alias?:string ):string {
 	if( typeof palette == 'string' ) return palette;
 	
-	if( gdm == null ) throw new Error("Can't generate palette ref without game object"); // Well, really we should be able to for hash URN things eventually
+	if( gdm == null ) throw new Error("Can't generate palette ref without GameDataManager");
 	
 	if( !Array.isArray(palette) ) throw new Error("Supposed tile palette is not an array; can't reference it: "+JSON.stringify(palette));
 	
