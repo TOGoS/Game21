@@ -10,11 +10,9 @@ export default class BrowserStorageDatastore implements Datastore<Uint8Array> {
 	/** Returns the data if immediately available.  Otherwise returns null. */
 	public get( uri:string ):Uint8Array|undefined {
 		const str = this.browserStorage.getItem(uri);
-		if( str ) console.log("Found "+uri+": "+str);
 		if( str != null ) return utf8Encode(str);
 
 		const hex = this.browserStorage.getItem("hex-encode:"+uri);
-		if(hex) console.log("Found hex-encoded:"+uri+": "+hex);
 		if( hex != null ) return hexDecode(hex);
 		
 		return undefined;
@@ -46,7 +44,6 @@ export default class BrowserStorageDatastore implements Datastore<Uint8Array> {
 			for( let i=0; i<data.length; ++i ) {
 				if( data[i] != reencoded[i] ) return undefined;
 			}
-			console.log("Data (length "+data.length+" utf-8-decoded-encoded just fine! "+decoded);
 			return decoded;
 		} catch( err ) {
 			return undefined;
@@ -56,10 +53,8 @@ export default class BrowserStorageDatastore implements Datastore<Uint8Array> {
 	put( id:string, data:Uint8Array ):Promise<string> {
 		const utf8Decoded = this.utf8Decode(data);
 		if( utf8Decoded != null ) {
-			console.log("Storing "+id+" utf-8-encoded");
 			this.browserStorage.setItem(id, utf8Decoded);
 		} else {
-			console.log("Storing "+id+" hex-encoded");
 			this.browserStorage.setItem("hex-encode:"+id, hexEncode(data));
 		}
 		return Promise.resolve(id);
