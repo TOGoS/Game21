@@ -110,6 +110,27 @@ ul.tile-palette li {
 ul.tile-palette li.selected {
 	border-color: #FFF;
 }
+.button-bar {
+	display: flex;
+	flex-direction: row;
+	justify-content: flex-start;
+	align-items: center;
+}
+.button-bar > fieldset {
+	display: table-row;
+	flex-direction: row;
+	justify-content: flex-start;
+	flex-basis: content;
+	border: none;
+	margin: 0;
+	padding: 0;
+}
+.button-bar > fieldset > * {
+	display: table-cell;
+}
+.button-bar > *:nth-child(n+2) {
+	margin-left: 8px;
+}
 
 @media (min-width: 640px) and (min-height: 500px) {
 	.maze-canvas {
@@ -131,7 +152,7 @@ ul.tile-palette li.selected {
 </div>
 
 <div id="tile-palette-area"></div>
-<div id="button-area"></div>
+<div id="button-area" class="button-bar"></div>
 </div>
 
 <?php require_game21_js_libs($inlineResources, array('togos-game21/Maze1')); ?>

@@ -2190,10 +2190,37 @@ export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string) : MazeDem
 				payload: ["/desiredmovementdirection", 0, +1, 0]
 			})
 		}
-
-		butta.appendChild(targetEntityIdBox);
-		butta.appendChild(openDoorButton);
-		butta.appendChild(closeDoorButton);
+		
+		const udGroup:HTMLElement = document.createElement("fieldset");
+		udGroup.appendChild(targetEntityIdBox);
+		udGroup.appendChild(openDoorButton);
+		udGroup.appendChild(closeDoorButton);
+		
+		butta.appendChild(udGroup);
+		
+		const saveButton = document.createElement("button");
+		saveButton.appendChild(document.createTextNode("Save"));
+		saveButton.onclick = () => {
+			const saveNote = window.prompt("Note");
+			if( saveNote == null || saveNote.length == 0 ) return;
+			saveButton.disabled = true;
+			demo.saveGame().then( (saveRef) => {
+				console.log("Saved as "+saveRef);
+				if( window.localStorage ) {
+					const savesJson = window.localStorage.getItem("game21-local-saves");
+					const saves:{note:string,date:string,saveRef:string}[] = savesJson ? JSON.parse(savesJson) : [];
+					saves.push({
+						note: saveNote,
+						date: new Date().toISOString(),
+						saveRef: saveRef,
+					});
+					window.localStorage.setItem("game21-local-saves", JSON.stringify(saves, null, "\t"));
+				}
+				saveButton.disabled = false;
+			});
+		};
+		
+		butta.appendChild(saveButton);
 	}
 	
 	return demo;
