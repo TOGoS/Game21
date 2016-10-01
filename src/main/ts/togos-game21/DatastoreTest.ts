@@ -15,19 +15,19 @@ export function testDatastore( name:string, ds:Datastore<Uint8Array> ) {
 		
 		const urn = ds.fastStore(data);
 		if( !expectedUrnRegex.exec(urn) ) {
-			reject("fastStore didn't expect the URN we expected: "+urn);
+			reject(new Error("fastStore didn't expect the URN we expected: "+urn));
 		}
 		
 		resolve(
 			ds.store(data).then( (urn) => {
 				return expectedUrnRegex.exec(urn) ? Promise.resolve(urn) : Promise.reject(new Error("URN didn't match expected: "+urn))
 			}).then( (urn) => {
-				ds.fetch(urn).then( (val) => {
+				return ds.fetch(urn).then( (val) => {
 					const str = utf8Decode(val);
 					if( str != "Hello, world!" ) {
 						return Promise.reject(new Error("Value got back from fetching "+urn+" didn't match expected"));
 					} else {
-						return Promise.resolve(str);
+						return Promise.resolve({});
 					}
 				});
 			})

@@ -104,6 +104,11 @@
 							return mtr.resultPromise.
 								catch( function(err) { return { errors: [err] } } ).
 								then( function(tr) {
+									if( tr == null ) {
+										anyFailuresThisModule = true;
+										logErrors(mtr.testModuleName+"/"+mtr.testName, [{message: "Didn't return a testresult!"}]);
+										return;
+									}
 									if( tr.errors && tr.errors.length > 0 ) {
 										anyFailuresThisModule = true;
 										logErrors( mtr.testModuleName+"/"+mtr.testName, tr.errors );

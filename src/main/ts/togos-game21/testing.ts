@@ -62,7 +62,7 @@ class CommandLineTestHarness implements TestHarness {
 	
 	static fromEnvironment():CommandLineTestHarness {
 		let verbosity = 0;
-		if( process && process.argv ) {
+		if( typeof process == 'object' && process && process.argv ) {
 			for( let i = 2; i < process.argv.length; ++i ) {
 				if( process.argv[i] == '-v' ) {
 					verbosity = 1;
