@@ -42,4 +42,7 @@ export default class MultiDatastore<T> implements Datastore<T> {
 		}
 		return ident;
 	}
+	public put( id:string, data:T ):Promise<string> {
+		return Promise.race(this.stores.map( (s) => s.put(id, data) ));
+	}
 }

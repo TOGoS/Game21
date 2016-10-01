@@ -4,35 +4,44 @@ import KeyedList from './KeyedList';
 import ErrorInfo from './ErrorInfo';
 import Datastore from './Datastore';
 
-export default class MemoryDatastore<T> implements Datastore<T> {
-	protected values:KeyedList<T> = {};
-	
-	constructor( protected identify:(v:T)=>string, protected ds:Datastore<T> ) { }
+export default class CachingDatastore<T> implements Datastore<T> {
+	constructor( protected identify:(v:T)=>string, protected cacheDs:Datastore<T>, protected fallbackDs:Datastore<T> ) { }
 
 	public get( uri:string ):T|undefined {
-		let v:T|undefined = this.values[uri];
+		let v:T|undefined = this.cacheDs.get(uri);
 		if( v == null ) {
-			v = this.ds.get(uri);
-			if( v != null ) this.values[uri] = v;
+			v = this.fallbackDs.get(uri);
+			if( v != null ) {
+				this.cacheDs.put(uri, v);
+			}
 		}
 		return v;
 	}
 	public fetch( uri:string ):Promise<T> {
-		if( this.values[uri] ) return Promise.resolve(this.values[uri]);
-		return this.ds.fetch(uri).then( (v) => {
-			this.values[uri] = v;
-			return v;
+		return this.cacheDs.fetch(uri).catch( () => {
+			return this.fallbackDs.fetch(uri).then( (v) => {
+				this.cacheDs.put(uri, v);
+				return v;
+			});
 		});
 	}
 	public store( data:T ):Promise<string> {
 		const k = this.identify(data);
-		this.values[k] = data;
-		return this.ds.store(data);
+		return this.put(k, data);
 	}
 	public fastStore( data:T, onComplete?:(success:boolean, errorInfo?:ErrorInfo)=>void ):string {
 		const ident = this.identify(data);
-		this.values[ident] = data;
-		this.ds.fastStore( data, onComplete );
+		const putProm = this.put(ident, data);
+		if( onComplete ) {
+			const onCompleat = onComplete;
+			putProm.then( (id) => onCompleat(true), (err) => onCompleat(false, err) );
+		}
 		return ident;
+	}
+	public put( id:string, data:T ):Promise<string> {
+		return Promise.all([
+			this.cacheDs.put(id, data),
+			this.fallbackDs.put(id, data)
+		]).then( () => id );
 	}
 }

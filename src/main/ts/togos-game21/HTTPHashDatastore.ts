@@ -26,18 +26,21 @@ export default class HTTPHashDatastore implements Datastore<Uint8Array> {
 	}
 	fastStore( data:Uint8Array, onComplete?:(success:boolean, errorInfo?:ErrorInfo)=>void ):string {
 		const urn = sha1Urn(data);
-		const url = this.n2rUrl+"?"+urn;
-		let resProm = http.request('PUT', url, {}, data)
-		const onCompleat = onComplete;
-		if( onCompleat ) resProm.then( (res) => {
-			if( res.statusCode < 200 || res.statusCode >= 300 ) {
-				onCompleat( false, new Error("Received status code "+res.statusCode+" from PUT to "+url) );
-			} else {
-				onCompleat( true );
-			}
-		}).catch( (err) => {
-			onCompleat( false, err );
-		})
+		const putProm = this.put(urn, data);
+		if( onComplete ) {
+			const onCompleat = onComplete;
+			putProm.then( (id) => onCompleat(true), (err) => onCompleat(false, err) );
+		}
 		return urn;
+	}
+	put( urn:string, data:Uint8Array ):Promise<string> {
+		const url = this.n2rUrl+"?"+urn;
+		return http.request('PUT', url, {}, data).then( (res) => {
+			if( res.statusCode < 200 || res.statusCode >= 300 ) {
+				return Promise.reject(new Error("Received status code "+res.statusCode+" from PUT to "+url));
+			} else {
+				return Promise.resolve(urn);
+			}
+		});
 	}
 }

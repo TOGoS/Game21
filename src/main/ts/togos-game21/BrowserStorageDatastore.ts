@@ -34,7 +34,7 @@ export default class BrowserStorageDatastore implements Datastore<Uint8Array> {
 	public fastStore( data:Uint8Array, onComplete?:(success:boolean, errorInfo?:ErrorInfo)=>void ):string {
 		if( onComplete ) throw new Error("onComplete not supported by BrowserStorageDatastore#fastStore");
 		const id = this.identify(data);
-		this.fastPut(id, data);
+		this.put(id, data);
 		return id;
 	}
 
@@ -53,7 +53,7 @@ export default class BrowserStorageDatastore implements Datastore<Uint8Array> {
 		}
 	}
 
-	fastPut( id:string, data:Uint8Array ) {
+	put( id:string, data:Uint8Array ):Promise<string> {
 		const utf8Decoded = this.utf8Decode(data);
 		if( utf8Decoded != null ) {
 			console.log("Storing "+id+" utf-8-encoded");
@@ -62,5 +62,6 @@ export default class BrowserStorageDatastore implements Datastore<Uint8Array> {
 			console.log("Storing "+id+" hex-encoded");
 			this.browserStorage.setItem("hex-encode:"+id, hexEncode(data));
 		}
+		return Promise.resolve(id);
 	}
 }

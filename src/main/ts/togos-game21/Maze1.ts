@@ -3,6 +3,7 @@ import Datastore from './Datastore';
 import HTTPHashDatastore from './HTTPHashDatastore';
 import MemoryDatastore from './MemoryDatastore';
 import CachingDatastore from './CachingDatastore';
+import BrowserStorageDatastore from './BrowserStorageDatastore';
 import MultiDatastore from './MultiDatastore';
 
 import { deepFreeze, thaw, deepThaw, isDeepFrozen } from './DeepFreezer';
@@ -2021,6 +2022,7 @@ export class MazeDemo {
 	public loadGame(saveRef:string):Promise<MazeGame> {
 		this.stopSimulation();
 		return fetchObject(saveRef, this.datastore, true).then( (save) => {
+			if( !save.gameDataRef ) return Promise.reject(new Error("Oh no, save data all messed up? "+JSON.stringify(save)));
 			const gdm = new GameDataManager(this.datastore, save.gameDataRef);
 			this.view.gameDataManager = gdm;
 			this.game = new MazeGame(gdm);
@@ -2082,9 +2084,15 @@ interface SaveGame {
 
 export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string) : MazeDemo {
 	const dataIdent = sha1Urn;
-	const ds = new CachingDatastore(dataIdent, new MultiDatastore(dataIdent, [
-		new HTTPHashDatastore()
-	]));
+	const ds2:Datastore<Uint8Array> = new HTTPHashDatastore();
+	const ds1:Datastore<Uint8Array> = window.localStorage ? new CachingDatastore(dataIdent,
+		new BrowserStorageDatastore(dataIdent, window.localStorage),
+		ds2
+	) : ds2;
+	const ds:Datastore<Uint8Array> = new CachingDatastore(dataIdent,
+		new MemoryDatastore(dataIdent),
+		ds1
+	);
 	
 	const v = new MazeView(canv);
 	const viewItems : MazeViewageItem[] = [];

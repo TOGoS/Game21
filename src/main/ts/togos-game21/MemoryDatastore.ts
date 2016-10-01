@@ -41,6 +41,10 @@ export default class MemoryDatastore<T> implements Datastore<T> {
 		}, this.delay );
 		return ident;
 	}
+	public put( id:string, data:T ):Promise<string> {
+		this.values[id] = data;
+		return Promise.resolve(id);
+	}
 	
 	public static createSha1Based(delay:number) : MemoryDatastore<Uint8Array> {
 		return new MemoryDatastore<Uint8Array>( sha1Urn, delay );
