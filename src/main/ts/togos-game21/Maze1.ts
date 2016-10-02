@@ -15,7 +15,11 @@ import Vector3D from './Vector3D';
 import { makeVector, setVector, vectorToString, ZERO_VECTOR } from './vector3ds';
 import { addVector, subtractVector, vectorLength, vectorIsZero, scaleVector, normalizeVector, dotProduct, roundVectorToGrid } from './vector3dmath';
 import AABB from './AABB';
-import { makeAabb, aabbWidth, aabbHeight, aabbDepth, aabbAverageX, aabbAverageY, aabbContainsVector, aabbIntersectsWithOffset } from './aabbs';
+import {
+	makeAabb, aabbWidth, aabbHeight, aabbDepth,
+	aabbAverageX, aabbAverageY, aabbAverageZ,
+	aabbContainsVector, aabbIntersectsWithOffset, offsetAabbContainsVector
+} from './aabbs';
 import Quaternion from './Quaternion';
 import TransformationMatrix3D from './TransformationMatrix3D';
 import SceneShader, { ShadeRaster } from './SceneShader';
@@ -365,15 +369,19 @@ interface MazeItemVisual {
 }
 
 interface MazeViewageItem {
-	x : number;
-	y : number;
+	position : Vector3D;
+	orientation : Quaternion;
 	visual : MazeItemVisual;
+	
+	// When in editor mode, we'll get this back:
+	entity? : Entity;
 }
 
 interface MazeViewage {
 	items : MazeViewageItem[];
 	visibility? : ShadeRaster;
 	opacity? : ShadeRaster; // Fer debuggin
+	cameraLocation? : RoomLocation;
 }
 
 const brikImgRef = "bitimg:color0=0;color1="+rgbaToNumber(200,200,180,255)+","+hexEncodeBits(brikPix);
@@ -474,12 +482,31 @@ export class MazeView {
 		} else {
 			throw new Error(ref+" not parse!");
 		}
-
+		
 		const img = document.createElement("img");
 		img.src = xRef;
 		return this.imageCache[ref] = img; 
 	}
-
+	
+	public getTileEntityAt( coords:Vector3D, tileSize:number=1 ):TileEntity|undefined {
+		const viewItems = this.viewage.items;
+		for( let i=0; i<viewItems.length; ++i ) {
+			const vi = viewItems[i];
+			const te = vi.entity;
+			if( te ) {
+				const ec = this.gameDataManager.getObjectIfLoaded<EntityClass>(te.classRef);
+				if( ec && ec.tilingBoundingBox.maxX-ec.tilingBoundingBox.minX == tileSize && offsetAabbContainsVector(vi.position, ec.tilingBoundingBox, coords) ) {
+					return {
+						orientation: vi.orientation,
+						entity: te
+					}
+				}
+				
+			}
+		}
+		return undefined;
+	}
+	
 	public clear():void {
 		const ctx = this.canvas.getContext('2d');
 		if( !ctx ) return;
@@ -564,8 +591,8 @@ export class MazeView {
 		for( let i in this.viewage.items ) {
 			const item = this.viewage.items[i];
 			const img = this.getImage(item.visual.imageRef);
-			const px = (item.x-item.visual.width/2 ) * ppm + cx;
-			const py = (item.y-item.visual.height/2) * ppm + cy;
+			const px = (item.position.x-item.visual.width/2 ) * ppm + cx;
+			const py = (item.position.y-item.visual.height/2) * ppm + cy;
 			ctx.drawImage(img, px, py);
 		}
 		if(this.viewage.visibility) this.drawOcclusionFog(this.viewage.visibility);
@@ -1048,7 +1075,7 @@ function initData( gdm:GameDataManager ):Promise<any> {
 	return gdm.flushUpdates();
 }
 
-function roomToMazeViewage( roomRef:string, roomX:number, roomY:number, gdm:GameDataManager, viewage:MazeViewage, visibility:ShadeRaster ):void {
+function roomToMazeViewage( roomRef:string, roomPosition:Vector3D, gdm:GameDataManager, viewage:MazeViewage, visibility:ShadeRaster, includeGreatInfo:boolean ):void {
 	const room = gdm.getRoom(roomRef);
 	if( room == null ) throw new Error("Failed to load room "+roomRef);
 	
@@ -1070,16 +1097,23 @@ function roomToMazeViewage( roomRef:string, roomX:number, roomY:number, gdm:Game
 					break isVisibleLoop;
 				}
 			}
-
+			
 			// TODO: Re-use items, visuals
 			if( visible ) viewage.items.push( {
-				x: position.x + aabbAverageX(entityClass.visualBoundingBox),
-				y: position.y + aabbAverageY(entityClass.visualBoundingBox),
+				// TODO: Just send position normal,
+				// visual should contain offsets
+				position: {
+					x: position.x + aabbAverageX(entityClass.visualBoundingBox),
+					y: position.y + aabbAverageY(entityClass.visualBoundingBox),
+					z: position.z + aabbAverageZ(entityClass.visualBoundingBox),
+				},
+				orientation: orientation,
 				visual: {
 					width: aabbWidth(entityClass.visualBoundingBox),
 					height: aabbHeight(entityClass.visualBoundingBox),
 					imageRef: entityClass.visualRef
-				}
+				},
+				entity: includeGreatInfo ? entity : undefined,
 			})
 		}
 		eachSubEntity( entity, position, gdm, _entityToMazeViewage );
@@ -1088,16 +1122,16 @@ function roomToMazeViewage( roomRef:string, roomX:number, roomY:number, gdm:Game
 	for( let re in room.roomEntities ) {
 		const roomEntity = room.roomEntities[re];
 		const orientation = roomEntity.orientation ? roomEntity.orientation : Quaternion.IDENTITY;
-		_entityToMazeViewage( roomEntity.entity, makeVector(roomX+roomEntity.position.x, roomY+roomEntity.position.y, roomEntity.position.z), orientation );
+		_entityToMazeViewage( roomEntity.entity, addVector(roomPosition, roomEntity.position), orientation );
 	}
 }
-function sceneToMazeViewage( roomRef:string, roomX:number, roomY:number, gdm:GameDataManager, viewage:MazeViewage, visibility:ShadeRaster ):void {
+function sceneToMazeViewage( roomRef:string, roomPosition:Vector3D, gdm:GameDataManager, viewage:MazeViewage, visibility:ShadeRaster, includeGreatInfo:boolean ):void {
 	const room = gdm.getRoom(roomRef);
 	if( room == null ) throw new Error("Failed to load room "+roomRef);
-	roomToMazeViewage( roomRef, roomX, roomY, gdm, viewage, visibility );
+	roomToMazeViewage( roomRef, roomPosition, gdm, viewage, visibility, includeGreatInfo );
 	for( let n in room.neighbors ) {
 		const neighb = room.neighbors[n];
-		roomToMazeViewage( neighb.roomRef, roomX+neighb.offset.x, roomY+neighb.offset.y, gdm, viewage, visibility );
+		roomToMazeViewage( neighb.roomRef, addVector(roomPosition, neighb.offset), gdm, viewage, visibility, includeGreatInfo );
 	}
 }
 
@@ -2030,7 +2064,8 @@ export class MazeDemo {
 			const rasterOriginY = Math.floor(rasterHeight/rasterResolution/2) + playerLoc.position.y - Math.floor(playerLoc.position.y);
 			const visibilityRaster   = new ShadeRaster(rasterWidth, rasterHeight, rasterResolution, rasterOriginX, rasterOriginY);
 			let opacityRaster:ShadeRaster|undefined;
-			if( this.mode == DemoMode.EDIT ) {
+			const seeAll = this.mode == DemoMode.EDIT;
+			if( seeAll ) {
 				visibilityRaster.data.fill(255);
 			} else {
 				const distanceInPixels = rasterResolution*distance;
@@ -2045,23 +2080,9 @@ export class MazeDemo {
 				if( isAllNonZero(visibilityRaster.data) ) console.log("Visibility raster is all nonzero!");
 				sceneShader.growVisibility(visibilityRaster); // Not quite!  Since this expands visibility into non-room space.
 			}
-			/*
-			for( let i=0, y=0; y<visibilityRaster.height; ++y ) {
-				for( let x=0; x<visibilityRaster.width; ++x, ++i ) {
-					if( visibilityRaster.data[i] ) {
-						this.view.viewage.items.push( {
-							x: x / visibilityRaster.resolution - visibilityRaster.originX,
-							y: y / visibilityRaster.resolution - visibilityRaster.originY,
-							visual: {
-								width: 1 / visibilityRaster.resolution,
-								height: 1 / visibilityRaster.resolution,
-								imageRef: [plant1ImgRef,brikImgRef,bigBrikImgRef][visibilityRaster.data[i] % 3]
-							}
-						})
-					}
-				}
-			}*/
-			sceneToMazeViewage( playerLoc.roomRef, -playerLoc.position.x, -playerLoc.position.y, this.game.gameDataManager, this.view.viewage, visibilityRaster );
+			sceneToMazeViewage( playerLoc.roomRef, scaleVector(playerLoc.position, -1), this.game.gameDataManager, this.view.viewage, visibilityRaster, seeAll );
+			this.view.viewage.cameraLocation = playerLoc;
+
 			this.view.viewage.visibility = visibilityRaster;
 			this.view.viewage.opacity = opacityRaster;
 		} else {
@@ -2166,8 +2187,14 @@ export class MazeDemo {
 	public handleMouseEvent(evt:MouseEvent):void {
 		if( evt.buttons == 1 ) {
 			const cpCoords = this.eventToCanvasPixelCoordinates(evt);
-			this.paintCoordinates = this.view.canvasPixelToWorldCoordinates(cpCoords.x, cpCoords.y);
-			this.maybePaint();
+			const coords = this.view.canvasPixelToWorldCoordinates(cpCoords.x, cpCoords.y);
+			if( this.keysDown[17] ) {
+				const entity:TileEntity|undefined = this.view.getTileEntityAt(coords, 1);
+				this.tilePaletteUi.setSlot(this.tilePaletteUi.selectedSlotIndex, entity||null);
+			} else {
+				this.paintCoordinates = coords;
+				this.maybePaint();
+			}
 		} else {
 			this.paintCoordinates = undefined;
 		}

@@ -7,7 +7,7 @@ export default class TilePalette {
 	protected imageUrlPromises:(Promise<string>|undefined)[];
 	protected tileElements:(HTMLElement)[];
 	protected _element:HTMLElement;
-	protected selectedSlotIndex:number = 0;
+	protected _selectedSlotIndex:number = 0;
 	
 	public constructor(
 		slotCount:number,
@@ -22,7 +22,7 @@ export default class TilePalette {
 		tab.className = "tile-palette";
 		for( let i=0; i<this.tileEntities.length; ++i ) {
 			const li = this.tileElements[i] = document.createElement('li');
-			if( i == this.selectedSlotIndex ) li.className = "selected";
+			if( i == this._selectedSlotIndex ) li.className = "selected";
 			const label = document.createTextNode(""+i);
 			li.appendChild(label);
 			const _i = i;
@@ -64,11 +64,13 @@ export default class TilePalette {
 	
 	protected selectListeners:Array<(index:number, te:TileEntity|null)=>void> = [];
 	
+	public get selectedSlotIndex():number { return this._selectedSlotIndex; }
+	
 	public selectSlot( index:number ):void {
-		if( index == this.selectedSlotIndex ) return;
-		this.tileElements[this.selectedSlotIndex].className = '';
+		if( index == this._selectedSlotIndex ) return;
+		this.tileElements[this._selectedSlotIndex].className = '';
 		this.tileElements[index].className = 'selected';
-		this.selectedSlotIndex = index;
+		this._selectedSlotIndex = index;
 		for( let t in this.selectListeners ) {
 			this.selectListeners[t]( index, this.tileEntities[index] );
 		}

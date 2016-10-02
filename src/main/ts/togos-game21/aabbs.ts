@@ -16,6 +16,7 @@ export function aabbHeight( aabb:AABB ) { return aabb.maxY-aabb.minY; }
 export function aabbDepth(  aabb:AABB ) { return aabb.maxZ-aabb.minZ; }
 export function aabbAverageX(  aabb:AABB ) { return (aabb.maxX+aabb.minX)/2; }
 export function aabbAverageY(  aabb:AABB ) { return (aabb.maxY+aabb.minY)/2; }
+export function aabbAverageZ(  aabb:AABB ) { return (aabb.maxZ+aabb.minZ)/2; }
 
 export function aabbIntersectsWithOffset( aPos:Vector3D, aBb:AABB, bPos:Vector3D, bBb:AABB ):boolean {
 	if( aPos.x + aBb.maxX <= bPos.x + bBb.minX ) return false;
@@ -34,6 +35,16 @@ export function aabbContainsVector( bb:AABB, v:Vector3D ):boolean {
 	if( v.x > bb.maxX ) return false;
 	if( v.y > bb.maxY ) return false;
 	if( v.z > bb.maxZ ) return false;
+	return true;
+}
+
+export function offsetAabbContainsVector( bbOffset:Vector3D, bb:AABB, v:Vector3D ):boolean {
+	if( v.x < bbOffset.x + bb.minX ) return false;
+	if( v.y < bbOffset.y + bb.minY ) return false;
+	if( v.z < bbOffset.z + bb.minZ ) return false;
+	if( v.x > bbOffset.x + bb.maxX ) return false;
+	if( v.y > bbOffset.y + bb.maxY ) return false;
+	if( v.z > bbOffset.z + bb.maxZ ) return false;
 	return true;
 }
 
