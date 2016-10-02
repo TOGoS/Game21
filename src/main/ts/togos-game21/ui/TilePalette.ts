@@ -44,11 +44,10 @@ export default class TilePalette {
 		}
 		if( entity == null ) {
 			this.imageUrls[index] = null;
+			this.tileEntities[index] = null;
 			this.tileElements[index].style.backgroundImage = null;
 			this.imageUrlPromises[index] = undefined;
-			return;
-		}
-		if( JSON.stringify(entity) != JSON.stringify(this.tileEntities[index]) ) {
+		} else if( JSON.stringify(entity) != JSON.stringify(this.tileEntities[index]) ) {
 			this.tileEntities[index] = entity;
 			this.imageUrls[index] = null;
 			const renderP = this.renderer( entity.entity, entity.orientation );
@@ -59,6 +58,13 @@ export default class TilePalette {
 					this.tileElements[index].style.backgroundImage = url ? "url('"+url+"')" : null;
 				}
 			});
+		}
+		this.triggerSelectListeners();
+	}
+	
+	protected triggerSelectListeners() {
+		for( let t in this.selectListeners ) {
+			this.selectListeners[t]( this._selectedSlotIndex, this.tileEntities[this._selectedSlotIndex] );
 		}
 	}
 	
@@ -71,9 +77,7 @@ export default class TilePalette {
 		this.tileElements[this._selectedSlotIndex].className = '';
 		this.tileElements[index].className = 'selected';
 		this._selectedSlotIndex = index;
-		for( let t in this.selectListeners ) {
-			this.selectListeners[t]( index, this.tileEntities[index] );
-		}
+		this.triggerSelectListeners();
 	}
 	
 	public on(event:"select", then:(index:number, te:TileEntity|null)=>void):void {

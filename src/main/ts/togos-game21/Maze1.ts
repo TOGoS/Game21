@@ -1895,7 +1895,7 @@ export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string) : MazeDem
 			butta.appendChild(loadButton);
 		}
 		
-		const helpDialogElement:HTMLElement = document.getElementById('help-dialog');
+		const helpDialogElement = document.getElementById('help-dialog');
 		if( helpDialogElement ) {
 			const helpDialog = new DialogBox(helpDialogElement);
 			const helpButton = document.createElement('button');
