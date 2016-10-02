@@ -19,14 +19,6 @@
 ## Misc to-do items
 
 Maze1:
-- Platform physics:
-  - e.g. if a platform is moved after an player above it,
-    the player will never be touching the platform during its
-    'am I on anything' phase, resulting in never being able to jump.
-    - Changing the objects' order 'fixes' this, but causes
-      movements the other way to work differently.
-    - Silly but kinda works solution:
-      - move entities 'moving away' (from the centers of their rooms) first
 - Background layer! (just draw darker than fg)
 - Create, connect new rooms interactively
 - Make jumping less unreasonable
@@ -180,3 +172,7 @@ Possibly outdated but maybe not:
   "Can only contain triangulated meshes." which should make my job easy.
   -- http://www.freecadweb.org/wiki/index.php?title=Manual:Import_and_export_to_other_filetypes
 * Decentish quantized physics (overlaps not allowed)
+* Platform physics (good enough for now)
+  - Silly but kinda works solution for platforms:
+    - move entities 'moving away' (from the centers of their rooms) first
+    - glitches at room boundaries (so avoid platforms crossing those!)

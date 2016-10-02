@@ -190,6 +190,11 @@ ul.tile-palette li.selected {
 	text-decoration: underline;
 }
 
+#camera-location-box {
+	color: #880;
+	mix-blend-mode: screen;
+	font-family: monospace;
+}
 
 @media (min-width: 640px) and (min-height: 500px) {
 	.maze-canvas {
@@ -207,6 +212,7 @@ ul.tile-palette li.selected {
 
 <div class="game-interface">
 <div class="maze-area" id="maze-area">
+<div id="camera-location-box" style="position:absolute; top:0; left:0;"></div>
 <canvas class="maze-canvas" id="maze-canvas" width="<?php eht($width); ?>" height="<?php eht($height); ?>"/>
 </div>
 

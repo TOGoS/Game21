@@ -2081,12 +2081,25 @@ export class MazeDemo {
 				sceneShader.growVisibility(visibilityRaster); // Not quite!  Since this expands visibility into non-room space.
 			}
 			sceneToMazeViewage( playerLoc.roomRef, scaleVector(playerLoc.position, -1), this.game.gameDataManager, this.view.viewage, visibilityRaster, seeAll );
-			this.view.viewage.cameraLocation = playerLoc;
+			if( seeAll ) this.view.viewage.cameraLocation = playerLoc;
 
 			this.view.viewage.visibility = visibilityRaster;
 			this.view.viewage.opacity = opacityRaster;
 		} else {
 			console.log("Failed to locate player, "+this.playerId);
+		}
+		
+		const locationDiv = document.getElementById('camera-location-box');
+		if( locationDiv ) {
+			let locationNode = locationDiv.firstChild;
+			if( locationNode == null ) locationDiv.appendChild(locationNode = document.createTextNode(""));
+			const cameraLoc = this.view.viewage.cameraLocation;
+			if( cameraLoc ) {
+				const p = cameraLoc.position;
+				locationNode.nodeValue = cameraLoc.roomRef+" @ "+p.x.toFixed(3)+","+p.y.toFixed(3)+","+p.z.toFixed(3);
+			} else {
+				locationNode.nodeValue = "";
+			}
 		}
 		
 		this.view.clear();
