@@ -1465,6 +1465,11 @@ export class MazeDemo {
 			keyEvent.preventDefault();
 			return;
 		}
+		if( keyEvent.keyCode == 192 ) {
+			this.popUpConsole("");
+			keyEvent.preventDefault();
+			return;
+		}
 		this.keysDown[keyEvent.keyCode] = true;
 		this.keysUpdated();
 	}
@@ -1888,6 +1893,17 @@ export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string) : MazeDem
 			}
 			
 			butta.appendChild(loadButton);
+		}
+		
+		const helpDialogElement:HTMLElement = document.getElementById('help-dialog');
+		if( helpDialogElement ) {
+			const helpDialog = new DialogBox(helpDialogElement);
+			const helpButton = document.createElement('button');
+			helpButton.appendChild(document.createTextNode("Help!"));
+			helpButton.onclick = () => helpDialog.setVisible(true);
+			const closeHelpButton = document.getElementById('help-close-button');
+			if( closeHelpButton ) closeHelpButton.onclick = () => helpDialog.setVisible(false);
+			butta.appendChild(helpButton);
 		}
 	}
 	

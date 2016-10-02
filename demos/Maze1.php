@@ -146,8 +146,10 @@ ul.tile-palette li.selected {
 	display: flex;
 	flex-direction: column;
 }
-.dialog-box-content > * {
-	width: 100%;
+.help-box-content {
+	background: rgba(0,0,0,0.75);
+	padding: 4px 8px;
+	overflow: auto;
 }
 .dialog-box-header {
 	display: flex;
@@ -245,7 +247,7 @@ ul.tile-palette li.selected {
   </div>
   <div class="dialog-box-content">
     <div id="console-output" class="dialog-text-area" style="flex-grow: 1"></div>
-	 <input id="console-input" class="dialog-text-area"/>
+    <input id="console-input" class="dialog-text-area"/>
   </div>
 </div>
 
@@ -257,6 +259,34 @@ ul.tile-palette li.selected {
   <div class="dialog-box-content">
     <ul id="load-list" class="dialog-text-area">
     </ul>
+  </div>
+</div>
+
+<div id="help-dialog" class="dialog-box big-dialog-box" style="display:none">
+  <div class="dialog-box-header">
+    <h3>About</h3>
+    <button id="help-close-button">Close</button>
+  </div>
+  <div class="dialog-box-content help-box-content">
+    <p>Hit the tab key to toggle between edit and play mode.</p>
+    
+    <p>Hit <kbd>/</kbd> to open the console.</p>
+    
+    <h4>Console commands</h4>
+    
+    <p>Note that some editing commands require you to be in edit mode because they rely
+    on information that is only given to the client in edit mode.</p> 
+    
+    <ul>
+    <li><code>/load &lt;savegame-ID&gt;</code> - load a save game by URN; note that this URN should end with a "<code>#</code>" and you will need to enclose it in quotes.</li>
+    <li><code>/create-room</code> - creates a new room, not connected to any other</li>
+    <li><code>/connect-new-room &lt;direction&gt;</code> - create a new room and connect the current room to it in the specified direction.
+      Directions are <code>t</code> (top), <code>r</code> (right), <code>b</code> (bottom), <code>l</code> (left), or some combination,
+      (for diagonals)</li>
+    <li><code>/connect-rooms &lt;room-A-ID&gt; &lt;direction&gt; &lt;room-B-ID&gt;</code> - connect 2 rooms.</li>
+    </ul>
+    
+    <p>The ID of the room you are currently in is shown at the top of the screen.</p>
   </div>
 </div>
 
