@@ -33,8 +33,6 @@ const complexerObject = {
 	}
 };
 
-console.log(PrettierJSONEncoder.stringify(complexerObject));
-
 registerTestResult("PrettierJSONEncoder - encode/decode complex object", assertEqualsPromise(
 	complexerObject, JSON.parse(PrettierJSONEncoder.stringify(complexerObject))
 ));
