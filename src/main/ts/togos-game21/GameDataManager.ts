@@ -65,6 +65,10 @@ export default class GameDataManager {
 			room.roomEntities[re] = thaw(room.roomEntities[re]);
 			room.roomEntities[re].entity = thaw(room.roomEntities[re].entity);
 		}
+		room.neighbors = thaw(room.neighbors);
+		for( let n in room.neighbors ) {
+			room.neighbors[n] = thaw(room.neighbors[n]);
+		}
 		this.putMutableObject( roomId, room );
 		return room;
 	}

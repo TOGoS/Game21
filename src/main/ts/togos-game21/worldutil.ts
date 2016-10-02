@@ -160,9 +160,9 @@ export function makeTileTreeRef( palette:any, w:number, h:number, d:number, inde
 
 export function connectRooms( gdm:GameDataManager, room0Ref:string, room1Ref:string, offset:Vector3D ):void {
 	offset = deepFreeze(offset);
-	const room0 = gdm.getRoom(room0Ref);
+	const room0 = gdm.getMutableRoom(room0Ref);
 	if( room0 == null ) throw new Error("Failed to get room "+room0Ref);
-	const room1 = gdm.getRoom(room1Ref);
+	const room1 = gdm.getMutableRoom(room1Ref);
 	if( room1 == null ) throw new Error("Failed to get room "+room1Ref);
 	const neighborKey0To1 = "n"+base32Encode(hash(room0Ref+";"+room1Ref+";"+vectorToArray(offset).join(","), SHA1));
 	const neighborKey1To0 = "n"+base32Encode(hash(room1Ref+";"+room0Ref+";"+vectorToArray(scaleVector(offset, -1)).join(","), SHA1));

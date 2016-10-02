@@ -24,7 +24,7 @@ import Quaternion from './Quaternion';
 import TransformationMatrix3D from './TransformationMatrix3D';
 import SceneShader, { ShadeRaster } from './SceneShader';
 import { uuidUrn, newType4Uuid } from '../tshash/uuids';
-import { makeTileTreeRef, makeTileEntityPaletteRef, eachSubEntity } from './worldutil';
+import { makeTileTreeRef, makeTileEntityPaletteRef, eachSubEntity, connectRooms } from './worldutil';
 import * as dat from './maze1demodata';
 import {
 	Room,
@@ -41,6 +41,8 @@ import { rewriteTileTree } from './tiletrees';
 
 import Tokenizer from './forth/Tokenizer';
 import Token, { TokenType } from './forth/Token';
+
+import Logger from './Logger';
 
 import MiniConsole from './ui/MiniConsole';
 import MultiConsole from './ui/MultiConsole';
@@ -999,6 +1001,7 @@ export class MazeGamePhysics {
 export class MazeGame {
 	protected rooms:KeyedList<Room> = {};
 	protected phys = new MazeGamePhysics(this);
+	public logger:Logger = console;
 	
 	protected entityMessages:KeyedList<EntityMessage[]> = {};
 
@@ -1203,9 +1206,73 @@ export class MazeGame {
 		}
 	}
 	
+	protected handleMessage(message:EntityMessage):void {
+		switch( message.payload[0] ) {
+		case '/create-room':
+			{
+				const roomId = message.payload[1];
+				if( typeof roomId != 'string' ) {
+					this.logger.error("'create-room' argument not a string", message.payload);
+					return;
+				}
+				const ttId = newUuidRef();
+				this.gameDataManager.putMutableObject<Room>(roomId, {
+					bounds: makeAabb(-8,-8,-8, 8,8,8),
+					neighbors: {},
+					roomEntities: {
+						[ttId]: {
+							position: ZERO_VECTOR,
+							entity: {
+								classRef: dat.getDefaultRoomTileTreeRef(this.gameDataManager)
+							}
+						}
+					}
+				});
+				this.logger.log("Created room "+roomId);
+			}
+			break;
+		case '/connect-rooms':
+			{
+				const room1Id = message.payload[1];
+				const dir = ""+message.payload[2];
+				const room2Id = message.payload[3];
+				// For now all rooms are 16x16, so
+				let nx = 0, ny = 0, nz = 0;
+				for( let i=0; i<dir.length; ++i ) {
+					switch( dir[i] ) {
+					case 't': ny = -1; break;
+					case 'b': ny = +1; break;
+					case 'l': nx = -1; break;
+					case 'r': nx = +1; break;
+					case 'a': nz = -1; break;
+					case 'z': nz = +1; break;
+					default:
+						this.logger.warn("Unrecognized direction char: "+dir[i]);
+					}
+				}
+				try {
+					connectRooms(this.gameDataManager, room1Id, room2Id, makeVector(nx*16, ny*16, nz*16));
+				} catch( err ) {
+					this.logger.error("Failed to connect rooms", err);
+				}
+			}
+			break;
+		default:
+			this.logger.warn("Unrecognized simulator message from "+message.sourceId+":", message.payload);
+		}
+		
+	}
+	
 	public playerEntityId?:string;
 	public playerDesiredMovementDirection:Vector3D = ZERO_VECTOR;
 	public update(interval:number=1/16) {
+		const simulatorMessages = this.entityMessages[simulatorId];
+		if( simulatorMessages ) {
+			for( let m in simulatorMessages ) {
+				this.handleMessage(simulatorMessages[m]);
+			}
+		}
+		
 		for( let r in this.rooms ) {
 			let room = this.rooms[r];
 			for( let re in room.roomEntities ) {
@@ -1543,21 +1610,69 @@ export class MazeDemo {
 				return;
 				// do nothing!
 			} else {
-				switch( tokens[0].text ) {
-				case 'cr':
+				doCommand: switch( tokens[0].text ) {
+				case 'load':
 					{
-						if( tokens.length == 4 ) {
-							const roomAId = tokens[1].text;
-							const dirName = tokens[2].text;
-							const roomBId = tokens[3].text;
-							this.game.enqueueEntityMessage({
-								destinationId: simulatorId,
-								sourceId: "ui",
-								payload: ["/connect-rooms", roomAId, dirName, roomBId],
-							});
-						} else {
-							this.console.error("/cr takes 3 arguments: <room 1 ID> <direction (t,l,r,b,a,z)> <room2 ID>")
+						if( tokens.length != 2 ) {
+							this.console.error("Load takes a single argument: <savegame URI>");
+							//e.g. urn:sha1:53GHW7DMQF472PTXLWKKE25BKUJXOTXZ#
+							break doCommand;
 						}
+						this.loadGame(tokens[1].text);
+					}
+					break;
+				case 'create-new-room':
+					{
+						const newRoomUuid = newUuidRef();
+						this.console.log("New room ID:", newRoomUuid);
+						this.game.enqueueEntityMessage({
+							destinationId: simulatorId,
+							sourceId: "ui",
+							payload: ["/create-room", newRoomUuid]
+						});
+					}
+					break;
+				case 'connect-new-room':
+					{
+						const currentLocation = this.view.viewage.cameraLocation;
+						if( !currentLocation || !currentLocation.roomRef ) {
+							this.console.error("Can't dig to new room; current room ID not known.");
+							break doCommand;
+						}
+						if( tokens.length != 2 ) {
+							this.console.error("/connect-new-room takes 1 argument: <direction (t,l,r,b,a,z)>");
+							break doCommand;
+						}
+						const newRoomUuid = newUuidRef();
+						const dir = tokens[1].text;
+						this.console.log("New room ID:", newRoomUuid);
+						this.game.enqueueEntityMessage({
+							destinationId: simulatorId,
+							sourceId: "ui",
+							payload: ["/create-room", newRoomUuid]
+						});
+						this.game.enqueueEntityMessage({
+							destinationId: simulatorId,
+							sourceId: "ui",
+							payload: ["/connect-rooms", currentLocation.roomRef, dir, newRoomUuid]
+						});
+						console.log("Connecting "+currentLocation.roomRef+" "+dir+" to "+newRoomUuid);
+					}
+					break;
+				case 'cr': case 'connect-rooms':
+					{
+						if( tokens.length != 4 ) {
+							this.console.error("/cr takes 3 arguments: <room 1 ID> <direction (t,l,r,b,a,z)> <room2 ID>");
+							break doCommand;
+						}
+						const roomAId = tokens[1].text;
+						const dirName = tokens[2].text;
+						const roomBId = tokens[3].text;
+						this.game.enqueueEntityMessage({
+							destinationId: simulatorId,
+							sourceId: "ui",
+							payload: ["/connect-rooms", roomAId, dirName, roomBId],
+						});
 					}
 					break;
 				default:

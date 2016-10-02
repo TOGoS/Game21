@@ -248,7 +248,7 @@ export const room1Id = 'urn:uuid:9d424151-1abf-45c1-b581-170c6eec5941';
 export const room2Id = 'urn:uuid:9d424151-1abf-45c1-b581-170c6eec5942';
 
 const room1Data = [
-	1,1,1,1,1,1,0,0,1,1,0,1,0,4,0,1,
+	1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
 	0,0,0,0,0,1,0,1,1,0,0,0,0,4,0,0,
 	1,1,0,0,0,1,0,0,0,0,0,0,0,4,0,1,
 	1,1,1,0,1,1,1,1,1,1,2,0,0,4,0,1,
@@ -263,10 +263,10 @@ const room1Data = [
 	1,1,5,1,1,0,0,2,2,2,2,1,0,4,0,1,
 	1,0,5,0,0,0,0,0,0,1,0,0,0,4,0,1,
 	1,3,5,3,1,1,0,2,2,2,0,1,0,4,0,1,
-	1,1,1,1,1,1,0,0,1,1,0,1,0,4,0,1,
+	1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
 ];
 const room2Data = [
-	1,2,5,0,2,1,0,0,1,1,0,1,1,1,1,1,
+	1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
 	0,0,5,0,0,0,0,0,9,9,0,9,1,0,1,0,
 	1,0,5,0,0,1,0,0,0,0,0,0,1,0,0,0,
 	1,1,1,0,1,1,1,2,7,0,0,0,1,0,0,1,
@@ -281,8 +281,31 @@ const room2Data = [
 	1,2,5,1,1,0,0,2,2,2,2,1,1,0,0,1,
 	1,2,5,0,0,0,0,0,0,1,0,0,0,0,0,1,
 	1,2,5,0,2,1,0,2,2,2,0,1,0,0,0,1,
-	1,2,5,0,2,1,0,0,1,1,0,1,1,1,1,1,
+	1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
 ];
+const defaultRoomData = [
+	1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+	1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+	1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+	1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+	1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+	1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+	1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+	1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+	1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+	1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+	1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+	1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+	1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+	1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+	1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+	1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+];
+
+export const basicTileEntityPaletteRef = 'urn:sha1:IMPKF5EUH4AW7TCEK4LP66ZTG2DXRH3Q#';
+export function getDefaultRoomTileTreeRef(gdm:GameDataManager):string {
+	return makeTileTreeRef(basicTileEntityPaletteRef, 16, 16, 1, defaultRoomData, gdm, { infiniteMass: true });
+};
 
 //// Tile tree data
 
@@ -722,16 +745,7 @@ export function initData( gdm:GameDataManager ):Promise<string> {
 			"e": {
 				offset: makeVector(+16, 0, 0),
 				bounds: roomBounds,
-				roomRef: room2Id					},
-			"n": {
-				offset: makeVector(0, -16, 0),
-				bounds: roomBounds,
-				roomRef: room1Id
-			},
-			"s": {
-				offset: makeVector(0, +16, 0),
-				bounds: roomBounds,
-				roomRef: room1Id
+				roomRef: room2Id					
 			},
 		}
 	}, room1Id);
@@ -762,16 +776,6 @@ export function initData( gdm:GameDataManager ):Promise<string> {
 				offset: makeVector(+16, 0, 0),
 				bounds: roomBounds,
 				roomRef: room1Id
-			},
-			"n": {
-				offset: makeVector(0, -16, 0),
-				bounds: roomBounds,
-				roomRef: room2Id
-			},
-			"s": {
-				offset: makeVector(0, +16, 0),
-				bounds: roomBounds,
-				roomRef: room2Id
 			},
 		}
 	}, room2Id);
