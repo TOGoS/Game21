@@ -135,7 +135,6 @@ ul.tile-palette li.selected {
 }
 
 .dialog-box {
-	background: #444;
 	border: 1px solid #666;
 	padding: 0;
 
@@ -145,14 +144,22 @@ ul.tile-palette li.selected {
 .dialog-box-content {
 	flex-grow: 1;
 	display: flex;
+	flex-direction: column;
+}
+.dialog-box-content > * {
+	width: 100%;
 }
 .dialog-box-header {
 	display: flex;
 	margin: 0; padding: 0;
 	flex-direction: row;
 	justify-content: space-between;
-	flex-grow: 0;
 	align-items: center;
+
+	flex-basis: content;
+	flex-shrink: 0;
+	
+	background: #444;
 }
 .dialog-box-header button {
 	margin: 16px;
@@ -160,25 +167,28 @@ ul.tile-palette li.selected {
 .dialog-box h3 {
 	margin: 0;
 	padding: 16px;
+	font-size: 18px;
 	font-family: sans-serif;
 }
-
-#load-dialog {
+.big-dialog-box {
 	position: fixed;
 	top: 10vh;
 	left: 10vw;
 	height: 80vh;
 	width: 80vw;
 }
-#load-dialog ul {
-	background: black;
+
+.dialog-text-area {
+	background: rgba(0,0,0,0.6);	
 	color: white;
-	flex-grow: 1;
-	margin: 0px 16px 16px 16px;
-	padding: 0;
+	margin: 0px;
+	padding: 4px 8px;
+	overflow-y: auto;
+	box-sizing: border-box;
 }
+
 #load-list {
-	overflow-y: scroll;
+	flex-grow: 1;
 	list-style-type: none;
 }
 #load-list li {
@@ -188,6 +198,14 @@ ul.tile-palette li.selected {
 }
 #load-list li:hover {
 	text-decoration: underline;
+}
+
+#console-output {
+	flex-grow: 1;
+}
+#console-input {
+	flex-basis: content;
+	flex-shrink: 0;
 }
 
 #camera-location-box {
@@ -220,13 +238,24 @@ ul.tile-palette li.selected {
 <div id="button-area" class="button-bar"></div>
 </div>
 
-<div id="load-dialog" class="dialog-box" style="display:none">
+<div id="console-dialog" class="dialog-box big-dialog-box">
+  <div class="dialog-box-header">
+    <h3>Console</h3>
+    <button id="console-close-button">Close</button>
+  </div>
+  <div class="dialog-box-content">
+    <div id="console-output" class="dialog-text-area" style="flex-grow: 1"></div>
+	 <input id="console-input" class="dialog-text-area"/>
+  </div>
+</div>
+
+<div id="load-dialog" class="dialog-box big-dialog-box" style="display:none">
   <div class="dialog-box-header">
     <h3>Load</h3>
     <button id="load-cancel-button">Cancel</button>
   </div>
   <div class="dialog-box-content">
-    <ul id="load-list">
+    <ul id="load-list" class="dialog-text-area">
     </ul>
   </div>
 </div>

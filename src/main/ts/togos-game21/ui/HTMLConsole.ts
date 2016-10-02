@@ -1,5 +1,6 @@
 import MiniConsole from './MiniConsole';
 
+// Uhm how is this differen/better/worse than DOMLogger?
 export default class HTMLConsole implements MiniConsole {
 	constructor(public element:HTMLElement) { }
 	
@@ -25,8 +26,9 @@ export default class HTMLConsole implements MiniConsole {
 			p.appendChild(span);
 			isFirst = false;
 		}
+		let wasAtBottom = this.element.scrollTop == (this.element.scrollHeight - this.element.clientHeight);
 		this.element.appendChild(p);
-		this.element.scrollTop = this.element.scrollHeight; // TODO: only if already at bottom
+		if( wasAtBottom ) this.element.scrollTop = this.element.scrollHeight;
 	}
 	
 	public log( message?:any, ...optionalParams:any[] ) {

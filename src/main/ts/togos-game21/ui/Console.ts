@@ -15,7 +15,7 @@ export class DOMLogger implements Logger {
 	public outputDiv:HTMLElement;
 	
 	protected append( elem:HTMLElement ) {
-		var wasAtBottom = this.outputDiv.scrollTop == (this.outputDiv.scrollHeight - this.outputDiv.clientHeight);;
+		var wasAtBottom = this.outputDiv.scrollTop == (this.outputDiv.scrollHeight - this.outputDiv.clientHeight);
 		this.outputDiv.appendChild(elem);
 		if( wasAtBottom ) {
 			this.outputDiv.scrollTop = this.outputDiv.scrollHeight - this.outputDiv.clientHeight;

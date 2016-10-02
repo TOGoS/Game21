@@ -37,6 +37,10 @@ import {
 	TileEntityPalette
 } from './world';
 import { rewriteTileTree } from './tiletrees';
+
+import MiniConsole from './ui/MiniConsole';
+import MultiConsole from './ui/MultiConsole';
+import HTMLConsole from './ui/HTMLConsole';
 import TilePaletteUI from './ui/TilePalette';
 
 // Same format as an OSC message, minus the type header
@@ -2006,6 +2010,10 @@ enum DemoMode {
 	EDIT = 1
 }
 
+interface ConsoleDialogBox extends DialogBox {
+	inputElement:HTMLInputElement;
+}
+
 export class MazeDemo {
 	public datastore : Datastore<Uint16Array>;
 	public game : MazeGame;
@@ -2016,6 +2024,8 @@ export class MazeDemo {
 	protected tickRate = 1/32;
 	protected mode:DemoMode = DemoMode.PLAY;
 	public tilePaletteUi:TilePaletteUI;
+	public consoleDialog:ConsoleDialogBox;
+	public console:MiniConsole;
 	
 	public switchToNextMode() {
 		this.mode++;
@@ -2134,6 +2144,11 @@ export class MazeDemo {
 			keyEvent.preventDefault();
 			return;
 		}
+		if( keyEvent.keyCode == 191 ) {
+			this.popUpConsole("/");
+			keyEvent.preventDefault();
+			return;
+		}
 		this.keysDown[keyEvent.keyCode] = true;
 		this.keysUpdated();
 	}
@@ -2212,12 +2227,77 @@ export class MazeDemo {
 			this.paintCoordinates = undefined;
 		}
 	}
+	
+	protected commandHistory:string[] = [];
+	protected commandHistoryIndex?:number;
+	protected commandScratch:string = ""; // Anything entered before going into history
+	
+	protected addToCommandHistory(cmd:string) {
+		if( this.commandHistory[this.commandHistory.length-1] == cmd ) return;
+		this.commandHistory.push(cmd);
+	}
+	
+	public moveThroughCommandHistory(delta:number) {
+		if( delta == 0 ) return;
+		delta = delta < 0 ? -1 : +1;
+		
+		if( this.commandHistoryIndex == null ) {
+			this.commandHistoryIndex = this.commandHistory.length;
+		}
+		let newIndex = this.commandHistoryIndex + delta;
+		newIndex = newIndex < 0 ? 0 : newIndex > this.commandHistory.length ? this.commandHistory.length : newIndex;
+		if( newIndex == this.commandHistoryIndex ) return;
+		
+		if( newIndex < 0 ) newIndex = 0;
+		if( newIndex > this.commandHistory.length ) newIndex = this.commandHistory.length;
+		
+		this.goToCommandHistory(newIndex);
+	}
+	
+	public goToCommandHistory(index:number) {
+		if(index == this.commandHistoryIndex) return;
+		
+		const input = this.consoleDialog.inputElement;
+
+		if( this.commandHistoryIndex == this.commandHistory.length ) {
+			this.commandScratch = input.value;
+		}
+		
+		this.commandHistoryIndex = index;
+		input.value = index == this.commandHistory.length ? this.commandScratch : this.commandHistory[index];
+	}
+	
+	public goToCommandHistoryBeginning() { this.goToCommandHistory(0); }
+	public goToCommandHistoryEnd() { this.goToCommandHistory(this.commandHistory.length); }
+	
+	public submitConsoleCommand(cmd?:string) {
+		if( cmd == null ) {
+			cmd = this.consoleDialog.inputElement.value;
+			this.consoleDialog.inputElement.value = "";
+		}
+		this.console.log("Yoy say "+cmd+"!");
+		this.addToCommandHistory(cmd);
+	}
+	
+	public popUpConsole(initialText:string) {
+		this.consoleDialog.inputElement.value = initialText;
+		this.consoleDialog.setVisible(true);
+		this.consoleDialog.inputElement.focus();
+	}
 }
 
 interface SaveGame {
 	gameDataRef: string,
 	rootRoomId: string,
 	playerId: string,
+}
+
+class DialogBox {
+	public constructor( public element:HTMLElement ) { }
+	
+	public setVisible(viz:boolean) {
+		this.element.style.display = viz ? "" : "none";
+	}
 }
 
 export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string) : MazeDemo {
@@ -2364,8 +2444,9 @@ export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string) : MazeDem
 		
 		butta.appendChild(saveButton);
 		
-		const loadDialog = document.getElementById('load-dialog');
-		if( loadDialog ) {
+		const loadDialogElem = document.getElementById('load-dialog');
+		if( loadDialogElem ) {
+			const loadDialog = new DialogBox(loadDialogElem);
 			const loadButton = document.createElement("button");
 			loadButton.appendChild(document.createTextNode("Load..."));
 			loadButton.onclick = () => {
@@ -2382,7 +2463,7 @@ export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string) : MazeDem
 						const loadItem = document.createElement('li');
 						loadItem.appendChild(document.createTextNode(save.note+" - "+save.date));
 						loadItem.onclick = () => {
-							loadDialog.style.display = 'none';
+							loadDialog.setVisible(false);
 							loadButton.disabled = false;
 							demo.loadGame(save.saveRef);
 						}
@@ -2390,19 +2471,60 @@ export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string) : MazeDem
 					}
 				}
 				
-				loadDialog.style.display = '';
+				loadDialog.setVisible(true);
 			}
 			
 			const cancelLoadButton = document.getElementById('load-cancel-button');
 			if( cancelLoadButton ) {
 				cancelLoadButton.onclick = () => {
-					loadDialog.style.display = 'none';
+					loadDialogElem.style.display = 'none';
 					loadButton.disabled = false;
 				};
 			}
 			
 			butta.appendChild(loadButton);
 		}
+	}
+	
+	const consoleDialogElem = document.getElementById('console-dialog');
+	if( consoleDialogElem ) {
+		const consoleDialog = <ConsoleDialogBox>new DialogBox(consoleDialogElem);
+		consoleDialog.inputElement = <HTMLInputElement>document.getElementById('console-input');
+		consoleDialog.inputElement.onkeydown = (keyEvent:KeyboardEvent) => {
+			if( keyEvent.keyCode == 38 ) {
+				demo.moveThroughCommandHistory(-1);
+			} else if( keyEvent.keyCode == 40 ) {
+				demo.moveThroughCommandHistory(+1);
+			//} else if( keyEvent.keyCode == 36 ) {
+			//	demo.goToCommandHistoryBeginning();
+			//} else if( keyEvent.keyCode == 35 ) {
+			//	demo.goToCommandHistoryEnd();
+			} else if( keyEvent.keyCode == 13 ) {
+				demo.submitConsoleCommand.bind(demo)();
+			}
+		};
+		
+		const consoleCloseButton = document.getElementById('console-close-button')
+		if( consoleCloseButton ) consoleCloseButton.onclick = () => consoleDialog.setVisible(false);
+		consoleDialogElem.addEventListener('keydown', (keyEvent:KeyboardEvent) => {
+			if( keyEvent.keyCode == 27 ) {
+				consoleDialog.setVisible(false);
+			}
+			// Prevent any keys from propagating to the window and messing up our game
+			keyEvent.stopPropagation()
+		}, false);
+		consoleDialogElem.addEventListener('keyup', (keyEvent:KeyboardEvent) => keyEvent.preventDefault());
+		
+		// Stand firm for what you believe in, until and unless experience proves you wrong.
+		// Remember, when the emperor looks naked, the emperor *is* naked.
+		// The truth and a lie are not sort of the same thing.
+		// And there is no aspect, no facet, no moment of life that can't be improved with pizza.
+		
+		demo.consoleDialog = consoleDialog;
+		demo.console = new MultiConsole([
+			console,
+			new HTMLConsole(document.getElementById('console-output'))
+		]);
 	}
 	
 	return demo;
