@@ -8,7 +8,7 @@ all_js_files = $(shell find . -name '*.js') ${generated_js_files}
 node := node
 tsc := ${node} node_modules/typescript/bin/tsc
 
-default: demos/ShapeDemo.html js-libs
+default: js-libs
 
 js-libs: target/cjs target/game21libs.amd.es5.js
 
