@@ -202,7 +202,7 @@ ul.tile-palette li.selected {
 		height: 480px;
 	}
 }
-@media (min-width: 960) and (min-height: 740) {
+@media (min-width: 960px) and (min-height: 740px) {
 	.maze-canvas {
 		width: 960px;
 		height: 720px;
