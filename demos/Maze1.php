@@ -64,6 +64,8 @@ html, body {
 	padding: 0;
 	color: white;
 	box-sizing: border-box;
+	
+	font-family: sans-serif;
 }
 .game-interface {
 	display: flex;
@@ -132,6 +134,63 @@ ul.tile-palette li.selected {
 	margin-left: 8px;
 }
 
+.dialog-box {
+	background: #444;
+	border: 1px solid #666;
+	padding: 0;
+
+	display: flex;
+	flex-direction: column
+}
+.dialog-box-content {
+	flex-grow: 1;
+	display: flex;
+}
+.dialog-box-header {
+	display: flex;
+	margin: 0; padding: 0;
+	flex-direction: row;
+	justify-content: space-between;
+	flex-grow: 0;
+	align-items: center;
+}
+.dialog-box-header button {
+	margin: 16px;
+}
+.dialog-box h3 {
+	margin: 0;
+	padding: 16px;
+	font-family: sans-serif;
+}
+
+#load-dialog {
+	position: fixed;
+	top: 10vh;
+	left: 10vw;
+	height: 80vh;
+	width: 80vw;
+}
+#load-dialog ul {
+	background: black;
+	color: white;
+	flex-grow: 1;
+	margin: 0px 16px 16px 16px;
+	padding: 0;
+}
+#load-list {
+	overflow-y: scroll;
+	list-style-type: none;
+}
+#load-list li {
+	margin: 0;
+	padding: 2px 4px;
+	cursor: pointer;
+}
+#load-list li:hover {
+	text-decoration: underline;
+}
+
+
 @media (min-width: 640px) and (min-height: 500px) {
 	.maze-canvas {
 		width: 640px;
@@ -153,6 +212,17 @@ ul.tile-palette li.selected {
 
 <div id="tile-palette-area"></div>
 <div id="button-area" class="button-bar"></div>
+</div>
+
+<div id="load-dialog" class="dialog-box" style="display:none">
+  <div class="dialog-box-header">
+    <h3>Load</h3>
+    <button id="load-cancel-button">Cancel</button>
+  </div>
+  <div class="dialog-box-content">
+    <ul id="load-list">
+    </ul>
+  </div>
 </div>
 
 <?php require_game21_js_libs($inlineResources, array('togos-game21/Maze1')); ?>

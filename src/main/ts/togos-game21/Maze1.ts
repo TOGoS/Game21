@@ -2323,6 +2323,46 @@ export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string) : MazeDem
 		};
 		
 		butta.appendChild(saveButton);
+		
+		const loadDialog = document.getElementById('load-dialog');
+		if( loadDialog ) {
+			const loadButton = document.createElement("button");
+			loadButton.appendChild(document.createTextNode("Load..."));
+			loadButton.onclick = () => {
+				loadButton.disabled = true;
+				
+				const loadList = document.getElementById('load-list');
+				if( loadList ) { 
+					while( loadList.firstChild ) loadList.removeChild(loadList.firstChild);
+					
+					const savesJson = window.localStorage.getItem("game21-local-saves");
+					const saves:{note:string,date:string,saveRef:string}[] = savesJson ? JSON.parse(savesJson) : [];
+					for( let s in saves ) {
+						const save = saves[s];
+						const loadItem = document.createElement('li');
+						loadItem.appendChild(document.createTextNode(save.note+" - "+save.date));
+						loadItem.onclick = () => {
+							loadDialog.style.display = 'none';
+							loadButton.disabled = false;
+							demo.loadGame(save.saveRef);
+						}
+						loadList.appendChild(loadItem);
+					}
+				}
+				
+				loadDialog.style.display = '';
+			}
+			
+			const cancelLoadButton = document.getElementById('load-cancel-button');
+			if( cancelLoadButton ) {
+				cancelLoadButton.onclick = () => {
+					loadDialog.style.display = 'none';
+					loadButton.disabled = false;
+				};
+			}
+			
+			butta.appendChild(loadButton);
+		}
 	}
 	
 	return demo;
