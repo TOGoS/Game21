@@ -238,7 +238,7 @@ ul.tile-palette li.selected {
 <div id="button-area" class="button-bar"></div>
 </div>
 
-<div id="console-dialog" class="dialog-box big-dialog-box">
+<div id="console-dialog" class="dialog-box big-dialog-box" style="display:none">
   <div class="dialog-box-header">
     <h3>Console</h3>
     <button id="console-close-button">Close</button>

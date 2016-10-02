@@ -38,6 +38,9 @@ import {
 } from './world';
 import { rewriteTileTree } from './tiletrees';
 
+import Tokenizer from './forth/Tokenizer';
+import Token, { TokenType } from './forth/Token';
+
 import MiniConsole from './ui/MiniConsole';
 import MultiConsole from './ui/MultiConsole';
 import HTMLConsole from './ui/HTMLConsole';
@@ -2275,7 +2278,48 @@ export class MazeDemo {
 			cmd = this.consoleDialog.inputElement.value;
 			this.consoleDialog.inputElement.value = "";
 		}
-		this.console.log("Yoy say "+cmd+"!");
+		cmd = cmd.trim();
+		if( cmd == '' ) {
+			// Do nothing, don't add to history
+			return;
+		} else if( cmd[0] == '#' ) {
+			// ignore!
+		} else if( cmd[0] == '/' ) {
+			const tokens:Token[] = []
+			const tokenizer = new Tokenizer( (token:Token):void => {
+				if( token.type == TokenType.END_OF_FILE ) return;
+				tokens.push(token)
+			} );
+			tokenizer.sourceLocation = {fileUri:"console-input", lineNumber: this.commandHistory.length+1, columnNumber: 1};
+			tokenizer.text(cmd.substr(1));
+			tokenizer.end();
+			if( tokens.length == 0 ) {
+				return;
+				// do nothing!
+			} else {
+				switch( tokens[0].text ) {
+				case 'cr':
+					{
+						if( tokens.length == 4 ) {
+							const roomAId = tokens[1].text;
+							const dirName = tokens[2].text;
+							const roomBId = tokens[3].text;
+							this.game.enqueueEntityMessage({
+								destinationId: simulatorId,
+								sourceId: "ui",
+								payload: ["/connect-rooms", roomAId, dirName, roomBId],
+							});
+						} else {
+							this.console.error("/cr takes 3 arguments: <room 1 ID> <direction (t,l,r,b,a,z)> <room2 ID>")
+						}
+					}
+					break;
+				default:
+					this.console.error("Unrecognized command: /"+tokens[0].text);
+					break;
+				}
+			}
+		}
 		this.addToCommandHistory(cmd);
 	}
 	
