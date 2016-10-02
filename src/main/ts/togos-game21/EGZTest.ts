@@ -96,7 +96,7 @@ const data = '{\n'+
 	'	}\n'+
 	'}\n';
 
-// Somehow this comes out to urn:sha1:4ICMYBMGJE3AYSOXISMEADOJPROW2AH2!!!!
+// With TSHash 1.5.2 this came out to urn:sha1:4ICMYBMGJE3AYSOXISMEADOJPROW2AH2!!!!
 
 const encoded = utf8Encode(data);
 const urn = sha1Urn(encoded);
