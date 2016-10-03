@@ -92,7 +92,7 @@ html, body {
 ul.tile-palette {
 	display: flex;
 	flex-direction: row;
-	justify-conent: left;
+	justify-content: left;
 	margin: 0; padding: 0;
 	list-style-type: none;
 }
