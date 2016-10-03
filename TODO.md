@@ -19,12 +19,13 @@
 ## Misc to-do items
 
 Maze1:
-- Background layer! (just draw darker than fg)
-- Create, connect new rooms interactively
-- Make jumping less unreasonable
-- Make jumping from on top of non-infinite-mass things workd
-- Doorbell to control the door
+- Render TileTrees properly for tile palette UI
+- Unify client/server view models; in edit mode, just send the room data as-is
+  - This way we could ctrl+click TileTree blocks and stuff!
 - Keys, other inventory items
+- Enemies?
+- Background layer! (just draw darker than fg)
+- Doorbell to control the door
 
 Networking:
 - Use SLAAC to get address
@@ -171,8 +172,12 @@ Possibly outdated but maybe not:
 * Convert OBJ (from FreeCAD) to procedural shape script
   "Can only contain triangulated meshes." which should make my job easy.
   -- http://www.freecadweb.org/wiki/index.php?title=Manual:Import_and_export_to_other_filetypes
+Maze1:
 * Decentish quantized physics (overlaps not allowed)
 * Platform physics (good enough for now)
   - Silly but kinda works solution for platforms:
     - move entities 'moving away' (from the centers of their rooms) first
     - glitches at room boundaries (so avoid platforms crossing those!)
+* Create, connect new rooms interactively
+* Make jumping less unreasonable
+* Make jumping from on top of non-infinite-mass things workd
