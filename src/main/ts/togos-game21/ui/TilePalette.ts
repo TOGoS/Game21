@@ -11,7 +11,7 @@ export default class TilePalette {
 	
 	public constructor(
 		slotCount:number,
-		protected renderer:(ent:Entity, orientation:Quaternion)=>Promise<string|null>
+		protected _renderer?:(ent:Entity, orientation:Quaternion)=>Promise<string|null>
 	) {
 		this.tileEntities = new Array(slotCount);
 		this.imageUrls = new Array(slotCount);
@@ -35,29 +35,47 @@ export default class TilePalette {
 	
 	public get element() { return this._element; }
 	
-	public setSlot( index:number, entity:TileEntity|string|null ) {
-		if( typeof entity == 'string' ) {
-			entity = {
-				entity: { classRef: entity },
-				orientation: Quaternion.IDENTITY
-			};
-		}
-		if( entity == null ) {
+	protected renderSlot( index:number ) {
+		const tileEntity = this.tileEntities[index];
+		if( tileEntity == null ) {
 			this.imageUrls[index] = null;
-			this.tileEntities[index] = null;
+			this.imageUrls[index] = null;
 			this.tileElements[index].style.backgroundImage = null;
-			this.imageUrlPromises[index] = undefined;
-		} else if( JSON.stringify(entity) != JSON.stringify(this.tileEntities[index]) ) {
-			this.tileEntities[index] = entity;
-			this.imageUrls[index] = null;
-			const renderP = this.renderer( entity.entity, entity.orientation );
+		} else if( this._renderer ) {
+			const renderP = this._renderer( tileEntity.entity, tileEntity.orientation );
 			this.imageUrlPromises[index] = renderP;
 			renderP.then( (url) => {
-				if( this.imageUrlPromises[index] === renderP ) {
+				if( this.imageUrlPromises[index] === renderP ) { // Still waiting for me?
 					this.imageUrls[index] = url;
 					this.tileElements[index].style.backgroundImage = url ? "url('"+url+"')" : null;
 				}
+			}).catch( (err) => {
+				console.error(
+					"Failed to render entity for slot "+index+", class = "+tileEntity.entity.classRef+";",
+					err
+				);
 			});
+		} else {
+			console.warn("Can't render tiles; no renderer configured on tile palette")
+		}
+	}
+	
+	public setSlot( index:number, _entity:TileEntity|string|null ) {
+		if( typeof _entity == 'string' ) {
+			_entity = {
+				entity: { classRef: _entity },
+				orientation: Quaternion.IDENTITY
+			};
+		}
+		const tileEntity = _entity;
+		if( tileEntity == null ) {
+			this.tileEntities[index] = null;
+			this.renderSlot(index);
+			this.imageUrlPromises[index] = undefined;
+		} else if( JSON.stringify(tileEntity) != JSON.stringify(this.tileEntities[index]) ) {
+			this.tileEntities[index] = tileEntity;
+			this.imageUrls[index] = null;
+			this.renderSlot(index);
 		}
 		this.triggerSelectListeners();
 	}
@@ -82,5 +100,12 @@ export default class TilePalette {
 	
 	public on(event:"select", then:(index:number, te:TileEntity|null)=>void):void {
 		this.selectListeners.push(then);
+	}
+	
+	public set entityRenderer(renderer:((ent:Entity, orientation:Quaternion)=>Promise<string|null>)|undefined) {
+		this._renderer = renderer;
+		for( let i=0; i<this.tileEntities.length; ++i ) {
+			this.renderSlot(i);
+		}
 	}
 }

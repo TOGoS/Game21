@@ -1710,6 +1710,41 @@ class DialogBox {
 	}
 }
 
+// TODO: Use from MazeView
+class EntityRenderer {
+	public constructor( protected gameDataManager:GameDataManager ) { }
+	
+	protected imageCache:KeyedList<HTMLImageElement> = {};
+	protected entityClassImageCache:KeyedList<string|null> = {};
+	
+	public entityClassRefImageUrl(entityClassRef:string):Promise<string|null> {
+		if( this.entityClassImageCache.hasOwnProperty(entityClassRef) ) {
+			return Promise.resolve(this.entityClassImageCache[entityClassRef]);
+		}
+		return this.gameDataManager.fetchObject<EntityClass>( entityClassRef ).then( (entityClass) => {
+			const visualRef = entityClass.visualRef;
+			if( visualRef != null ) {
+				const bitImgRee = oneBitImageDataRegex.exec(visualRef);
+				let xRef = visualRef;
+				if( bitImgRee ) {
+					const bitImgInfo = parseBitImg(bitImgRee);
+					return parseOneBitImageDataToDataUrl(
+						bitImgInfo.bitstr, bitImgInfo.width, bitImgInfo.height, bitImgInfo.color0, bitImgInfo.color1 );
+				} else {
+					return Promise.reject(new Error(visualRef+" not parse as bit image!"));
+				}
+			} else if( entityClass.structureType != StructureType.INDIVIDUAL ) {
+				return Promise.reject("Can't render "+entityClassRef+" because non-individual structures not yet supported.");
+			}
+			return null;
+		});			
+	}
+	public entityImageUrl( entity:Entity, orientation:Quaternion):Promise<string|null> {
+		if( entity == null ) return Promise.resolve(null);
+		return this.entityClassRefImageUrl(entity.classRef);
+	}
+}
+
 export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string) : MazeDemo {
 	const dataIdent = sha1Urn;
 	const ds2:Datastore<Uint8Array> = new HTTPHashDatastore();
@@ -1747,23 +1782,7 @@ export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string) : MazeDem
 	
 	const tpArea = document.getElementById('tile-palette-area');
 	if( tpArea ) {
-		const entityRenderer = (entity:Entity, orientation:Quaternion):Promise<string|null> => {
-			if( entity == null ) return Promise.resolve(null);
-			return demo.game.gameDataManager.fetchObject<EntityClass>( entity.classRef ).then( (entityClass) => {
-				const visualRef = entityClass.visualRef;
-				if( visualRef == null ) return Promise.resolve(null);
-				const bitImgRee = oneBitImageDataRegex.exec(visualRef);
-				let xRef = visualRef;
-				if( bitImgRee ) {
-					const bitImgInfo = parseBitImg(bitImgRee);
-					return Promise.resolve(parseOneBitImageDataToDataUrl(
-						bitImgInfo.bitstr, bitImgInfo.width, bitImgInfo.height, bitImgInfo.color0, bitImgInfo.color1 ));
-				} else {
-					return Promise.reject(new Error(visualRef+" not parse as bit image!"));
-				}
-			});
-		}
-		const tpUi = new TilePaletteUI( 16, entityRenderer );
+		const tpUi = new TilePaletteUI( 16 );
 		tpUi.element.style.display = 'none';
 		demo.tilePaletteUi = tpUi;
 		tpUi.on('select', (index:number, te:TileEntity|undefined|null) => {
@@ -1771,6 +1790,8 @@ export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string) : MazeDem
 		});
 		tpArea.appendChild( tpUi.element );
 		gameLoaded.then( (saveGame) => {
+			const entityRenderer = new EntityRenderer(demo.game.gameDataManager);
+			tpUi.entityRenderer = entityRenderer.entityImageUrl.bind(entityRenderer);
 			const initialPaletteEntityClassRefs:(string|null)[] = [
 				null, dat.brikEntityClassId, dat.bigBrikEntityClassId,
 				dat.bigYellowBrikEntityClassId, dat.vines1EntityClassId,
