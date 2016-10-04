@@ -58,7 +58,7 @@ export function makeTileEntityPaletteRef( palette:any, gdm?:GameDataManager, ali
 export function eachSubEntity<T>(
 	entity:Entity, pos:Vector3D, gdm:GameDataManager,
 	callback:(subEnt:Entity, pos:Vector3D, orientation:Quaternion)=>T|undefined,
-	callbackThis:any=null, posBuffer:Vector3D=posBuffer0
+	callbackThis:any=null, posBuffer:Vector3D|undefined=undefined
 ):T|undefined {
 	const proto = gdm.getObject<EntityClass>(entity.classRef);
 	if( proto == null ) throw new Error("Failed to get entity class "+entity.classRef);

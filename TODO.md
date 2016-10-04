@@ -18,14 +18,18 @@
 
 ## Misc to-do items
 
+- Generate some kind of pack
+
 Maze1:
-- Render TileTrees properly for tile palette UI
 - Unify client/server view models; in edit mode, just send the room data as-is
   - This way we could ctrl+click TileTree blocks and stuff!
 - Keys, other inventory items
 - Enemies?
 - Background layer! (just draw darker than fg)
 - Doorbell to control the door
+
+Advanced AI:
+- Rare CPUs are offloaded to a Docker container
 
 Networking:
 - Use SLAAC to get address
@@ -181,3 +185,4 @@ Maze1:
 * Create, connect new rooms interactively
 * Make jumping less unreasonable
 * Make jumping from on top of non-infinite-mass things workd
+* Render TileTrees properly for tile palette UI

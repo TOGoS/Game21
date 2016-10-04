@@ -39,6 +39,7 @@ import {
 	TileEntityPalette
 } from './world';
 import ImageSlice from './ImageSlice';
+import { EMPTY_IMAGE_SLICE, imageFromUrl } from './images';
 import { rewriteTileTree } from './tiletrees';
 
 import Tokenizer from './forth/Tokenizer';
@@ -189,8 +190,74 @@ interface MazeViewage {
 	cameraLocation? : RoomLocation;
 }
 
+class EntityImageManager
+{
+	// Note that this all needs to be completely rewritten
+	// in order to deal with non-bitimg: icons
+	// and to take state, time, orientation into account
+	
+	public constructor( protected gameDataManager:GameDataManager ) { }
+	
+	protected urlishImageCache:KeyedList<string> = {};
+	protected getUrlishImage( ref:string ):string {
+		if( this.urlishImageCache[ref] ) return this.urlishImageCache[ref];
+		
+		const bitImgRee = oneBitImageDataRegex.exec(ref);
+		let xRef = ref;
+		if( bitImgRee ) {
+			const bitImgInfo = parseBitImg(bitImgRee);
+			xRef = parseOneBitImageDataToDataUrl( bitImgInfo.bitstr, bitImgInfo.width, bitImgInfo.height, bitImgInfo.color0, bitImgInfo.color1 );
+		} else {
+			throw new Error(ref+" not parse!");
+		}
+		
+		return this.urlishImageCache[ref] = xRef;
+	}
+	
+	protected iconCache:KeyedList<ImageSlice<HTMLImageElement>> = {};
+	public getIconIfLoaded( visualRef:string, state:KeyedList<any>|undefined, time:number, orientation:Quaternion, preferredResolution:number, initiateFetch:boolean=false ):ImageSlice<HTMLImageElement>|undefined {
+		if( this.iconCache[visualRef] ) return this.iconCache[visualRef];
+		
+		if( initiateFetch ) this.fetchIcon(visualRef, state, time, orientation, preferredResolution);
+		return undefined;
+	}
+	
+	protected fetchImage( srcRef:string ):Promise<HTMLImageElement> {
+		const img = imageFromUrl(srcRef)
+		if( img.width == 0 ) {
+			return new Promise( (resolve,reject) => {
+				img.addEventListener('load', (loadEvent) => {
+					resolve(img);
+				});
+				setTimeout(() => {reject("Timed out while waiting for image "+srcRef+" to load")}, 2000);
+			});
+		} else {
+			return Promise.resolve(img);
+		}
+	}
+	
+	protected iconPromises:KeyedList<Promise<ImageSlice<HTMLImageElement>>> = {};
+	public fetchIcon( visualRef:string, state:KeyedList<any>|undefined, time:number, orientation:Quaternion, preferredResolution:number ):Promise<ImageSlice<HTMLImageElement>> {
+		if( this.iconPromises[visualRef] ) return this.iconPromises[visualRef];
+		
+		const imgRef = this.getUrlishImage(visualRef);
+		return this.iconPromises[visualRef] = this.fetchImage(imgRef).then( (img) => {
+			return this.iconCache[visualRef] = {
+				sheetRef: imgRef,
+				sheet: img,
+				origin: makeVector(img.width/2, img.height/2, 0),
+				resolution: 16,
+				bounds: makeAabb(0,0,0, img.width,img.height,0)
+			}
+		});
+		
+		//return Promise.resolve(this.getIcon(visualRef, state, time, orientation, preferredResolution));
+	}
+}
+
 export class MazeView {
-	public gameDataManager:GameDataManager;
+	protected _gameDataManager:GameDataManager|undefined;
+	protected _entityImageManager:EntityImageManager|undefined;
 	public constructor( public canvas:HTMLCanvasElement ) { }
 	
 	public viewage : MazeViewage = { visualEntities: [] };
@@ -201,37 +268,9 @@ export class MazeView {
 	protected get screenCenterX() { return this.canvas.width/2; }
 	protected get screenCenterY() { return this.canvas.height/2; }
 	
-	protected imageCache:KeyedList<HTMLImageElement> = {};
-	protected getImage( ref:string ):HTMLImageElement {
-		if( this.imageCache[ref] ) return this.imageCache[ref];
-
-		const bitImgRee = oneBitImageDataRegex.exec(ref);
-		let xRef = ref;
-		if( bitImgRee ) {
-			const bitImgInfo = parseBitImg(bitImgRee);
-			xRef = parseOneBitImageDataToDataUrl( bitImgInfo.bitstr, bitImgInfo.width, bitImgInfo.height, bitImgInfo.color0, bitImgInfo.color1 );
-		} else {
-			throw new Error(ref+" not parse!");
-		}
-		
-		const img = document.createElement("img");
-		img.src = xRef;
-		return this.imageCache[ref] = img; 
-	}
-	
-	protected iconCache:KeyedList<ImageSlice<HTMLImageElement>> = {};
-	// TODO: Move this out to a better palce
-	protected getIcon( visualRef:string, state:KeyedList<any>|undefined, time:number, orientation:Quaternion, preferredResolution:number ):ImageSlice<HTMLImageElement> {
-		if( this.iconCache[visualRef] ) return this.iconCache[visualRef];
-		
-		const img = this.getImage(visualRef);
-		return {
-			sheetRef: null,
-			sheet: img,
-			origin: makeVector(img.width/2, img.height/2, 0),
-			resolution: 16,
-			bounds: makeAabb(0,0,0, img.width,img.height,0)
-		}
+	public set gameDataManager(gdm:GameDataManager) {
+		this._gameDataManager = gdm;
+		this._entityImageManager = new EntityImageManager(gdm);
 	}
 	
 	public getTileEntityAt( coords:Vector3D, tileSize:number=1 ):TileEntity|undefined {
@@ -239,11 +278,12 @@ export class MazeView {
 		for( let i in viewItems ) {
 			const vi = viewItems[i];
 			const te = vi.entity;
-			if( te ) {
-				const ec = this.gameDataManager.getObjectIfLoaded<EntityClass>(te.classRef);
+			const gdm = this._gameDataManager;
+			if( te && gdm ) {
+				const ec = gdm.getObjectIfLoaded<EntityClass>(te.classRef);
 				if( ec && ec.tilingBoundingBox.maxX-ec.tilingBoundingBox.minX == tileSize && offsetAabbContainsVector(vi.position, ec.tilingBoundingBox, coords) ) {
 					return {
-						orientation: vi.orientation,
+						orientation: vi.orientation || Quaternion.IDENTITY,
 						entity: te
 					}
 				}
@@ -323,7 +363,7 @@ export class MazeView {
 			}
 		}
 	}
-
+	
 	protected drawOcclusionFog(viz:ShadeRaster):void {
 		this.drawRaster( viz, 0, this.occlusionFillStyle, true);
 	}
@@ -331,21 +371,27 @@ export class MazeView {
 	public draw():void {
 		const ctx = this.canvas.getContext('2d');
 		if( !ctx ) return;
+		const eim = this._entityImageManager;
 		const cx = this.canvas.width/2;
 		const cy = this.canvas.height/2;
 		const ppm = 16;
-		for( let i in this.viewage.visualEntities ) {
-			const item = this.viewage.visualEntities[i];
+		if( eim ) for( let i in this.viewage.visualEntities ) {
+			const item:RoomVisualEntity = this.viewage.visualEntities[i];
 			const time = 0;
-			const icon = this.getIcon(item.visualRef, item.state, time, item.orientation, 16);
+			if( !item.visualRef ) continue;
+			const icon:ImageSlice<HTMLImageElement>|undefined = eim.getIconIfLoaded(
+				item.visualRef, item.state, time, item.orientation || Quaternion.IDENTITY, 16,
+				true);
+			if( icon == null ) continue;
 			const px = item.position.x * ppm + cx;
 			const py = item.position.y * ppm + cy;
+			const iconScale = ppm/icon.resolution;
 			ctx.drawImage(
 				icon.sheet,
-				icon.bounds.minX, icon.bounds.minY, icon.bounds.maxX-icon.bounds.minX, icon.bounds.maxY-icon.bounds.minY,
-				px - icon.origin.x - icon.bounds.minX, py - icon.origin.y - icon.bounds.minY,
-				ppm * (icon.bounds.maxX - icon.bounds.minX) / icon.resolution,
-				ppm * (icon.bounds.maxY - icon.bounds.minY) / icon.resolution, 
+				icon.bounds.minX, icon.bounds.minY, aabbWidth(icon.bounds), aabbHeight(icon.bounds),
+				px + iconScale*(icon.bounds.minX - icon.origin.x),
+				py + iconScale*(icon.bounds.minY - icon.origin.y),
+				iconScale * aabbWidth(icon.bounds), iconScale * aabbHeight(icon.bounds),
 			);
 		}
 		if(this.viewage.visibility) this.drawOcclusionFog(this.viewage.visibility);
@@ -1732,38 +1778,72 @@ class DialogBox {
 	}
 }
 
-// TODO: Use from MazeView
-class EntityRenderer {
-	public constructor( protected gameDataManager:GameDataManager ) { }
+class TileEntityRenderer {
+	protected entityImageManager:EntityImageManager;
+	public constructor( protected gameDataManager:GameDataManager ) {
+		this.entityImageManager = new EntityImageManager(gameDataManager);
+	}
 	
-	protected imageCache:KeyedList<HTMLImageElement> = {};
-	protected entityClassImageCache:KeyedList<string|null> = {};
+	protected imageCache:KeyedList<ImageSlice<HTMLImageElement>> = {};
+	protected entityClassUrlishIconPromises:KeyedList<Promise<ImageSlice<HTMLImageElement>>> = {};
 	
-	public entityClassRefImageUrl(entityClassRef:string):Promise<string|null> {
-		if( this.entityClassImageCache.hasOwnProperty(entityClassRef) ) {
-			return Promise.resolve(this.entityClassImageCache[entityClassRef]);
+	protected renderEntity(position:Vector3D, orientation:Quaternion, ppm:number, entity:Entity, ctx:CanvasRenderingContext2D):Promise<void> {
+		return this.gameDataManager.fetchObject<EntityClass>( entity.classRef ).then( (entityClass) => {
+			if( entityClass.visualRef ) {
+				return this.entityClassRefIcon(entity.classRef).then( (icon) => {
+					const iconScale = ppm / icon.resolution;
+					ctx.drawImage(
+						icon.sheet,
+						icon.bounds.minX, icon.bounds.minY, aabbWidth(icon.bounds), aabbHeight(icon.bounds),
+						position.x*ppm + iconScale*(icon.bounds.minX - icon.origin.x),
+						position.y*ppm + iconScale*(icon.bounds.minY - icon.origin.y),
+						iconScale * aabbWidth(icon.bounds), iconScale * aabbHeight(icon.bounds),
+					)
+				});
+			}
+			
+			const renderPromises:Promise<undefined>[] = [];
+			eachSubEntity(entity, position, this.gameDataManager, (subEnt, subPos, subOri) => {
+				renderPromises.push(this.renderEntity(subPos, subOri, ppm, subEnt, ctx));
+			});
+			return Promise.all(renderPromises).then( () => {} );
+		});
+	}
+	
+	public entityClassRefIcon(entityClassRef:string):Promise<ImageSlice<HTMLImageElement>> {
+		if( this.entityClassUrlishIconPromises.hasOwnProperty(entityClassRef) ) {
+			return this.entityClassUrlishIconPromises[entityClassRef];
 		}
 		return this.gameDataManager.fetchObject<EntityClass>( entityClassRef ).then( (entityClass) => {
-			const visualRef = entityClass.visualRef;
-			if( visualRef != null ) {
-				const bitImgRee = oneBitImageDataRegex.exec(visualRef);
-				let xRef = visualRef;
-				if( bitImgRee ) {
-					const bitImgInfo = parseBitImg(bitImgRee);
-					return parseOneBitImageDataToDataUrl(
-						bitImgInfo.bitstr, bitImgInfo.width, bitImgInfo.height, bitImgInfo.color0, bitImgInfo.color1 );
-				} else {
-					return Promise.reject(new Error(visualRef+" not parse as bit image!"));
-				}
+			if( entityClass.visualRef ) {
+				return this.entityImageManager.fetchIcon(entityClass.visualRef, {}, 0, Quaternion.IDENTITY, 32);
 			} else if( entityClass.structureType != StructureType.INDIVIDUAL ) {
-				return Promise.reject("Can't render "+entityClassRef+" because non-individual structures not yet supported.");
+				const canv:HTMLCanvasElement = document.createElement('canvas');
+				const vbb = entityClass.visualBoundingBox;
+				const maxCanvWidth = 32, maxCanvHeight = 32;
+				const scale = Math.min(maxCanvWidth / aabbWidth(vbb), maxCanvHeight / aabbHeight(vbb) );
+				canv.width  = (scale * aabbWidth(vbb))|0;
+				canv.height = (scale * aabbHeight(vbb))|0;
+				const ctx = canv.getContext('2d');
+				if( ctx == null ) return Promise.reject(new Error("Failed to create 2d rendering context"));
+				return this.renderEntity( makeVector(aabbWidth(vbb)/2,aabbHeight(vbb)/2,0), Quaternion.IDENTITY, scale, {classRef: entityClassRef}, ctx ).then( () => {
+					const imgUrl = canv.toDataURL();
+					return {
+						bounds: { minX: 0, minY: 0, minZ: 0, maxX: canv.width, maxY: canv.height, maxZ: 0 },
+						origin: { x:canv.width/2, y:canv.height/2, z:0},
+						resolution: 1/scale,
+						sheetRef: imgUrl,
+						sheet: imageFromUrl(imgUrl),
+					}
+				});
 			}
-			return null;
-		});			
+			return Promise.resolve(EMPTY_IMAGE_SLICE);
+		});
 	}
-	public entityImageUrl( entity:Entity, orientation:Quaternion):Promise<string|null> {
-		if( entity == null ) return Promise.resolve(null);
-		return this.entityClassRefImageUrl(entity.classRef);
+	
+	public entityIcon( entity:Entity, orientation:Quaternion):Promise<ImageSlice<HTMLImageElement>> {
+		if( entity == null ) return Promise.resolve(EMPTY_IMAGE_SLICE);
+		return this.entityClassRefIcon(entity.classRef);
 	}
 }
 
@@ -1811,8 +1891,10 @@ export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string) : MazeDem
 		});
 		tpArea.appendChild( tpUi.element );
 		gameLoaded.then( (saveGame) => {
-			const entityRenderer = new EntityRenderer(demo.game.gameDataManager);
-			tpUi.entityRenderer = entityRenderer.entityImageUrl.bind(entityRenderer);
+			const entityRenderer = new TileEntityRenderer(demo.game.gameDataManager);
+			tpUi.entityRenderer = (ent:Entity, orientation:Quaternion):Promise<string|null> => {
+				return entityRenderer.entityIcon(ent, orientation).then( (icon) => icon.sheetRef );
+			};
 			const initialPaletteEntityClassRefs:(string|null)[] = [
 				null, dat.brikEntityClassId, dat.bigBrikEntityClassId,
 				dat.bigYellowBrikEntityClassId, dat.vines1EntityClassId,

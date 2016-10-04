@@ -2,9 +2,6 @@ import Vector3D from './Vector3D';
 import AABB from './AABB';
 
 export default class ImageSlice<ImageType> {
-	// TODO: I think a minimumZ would be appropriate!
-	// or make bounds a cuboid.
-	
 	// When serialized, sheet will be replaced with a hash-based sheetRef
 	public sheetRef:string;
 	/**
@@ -13,7 +10,8 @@ export default class ImageSlice<ImageType> {
 	 *   to the entire shapesheet, not the bounded area) that corresponds
 	 *   to the object's position
 	 * @param {number} resolution pixels per world unit (world unit being 'meters')
-	 * @param {Rectangle} bounds the region of the shapesheet to be drawn
+	 * @param {AABB} bounds the region of the shapesheet to be drawn;
+	 *   if image is 2D, Z of bounds indicates minimum/maximum Z (in pixel units) of represented 3D thing
 	 */
 	public constructor(public sheet:ImageType, public origin:Vector3D, public resolution:number, public bounds:AABB ) { }
 }
