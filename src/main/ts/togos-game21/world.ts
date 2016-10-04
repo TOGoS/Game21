@@ -34,6 +34,7 @@ export enum StructureType {
 	INDIVIDUAL = 1, // No subdivisions
 	TILE_TREE = 2,
 	STACK = 3, // A bunch of things in one spot!
+	LIST = 4, // A set of RoomEntities
 }
 
 /**
@@ -105,6 +106,18 @@ export interface RoomEntity {
 	
 	/** The game object itself */
 	entity : Entity;
+}
+
+export interface RoomVisualEntity {
+	position : Vector3D;
+	velocity? : Vector3D;
+	orientation? : Quaternion;
+
+	entity? : Entity
+	
+	// If entity is unset, you may still be able to get visual info from: 
+	state? : KeyedList<any>;
+	visualRef? : string;
 }
 
 /**

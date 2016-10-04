@@ -1,3 +1,4 @@
+// TODO: Replace rectangle class with interface a la AABB, Vector3D
 export interface RectangularBounds {
 	minX:number;
 	minY:number;
@@ -71,7 +72,7 @@ export default class Rectangle implements RectangularBounds {
 		);
 	}
 	
-	public static areEqual(r0:Rectangle, r1:Rectangle):boolean {
+	public static areEqual(r0:RectangularBounds, r1:RectangularBounds):boolean {
 		return r0.minX == r1.minX && r0.minY == r1.minY && r0.maxX == r1.maxX && r0.maxY == r1.maxY;
 	}
 }

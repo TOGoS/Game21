@@ -18,6 +18,13 @@ export function aabbAverageX(  aabb:AABB ) { return (aabb.maxX+aabb.minX)/2; }
 export function aabbAverageY(  aabb:AABB ) { return (aabb.maxY+aabb.minY)/2; }
 export function aabbAverageZ(  aabb:AABB ) { return (aabb.maxZ+aabb.minZ)/2; }
 
+export function scaleAabb( aabb:AABB, scale:number ):AABB {
+	return {
+		minX: aabb.minX*scale, minY: aabb.minY*scale, minZ: aabb.minZ*scale,
+		maxX: aabb.maxX*scale, maxY: aabb.maxY*scale, maxZ: aabb.maxZ*scale,
+	}
+}
+
 export function aabbIntersectsWithOffset( aPos:Vector3D, aBb:AABB, bPos:Vector3D, bBb:AABB ):boolean {
 	if( aPos.x + aBb.maxX <= bPos.x + bBb.minX ) return false;
 	if( aPos.x + aBb.minX >= bPos.x + bBb.maxX ) return false;

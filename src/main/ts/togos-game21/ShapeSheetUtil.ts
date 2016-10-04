@@ -4,7 +4,9 @@ import Vector3D from './Vector3D';
 import { makeVector, setVector, K_VECTOR } from './vector3ds';
 import { scaleVector, vectorLength } from './vector3dmath';
 import Curve from './Curve';
-import Rectangle from './Rectangle';
+import Rectangle, { RectangularBounds } from './Rectangle';
+import { rectangleWidth, rectangleHeight } from './rectangles';
+import { makeAabb } from './aabbs';
 import Cuboid from './Cuboid';
 import ShapeSheet from './ShapeSheet';
 import ShapeSheetRenderer from './ShapeSheetRenderer';
@@ -104,6 +106,29 @@ class ShapeSheetUtil {
 	
 	get shapeSheet():ShapeSheet { return this._shapeSheet; }
 	get renderer():ShapeSheetRenderer|undefined { return this._renderer; }
+	
+	public getMaxZ(region:RectangularBounds=this.shapeSheet.bounds):number {
+		// TODO: use backside Z buffer when it exists
+		return Infinity;
+	}
+	
+	public getMinZ(region:RectangularBounds=this.shapeSheet.bounds):number {
+		const ss = this.shapeSheet;
+		let minZ = Infinity;
+		const minX = Math.max(0, region.minX), maxX = Math.min(ss.width, region.maxX);
+		const minY = Math.max(0, region.minY), maxY = Math.min(ss.height, region.maxY);
+		for( let y=minY; y<maxY; ++y ) {
+			for( let x=minX, i=x+y*ss.width; x<maxX; ++x ) {
+				minZ = Math.min( minZ,
+					ss.cellCornerDepths[i*4+0],
+					ss.cellCornerDepths[i*4+1],
+					ss.cellCornerDepths[i*4+2],
+					ss.cellCornerDepths[i*4+3],
+				); 
+			}
+		}
+		return minZ;
+	}
 	
 	// TODO: Mind plotMode
 	protected plotPixel(x:number, y:number, z0:number, z1:number, z2:number, z3:number, materialIndex?:number):void {
@@ -608,7 +633,7 @@ class ShapeSheetUtil {
 	
 	//// Cropping functions
 	
-	public static findAutocrop( ss:ShapeSheet, bounds:Rectangle ):Rectangle {
+	public static findAutocrop( ss:ShapeSheet, bounds:RectangularBounds ):Rectangle {
 		const minX = Math.ceil(bounds.minX)|0;
 		const minY = Math.ceil(bounds.minY)|0;
 		const maxX = Math.ceil(bounds.maxX)|0;
@@ -640,19 +665,19 @@ class ShapeSheetUtil {
 		return new Rectangle(opaqueMinX, opaqueMinY, opaqueMaxX, opaqueMaxY);
 	}
 	
-	public static crop( sss:ImageSlice<ShapeSheet>, cropRect:Rectangle, newSheet:boolean ):ImageSlice<ShapeSheet> {
+	public static crop( sss:ImageSlice<ShapeSheet>, cropRect:RectangularBounds, newSheet:boolean ):ImageSlice<ShapeSheet> {
 		if( newSheet ) {
-			const croppedSs = new ShapeSheet(cropRect.width, cropRect.height);
+			const croppedSs = new ShapeSheet(rectangleWidth(cropRect), rectangleHeight(cropRect));
 			const ssu = new ShapeSheetUtil(croppedSs);
-			ssu.blit( sss.sheet, cropRect.minX, cropRect.minY, cropRect.width, cropRect.height, 0, 0, 0 );
+			ssu.blit( sss.sheet, cropRect.minX, cropRect.minY, rectangleWidth(cropRect), rectangleHeight(cropRect), 0, 0, 0 );
 			return new ImageSlice<ShapeSheet>(
 				croppedSs,
 				makeVector(sss.origin.x - cropRect.minX, sss.origin.y - cropRect.minY, sss.origin.z),
 				sss.resolution,
-				new Rectangle(0,0,cropRect.width,cropRect.height))
+				makeAabb(0,0,sss.bounds.minZ,rectangleWidth(cropRect),rectangleHeight(cropRect),sss.bounds.maxZ))
 		}
 		
-		return new ImageSlice<ShapeSheet>( sss.sheet, sss.origin, sss.resolution, cropRect );
+		return new ImageSlice<ShapeSheet>( sss.sheet, sss.origin, sss.resolution, makeAabb(cropRect.minX, cropRect.minY, sss.bounds.minZ, cropRect.maxX, cropRect.maxY, sss.bounds.maxZ) );
 	}
 	
 	public static autocrop( sss:ImageSlice<ShapeSheet>, newSheet:boolean=false, gridSize:number=1 ):ImageSlice<ShapeSheet> {
@@ -672,7 +697,9 @@ class ShapeSheetUtil {
 		const ss = new ShapeSheet(bounds.width, bounds.height);
 		const ssu = new ShapeSheetUtil(ss);
 		ps.draw( ssu, 0.5, TransformationMatrix3D.translation(origin).multiply(xf) );
-		return this.autocrop(new ImageSlice<ShapeSheet>(ss, origin, resolution, ss.bounds), true);
+		return this.autocrop(new ImageSlice<ShapeSheet>(ss, origin, resolution, makeAabb(
+			ss.bounds.minX, ss.bounds.minY, 0, ss.bounds.maxX, ss.bounds.maxY, 0,
+		)), true);
 	}
 };
 

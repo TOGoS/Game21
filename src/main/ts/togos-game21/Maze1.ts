@@ -30,6 +30,7 @@ import {
 	Room,
 	RoomEntity,
 	RoomLocation,
+	RoomVisualEntity,
 	Entity,
 	EntityClass,
 	TileTree,
@@ -37,6 +38,7 @@ import {
 	StructureType,
 	TileEntityPalette
 } from './world';
+import ImageSlice from './ImageSlice';
 import { rewriteTileTree } from './tiletrees';
 
 import Tokenizer from './forth/Tokenizer';
@@ -163,23 +165,25 @@ function parseBitImg( m:RegExpExecArray ):BitImageInfo {
 
 // Uhm, hrm, should we use ARGB or RGBA?
 
-interface MazeItemVisual {
-	imageRef : string;
-	width : number;
-	height : number;
-}
-
-interface MazeViewageItem {
-	position : Vector3D;
-	orientation : Quaternion;
-	visual : MazeItemVisual;
-	
-	// When in editor mode, we'll get this back:
-	entity? : Entity;
+interface Icon {
+	visualRef? : string;
+	imageRef? : string;
+	image : HTMLImageElement;
+	// Origin, in image pixels, within the image.
+	originX : number;
+	originY : number;
+	// Each image pixel = this many world length units
+	scaleX : number;
+	scaleY : number;
 }
 
 interface MazeViewage {
-	items : MazeViewageItem[];
+	/**
+	 * When in editor mode, this will be a copy
+	 * of the RoomEntities aroound the camera.
+	 * Otherwise this will be a visuals-only representation.
+	 */
+	visualEntities : RoomVisualEntity[];
 	visibility? : ShadeRaster;
 	opacity? : ShadeRaster; // Fer debuggin
 	cameraLocation? : RoomLocation;
@@ -189,8 +193,7 @@ export class MazeView {
 	public gameDataManager:GameDataManager;
 	public constructor( public canvas:HTMLCanvasElement ) { }
 	
-	protected imageCache:KeyedList<HTMLImageElement> = {};
-	public viewage : MazeViewage = { items: [] };
+	public viewage : MazeViewage = { visualEntities: [] };
 	public ppm = 16;
 
 	public occlusionFillStyle:string = 'rgba(96,64,64,1)';
@@ -198,6 +201,7 @@ export class MazeView {
 	protected get screenCenterX() { return this.canvas.width/2; }
 	protected get screenCenterY() { return this.canvas.height/2; }
 	
+	protected imageCache:KeyedList<HTMLImageElement> = {};
 	protected getImage( ref:string ):HTMLImageElement {
 		if( this.imageCache[ref] ) return this.imageCache[ref];
 
@@ -215,9 +219,24 @@ export class MazeView {
 		return this.imageCache[ref] = img; 
 	}
 	
+	protected iconCache:KeyedList<ImageSlice<HTMLImageElement>> = {};
+	// TODO: Move this out to a better palce
+	protected getIcon( visualRef:string, state:KeyedList<any>|undefined, time:number, orientation:Quaternion, preferredResolution:number ):ImageSlice<HTMLImageElement> {
+		if( this.iconCache[visualRef] ) return this.iconCache[visualRef];
+		
+		const img = this.getImage(visualRef);
+		return {
+			sheetRef: null,
+			sheet: img,
+			origin: makeVector(img.width/2, img.height/2, 0),
+			resolution: 16,
+			bounds: makeAabb(0,0,0, img.width,img.height,0)
+		}
+	}
+	
 	public getTileEntityAt( coords:Vector3D, tileSize:number=1 ):TileEntity|undefined {
-		const viewItems = this.viewage.items;
-		for( let i=0; i<viewItems.length; ++i ) {
+		const viewItems = this.viewage.visualEntities;
+		for( let i in viewItems ) {
 			const vi = viewItems[i];
 			const te = vi.entity;
 			if( te ) {
@@ -315,12 +334,19 @@ export class MazeView {
 		const cx = this.canvas.width/2;
 		const cy = this.canvas.height/2;
 		const ppm = 16;
-		for( let i in this.viewage.items ) {
-			const item = this.viewage.items[i];
-			const img = this.getImage(item.visual.imageRef);
-			const px = (item.position.x-item.visual.width/2 ) * ppm + cx;
-			const py = (item.position.y-item.visual.height/2) * ppm + cy;
-			ctx.drawImage(img, px, py);
+		for( let i in this.viewage.visualEntities ) {
+			const item = this.viewage.visualEntities[i];
+			const time = 0;
+			const icon = this.getIcon(item.visualRef, item.state, time, item.orientation, 16);
+			const px = item.position.x * ppm + cx;
+			const py = item.position.y * ppm + cy;
+			ctx.drawImage(
+				icon.sheet,
+				icon.bounds.minX, icon.bounds.minY, icon.bounds.maxX-icon.bounds.minX, icon.bounds.maxY-icon.bounds.minY,
+				px - icon.origin.x - icon.bounds.minX, py - icon.origin.y - icon.bounds.minY,
+				ppm * (icon.bounds.maxX - icon.bounds.minX) / icon.resolution,
+				ppm * (icon.bounds.maxY - icon.bounds.minY) / icon.resolution, 
+			);
 		}
 		if(this.viewage.visibility) this.drawOcclusionFog(this.viewage.visibility);
 	}
@@ -356,7 +382,7 @@ function roomToMazeViewage( roomRef:string, roomPosition:Vector3D, gdm:GameDataM
 			}
 			
 			// TODO: Re-use items, visuals
-			if( visible ) viewage.items.push( {
+			if( visible ) viewage.visualEntities.push( {
 				// TODO: Just send position normal,
 				// visual should contain offsets
 				position: {
@@ -365,11 +391,7 @@ function roomToMazeViewage( roomRef:string, roomPosition:Vector3D, gdm:GameDataM
 					z: position.z + aabbAverageZ(entityClass.visualBoundingBox),
 				},
 				orientation: orientation,
-				visual: {
-					width: aabbWidth(entityClass.visualBoundingBox),
-					height: aabbHeight(entityClass.visualBoundingBox),
-					imageRef: entityClass.visualRef
-				},
+				visualRef: entityClass.visualRef,
 				entity: includeGreatInfo ? entity : undefined,
 			})
 		}
@@ -1374,7 +1396,7 @@ export class MazeDemo {
 
 	public updateView() {
 		this.maybePaint();
-		this.view.viewage = { items: [] };
+		this.view.viewage = { visualEntities: [] };
 		
 		const playerLoc = this.game.locateRoomEntity(this.playerId);
 
@@ -1758,8 +1780,7 @@ export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string) : MazeDem
 	);
 	
 	const v = new MazeView(canv);
-	const viewItems : MazeViewageItem[] = [];
-
+	
 	const demo = new MazeDemo();
 	demo.canvas = canv;
 	demo.datastore = ds;

@@ -1,6 +1,7 @@
 import Vector3D from './Vector3D';
+import AABB from './AABB';
 
-export default class Cuboid {
+export default class Cuboid implements AABB {
 	constructor(
 		public minX:number=0, public minY:number=0, public minZ:number=0,
 		public maxX:number=0, public maxY:number=0, public maxZ:number=0

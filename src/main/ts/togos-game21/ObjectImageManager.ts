@@ -8,6 +8,7 @@ import TransformationMatrix3D from './TransformationMatrix3D';
 import Vector3D from './Vector3D';
 import { scaleVector } from './vector3dmath';
 import Quaternion from './Quaternion';
+import { scaleAabb } from './aabbs';
 import ShapeSheetRenderer from './ShapeSheetRenderer';
 import ShapeSheetUtil from './ShapeSheetUtil';
 import SurfaceMaterial from './SurfaceMaterial';
@@ -151,7 +152,8 @@ export default class ObjectImageManager {
 		)
 		return new ImageSlice<HTMLImageElement>(
 			image, scaleVector(croppedSheet.origin, 1/sup), croppedSheet.resolution / sup,
-			croppedSheet.bounds.scale(1/sup));
+			scaleAabb(croppedSheet.bounds, 1/sup) // Is Z really scaled the same way?  I guess it would be nice if it could be.  Everything's in the same units.
+		);
 	}
 	
 	public objectVisualState(visual:MAObjectVisual, state:KeyedList<any>, orientation:Quaternion):ObjectVisualState|undefined {

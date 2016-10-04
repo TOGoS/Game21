@@ -1,5 +1,5 @@
 import Vector3D from './Vector3D';
-import Rectangle from './Rectangle';
+import AABB from './AABB';
 
 export default class ImageSlice<ImageType> {
 	// TODO: I think a minimumZ would be appropriate!
@@ -15,5 +15,5 @@ export default class ImageSlice<ImageType> {
 	 * @param {number} resolution pixels per world unit (world unit being 'meters')
 	 * @param {Rectangle} bounds the region of the shapesheet to be drawn
 	 */
-	public constructor(public sheet:ImageType, public origin:Vector3D, public resolution:number, public bounds:Rectangle ) { }
+	public constructor(public sheet:ImageType, public origin:Vector3D, public resolution:number, public bounds:AABB ) { }
 }

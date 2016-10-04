@@ -6,6 +6,8 @@ export default class ShapeSheet {
 	public height:number;
 	protected _bounds:Rectangle;
 	public cellMaterialIndexes:Uint16Array;
+	// TODO: Replace corner depths with center depth, dzdx, dzdy for each pixel
+	// TODO: Add backside Z
 	public cellCornerDepths:Float32Array;
 	
 	public get bounds():Rectangle { return this._bounds; }

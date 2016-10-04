@@ -9,6 +9,7 @@ import SurfaceColor from './SurfaceColor';
 import Vector3D from './Vector3D';
 import { makeVector, setVector, ZERO_VECTOR } from './vector3ds'
 import { addVector, roundVectorToGrid } from './vector3dmath';
+import { aabbWidth, aabbHeight } from './aabbs';
 import Quaternion from './Quaternion';
 import TransformationMatrix3D from './TransformationMatrix3D';
 import Cuboid from './Cuboid';
@@ -161,9 +162,9 @@ export default class CanvasWorldView {
 		const pixScale = scale/imgSlice.resolution;
 		this.addImageDrawCommand(
 			imgSlice.sheet,
-			imgSlice.bounds.minX, imgSlice.bounds.minY, imgSlice.bounds.width, imgSlice.bounds.height,
-			screenX - imgSlice.origin.x*pixScale, screenY - imgSlice.origin.y*pixScale, imgSlice.bounds.width*pixScale, imgSlice.bounds.height*pixScale,
-			pos.z // TODO: subtract visual's stickey-outeyness
+			imgSlice.bounds.minX, imgSlice.bounds.minY, aabbWidth(imgSlice.bounds), aabbHeight(imgSlice.bounds),
+			screenX - imgSlice.origin.x*pixScale, screenY - imgSlice.origin.y*pixScale, aabbWidth(imgSlice.bounds)*pixScale, aabbHeight(imgSlice.bounds)*pixScale,
+			pos.z + imgSlice.bounds.minZ
 		);
 	}
 	
