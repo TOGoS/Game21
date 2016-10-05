@@ -51,6 +51,9 @@ import MiniConsole from './ui/MiniConsole';
 import MultiConsole from './ui/MultiConsole';
 import HTMLConsole from './ui/HTMLConsole';
 import TilePaletteUI from './ui/TilePalette';
+import {
+	StorageCompartmentContentUI
+} from './ui/inventory';
 
 // Same format as an OSC message, minus the type header
 type EntityMessageData = any[];
@@ -253,6 +256,13 @@ class EntityImageManager
 		
 		//return Promise.resolve(this.getIcon(visualRef, state, time, orientation, preferredResolution));
 	}
+	
+	public fetchEntityIcon( entity:Entity, time:number, orientation:Quaternion, preferredResolution:number ):Promise<ImageSlice<HTMLImageElement>> {
+		return this.gameDataManager.fetchObject<EntityClass>(entity.classRef).then( (entityClass) => {
+			if( !entityClass.visualRef ) return Promise.resolve(EMPTY_IMAGE_SLICE);
+			return this.fetchIcon( entityClass.visualRef, entity.state || {}, time, orientation, preferredResolution);
+		});
+	}
 }
 
 export class MazeView {
@@ -322,7 +332,7 @@ export class MazeView {
 				rast.height*ppm/rast.resolution
 			)
 		}
-
+		
 		if( drawMargin ) {
 			const rastMinPx = canvWidth /2 - (rast.originX*ppm);
 			const rastMinPy = canvHeight/2 - (rast.originY*ppm);
@@ -1398,6 +1408,13 @@ interface ConsoleDialogBox extends DialogBox {
 	inputElement:HTMLInputElement;
 }
 
+interface GameContext {
+	gameDataManager : GameDataManager;
+	entityImageManager : EntityImageManager;
+}
+
+type GameContextListener = (ctx:GameContext)=>void;
+
 export class MazeDemo {
 	public datastore : Datastore<Uint16Array>;
 	public game : MazeGame;
@@ -1410,6 +1427,19 @@ export class MazeDemo {
 	public tilePaletteUi:TilePaletteUI;
 	public consoleDialog:ConsoleDialogBox;
 	public console:MiniConsole;
+	
+	protected contextListeners:GameContextListener[] = [];
+	public addContextListener(l:GameContextListener) {
+		this.contextListeners.push(l);
+	}
+	
+	protected set context(ctx:GameContext) {
+		if( this.game ) this.game.gameDataManager = ctx.gameDataManager;
+		if( this.view ) this.view.gameDataManager = ctx.gameDataManager;
+		for( let l in this.contextListeners ) {
+			this.contextListeners[l]( ctx );
+		}
+	}
 	
 	public switchToNextMode() {
 		this.mode++;
@@ -1560,7 +1590,10 @@ export class MazeDemo {
 		return fetchObject(saveRef, this.datastore, true).then( (save) => {
 			if( !save.gameDataRef ) return Promise.reject(new Error("Oh no, save data all messed up? "+JSON.stringify(save)));
 			const gdm = new GameDataManager(this.datastore, save.gameDataRef);
-			this.view.gameDataManager = gdm;
+			this.context = {
+				gameDataManager: gdm,
+				entityImageManager: new EntityImageManager(gdm)
+			}
 			this.game = new MazeGame(gdm);
 			console.log("Loading "+save.gameDataRef+"...");
 			return this.game.fullyLoadRooms( save.rootRoomId ).then( () => save );
@@ -1760,6 +1793,7 @@ export class MazeDemo {
 	public popUpConsole(initialText:string) {
 		this.consoleDialog.inputElement.value = initialText;
 		this.consoleDialog.setVisible(true);
+		this.consoleDialog.inputElement.setSelectionRange(initialText.length,initialText.length);
 		this.consoleDialog.inputElement.focus();
 	}
 }
@@ -2070,6 +2104,23 @@ export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string) : MazeDem
 		const htmlConsoleElement = document.getElementById('console-output');
 		if( htmlConsoleElement ) consoles.push(new HTMLConsole(htmlConsoleElement));
 		demo.console = new MultiConsole(consoles);
+	}
+	
+	const inventoryDialogElement = document.getElementById('inventory-dialog');
+	if( inventoryDialogElement ) {
+		inventoryDialogElement.style.display = 'none';
+		const ui = new StorageCompartmentContentUI();
+		demo.addContextListener( (ctx) => {
+			ui.entityRenderer = (entity:Entity) => ctx.entityImageManager.fetchEntityIcon(entity, 0, Quaternion.IDENTITY, 32);
+		});
+		/*
+		// Let's just show /something/ for starts:
+		ui.items = [
+			{ classRef: dat.playerEntityClassId },
+			{ classRef: dat.vines1EntityClassId },
+		]
+		inventoryDialogElement.appendChild(ui.element);
+		*/
 	}
 	
 	return demo;

@@ -136,6 +136,8 @@ ul.tile-palette li.selected {
 }
 
 .dialog-box {
+	position: fixed;
+	
 	border: 1px solid #666;
 	padding: 0;
 
@@ -174,7 +176,6 @@ ul.tile-palette li.selected {
 	font-family: sans-serif;
 }
 .big-dialog-box {
-	position: fixed;
 	top: 10vh;
 	left: 10vw;
 	height: 80vh;
@@ -215,6 +216,41 @@ ul.tile-palette li.selected {
 	color: #880;
 	mix-blend-mode: screen;
 	font-family: monospace;
+}
+
+#inventory-dialog {
+	position: fixed;
+	top: 10vh;
+	left: 10vh;
+	bottom: 10vh;
+	right: 10vh;
+	
+	display: flex;
+	flex-direction: column;
+	align-content: left;
+}
+.storage-compartment-content {
+	min-width: 32px;
+	min-height: 32px;
+	background: rgba(0,0,0,0.5);
+	display: flex;
+	flex-direction: column;
+}
+.storage-compartment-content > * {
+	margin: 0;
+	padding: 2px;
+	box-sizing: content-box;
+	width: 32px;
+	height: 32px;
+	background-origin: content-box;
+	background-size: contain;
+	background-position: center;
+	background-repeat: no-repeat;
+	image-rendering: pixelated;
+	border: 1px solid rgba(64,64,64,0.75);
+}
+.storage-compartment-content > *.selected {
+	border-color: rgba(192,192,192,0.75);
 }
 
 @media (min-width: 640px) and (min-height: 500px) {
@@ -289,6 +325,9 @@ ul.tile-palette li.selected {
     
     <p>The ID of the room you are currently in is shown at the top of the screen.</p>
   </div>
+</div>
+
+<div id="inventory-dialog">
 </div>
 
 <?php require_game21_js_libs($inlineResources, array('togos-game21/Maze1')); ?>
