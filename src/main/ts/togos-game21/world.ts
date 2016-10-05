@@ -37,6 +37,20 @@ export enum StructureType {
 	LIST = 4, // A set of RoomEntities
 }
 
+export interface StorageCompartmentClass {
+	maxVolume : number; // m³
+	maxItemCount? : number; // e.g. hands can hold only one item
+}
+
+export interface AttachmentPointClass {
+	/** partner attachment point class ref => true, if attachable */
+	partnersTo : KeyedList<boolean>;
+	
+	maxForce? : number; // Maximum force that the attachment can withstand; undefined=infinity
+	mayPassPower? : boolean; // Default = false
+	mayPassData?  : boolean; // Undefined = false
+}
+
 /**
  * These should be considered immutable.
  */
@@ -73,6 +87,21 @@ export interface EntityClass {
 	normalClimbingSpeed? : number; // Normal maximum speed attained while climbing; default = walking speed
 	
 	visualRef? : string;
+	
+	// By default this could be computed from tilingBoundingBox or something I guess
+	storageVolume? : number;
+	
+	// For storage compartments and attachment points,
+	// keys are arbitrary and identify the thing on the item (e.g. 'pocket 1', 'pocket 2').
+	// Values are storage compartment/attachment point class references
+	
+	storageCompartments? : KeyedList<string>;
+	attachmentPoints? : KeyedList<string>;
+}
+
+export interface StorageCompartment {
+	classRef : string;
+	contents : Entity[];
 }
 
 /**
@@ -93,6 +122,9 @@ export interface Entity {
 	state? : KeyedList<any>;
 	
 	desiredMovementDirection? : Vector3D;
+	
+	storageCompartments? : KeyedList<StorageCompartment>;
+	attachments? : KeyedList<Entity>;
 }
 
 /**
