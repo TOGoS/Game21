@@ -11,16 +11,14 @@
 - Trains
 - Shmoons
 
-## Stuff done since last demo
-
-- Basic Forth stuff (no robots yet)
-- Visibility calculations
-
 ## Misc to-do items
 
-- Generate some kind of pack
+For next demo:
+- Don't save intermediate data to backing datastore
+  - Instead, walk active data when saving
 
 Maze1:
+- Generate some kind of packfile (PNG?)
 - Unify client/server view models; in edit mode, just send the room data as-is
   - This way we could ctrl+click TileTree blocks and stuff!
 - Keys, other inventory items
