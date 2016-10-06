@@ -12,7 +12,7 @@ interface Thingy {
 }
 
 function testGameDataManager( testNamePrefix:string, ds:Datastore<Uint8Array> ) {
-	let gdm = new GameDataManager(ds);
+	const gdm = new GameDataManager(ds);
 	
 	const storeProm = gdm.storeObject( <Thingy>{
 		name: "Ken",
@@ -35,7 +35,7 @@ function testGameDataManager( testNamePrefix:string, ds:Datastore<Uint8Array> ) 
 			return Promise.reject(new Error('getObjectIfLoaded(\'urn:ken\') should have returned null before cache clear'));
 		}
 		
-		gdm = new GameDataManager(ds, gdm.rootMapNodeUri);
+		gdm.clearCache();
 		const nullKen = gdm.getObjectIfLoaded('urn:ken');
 		if( nullKen != null ) {
 			return Promise.reject(new Error('getObjectIfLoaded(\'urn:ken\') should have returned null right after cache clear'));

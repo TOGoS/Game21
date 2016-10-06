@@ -201,6 +201,23 @@ export default class GameDataManager {
 		return this.objectMapManager.flushUpdates();
 	}
 	
+	/**
+	 * Clears the cache.
+	 * No data should ever be lost due to a cache clear (unless something has happened to the backing store).
+	 */
+	public clearCache() {
+		const oldCache:KeyedList<any> = this.objectCache;
+		const newCache:KeyedList<any> = {};
+		for( let urn in this.tempObjectUrns ) {
+			const tempObj = oldCache[urn];
+			if( !tempObj ) {
+				console.warn("Temp object "+urn+" isn't in the cache!");
+			}
+			newCache[urn] = tempObj;
+		}
+		this.objectCache = newCache;
+	}
+	
 	public updateMap( updates:KeyedList<string> ):Promise<string> {
 		return this.objectMapManager.storeValues( updates );
 	}
