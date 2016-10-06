@@ -5,8 +5,10 @@ import Datastore from './Datastore';
 import { utf8Encode, utf8Decode, hexEncode, hexDecode } from '../tshash/utils';
 
 export default class BrowserStorageDatastore implements Datastore<Uint8Array> {
-	public constructor(protected identify:(v:Uint8Array)=>string, protected browserStorage:Storage) { }
-
+	public constructor(protected _identify:(v:Uint8Array)=>string, protected browserStorage:Storage) { }
+	
+	public get identify() { return this._identify; }
+	
 	/** Returns the data if immediately available.  Otherwise returns null. */
 	public get( uri:string ):Uint8Array|undefined {
 		const str = this.browserStorage.getItem(uri);
@@ -31,7 +33,7 @@ export default class BrowserStorageDatastore implements Datastore<Uint8Array> {
 	 */
 	public fastStore( data:Uint8Array, onComplete?:(success:boolean, errorInfo?:ErrorInfo)=>void ):string {
 		if( onComplete ) throw new Error("onComplete not supported by BrowserStorageDatastore#fastStore");
-		const id = this.identify(data);
+		const id = this._identify(data);
 		this.put(id, data);
 		return id;
 	}

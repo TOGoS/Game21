@@ -32,7 +32,7 @@ class TileEntityPaletteManager {
 		if( this._paletteRef == null ) {
 			if( this._palette == null ) throw new Error("Can't calculate palette ref without palette!");
 			Object.freeze(this._palette);
-			this._paletteRef = this.gdm.fastStoreObject<TileEntityPalette>(this._palette);
+			this._paletteRef = this.gdm.tempStoreObject<TileEntityPalette>(this._palette);
 		}
 		return this._paletteRef;
 	}
@@ -122,6 +122,6 @@ export function rewriteTileTree(
 		const newTt = clone(tt);
 		newTt.childEntityIndexes = newIndexes;
 		newTt.childEntityPaletteRef = tepm.paletteRef;
-		return gdm.fastStoreObject<TileTree>(newTt);
+		return gdm.tempStoreObject<TileTree>(newTt);
 	}
 }

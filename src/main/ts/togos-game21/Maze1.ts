@@ -1883,7 +1883,7 @@ class TileEntityRenderer {
 
 export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string) : MazeDemo {
 	const dataIdent = sha1Urn;
-	const ds2:Datastore<Uint8Array> = new HTTPHashDatastore();
+	const ds2:Datastore<Uint8Array> = HTTPHashDatastore.createDefault();
 	const ds1:Datastore<Uint8Array> = window.localStorage ? new CachingDatastore(dataIdent,
 		new BrowserStorageDatastore(dataIdent, window.localStorage),
 		ds2

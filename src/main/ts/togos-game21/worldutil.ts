@@ -26,7 +26,7 @@ function entityClassRef( op:any, gdm?:GameDataManager ):string {
 	
 	if( gdm == null ) throw new Error("Can't generate object prototype ref without GameDataManager");
 	
-	return gdm.fastStoreObject(op);
+	return gdm.tempStoreObject(op);
 }
 
 /**
@@ -47,7 +47,7 @@ export function makeTileEntityPaletteRef( palette:any, gdm?:GameDataManager, ali
 		},
 	}) );
 
-	return gdm.fastStoreObject(tilePalette, alias);
+	return gdm.tempStoreObject(tilePalette, alias);
 }
 
 /**
@@ -129,7 +129,7 @@ export function makeTileTreeNode( palette:any, w:number, h:number, d:number, ind
 	
 	const tilingBoundingBox = makeAabb(-tileW*w/2, -tileH*h/2, -tileD*d/2, +tileW*w/2, +tileH*h/2, +tileD*d/2);
 	
-	return {
+	return deepFreeze({
 		visualBoundingBox: tilingBoundingBox, // TODO: potentially different!
 		physicalBoundingBox: tilingBoundingBox, // TODO: potentially different!
 		structureType: StructureType.TILE_TREE,
@@ -145,7 +145,7 @@ export function makeTileTreeNode( palette:any, w:number, h:number, d:number, ind
 		// isAffectedByGravity: false,
 		// visualRef: undefined,
 		opacity: totalOpacity/(w*h*d),
-	}
+	});
 }
 
 export interface MakeTileTreeOptions {
@@ -155,7 +155,7 @@ export interface MakeTileTreeOptions {
 
 export function makeTileTreeRef( palette:any, w:number, h:number, d:number, indexes:any, gdm:GameDataManager, opts:MakeTileTreeOptions={}, alias?:string ):string {
 	const tt:TileTree = makeTileTreeNode(palette, w, h, d, indexes, gdm, opts);
-	return gdm.fastStoreObject(tt, alias);
+	return gdm.tempStoreObject(tt, alias);
 }
 
 export function connectRooms( gdm:GameDataManager, room0Ref:string, room1Ref:string, offset:Vector3D ):void {

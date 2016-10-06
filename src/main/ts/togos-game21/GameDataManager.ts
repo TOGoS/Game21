@@ -2,18 +2,29 @@
 
 import { deepFreeze, thaw } from './DeepFreezer';
 import Datastore from './Datastore';
+import MemoryDatastore from './MemoryDatastore';
 import KeyedList from './KeyedList';
 import { DistributedBucketMapManager } from './DistributedBucketMap';
 import { utf8Encode } from '../tshash/utils';
-import { fetchObject, storeObject, fastStoreObject } from './JSONObjectDatastore';
+import { identifyObject, fetchObject, storeObject, fastStoreObject } from './JSONObjectDatastore';
 import { shortcutThen, value as promiseValue } from './promises';
 import { Room, RoomEntity, Entity, EntityClass, StructureType, TileTree, TileEntityPalette, TileEntity } from './world';
 
+const refKeyRegex = /.*Ref$/;
 const hashUrnRegex = /^urn:(sha1|bitprint):.*/;
+
+function isHashUrn( urn:string ):boolean {
+	return hashUrnRegex.exec(urn) != null;
+}
+
+function assertNameNotHashUrn( name:string ) {
+	if( isHashUrn(name) ) {
+		throw new Error("Name for object is a hash URN, which is probably a bad idea! "+name);
+	}
+}
 
 export default class GameDataManager {
 	protected objectMapManager: DistributedBucketMapManager<string>;
-	protected datastore: Datastore<Uint8Array>;
 	protected objectCache: KeyedList<any> = {};
 	/**
 	 * Stuff we're currently storing.
@@ -25,11 +36,20 @@ export default class GameDataManager {
 	protected fetching: KeyedList<Promise<any>> = {};
 	
 	protected mutableObjects: KeyedList<any> = {};
+	/**
+	 * Immutable URNs of objects that have been 'temp stored'
+	 * and should be saved to the backing datastore on flushUpdates
+	 * if they are still referenced from the root nodes.
+	 */
+	protected tempObjectUrns:KeyedList<string> = {};
+	/** Name => data name mappings that haven't yet been saved */
+	protected tempNameMap:KeyedList<string|undefined> = {};
 	
-	public constructor( ds:Datastore<Uint8Array>, rootNodeUri?:string ) {
-		this.datastore = ds;
-		this.objectMapManager = new DistributedBucketMapManager<string>(ds, rootNodeUri);
+	public constructor( protected datastore:Datastore<Uint8Array>, rootNodeUri?:string ) {
+		this.objectMapManager = new DistributedBucketMapManager<string>(this.datastore, rootNodeUri);
 	}
+	
+	public get rootMapNodeUri():string { return this.objectMapManager.rootNodeUri; }
 	
 	public getObjectIfLoaded<T>( ref:string, initiateFetch:boolean=false ):T|undefined {
 		let v = this.mutableObjects[ref];
@@ -85,7 +105,7 @@ export default class GameDataManager {
 		if( this.objectCache[ref] ) return Promise.resolve(this.objectCache[ref]);
 		if( this.fetching[ref] ) return this.fetching[ref];
 		
-		if( hashUrnRegex.exec(ref) ) {
+		if( isHashUrn(ref) ) {
 			return this.fetching[ref] = fetchObject(ref, this.datastore, true).then( (v:any) => {
 				this.cache(ref, v);
 				delete this.fetching[ref];
@@ -106,19 +126,79 @@ export default class GameDataManager {
 		}
 	}
 	
+	protected objectsToSave:KeyedList<any> = {};
+	protected collected:KeyedList<string> = {};
+	
+	protected _collectLiveObjectsForSaving(obj:any) {
+		for( let k in obj ) {
+			const v = obj[k];
+			if( v == null ) {
+			} if( typeof v == 'string' ) {
+				if( refKeyRegex.exec(k) ) {
+					this.collectLiveObjectsForSaving(v);
+				}
+			} else if( typeof v == 'object' ) {
+				this._collectLiveObjectsForSaving(v);
+			}
+		}
+	}
+	
+	protected collectLiveObjectsForSaving(ref:string) {
+		if( this.collected[ref] ) return; // Already visited!
+		
+		this.collected[ref] = ref;
+		if( isHashUrn(ref) && !this.tempObjectUrns[ref] ) {
+			// Probably safe to assume that everything it references has also been saved,
+			// so we don't need to recurse any further.
+			return;
+		}
+		
+		const obj = this.getObjectIfLoaded(ref);
+		
+		if( this.tempObjectUrns[ref] ) {
+			if( obj == null ) {
+				console.warn("Tried to walk temp object "+ref+" but it's not in the cache!")
+				return;
+			}
+			this.objectsToSave[ref] = obj;
+		}
+		if( obj == null ) return;
+
+		if( typeof obj == 'object' ) {
+			this._collectLiveObjectsForSaving(obj);
+		}
+	}
+	
 	public flushUpdates():Promise<string> {
 		for( let k in this.mutableObjects ) {
 			const obj = this.mutableObjects[k];
-			this.fastStoreObject(obj, k);
+			this.tempStoreObject(obj, k);
 		}
+		for( let r in this.mutableObjects ) {
+			this.collectLiveObjectsForSaving(r);
+		}
+		for( let name in this.tempNameMap ) {
+			const urn = this.tempNameMap[name];
+			if( urn ) this.collectLiveObjectsForSaving(urn);
+		}
+		// Any that should be saved have been collected
+		this.tempObjectUrns = {};
+		this.collected = {};
+		
+		for( let k in this.objectsToSave ) {
+			const v = this.objectsToSave[k];
+			const savedAs = fastStoreObject(v, this.datastore);
+			if( savedAs !== k ) {
+				// We kind of depend on this happening, so we may as well check for it: 
+				throw new Error("Temp-saved object "+k+" finally saved with different URN: "+savedAs);
+			}
+		}
+		this.objectsToSave = {};
+		
+		this.objectMapManager.storeValues(this.tempNameMap);
+		this.tempNameMap = {};
 		
 		return this.objectMapManager.flushUpdates();
-	}
-
-	public clearCache():void {
-		// Well, might not want to clear stuff out that we're in the process of storing.
-		// But maybe we do if explicitly asked to clearCache().  *shrug*
-		this.objectCache = {};
 	}
 	
 	public updateMap( updates:KeyedList<string> ):Promise<string> {
@@ -130,6 +210,7 @@ export default class GameDataManager {
 		const urnProm = storeObject( obj, this.datastore );
 		const name = _name; // Make it const so later references check out
 		if( name ) {
+			assertNameNotHashUrn(name);
 			this.objectCache[name] = obj;
 			this.storing[name] = true;
 			return urnProm.then( (urn) => {
@@ -148,11 +229,32 @@ export default class GameDataManager {
 		// Uhm, how can we set this.storing[urn] and then have it get cleared, uhm
 		const name = _name;
 		if( name ) {
+			assertNameNotHashUrn(name);
 			this.objectCache[name] = obj;
 			this.storing[name] = true;
 			this.updateMap({[name]: urn}).then( (newMapUrn) => {
 				delete this.storing[name];
 			});
+		}
+		return urn;
+	}
+	
+	/**
+	 * Store the given object (and optionally a name mapping)
+	 * in a local memory datastore without committing the data
+	 * to the backing datastore.
+	 * 
+	 * Only data that is referenced by a name and 
+	 */
+	public tempStoreObject<T>( obj:T, _name?:string ):string {
+		obj = deepFreeze(obj);
+		const urn = identifyObject( obj, this.datastore.identify );
+		this.objectCache[urn] = obj;
+		this.tempObjectUrns[urn] = urn;
+		if( _name ) {
+			assertNameNotHashUrn(_name);
+			this.objectCache[_name] = obj;
+			this.tempNameMap[_name] = urn;
 		}
 		return urn;
 	}

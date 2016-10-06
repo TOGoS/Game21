@@ -13,10 +13,6 @@
 
 ## Misc to-do items
 
-For next demo:
-- Don't save intermediate data to backing datastore
-  - Instead, walk active data when saving
-
 Maze1:
 - Generate some kind of packfile (PNG?)
 - Unify client/server view models; in edit mode, just send the room data as-is

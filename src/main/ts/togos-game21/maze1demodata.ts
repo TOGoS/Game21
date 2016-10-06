@@ -789,7 +789,7 @@ import HTTPHashDatastore from './HTTPHashDatastore';
 	
 if( typeof require != 'undefined' && typeof module != 'undefined' && require.main === module ) {
 	const dataIdent = sha1Urn;
-	const ds:Datastore<Uint8Array> = new HTTPHashDatastore();
+	const ds:Datastore<Uint8Array> = HTTPHashDatastore.createDefault();
 	const gdm:GameDataManager = new GameDataManager(ds);
 	initData(gdm).then( (rootNodeUri) => {
 		const saveGame = {

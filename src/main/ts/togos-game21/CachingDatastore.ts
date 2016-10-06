@@ -5,8 +5,10 @@ import ErrorInfo from './ErrorInfo';
 import Datastore from './Datastore';
 
 export default class CachingDatastore<T> implements Datastore<T> {
-	constructor( protected identify:(v:T)=>string, protected cacheDs:Datastore<T>, protected fallbackDs:Datastore<T> ) { }
-
+	constructor( protected _identify:(v:T)=>string, protected cacheDs:Datastore<T>, protected fallbackDs:Datastore<T> ) { }
+	
+	public get identify() { return this._identify; }
+	
 	public get( uri:string ):T|undefined {
 		let v:T|undefined = this.cacheDs.get(uri);
 		if( v == null ) {
@@ -26,11 +28,11 @@ export default class CachingDatastore<T> implements Datastore<T> {
 		});
 	}
 	public store( data:T ):Promise<string> {
-		const k = this.identify(data);
+		const k = this._identify(data);
 		return this.put(k, data);
 	}
 	public fastStore( data:T, onComplete?:(success:boolean, errorInfo?:ErrorInfo)=>void ):string {
-		const ident = this.identify(data);
+		const ident = this._identify(data);
 		const putProm = this.put(ident, data);
 		if( onComplete ) {
 			const onCompleat = onComplete;

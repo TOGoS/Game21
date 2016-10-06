@@ -9,20 +9,30 @@ function stringify(v:any):string {
 	return PrettierJSONEncoder.stringify(v);
 }
 
+function encodeObject(obj:any):Uint8Array {
+	return utf8Encode(stringify(obj));
+}
+
+function dataUrnToSubjectUrn(urn:string):string {
+	return urn+"#";
+}
+
+export function identifyObject( v:any, identifyData:(v:Uint8Array)=>string ):string {
+	return dataUrnToSubjectUrn(identifyData(encodeObject(v)));
+}
+
 export function storeObject( v:any, datastore:Datastore<Uint8Array> ):Promise<string> {
 	if( v instanceof Uint8Array ) {
 		return datastore.store(v);
 	}
-	const json = stringify(v);
-	return datastore.store( utf8Encode(json) ).then( (dataurn) => dataurn+"#" );
+	return datastore.store(encodeObject(v)).then( (dataUrn) => dataUrnToSubjectUrn(dataUrn) );
 }
 
 export function fastStoreObject<T>( v:T, datastore:Datastore<Uint8Array> ):string {
 	if( v instanceof Uint8Array ) {
 		return datastore.fastStore(v);
 	}
-	const json = stringify(v);
-	return datastore.fastStore( utf8Encode(json) )+'#';
+	return dataUrnToSubjectUrn(datastore.fastStore(encodeObject(v)));
 }
 
 export function fetchObject( uri:string, datastore:Datastore<Uint8Array>, freeze:boolean=false ):Promise<any> {

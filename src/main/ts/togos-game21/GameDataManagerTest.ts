@@ -1,3 +1,4 @@
+import { sha1Urn } from '../tshash/index';
 import Datastore from './Datastore';
 import MemoryDatastore from './MemoryDatastore';
 import HTTPHashDatastore from './HTTPHashDatastore';
@@ -11,7 +12,7 @@ interface Thingy {
 }
 
 function testGameDataManager( testNamePrefix:string, ds:Datastore<Uint8Array> ) {
-	const gdm = new GameDataManager(ds);
+	let gdm = new GameDataManager(ds);
 	
 	const storeProm = gdm.storeObject( <Thingy>{
 		name: "Ken",
@@ -28,18 +29,13 @@ function testGameDataManager( testNamePrefix:string, ds:Datastore<Uint8Array> ) 
 	});
 	registerTestResult(testNamePrefix+' fetch ken', fetchProm1);
 	
-	const fetchProm2 = fetchProm1.then(() => {
-		//console.log('Waiting for store promise to finish before clearing cache...');
-		return storeProm.then( (urn) => {
-			//console.log("Store promise resolved! urn:ken = "+urn);
-		});
-	}).then( () => {
+	const fetchProm2 = fetchProm1.then(() => storeProm).then( () => {
 		const cachedKen = gdm.getObjectIfLoaded('urn:ken');
 		if( cachedKen == null ) {
 			return Promise.reject(new Error('getObjectIfLoaded(\'urn:ken\') should have returned null before cache clear'));
 		}
 		
-		gdm.clearCache();
+		gdm = new GameDataManager(ds, gdm.rootMapNodeUri);
 		const nullKen = gdm.getObjectIfLoaded('urn:ken');
 		if( nullKen != null ) {
 			return Promise.reject(new Error('getObjectIfLoaded(\'urn:ken\') should have returned null right after cache clear'));
@@ -48,12 +44,15 @@ function testGameDataManager( testNamePrefix:string, ds:Datastore<Uint8Array> ) 
 		return {};
 	});
 	registerTestResult(testNamePrefix+' get ken after cache clear', fetchProm2);
-
+	
+	// Since fetchProm2 waited for updates to be saved,
+	// they should then be available via fetchObject
+	// even though it's a new GameDataManager.
 	const fetchProm3 = fetchProm2.then( () => gdm.fetchObject<Thingy>('urn:ken') ).then( (v:Thingy) => {
 		return assertEqualsPromise(expectedKen, v, 'urn:ken resolved to not what we expected after re-fetching: '+JSON.stringify(v));
 	});
 	registerTestResult(testNamePrefix+' fetch ken after cache clear', fetchProm3);
-
+	
 	const expectedKen2 = {
 		name: 'Ken II',
 		value: '43'
@@ -99,9 +98,11 @@ function testGameDataManager( testNamePrefix:string, ds:Datastore<Uint8Array> ) 
 	}));
 }
 
-const mds = MemoryDatastore.createSha1Based(1);
+// TODO: Test tempStoreObject and stuff
+
+const mds = new MemoryDatastore(sha1Urn);
 testGameDataManager( "MemoryDatastore-backed GameDataManager", mds );
 
 // It's nice to see this work, but it shouldn't really need its own test
 //const hds = new HTTPHashDatastore;
-//testGameDataManager( "HTTPHashDatastore-backed GameDataManager", hds );
+//testGameDataManager( "HTTPHashDatastore-backed GameDataManager", identify, hds );

@@ -9,8 +9,10 @@ import { sha1Urn } from '../tshash/index';
 export default class MemoryDatastore<T> implements Datastore<T> {
 	protected values:KeyedList<T> = {};
 	
-	constructor( protected identify:(v:T)=>string, protected delay:number=0 ) { }
-
+	constructor( protected _identify:(v:T)=>string, protected delay:number=0 ) { }
+	
+	public get identify() { return this._identify; }
+	
 	public get( uri:string ):T {
 		return this.values[uri];
 	}
@@ -25,7 +27,7 @@ export default class MemoryDatastore<T> implements Datastore<T> {
 	}
 	public store( data:T ):Promise<string> {
 		return new Promise<string>( (resolve, reject) => {
-			const ident = this.identify(data);
+			const ident = this._identify(data);
 			setTimeout( () => {
 				this.values[ident] = data;
 				setTimeout( () => resolve(ident), this.delay );
@@ -33,7 +35,7 @@ export default class MemoryDatastore<T> implements Datastore<T> {
 		});
 	}
 	public fastStore( data:T, onComplete?:(success:boolean, errorInfo?:ErrorInfo)=>void ):string {
-		const ident = this.identify(data);
+		const ident = this._identify(data);
 		const onCompleat = onComplete;
 		setTimeout( () => {
 			this.values[ident] = data;

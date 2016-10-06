@@ -4,8 +4,14 @@ import { sha1Urn } from '../tshash/index';
 import http from './http';
 
 export default class HTTPHashDatastore implements Datastore<Uint8Array> {
-	constructor( protected n2rUrl:string="http://game21-data.nuke24.net/uri-res/N2R" ) {
+	public static createDefault() {
+		return new HTTPHashDatastore(sha1Urn, "http://game21-data.nuke24.net/uri-res/N2R");
 	}
+	
+	constructor( protected _identify:(v:Uint8Array)=>string, protected n2rUrl:string ) {
+	}
+	
+	public get identify() { return this._identify; }
 	
 	/** Returns the data if immediately available.  Otherwise returns null. */
 	get( uri:string ):Uint8Array|undefined {
@@ -19,13 +25,13 @@ export default class HTTPHashDatastore implements Datastore<Uint8Array> {
 		});
 	}
 	store( data:Uint8Array ):Promise<string> {
-		const urn = sha1Urn(data);
+		const urn = this._identify(data);
 		const url = this.n2rUrl+"?"+urn;
 		let resProm = http.request('PUT', url, {}, data);
 		return resProm.then( () => urn );
 	}
 	fastStore( data:Uint8Array, onComplete?:(success:boolean, errorInfo?:ErrorInfo)=>void ):string {
-		const urn = sha1Urn(data);
+		const urn = this._identify(data);
 		const putProm = this.put(urn, data);
 		if( onComplete ) {
 			const onCompleat = onComplete;

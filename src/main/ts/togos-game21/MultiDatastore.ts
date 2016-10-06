@@ -10,10 +10,10 @@ function fetchFrom<T>( uri:string, stores:Datastore<T>[], skip:number=0 ):Promis
 }
 
 export default class MultiDatastore<T> implements Datastore<T> {
-	protected values:KeyedList<T> = {};
+	constructor( protected _identify:(v:T)=>string, protected stores:Datastore<T>[] ) { }
 	
-	constructor( protected identify:(v:T)=>string, protected stores:Datastore<T>[] ) { }
-
+	public get identify() { return this._identify; }
+	
 	public get( uri:string ):T|undefined {
 		for( let s in this.stores ) {
 			const v = this.stores[s].get(uri);
@@ -36,7 +36,7 @@ export default class MultiDatastore<T> implements Datastore<T> {
 	}
 	public fastStore( data:T, onComplete?:(success:boolean, errorInfo?:ErrorInfo)=>void ):string {
 		if( onComplete ) throw new Error("MultiDatastore#fastStore doesn't support onComplete!");
-		const ident = this.identify(data);
+		const ident = this._identify(data);
 		for( let s in this.stores ) {
 			this.stores[s].fastStore(data);
 		}

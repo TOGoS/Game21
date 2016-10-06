@@ -129,7 +129,7 @@ export class EntityInventoryUI {
 	}
 	
 	public set chain(c:EntityInventoryChain) {
-		
+		// TODO: build the UI
 	}
 	
 	public get chainTail():EntityInventoryChain|null {

@@ -3,4 +3,4 @@
 import HTTPHashDatastore from './HTTPHashDatastore';
 import {testDatastore} from './DatastoreTest';
 
-testDatastore( 'HTTPHashDatastore', new HTTPHashDatastore() );
+testDatastore( 'HTTPHashDatastore', HTTPHashDatastore.createDefault() );

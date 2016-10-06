@@ -3,6 +3,7 @@
 import ErrorInfo from './ErrorInfo';
 
 interface Datastore<T> {
+	identify : (v:T)=>string;
 	/** Returns the data if immediately available.  Otherwise returns null. */
 	get( uri:string ):T|undefined;
 	fetch( uri:string ):Promise<T>;
