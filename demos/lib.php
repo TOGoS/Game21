@@ -1,7 +1,31 @@
 <?php
 
 // If rp's not set, assume we're in the demos/ directory.
-if( !isset($rp) ) $rp = '..';
+if( !isset($rp) ) {
+	if( isset($argv) ) {
+		$biz = explode('/', $argv[0]);
+		if( count($biz) == 0 ) {
+		} else if( count($biz) == 1 ) {
+			$rp = '..';
+		} else if( count($biz) == 2 ) {
+			$rp = '.';
+		} else {
+			$pp = array();
+			while( count($biz) > 2 ) {
+				$pp[] = array_shift($biz);
+			}
+			$rp = implode('/', $pp);
+			if( $rp == '' ) throw new Exception("Couldn't figure \$rp. \$pp = ".var_export($pp,true));
+		}
+	} else {
+		// Assume in demos/ directory.
+		$rp = '..';
+	}
+}
+
+if( empty($rp) ) throw new Exception("Couldn't figure \$rp.");
+$rrp = $rp;  // Runtime root path (path to root dir that this script can read)
+$wrp = '..'; // Web root path (root path as it needs to be when you're visiting the page)
 
 function load_dotenv($filename=null) {
 	if( $filename === null ) $filename = __DIR__.'/../.env';
@@ -101,10 +125,13 @@ function require_js($files, $inline=false, $extraProps=array()) {
 };
 
 function require_game21_js_libs( $inline=false, $requireModuleNames=null ) {
-	global $rp;
+	global $rrp;
+	global $wrp;
+	$rp = $inline ? $rrp : $wrp;
 	$libsFile = $rp.'/target/game21libs.amd.es5.js';
+	if( !file_exists($libsFile) ) throw new Exception("'$libsFile' no existy!");
 	if( $inline and $requireModuleNames !== null ) {
-		$tempDir = $rp.'/temp';
+		$tempDir = $rrp.'/temp';
 		if( !is_dir($tempDir) ) if( !mkdir($tempDir, 0777, true) ) {
 			throw new Exception("Failed to mkdir('$tempDir')");
 		}
