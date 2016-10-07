@@ -29,6 +29,9 @@ clean: sortaclean
 	publish-demo \
 	sortaclean
 
+demos/Maze1.html: demos/Maze1.php $(shell find . -name '*.php') target/game21libs.amd.es5.js
+	php demos/Maze1.php saveGameRef="`tail -n 1 mazes.lst`" --inline-resources > demos/Maze1.html
+
 demos/%.html: demos/%.php $(shell find . -name '*.php') target/game21libs.amd.es5.js
 	cd demos && php "../$<" --inline-resources >"../$@"
 
