@@ -8,7 +8,7 @@ import MultiDatastore from './MultiDatastore';
 
 import { deepFreeze, thaw, deepThaw, isDeepFrozen } from './DeepFreezer';
 import GameDataManager from './GameDataManager';
-import { fetchObject, storeObject } from './JSONObjectDatastore';
+import { fetchObject, storeObject, encodeObject } from './JSONObjectDatastore';
 import { DistributedBucketMapManager } from './DistributedBucketMap';
 import KeyedList from './KeyedList';
 import Vector3D from './Vector3D';
@@ -26,6 +26,7 @@ import SceneShader, { ShadeRaster } from './SceneShader';
 import { uuidUrn, newType4Uuid } from '../tshash/uuids';
 import { makeTileTreeRef, makeTileEntityPaletteRef, eachSubEntity, connectRooms } from './worldutil';
 import * as dat from './maze1demodata';
+import * as http from './http';
 import {
 	Room,
 	RoomEntity,
@@ -1998,15 +1999,27 @@ export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string) : MazeDem
 			if( saveNote == null || saveNote.length == 0 ) return;
 			saveButton.disabled = true;
 			demo.saveGame().then( (saveRef) => {
-				console.log("Saved as "+saveRef);
+				const saveMeta = {
+					note: saveNote,
+					date: new Date().toISOString(),
+					saveRef: saveRef,
+				};
+				http.request(
+					'POST', 'http://game21-data.nuke24.net/saves',
+					{'content-type':'application/json'},
+					encodeObject(saveMeta)
+				).then( (res) => {
+					if( res.statusCode != 200 ) {
+						demo.console.error("Failed to save to website;", res.content);
+					} else {
+						demo.console.log("Saved "+saveRef+" to website");
+					}
+				});
+				demo.console.log("Saved as "+saveRef);
 				if( window.localStorage ) {
 					const savesJson = window.localStorage.getItem("game21-local-saves");
 					const saves:{note:string,date:string,saveRef:string}[] = savesJson ? JSON.parse(savesJson) : [];
-					saves.push({
-						note: saveNote,
-						date: new Date().toISOString(),
-						saveRef: saveRef,
-					});
+					saves.push(saveMeta);
 					window.localStorage.setItem("game21-local-saves", JSON.stringify(saves, null, "\t"));
 				}
 				saveButton.disabled = false;

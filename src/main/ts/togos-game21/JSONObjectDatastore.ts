@@ -9,7 +9,7 @@ function stringify(v:any):string {
 	return PrettierJSONEncoder.stringify(v);
 }
 
-function encodeObject(obj:any):Uint8Array {
+export function encodeObject(obj:any):Uint8Array {
 	return utf8Encode(stringify(obj));
 }
 
