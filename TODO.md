@@ -1,7 +1,10 @@
 ## Demos
 
 * Simple maze world with discrete (though possibly in small unit, like 1/8m) movement
-- Make maze game with 'hey hey you win' point
+- Maze with editor and 'hey hey you win' point
+  - Show save game in console
+  - Save savegames to server
+- Maze with keys and switches
 - Packet truck
 - Image with dynamic (via material map overrides) indicator lights?
 - Small game with signal wires?
