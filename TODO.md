@@ -14,6 +14,10 @@
 ## Misc to-do items
 
 Maze1:
+- requestAnimationFrame to render scene
+- Draw additional neighbors if no overlap.
+  Maybe collect a list, then draw nearest-farthest N,
+  skipping ones that would overlap or are outside some bounds.
 - Generate some kind of packfile (PNG?)
 - Unify client/server view models; in edit mode, just send the room data as-is
   - This way we could ctrl+click TileTree blocks and stuff!
