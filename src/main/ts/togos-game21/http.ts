@@ -50,6 +50,9 @@ class XHRClient implements Client {
 				}
 			};
 			xhr.open(request.method, request.uri, true);
+			for( let k in request.headers ) {
+				xhr.setRequestHeader(k, request.headers[k]);
+			}
 			if( request.content ) xhr.send(request.content);
 			else xhr.send();
 		} );
