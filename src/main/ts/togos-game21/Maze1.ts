@@ -1686,7 +1686,9 @@ export class MazeDemo {
 		}
 		
 		this.commandHistoryIndex = index;
-		input.value = index == this.commandHistory.length ? this.commandScratch : this.commandHistory[index];
+		const text = index == this.commandHistory.length ? this.commandScratch : this.commandHistory[index];
+		input.value = text;
+		input.setSelectionRange(text.length, text.length);
 	}
 	
 	public goToCommandHistoryBeginning() { this.goToCommandHistory(0); }
@@ -1791,6 +1793,7 @@ export class MazeDemo {
 	}
 	
 	public popUpConsole(initialText:string) {
+		this.goToCommandHistoryEnd();
 		this.consoleDialog.inputElement.value = initialText;
 		this.consoleDialog.setVisible(true);
 		this.consoleDialog.inputElement.setSelectionRange(initialText.length,initialText.length);
