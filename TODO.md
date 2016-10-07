@@ -2,9 +2,11 @@
 
 * Simple maze world with discrete (though possibly in small unit, like 1/8m) movement
 - Maze with editor and 'hey hey you win' point
-  - Show save game in console
-  - Save savegames to server
+  - GDM to skip re-saving data that it fetched from the datastore in the first place
+  - Load demo data from packfile to avoid a million GETs
+  - Hey hey you win item - touch it and it pops up a "You win" box and plays a sound
 - Maze with keys and switches
+  - Ability to place non-block entities
 - Packet truck
 - Image with dynamic (via material map overrides) indicator lights?
 - Small game with signal wires?
@@ -28,6 +30,12 @@ Maze1:
 - Enemies?
 - Background layer! (just draw darker than fg)
 - Doorbell to control the door
+- Dynamic tile entities?
+  - i.e. room entities that are spawned to represent state of existing
+    tile tree nodes
+    dynamicTileEntities: { [tileTreeRoomEntityId] => { "x,y,z,size" => Entity } }
+  - would store e.g. state of network switches and things
+  - may be removed when state returns to default
 
 Advanced AI:
 - Rare CPUs are offloaded to a Docker container
@@ -187,3 +195,5 @@ Maze1:
 * Make jumping less unreasonable
 * Make jumping from on top of non-infinite-mass things workd
 * Render TileTrees properly for tile palette UI
+* Show save game in console
+* Save savegames to server
