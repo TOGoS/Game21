@@ -68,6 +68,13 @@ html, body {
 	
 	font-family: sans-serif;
 }
+p, ul {
+	margin: 0;
+	padding: 4px 8px;
+}
+ul {
+	padding-left: 24px;
+}
 .game-interface {
 	display: flex;
 	width: 100%;
