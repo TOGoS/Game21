@@ -272,7 +272,18 @@ ul.tile-palette li.selected {
 		height: 720px;
 	}
 }
+
+#loading-status-box {
+	position: fixed;
+	top: 0;
+	left: 0;
+	display: inline-block;
+	background: purple;
+	color: white;
+}
 /* ]]> */</style>
+
+<div id="loading-status-box">Loading JavaScript...</div>
 
 <div class="game-interface">
 <div class="maze-area" id="maze-area">
@@ -339,8 +350,20 @@ ul.tile-palette li.selected {
 
 <?php require_game21_js_libs($inlineResources, array('togos-game21/Maze1')); ?>
 <script type="text/javascript">//<![CDATA[
+	function updateLoadingStatus(text) {
+		var div = document.getElementById('loading-status-box');
+		if( text == null || text.length == 0 ) {
+			div.style.display = 'none';
+			div.firstChild.nodeValue = "";
+		} else {
+			div.style.display = '';
+			div.firstChild.nodeValue = text;
+		}
+	}
+
 	require(['togos-game21/Maze1'], function(_Maze1) {
-		var demo = _Maze1.startDemo(document.getElementById('maze-canvas'), <?php ejsv($saveGameRef); ?>);
+		updateLoadingStatus("Initializing demo...");
+		var demo = _Maze1.startDemo(document.getElementById('maze-canvas'), <?php ejsv($saveGameRef); ?>, updateLoadingStatus);
 		window.maze1Demo = demo;
 		window.addEventListener('keydown', demo.keyDown.bind(demo));
 		window.addEventListener('keyup', demo.keyUp.bind(demo));

@@ -1428,6 +1428,7 @@ export class MazeDemo {
 	public tilePaletteUi:TilePaletteUI;
 	public consoleDialog:ConsoleDialogBox;
 	public console:MiniConsole;
+	public loadingStatusUpdated:(text:string)=>any = (t)=>{};
 	
 	protected contextListeners:GameContextListener[] = [];
 	public addContextListener(l:GameContextListener) {
@@ -1588,7 +1589,8 @@ export class MazeDemo {
 	}
 	public loadGame(saveRef:string):Promise<MazeGame> {
 		this.stopSimulation();
-		return fetchObject(saveRef, this.datastore, true).then( (save) => {
+		this.loadingStatusUpdated("Loading game "+saveRef+"...");
+		const loadPromise = fetchObject(saveRef, this.datastore, true).then( (save) => {
 			if( !save.gameDataRef ) return Promise.reject(new Error("Oh no, save data all messed up? "+JSON.stringify(save)));
 			const gdm = new GameDataManager(this.datastore, save.gameDataRef);
 			this.context = {
@@ -1605,6 +1607,13 @@ export class MazeDemo {
 			this.startSimulation();
 			return this.game;
 		});
+		loadPromise.then( (game) => {
+			this.loadingStatusUpdated("");
+		}).catch( (err) => {
+			this.loadingStatusUpdated("Error loading!");
+			this.console.log("Error loading "+saveRef, err);
+		});
+		return loadPromise;
 	}
 	public inspect(ref:string):Promise<any> {
 		return this.game.gameDataManager.fetchObject(ref);
@@ -1885,7 +1894,7 @@ class TileEntityRenderer {
 	}
 }
 
-export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string) : MazeDemo {
+export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string, loadingStatusUpdated:(text:string)=>any = (t)=>{}) : MazeDemo {
 	const dataIdent = sha1Urn;
 	const ds2:Datastore<Uint8Array> = HTTPHashDatastore.createDefault();
 	const ds1:Datastore<Uint8Array> = window.localStorage ? new CachingDatastore(dataIdent,
@@ -1903,6 +1912,7 @@ export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string) : MazeDem
 	demo.canvas = canv;
 	demo.datastore = ds;
 	demo.view = v;
+	demo.loadingStatusUpdated = loadingStatusUpdated;
 	
 	const tempGdm = new GameDataManager(ds);
 	const gameLoaded:Promise<MazeGame> = saveGameRef ? demo.loadGame(saveGameRef) :

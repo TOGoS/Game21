@@ -2,7 +2,8 @@
 
 * Simple maze world with discrete (though possibly in small unit, like 1/8m) movement
 - Maze with editor and 'hey hey you win' point
-  - GDM to skip re-saving data that it fetched from the datastore in the first place
+  * GDM to skip re-saving data that it fetched from the datastore in the first place
+  * Show something on screen indicating loading/saving's going on
   - Load demo data from packfile to avoid a million GETs
   - Hey hey you win item - touch it and it pops up a "You win" box and plays a sound
 - Maze with keys and switches
