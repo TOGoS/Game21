@@ -129,8 +129,8 @@ function require_game21_js_libs( $inline=false, $requireModuleNames=null ) {
 	global $wrp;
 	$rp = $inline ? $rrp : $wrp;
 	$libsFile = $rp.'/target/game21libs.amd.es5.js';
-	if( !file_exists($libsFile) ) throw new Exception("'$libsFile' no existy!");
 	if( $inline and $requireModuleNames !== null ) {
+		if( !file_exists($libsFile) ) throw new Exception("'$libsFile' no existy!");
 		$tempDir = $rrp.'/temp';
 		if( !is_dir($tempDir) ) if( !mkdir($tempDir, 0777, true) ) {
 			throw new Exception("Failed to mkdir('$tempDir')");
