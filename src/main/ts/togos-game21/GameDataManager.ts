@@ -26,6 +26,7 @@ function assertNameNotHashUrn( name:string ) {
 export default class GameDataManager {
 	protected objectMapManager: DistributedBucketMapManager<string>;
 	protected objectCache: KeyedList<any> = {};
+	protected knownStored: KeyedList<string> = {};
 	/**
 	 * Stuff we're currently storing.
 	 * Generally we don't want to let stuff fall out of the cache
@@ -108,6 +109,7 @@ export default class GameDataManager {
 		if( isHashUrn(ref) ) {
 			return this.fetching[ref] = fetchObject(ref, this.datastore, true).then( (v:any) => {
 				this.cache(ref, v);
+				this.knownStored[ref] = ref;
 				delete this.fetching[ref];
 				return <T>v;
 			});
@@ -185,20 +187,28 @@ export default class GameDataManager {
 		this.tempObjectUrns = {};
 		this.collected = {};
 		
-		for( let k in this.objectsToSave ) {
-			const v = this.objectsToSave[k];
-			const savedAs = fastStoreObject(v, this.datastore);
-			if( savedAs !== k ) {
-				// We kind of depend on this happening, so we may as well check for it: 
-				throw new Error("Temp-saved object "+k+" finally saved with different URN: "+savedAs);
-			}
+		const storePromises:Promise<string>[] = [];
+		for( let _k in this.objectsToSave ) {
+			const v = this.objectsToSave[_k];
+			if( this.knownStored[_k] ) continue;
+			const k = _k;
+			storePromises.push(this.storeObject(v).then( (savedAs) => {
+				if( savedAs !== k ) {
+					// This would be a major problem!
+					return Promise.reject(new Error("Temp-saved object "+k+" finally saved with different URN: "+savedAs));
+				}
+				this.knownStored[savedAs] = savedAs;
+				return savedAs;
+			}));
 		}
 		this.objectsToSave = {};
 		
 		this.objectMapManager.storeValues(this.tempNameMap);
 		this.tempNameMap = {};
 		
-		return this.objectMapManager.flushUpdates();
+		const rootUrnPromise = this.objectMapManager.flushUpdates();
+		storePromises.push(rootUrnPromise);
+		return Promise.all(storePromises).then(() => rootUrnPromise);
 	}
 	
 	/**
@@ -216,6 +226,7 @@ export default class GameDataManager {
 			newCache[urn] = tempObj;
 		}
 		this.objectCache = newCache;
+		this.knownStored = {};
 	}
 	
 	public updateMap( updates:KeyedList<string> ):Promise<string> {
@@ -224,7 +235,10 @@ export default class GameDataManager {
 	
 	public storeObject<T>( obj:T, _name?:string ):Promise<string> {
 		obj = deepFreeze(obj);
-		const urnProm = storeObject( obj, this.datastore );
+		const urnProm = storeObject( obj, this.datastore ).then( (storedAs) => {
+			this.knownStored[storedAs] = storedAs;
+			return storedAs;
+		});
 		const name = _name; // Make it const so later references check out
 		if( name ) {
 			assertNameNotHashUrn(name);
