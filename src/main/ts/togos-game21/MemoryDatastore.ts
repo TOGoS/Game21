@@ -7,19 +7,19 @@ import Datastore from './Datastore';
 import { sha1Urn } from '../tshash/index';
 
 export default class MemoryDatastore<T> implements Datastore<T> {
-	protected values:KeyedList<T> = {};
+	protected _values:KeyedList<T> = {};
 	
 	constructor( protected _identify:(v:T)=>string, protected delay:number=0 ) { }
 	
 	public get identify() { return this._identify; }
 	
 	public get( uri:string ):T {
-		return this.values[uri];
+		return this._values[uri];
 	}
 	public fetch( uri:string ):Promise<T> {
 		return new Promise( (resolve,reject) => {
 			setTimeout( () => {
-				const val = this.values[uri];
+				const val = this._values[uri];
 				if( val ) resolve(val);
 				else reject(new Error("Resource "+uri+" not found"));
 			}, +this.delay );
@@ -29,7 +29,7 @@ export default class MemoryDatastore<T> implements Datastore<T> {
 		return new Promise<string>( (resolve, reject) => {
 			const ident = this._identify(data);
 			setTimeout( () => {
-				this.values[ident] = data;
+				this._values[ident] = data;
 				setTimeout( () => resolve(ident), this.delay );
 			}, this.delay );
 		});
@@ -38,14 +38,17 @@ export default class MemoryDatastore<T> implements Datastore<T> {
 		const ident = this._identify(data);
 		const onCompleat = onComplete;
 		setTimeout( () => {
-			this.values[ident] = data;
+			this._values[ident] = data;
 			if(onCompleat) setTimeout( () => onCompleat(true), this.delay );
 		}, this.delay );
 		return ident;
 	}
 	public put( id:string, data:T ):Promise<string> {
-		this.values[id] = data;
+		this._values[id] = data;
 		return Promise.resolve(id);
+	}
+	public get values() {
+		return this._values;
 	}
 	
 	public static createSha1Based(delay:number) : MemoryDatastore<Uint8Array> {

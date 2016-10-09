@@ -1,46 +1,6 @@
 import Logger from '../Logger';
 import KeyedList from '../KeyedList';
-
-function logStringify(thing:any):string {
-	if( typeof(thing) == 'string' ) return thing;
-	if( typeof(thing) == 'number' ) return ""+thing;
-	if( typeof(thing) == 'boolean' ) return thing ? 'true' : 'false';
-	if( typeof(thing) == 'undefined' ) return 'undefined';
-	if( typeof(thing) == 'null' ) return 'null';
-	return JSON.stringify(thing, null, "\t");
-}
-
-export class DOMLogger implements Logger {
-	public document:HTMLDocument;
-	public outputDiv:HTMLElement;
-	
-	protected append( elem:HTMLElement ) {
-		var wasAtBottom = this.outputDiv.scrollTop == (this.outputDiv.scrollHeight - this.outputDiv.clientHeight);
-		this.outputDiv.appendChild(elem);
-		if( wasAtBottom ) {
-			this.outputDiv.scrollTop = this.outputDiv.scrollHeight - this.outputDiv.clientHeight;
-		}
-	}
-	
-	public printLine(fh:number, text:string) {
-		const line = this.document.createElement('p');
-		line.appendChild(document.createTextNode(text));
-		this.append(line);
-	}
-	public log(...stuff:any[]) {
-		const pre = this.document.createElement('pre');
-		const texts:string[] = [];
-		for( let t in stuff ) {
-			texts.push(logStringify(stuff[t]));
-		}
-		pre.appendChild(document.createTextNode(texts.join(" ")));
-		this.append(pre);
-	}
-	// TODO: make diff colors or classes something
-	public error(...stuff:any[]) { this.log(...stuff); }
-	public warn(...stuff:any[]) { this.log(...stuff); }
-	public debug(...stuff:any[]) { this.log(...stuff); }
-}
+import DOMLogger from './DOMLogger';
 
 // TODO: should have a logger, not be one.
 class ConsoleProcess extends DOMLogger {
@@ -66,9 +26,8 @@ export class ShellProcess extends ConsoleProcess {
 		
 		const cmdImpl = this.commands[argv[0]];
 		if( cmdImpl != null ) {
-			const subProc = new ConsoleProcess;
+			const subProc = new ConsoleProcess(this.outputElement);
 			subProc.document = this.document;
-			subProc.outputDiv = this.outputDiv; // Or maybe give it a new one!
 			subProc.exitCode = null;
 			cmdImpl( argv, subProc );
 		} else {
@@ -99,7 +58,7 @@ export class ShellProcess extends ConsoleProcess {
 		d.appendChild(outputDiv);
 		d.appendChild(commandForm);
 		
-		this.outputDiv = outputDiv;
+		this.outputElement = outputDiv;
 		
 		return d;
 	}

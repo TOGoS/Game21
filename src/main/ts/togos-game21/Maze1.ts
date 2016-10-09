@@ -1,4 +1,4 @@
-import { sha1Urn } from '../tshash/index';
+import { sha1Urn, utf8Decode } from '../tshash/index';
 import Datastore from './Datastore';
 import HTTPHashDatastore from './HTTPHashDatastore';
 import MemoryDatastore from './MemoryDatastore';
@@ -8,7 +8,7 @@ import MultiDatastore from './MultiDatastore';
 
 import { deepFreeze, thaw, deepThaw, isDeepFrozen } from './DeepFreezer';
 import GameDataManager from './GameDataManager';
-import { fetchObject, storeObject, encodeObject } from './JSONObjectDatastore';
+import { fetchObject, storeObject, fastStoreObject, encodeObject } from './JSONObjectDatastore';
 import { DistributedBucketMapManager } from './DistributedBucketMap';
 import KeyedList from './KeyedList';
 import Vector3D from './Vector3D';
@@ -50,7 +50,7 @@ import Logger from './Logger';
 
 import MiniConsole from './ui/MiniConsole';
 import MultiConsole from './ui/MultiConsole';
-import HTMLConsole from './ui/HTMLConsole';
+import DOMLogger from './ui/DOMLogger';
 import TilePaletteUI from './ui/TilePalette';
 import {
 	StorageCompartmentContentUI
@@ -1417,7 +1417,8 @@ interface GameContext {
 type GameContextListener = (ctx:GameContext)=>void;
 
 export class MazeDemo {
-	public datastore : Datastore<Uint16Array>;
+	public datastore : Datastore<Uint8Array>;
+	public memoryDatastore : MemoryDatastore<Uint8Array>;
 	public game : MazeGame;
 	public canvas:HTMLCanvasElement;
 	public view : MazeView;
@@ -1590,7 +1591,7 @@ export class MazeDemo {
 	public loadGame(saveRef:string):Promise<MazeGame> {
 		this.stopSimulation();
 		this.loadingStatusUpdated("Loading game "+saveRef+"...");
-		const loadPromise = fetchObject(saveRef, this.datastore, true).then( (save) => {
+		const loadPromise = fetchObject(saveRef, this.datastore, true).then( (save:SaveGame) => {
 			if( !save.gameDataRef ) return Promise.reject(new Error("Oh no, save data all messed up? "+JSON.stringify(save)));
 			const gdm = new GameDataManager(this.datastore, save.gameDataRef);
 			this.context = {
@@ -1729,6 +1730,19 @@ export class MazeDemo {
 				// do nothing!
 			} else {
 				doCommand: switch( tokens[0].text ) {
+				case 'dump-cached-data':
+					const leObj = {};
+					for( let k in this.memoryDatastore.values ) {
+						const v = this.memoryDatastore.values[k];
+						try {
+							const str = utf8Decode(v);
+							leObj[k] = v;
+						} catch( err ) { } // That's fine.  Just skip it.
+					}
+
+					const urn = fastStoreObject(leObj, this.memoryDatastore);
+					this.console.log("JSON cache dump: ", urn);
+					break;
 				case 'load':
 					{
 						if( tokens.length != 2 ) {
@@ -1811,7 +1825,7 @@ export class MazeDemo {
 	}
 }
 
-interface SaveGame {
+export interface SaveGame {
 	gameDataRef: string,
 	rootRoomId: string,
 	playerId: string,
@@ -1901,8 +1915,9 @@ export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string, loadingSt
 		new BrowserStorageDatastore(dataIdent, window.localStorage),
 		ds2
 	) : ds2;
+	const memds = new MemoryDatastore(dataIdent);
 	const ds:Datastore<Uint8Array> = new CachingDatastore(dataIdent,
-		new MemoryDatastore(dataIdent),
+		memds,
 		ds1
 	);
 	
@@ -1911,6 +1926,7 @@ export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string, loadingSt
 	const demo = new MazeDemo();
 	demo.canvas = canv;
 	demo.datastore = ds;
+	demo.memoryDatastore = memds;
 	demo.view = v;
 	demo.loadingStatusUpdated = loadingStatusUpdated;
 	
@@ -2128,7 +2144,7 @@ export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string, loadingSt
 		demo.consoleDialog = consoleDialog;
 		const consoles:MiniConsole[] = [console];
 		const htmlConsoleElement = document.getElementById('console-output');
-		if( htmlConsoleElement ) consoles.push(new HTMLConsole(htmlConsoleElement));
+		if( htmlConsoleElement ) consoles.push(new DOMLogger(htmlConsoleElement));
 		demo.console = new MultiConsole(consoles);
 	}
 	
