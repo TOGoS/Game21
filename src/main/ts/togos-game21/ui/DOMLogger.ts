@@ -12,6 +12,7 @@ function logStringify(thing:any):string {
 export default class DOMLogger implements Logger {
 	public document:HTMLDocument;
 	public outputElement:HTMLElement;
+	public fragReplacer:(frag:any)=>HTMLElement[]|undefined;
 	
 	public constructor( outputElem:HTMLElement ) {
 		this.outputElement = outputElem;
@@ -31,17 +32,33 @@ export default class DOMLogger implements Logger {
 		line.appendChild(document.createTextNode(text));
 		this.append(line);
 	}
-	public log(...stuff:any[]) {
-		const pre = this.document.createElement('pre');
+	public _log(className:string, ...stuff:any[]) {
+		const eventElement = this.document.createElement('p');
+		eventElement.className = className;
 		const texts:string[] = [];
+		let first = true;
 		for( let t in stuff ) {
-			texts.push(logStringify(stuff[t]));
+			if( !first ) {
+				eventElement.appendChild(document.createTextNode(" "));
+			}
+			let fragElems:HTMLElement[]|undefined;
+			if( this.fragReplacer ) {
+				fragElems = this.fragReplacer(stuff[t]);
+			}
+			if( fragElems == null ) {
+				const fragElem = this.document.createElement('span');
+				fragElem.appendChild(this.document.createTextNode(logStringify(stuff[t])));
+				fragElems = [fragElem];
+			}
+			for( let e in fragElems ) {
+				eventElement.appendChild(fragElems[e]);
+			}
 		}
-		pre.appendChild(document.createTextNode(texts.join(" ")));
-		this.append(pre);
+		this.append(eventElement);
 	}
 	// TODO: make diff colors or classes something
-	public error(...stuff:any[]) { this.log(...stuff); }
-	public warn(...stuff:any[]) { this.log(...stuff); }
-	public debug(...stuff:any[]) { this.log(...stuff); }
+	public log(...stuff:any[]) { this._log("log", ...stuff); }
+	public error(...stuff:any[]) { this._log("error", ...stuff); }
+	public warn(...stuff:any[]) { this._log("warning", ...stuff); }
+	public debug(...stuff:any[]) { this._log("debug", ...stuff); }
 }

@@ -47,6 +47,11 @@ export default class MemoryDatastore<T> implements Datastore<T> {
 		this._values[id] = data;
 		return Promise.resolve(id);
 	}
+	public multiPut( vals:KeyedList<T> ):void {
+		for( let v in vals ) {
+			this.values[v] = vals[v];
+		}
+	}
 	public get values() {
 		return this._values;
 	}

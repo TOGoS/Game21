@@ -16,7 +16,7 @@ if( isset($argv) ) for( $i=1; $i<count($argv); ++$i ) {
 	}
 }
 
-require_once 'lib.php';
+require_once __DIR__.'/lib.php';
 
 $configProperties = [
 	'inlineResources' => [
@@ -362,8 +362,20 @@ ul.tile-palette li.selected {
 	}
 
 	require(['togos-game21/Maze1'], function(_Maze1) {
-		updateLoadingStatus("Initializing demo...");
-		var demo = _Maze1.startDemo(document.getElementById('maze-canvas'), <?php ejsv($saveGameRef); ?>, updateLoadingStatus);
+		updateLoadingStatus("Importing cache data...");
+		
+		var cacheStrings = <?php
+			$dataCacheFile = $rrp.'/maze1demo-datacache.json';
+			if( file_exists($dataCacheFile) ) {
+				echo trim(str_replace("\n","\n\t\t", file_get_contents($dataCacheFile)));
+			} else {
+				echo 'undefined';
+			}
+		?>;
+		
+		updateLoadingStatus("Starting demo...");
+		
+		var demo = _Maze1.startDemo(document.getElementById('maze-canvas'), <?php ejsv($saveGameRef); ?>, updateLoadingStatus, cacheStrings);
 		window.maze1Demo = demo;
 		window.addEventListener('keydown', demo.keyDown.bind(demo));
 		window.addEventListener('keyup', demo.keyUp.bind(demo));

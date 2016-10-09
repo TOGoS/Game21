@@ -6,6 +6,7 @@ interface Datastore<T> {
 	identify : (v:T)=>string;
 	/** Returns the data if immediately available.  Otherwise returns null. */
 	get( uri:string ):T|undefined;
+	/** Initiates fetching and returns a promise.  The promise will be rejected if thing isn't found. */
 	fetch( uri:string ):Promise<T>;
 	store( data:T ):Promise<string>;
 	/**

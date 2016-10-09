@@ -4,7 +4,7 @@
 - Maze with editor and 'hey hey you win' point
   * GDM to skip re-saving data that it fetched from the datastore in the first place
   * Show something on screen indicating loading/saving's going on
-  - Load demo data from packfile to avoid a million GETs
+  * Load demo data from packfile to avoid a million GETs
   - Hey hey you win item - touch it and it pops up a "You win" box and plays a sound
 - Maze with keys and switches
   - Ability to place non-block entities
@@ -18,6 +18,8 @@
 - Shmoons
 
 ## Misc to-do items
+
+- Delete MiniConsole (it's just an alias of Logger)
 
 Maze1:
 - requestAnimationFrame to render scene

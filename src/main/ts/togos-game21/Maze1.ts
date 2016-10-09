@@ -1,4 +1,4 @@
-import { sha1Urn, utf8Decode } from '../tshash/index';
+import { sha1Urn, utf8Encode, utf8Decode } from '../tshash/index';
 import Datastore from './Datastore';
 import HTTPHashDatastore from './HTTPHashDatastore';
 import MemoryDatastore from './MemoryDatastore';
@@ -61,6 +61,13 @@ type EntityMessageData = any[];
 
 function entityMessageDataPath(emd:EntityMessageData):string {
 	return ""+emd[0];
+}
+
+function base64Encode(data:Uint8Array):string {
+	// btoa is kinda goofy.
+	const strs = new Array(data.length);
+	for( let i=data.length-1; i>=0; --i ) strs[i] = String.fromCharCode(data[i]);
+	return btoa(strs.join(""));
 }
 
 interface EntityMessage {
@@ -1419,6 +1426,7 @@ type GameContextListener = (ctx:GameContext)=>void;
 export class MazeDemo {
 	public datastore : Datastore<Uint8Array>;
 	public memoryDatastore : MemoryDatastore<Uint8Array>;
+	public exportDatastore : MemoryDatastore<Uint8Array>;
 	public game : MazeGame;
 	public canvas:HTMLCanvasElement;
 	public view : MazeView;
@@ -1599,7 +1607,7 @@ export class MazeDemo {
 				entityImageManager: new EntityImageManager(gdm)
 			}
 			this.game = new MazeGame(gdm);
-			console.log("Loading "+save.gameDataRef+"...");
+			console.log("Loading save "+saveRef+"...", save);
 			return this.game.fullyLoadRooms( save.rootRoomId ).then( () => save );
 		}).then( (save) => {
 			console.log("Loaded!");
@@ -1616,8 +1624,35 @@ export class MazeDemo {
 		});
 		return loadPromise;
 	}
+	
 	public inspect(ref:string):Promise<any> {
 		return this.game.gameDataManager.fetchObject(ref);
+	}
+	
+	public exportCachedData() {
+		const leObj = {};
+		for( let k in this.memoryDatastore.values ) {
+			const v = this.memoryDatastore.values[k];
+			try {
+				const str = utf8Decode(v);
+				leObj[k] = str;
+			} catch( err ) { } // That's fine.  Just skip it.
+		}
+		
+		storeObject( leObj, this.exportDatastore ).then( (urn) => {
+			this.console.log("JSON cache dump: ", urn);
+		});
+	}
+	
+	public importCacheStrings( exported:KeyedList<string> ) {
+		for( let k in exported ) {
+			const v = utf8Encode(exported[k]);
+			this.memoryDatastore.put(k, v);
+		}
+	}
+	
+	public getString(urn:string):string {
+		return utf8Decode(this.datastore.get(urn));
 	}
 	
 	protected eventToCanvasPixelCoordinates(evt:MouseEvent):Vector3D {
@@ -1730,18 +1765,8 @@ export class MazeDemo {
 				// do nothing!
 			} else {
 				doCommand: switch( tokens[0].text ) {
-				case 'dump-cached-data':
-					const leObj = {};
-					for( let k in this.memoryDatastore.values ) {
-						const v = this.memoryDatastore.values[k];
-						try {
-							const str = utf8Decode(v);
-							leObj[k] = v;
-						} catch( err ) { } // That's fine.  Just skip it.
-					}
-
-					const urn = fastStoreObject(leObj, this.memoryDatastore);
-					this.console.log("JSON cache dump: ", urn);
+				case 'export-cached-data': case 'ecd':
+					this.exportCachedData();
 					break;
 				case 'load':
 					{
@@ -1908,7 +1933,7 @@ class TileEntityRenderer {
 	}
 }
 
-export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string, loadingStatusUpdated:(text:string)=>any = (t)=>{}) : MazeDemo {
+export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string, loadingStatusUpdated:(text:string)=>any = (t)=>{}, cacheStrings:KeyedList<string>={} ) : MazeDemo {
 	const dataIdent = sha1Urn;
 	const ds2:Datastore<Uint8Array> = HTTPHashDatastore.createDefault();
 	const ds1:Datastore<Uint8Array> = window.localStorage ? new CachingDatastore(dataIdent,
@@ -1916,9 +1941,10 @@ export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string, loadingSt
 		ds2
 	) : ds2;
 	const memds = new MemoryDatastore(dataIdent);
+	const expds = new MemoryDatastore(dataIdent);
 	const ds:Datastore<Uint8Array> = new CachingDatastore(dataIdent,
 		memds,
-		ds1
+		new MultiDatastore(dataIdent, [ds1], [expds])
 	);
 	
 	const v = new MazeView(canv);
@@ -1927,8 +1953,10 @@ export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string, loadingSt
 	demo.canvas = canv;
 	demo.datastore = ds;
 	demo.memoryDatastore = memds;
+	demo.exportDatastore = expds;
 	demo.view = v;
 	demo.loadingStatusUpdated = loadingStatusUpdated;
+	demo.importCacheStrings(cacheStrings);
 	
 	const tempGdm = new GameDataManager(ds);
 	const gameLoaded:Promise<MazeGame> = saveGameRef ? demo.loadGame(saveGameRef) :
@@ -2144,7 +2172,31 @@ export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string, loadingSt
 		demo.consoleDialog = consoleDialog;
 		const consoles:MiniConsole[] = [console];
 		const htmlConsoleElement = document.getElementById('console-output');
-		if( htmlConsoleElement ) consoles.push(new DOMLogger(htmlConsoleElement));
+		if( htmlConsoleElement ) {
+			const hashUrnRegex = /^(urn:(?:sha1|bitprint):[^#]+)(\#.*)?$/;
+			const domLogger = new DOMLogger(htmlConsoleElement);
+			domLogger.fragReplacer = (thing:any) => {
+				if( typeof thing == 'string' ) {
+					let m;
+					if( (m = hashUrnRegex.exec(thing)) ) {
+						const dataUrn = m[1];
+						const target = demo.datastore.get(dataUrn);
+						const linkUrl = target ?
+							"data:application/json;base64,"+base64Encode(target) :
+							//"javascript:maze1Demo.getString("+JSON.stringify(dataUrn)+")" :
+							"http://game21-data.nuke24.net/uri-res/raw/"+encodeURIComponent(dataUrn)+"/thing.txt";
+						const fragElem = document.createElement('span');
+						const linkElem = document.createElement('a');
+						linkElem.href = linkUrl;
+						linkElem.appendChild(document.createTextNode(m[1]));
+						fragElem.appendChild(linkElem);
+						if( m[2] && m[2].length > 0 ) fragElem.appendChild(document.createTextNode(m[2]));
+						return [fragElem];
+					}
+				}
+			}
+			consoles.push(domLogger);
+		}
 		demo.console = new MultiConsole(consoles);
 	}
 	

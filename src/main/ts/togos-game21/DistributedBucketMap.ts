@@ -2,6 +2,10 @@ import KeyedList from './KeyedList';
 import Datastore from './Datastore';
 import ErrorInfo from './ErrorInfo';
 import { storeObject, fastStoreObject, fetchObject } from './JSONObjectDatastore';
+import { deepFreeze } from './DeepFreezer';
+
+export const EMPTY_NODE:DistributedBucketMap<any> = deepFreeze(leafNode( {} ));
+export const EMPTY_NODE_URI = "urn:sha1:GVEKPNGUKNG4NEVXMJBIPURTQHDBZ3ST";
 
 interface DistributedBucketMap<T> {
 	/**
@@ -41,6 +45,11 @@ function missingSubBucketUrisError<T>(node:DistributedBucketMap<T>):Error {
 	return invalidNodeError(node, "Node with prefix length should have sub-bucket URIs but does not");
 }
 
+function fetchNode<T>( uri:string, ds:Datastore<Uint8Array> ):Promise<DistributedBucketMap<T>> {
+	if( uri == EMPTY_NODE_URI ) return Promise.resolve( <DistributedBucketMap<T>>EMPTY_NODE );
+	return fetchObject(uri, ds);
+}
+
 function _fetchValue<T>( valueName:string, node:DistributedBucketMap<T>, datastore:Datastore<Uint8Array> ):Promise<T|undefined> {
 	if( node.prefixLength == null ) {
 		if( !node.values ) throw missingValuesError(node);
@@ -56,7 +65,7 @@ function _fetchValue<T>( valueName:string, node:DistributedBucketMap<T>, datasto
 
 export function fetchValue<T>( valueName:string, nodeUri:string|DistributedBucketMap<T>, datastore:Datastore<Uint8Array> ):Promise<T|undefined> {
 	if( typeof(nodeUri) === 'string' ) {
-		return fetchObject(nodeUri, datastore).then( (obj:any) => {
+		return fetchNode(nodeUri, datastore).then( (obj:any) => {
 			return _fetchValue(valueName, <DistributedBucketMap<T>>obj, datastore);
 		});
 	} else {
@@ -124,13 +133,13 @@ export function storeValues<T>(
 	updates:KeyedList<T|undefined>, nodeUri:string,
 	datastore:Datastore<Uint8Array>, settings:DistributedBucketMapSettings
 ):Promise<string> {
-	return fetchObject( nodeUri, datastore ).then( (obj:any) => {
+	return fetchNode( nodeUri, datastore ).then( (obj:any) => {
 		return _storeValues(updates, <DistributedBucketMap<T>>obj, nodeUri, datastore, settings);
 	});
 }
 
 export function emptyNodeUri( datastore:Datastore<Uint8Array> ):string {
-	return fastStoreObject( leafNode( {} ), datastore );
+	return fastStoreObject( EMPTY_NODE, datastore );
 }
 
 export class DistributedBucketMapManager<T> {
@@ -142,7 +151,7 @@ export class DistributedBucketMapManager<T> {
 	protected allUpdatesPromise : Promise<string>;
 	protected storeSettings : DistributedBucketMapSettings;
 	
-	public constructor( protected _datastore:Datastore<Uint8Array>, protected _rootNodeUri:string=emptyNodeUri(_datastore) ) {
+	public constructor( protected _datastore:Datastore<Uint8Array>, protected _rootNodeUri:string=EMPTY_NODE_URI ) {
 		this.allUpdatesPromise = Promise.resolve(_rootNodeUri);
 	}
 

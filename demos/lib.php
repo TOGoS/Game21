@@ -1,31 +1,17 @@
 <?php
 
-// If rp's not set, assume we're in the demos/ directory.
-if( !isset($rp) ) {
-	if( isset($argv) ) {
-		$biz = explode('/', $argv[0]);
-		if( count($biz) == 0 ) {
-		} else if( count($biz) == 1 ) {
-			$rp = '..';
-		} else if( count($biz) == 2 ) {
-			$rp = '.';
-		} else {
-			$pp = array();
-			while( count($biz) > 2 ) {
-				$pp[] = array_shift($biz);
-			}
-			$rp = implode('/', $pp);
-			if( $rp == '' ) throw new Exception("Couldn't figure \$rp. \$pp = ".var_export($pp,true));
-		}
-	} else {
-		// Assume in demos/ directory.
-		$rp = '..';
+// $rrp = runtime root path -- path to project root during execution of PHP script
+// $wrp = web root path -- path to project root from perspective of web browser 
+
+if( !isset($rrp) ) {
+	$rrp = '..'; // Default
+	for( $i=0; $i<5; ++$i ) {
+		$rrp = $i == 0 ? '.' : implode('/', array_fill(0,$i,'..'));
+		if( file_exists("$rrp/Makefile") ) break;
+		$rrp = '..'; // Default
 	}
 }
-
-if( empty($rp) ) throw new Exception("Couldn't figure \$rp.");
-$rrp = $rp;  // Runtime root path (path to root dir that this script can read)
-$wrp = '..'; // Web root path (root path as it needs to be when you're visiting the page)
+if( !isset($wrp) ) $wrp = '..'; // Web root path (root path as it needs to be when you're visiting the page)
 
 function load_dotenv($filename=null) {
 	if( $filename === null ) $filename = __DIR__.'/../.env';

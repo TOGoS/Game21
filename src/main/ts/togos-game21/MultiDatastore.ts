@@ -10,7 +10,7 @@ function fetchFrom<T>( uri:string, stores:Datastore<T>[], skip:number=0 ):Promis
 }
 
 export default class MultiDatastore<T> implements Datastore<T> {
-	constructor( protected _identify:(v:T)=>string, protected stores:Datastore<T>[] ) { }
+	constructor( protected _identify:(v:T)=>string, protected stores:Datastore<T>[], protected fetchOnlyStores:Datastore<T>[]=[] ) { }
 	
 	public get identify() { return this._identify; }
 	
@@ -19,10 +19,19 @@ export default class MultiDatastore<T> implements Datastore<T> {
 			const v = this.stores[s].get(uri);
 			if( v != null ) return v;
 		}
+		for( let s in this.fetchOnlyStores ) {
+			const v = this.fetchOnlyStores[s].get(uri);
+			if( v != null ) return v;
+		}
 		return undefined;
 	}
+	protected get allStores() {
+		if( this.fetchOnlyStores.length == 0 ) return this.stores;
+		if( this.stores.length == 0 ) return this.fetchOnlyStores;
+		return [...this.stores, ...this.fetchOnlyStores];
+	}
 	public fetch( uri:string ):Promise<T> {
-		return fetchFrom( uri, this.stores );
+		return fetchFrom( uri, this.allStores )
 	}
 	public store( data:T ):Promise<string> {
 		if( this.stores.length == 0 ) return Promise.reject("No stores; can't store.");
