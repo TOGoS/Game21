@@ -339,8 +339,8 @@ ul.tile-palette li.selected {
     <li><code>/create-room</code> - creates a new room, not connected to any other</li>
     <li><code>/connect-new-room &lt;direction&gt;</code> - create a new room and connect the current room to it in the specified direction.
       Directions are <code>t</code> (top), <code>r</code> (right), <code>b</code> (bottom), <code>l</code> (left), or some combination,
-      (for diagonals).  Don't create a new room when a link already exists;
-	  that will cause trouble (later versions will prevent this from happening).</li>
+      (for diagonals).  Don't create a new room when a link already exists in that direction,
+	  as that will cause trouble (later versions will prevent this from happening).</li>
     <li><code>/connect-rooms &lt;room-A-ID&gt; &lt;direction&gt; &lt;room-B-ID&gt;</code> - connect 2 rooms.</li>
     </ul>
     
