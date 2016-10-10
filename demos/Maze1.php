@@ -220,8 +220,8 @@ ul.tile-palette li.selected {
 }
 
 #camera-location-box {
-	color: #880;
-	mix-blend-mode: screen;
+	color: #AA0;
+	background: rgba(0,0,0,0.75);
 	font-family: monospace;
 }
 
@@ -286,7 +286,7 @@ ul.tile-palette li.selected {
 <div id="loading-status-box">Loading JavaScript...</div>
 
 <div class="game-interface">
-<div class="maze-area" id="maze-area">
+<div class="maze-area" id="maze-area" style="position:relative">
 <div id="camera-location-box" style="position:absolute; top:0; left:0;"></div>
 <canvas class="maze-canvas" id="maze-canvas" width="<?php eht($width); ?>" height="<?php eht($height); ?>"/>
 </div>
