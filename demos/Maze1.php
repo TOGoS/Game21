@@ -323,6 +323,8 @@ ul.tile-palette li.selected {
     <button id="help-close-button">Close</button>
   </div>
   <div class="dialog-box-content help-box-content">
+    <p>W,A,S,D to move around.</p>
+	
     <p>Hit the tab key to toggle between edit and play mode.</p>
     
     <p>Hit <kbd>/</kbd> to open the console.</p>
@@ -337,11 +339,23 @@ ul.tile-palette li.selected {
     <li><code>/create-room</code> - creates a new room, not connected to any other</li>
     <li><code>/connect-new-room &lt;direction&gt;</code> - create a new room and connect the current room to it in the specified direction.
       Directions are <code>t</code> (top), <code>r</code> (right), <code>b</code> (bottom), <code>l</code> (left), or some combination,
-      (for diagonals)</li>
+      (for diagonals).  Don't create a new room when a link already exists;
+	  that will cause trouble (later versions will prevent this from happening).</li>
     <li><code>/connect-rooms &lt;room-A-ID&gt; &lt;direction&gt; &lt;room-B-ID&gt;</code> - connect 2 rooms.</li>
     </ul>
     
     <p>The ID of the room you are currently in is shown at the top of the screen.</p>
+	
+	<p>There exists a door and a lift in this world that can be controlled with Door/Lift selector
+	and the 'Up'/'Down' buttons at the bottom of this page.
+	There is currently no way to create new doors or lifts, but with a bit of dedication
+	you may be able to move the existing ones.
+	In the future doors and lifts should be controllable with switches
+	or keys scattered through the maze.</p>
+	
+	<p>There is no end goal.
+	If you'd like there to be one, maybe make a room
+	with 'Winner' spelled out in blocks or something.</p>
   </div>
 </div>
 
