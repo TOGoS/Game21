@@ -1630,7 +1630,7 @@ export class MazeDemo {
 	}
 	
 	public exportCachedData() {
-		const leObj = {};
+		const leObj:KeyedList<string> = {};
 		for( let k in this.memoryDatastore.values ) {
 			const v = this.memoryDatastore.values[k];
 			try {
@@ -1649,10 +1649,6 @@ export class MazeDemo {
 			const v = utf8Encode(exported[k]);
 			this.memoryDatastore.put(k, v);
 		}
-	}
-	
-	public getString(urn:string):string {
-		return utf8Decode(this.datastore.get(urn));
 	}
 	
 	protected eventToCanvasPixelCoordinates(evt:MouseEvent):Vector3D {
@@ -2177,13 +2173,12 @@ export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string, loadingSt
 			const domLogger = new DOMLogger(htmlConsoleElement);
 			domLogger.fragReplacer = (thing:any) => {
 				if( typeof thing == 'string' ) {
-					let m;
+					let m:RegExpExecArray|null;
 					if( (m = hashUrnRegex.exec(thing)) ) {
 						const dataUrn = m[1];
 						const target = demo.datastore.get(dataUrn);
 						const linkUrl = target ?
 							"data:application/json;base64,"+base64Encode(target) :
-							//"javascript:maze1Demo.getString("+JSON.stringify(dataUrn)+")" :
 							"http://game21-data.nuke24.net/uri-res/raw/"+encodeURIComponent(dataUrn)+"/thing.txt";
 						const fragElem = document.createElement('span');
 						const linkElem = document.createElement('a');
@@ -2194,6 +2189,7 @@ export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string, loadingSt
 						return [fragElem];
 					}
 				}
+				return undefined;
 			}
 			consoles.push(domLogger);
 		}
