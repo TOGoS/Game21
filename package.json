@@ -8,7 +8,7 @@
     "test": "make run-unit-tests"
   },
   "devDependencies": {
-    "typescript": "^2.0.0"
+    "typescript": "^2.0.3"
   },
   "dependencies": {
     "express": "^4.13.4",
