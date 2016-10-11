@@ -278,7 +278,7 @@ export class MazeView {
 	protected _entityImageManager:EntityImageManager|undefined;
 	public constructor( public canvas:HTMLCanvasElement ) { }
 	
-	public viewage : MazeViewage = { visualEntities: [] };
+	protected _viewage : MazeViewage = { visualEntities: [] };
 	public ppm = 16;
 
 	public occlusionFillStyle:string = 'rgba(96,64,64,1)';
@@ -292,7 +292,7 @@ export class MazeView {
 	}
 	
 	public getTileEntityAt( coords:Vector3D, tileSize:number=1 ):TileEntity|undefined {
-		const viewItems = this.viewage.visualEntities;
+		const viewItems = this._viewage.visualEntities;
 		for( let i in viewItems ) {
 			const vi = viewItems[i];
 			const te = vi.entity;
@@ -386,15 +386,15 @@ export class MazeView {
 		this.drawRaster( viz, 0, this.occlusionFillStyle, true);
 	}
 
-	public draw():void {
+	protected draw():void {
 		const ctx = this.canvas.getContext('2d');
 		if( !ctx ) return;
 		const eim = this._entityImageManager;
 		const cx = this.canvas.width/2;
 		const cy = this.canvas.height/2;
 		const ppm = 16;
-		if( eim ) for( let i in this.viewage.visualEntities ) {
-			const item:RoomVisualEntity = this.viewage.visualEntities[i];
+		if( eim ) for( let i in this._viewage.visualEntities ) {
+			const item:RoomVisualEntity = this._viewage.visualEntities[i];
 			const time = 0;
 			if( !item.visualRef ) continue;
 			const icon:ImageSlice<HTMLImageElement>|undefined = eim.getIconIfLoaded(
@@ -412,7 +412,31 @@ export class MazeView {
 				iconScale * aabbWidth(icon.bounds), iconScale * aabbHeight(icon.bounds),
 			);
 		}
-		if(this.viewage.visibility) this.drawOcclusionFog(this.viewage.visibility);
+		if(this._viewage.visibility) this.drawOcclusionFog(this._viewage.visibility);
+	}
+	
+	protected redrawRequested:boolean = false;
+	public requestRedraw():void {
+		if( this.redrawRequested ) {
+			console.log("Redraw already requested; skipping")
+			return;
+		}
+		
+		this.redrawRequested = true;
+		// TODO: Skip drawing if not in viewport (but make sure it gets drawn when it is visible again!)
+		window.requestAnimationFrame( () => {
+			this.redrawRequested = false;
+			console.log("Draw!");
+			this.clear();
+			this.draw();
+		});
+	}
+	
+	public get viewage() { return this._viewage; }
+	
+	public set viewage(v:MazeViewage) {
+		this._viewage = v;
+		this.requestRedraw();
 	}
 	
 	public canvasPixelToWorldCoordinates(x:number, y:number, dest?:Vector3D ):Vector3D {
@@ -1483,7 +1507,7 @@ export class MazeDemo {
 
 	public updateView() {
 		this.maybePaint();
-		this.view.viewage = { visualEntities: [] };
+		const newViewage:MazeViewage = { visualEntities: [] };
 		
 		const playerLoc = this.game.locateRoomEntity(this.playerId);
 
@@ -1515,11 +1539,11 @@ export class MazeDemo {
 				if( isAllNonZero(visibilityRaster.data) ) console.log("Visibility raster is all nonzero!");
 				sceneShader.growVisibility(visibilityRaster); // Not quite!  Since this expands visibility into non-room space.
 			}
-			sceneToMazeViewage( playerLoc.roomRef, scaleVector(playerLoc.position, -1), this.game.gameDataManager, this.view.viewage, visibilityRaster, seeAll );
-			if( seeAll ) this.view.viewage.cameraLocation = playerLoc;
+			sceneToMazeViewage( playerLoc.roomRef, scaleVector(playerLoc.position, -1), this.game.gameDataManager, newViewage, visibilityRaster, seeAll );
+			if( seeAll ) newViewage.cameraLocation = playerLoc;
 
-			this.view.viewage.visibility = visibilityRaster;
-			this.view.viewage.opacity = opacityRaster;
+			newViewage.visibility = visibilityRaster;
+			newViewage.opacity = opacityRaster;
 		} else {
 			console.log("Failed to locate player, "+this.playerId);
 		}
@@ -1528,7 +1552,7 @@ export class MazeDemo {
 		if( locationDiv ) {
 			let locationNode = locationDiv.firstChild;
 			if( locationNode == null ) locationDiv.appendChild(locationNode = document.createTextNode(""));
-			const cameraLoc = this.view.viewage.cameraLocation;
+			const cameraLoc = newViewage.cameraLocation;
 			if( cameraLoc ) {
 				const p = cameraLoc.position;
 				locationNode.nodeValue = cameraLoc.roomRef+" @ "+p.x.toFixed(3)+","+p.y.toFixed(3)+","+p.z.toFixed(3);
@@ -1537,8 +1561,7 @@ export class MazeDemo {
 			}
 		}
 		
-		this.view.clear();
-		this.view.draw();
+		this.view.viewage = newViewage;
 	}
 	
 	protected keysDown:KeyedList<boolean> = {};
