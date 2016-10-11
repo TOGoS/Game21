@@ -1,7 +1,7 @@
-import MiniConsole from './MiniConsole';
+import Logger from './Logger';
 
-export default class MultiConsole implements MiniConsole {
-	public constructor( protected backends:MiniConsole[] ) {
+export default class MultiConsole implements Logger {
+	public constructor( protected backends:Logger[] ) {
 	}
 	
 	public log( message?:any, ...optionalParams:any[] ) {

@@ -19,10 +19,7 @@
 
 ## Misc to-do items
 
-- Delete MiniConsole (it's just an alias of Logger)
-
 Maze1:
-- requestAnimationFrame to render scene
 - Draw additional neighbors if no overlap.
   Maybe collect a list, then draw nearest-farthest N,
   skipping ones that would overlap or are outside some bounds.
@@ -188,6 +185,7 @@ Possibly outdated but maybe not:
 * Convert OBJ (from FreeCAD) to procedural shape script
   "Can only contain triangulated meshes." which should make my job easy.
   -- http://www.freecadweb.org/wiki/index.php?title=Manual:Import_and_export_to_other_filetypes
+* Delete MiniConsole, rename ui/MultiConsole to MultiLogger
 Maze1:
 * Decentish quantized physics (overlaps not allowed)
 * Platform physics (good enough for now)
@@ -200,3 +198,4 @@ Maze1:
 * Render TileTrees properly for tile palette UI
 * Show save game in console
 * Save savegames to server
+* requestAnimationFrame to render scene

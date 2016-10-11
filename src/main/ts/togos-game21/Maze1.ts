@@ -47,9 +47,7 @@ import Tokenizer from './forth/Tokenizer';
 import Token, { TokenType } from './forth/Token';
 
 import Logger from './Logger';
-
-import MiniConsole from './ui/MiniConsole';
-import MultiConsole from './ui/MultiConsole';
+import MultiLogger from './MultiLogger';
 import DOMLogger from './ui/DOMLogger';
 import TilePaletteUI from './ui/TilePalette';
 import {
@@ -1460,7 +1458,7 @@ export class MazeDemo {
 	protected mode:DemoMode = DemoMode.PLAY;
 	public tilePaletteUi:TilePaletteUI;
 	public consoleDialog:ConsoleDialogBox;
-	public console:MiniConsole;
+	public logger:Logger;
 	public loadingStatusUpdated:(text:string)=>any = (t)=>{};
 	
 	protected contextListeners:GameContextListener[] = [];
@@ -1643,7 +1641,7 @@ export class MazeDemo {
 			this.loadingStatusUpdated("");
 		}).catch( (err) => {
 			this.loadingStatusUpdated("Error loading!");
-			this.console.log("Error loading "+saveRef, err);
+			this.logger.log("Error loading "+saveRef, err);
 		});
 		return loadPromise;
 	}
@@ -1663,7 +1661,7 @@ export class MazeDemo {
 		}
 		
 		storeObject( leObj, this.exportDatastore ).then( (urn) => {
-			this.console.log("JSON cache dump: ", urn);
+			this.logger.log("JSON cache dump: ", urn);
 		});
 	}
 	
@@ -1790,7 +1788,7 @@ export class MazeDemo {
 				case 'load':
 					{
 						if( tokens.length != 2 ) {
-							this.console.error("Load takes a single argument: <savegame URI>");
+							this.logger.error("Load takes a single argument: <savegame URI>");
 							//e.g. urn:sha1:53GHW7DMQF472PTXLWKKE25BKUJXOTXZ#
 							break doCommand;
 						}
@@ -1800,7 +1798,7 @@ export class MazeDemo {
 				case 'create-new-room':
 					{
 						const newRoomUuid = newUuidRef();
-						this.console.log("New room ID:", newRoomUuid);
+						this.logger.log("New room ID:", newRoomUuid);
 						this.game.enqueueEntityMessage({
 							destinationId: simulatorId,
 							sourceId: "ui",
@@ -1812,16 +1810,16 @@ export class MazeDemo {
 					{
 						const currentLocation = this.view.viewage.cameraLocation;
 						if( !currentLocation || !currentLocation.roomRef ) {
-							this.console.error("Can't dig to new room; current room ID not known.");
+							this.logger.error("Can't dig to new room; current room ID not known.");
 							break doCommand;
 						}
 						if( tokens.length != 2 ) {
-							this.console.error("/connect-new-room takes 1 argument: <direction (t,l,r,b,a,z)>");
+							this.logger.error("/connect-new-room takes 1 argument: <direction (t,l,r,b,a,z)>");
 							break doCommand;
 						}
 						const newRoomUuid = newUuidRef();
 						const dir = tokens[1].text;
-						this.console.log("New room ID:", newRoomUuid);
+						this.logger.log("New room ID:", newRoomUuid);
 						this.game.enqueueEntityMessage({
 							destinationId: simulatorId,
 							sourceId: "ui",
@@ -1838,7 +1836,7 @@ export class MazeDemo {
 				case 'cr': case 'connect-rooms':
 					{
 						if( tokens.length != 4 ) {
-							this.console.error("/cr takes 3 arguments: <room 1 ID> <direction (t,l,r,b,a,z)> <room2 ID>");
+							this.logger.error("/cr takes 3 arguments: <room 1 ID> <direction (t,l,r,b,a,z)> <room2 ID>");
 							break doCommand;
 						}
 						const roomAId = tokens[1].text;
@@ -1852,7 +1850,7 @@ export class MazeDemo {
 					}
 					break;
 				default:
-					this.console.error("Unrecognized command: /"+tokens[0].text);
+					this.logger.error("Unrecognized command: /"+tokens[0].text);
 					break;
 				}
 			}
@@ -2083,12 +2081,12 @@ export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string, loadingSt
 					encodeObject(saveMeta)
 				).then( (res) => {
 					if( res.statusCode != 200 ) {
-						demo.console.error("Failed to save to website;", res.content);
+						demo.logger.error("Failed to save to website;", res.content);
 					} else {
-						demo.console.log("Saved "+saveRef+" to website");
+						demo.logger.log("Saved "+saveRef+" to website");
 					}
 				});
-				demo.console.log("Saved as "+saveRef);
+				demo.logger.log("Saved as "+saveRef);
 				if( window.localStorage ) {
 					const savesJson = window.localStorage.getItem("game21-local-saves");
 					const saves:{note:string,date:string,saveRef:string}[] = savesJson ? JSON.parse(savesJson) : [];
@@ -2189,7 +2187,7 @@ export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string, loadingSt
 		// And there is no aspect, no facet, no moment of life that can't be improved with pizza.
 		
 		demo.consoleDialog = consoleDialog;
-		const consoles:MiniConsole[] = [console];
+		const loggers:Logger[] = [console];
 		const htmlConsoleElement = document.getElementById('console-output');
 		if( htmlConsoleElement ) {
 			const hashUrnRegex = /^(urn:(?:sha1|bitprint):[^#]+)(\#.*)?$/;
@@ -2214,9 +2212,9 @@ export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string, loadingSt
 				}
 				return undefined;
 			}
-			consoles.push(domLogger);
+			loggers.push(domLogger);
 		}
-		demo.console = new MultiConsole(consoles);
+		demo.logger = new MultiLogger(loggers);
 	}
 	
 	const inventoryDialogElement = document.getElementById('inventory-dialog');
