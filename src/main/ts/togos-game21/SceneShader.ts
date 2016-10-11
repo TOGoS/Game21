@@ -8,6 +8,15 @@ import { eachSubEntity, roomEntityOrientation } from './worldutil';
 import { Room, RoomEntity, Entity, EntityClass, StructureType, TileTree } from './world';
 import GameDataManager from './GameDataManager';
 
+export const OPACITY_TRANSPARENT =   0;
+export const OPACITY_OPAQUE      = 254;
+export const OPACITY_VOID        = 255; // Void space!  Even more opaque than opaque.
+
+export const VISIBILITY_VOID =   0; // Void space!  Even less visible than none.
+export const VISIBILITY_NONE =   1; // Invisible due to opaqueness
+export const VISIBILITY_MIN  =   2; // Minimum visiblity for actually seeing something at all
+export const VISIBILITY_MAX  = 255; // Very visible
+
 /*
  * Opactity map gives opacity of each cell
  * 
@@ -83,10 +92,9 @@ export default class SceneShader {
 			const maxCY = Math.min(destMap.height, Math.round( (vbb.maxY + pos.y + destMap.originY) * destMap.resolution));
 			for( let cy = minCY; cy < maxCY; ++cy ) {
 				for( let cx = minCX, ci = cy*destMap.width + cx; cx < maxCX; ++cx, ++ci ) {
-					// Slightly more complicated combination arithmetic
 					const currentOpacity:number = destMap.data[ci] / 255;
 					const combinedOpacity:number = currentOpacity + (1-currentOpacity) * proto.opacity;
-					destMap.data[ci] = Math.round( 255 * combinedOpacity );
+					destMap.data[ci] = Math.round( OPACITY_OPAQUE * combinedOpacity );
 				} 
 			}
 			return;
@@ -109,7 +117,7 @@ export default class SceneShader {
 			const maxCX = Math.min(destMap.width , Math.round( (tbb.maxX + pos.x + destMap.originX) * destMap.resolution));
 			const maxCY = Math.min(destMap.height, Math.round( (tbb.maxY + pos.y + destMap.originY) * destMap.resolution));
 			for( let y=minCY; y<maxCY; ++y ) for( let x=minCX, i=y*destMap.width+x; x<maxCX; ++x, ++i ) {
-				destData[i] = 0;
+				destData[i] = OPACITY_TRANSPARENT;
 			}
 		}
 
@@ -124,7 +132,7 @@ export default class SceneShader {
 	}
 	
 	public sceneOpacityRaster( roomRef:string, roomPos:Vector3D, dest:ShadeRaster ):ShadeRaster {
-		dest.data.fill(255);
+		dest.data.fill(OPACITY_VOID);
 		
 		this.destShadeMap = dest;
 		dest.getBounds(this.destBounds);
@@ -145,67 +153,42 @@ export default class SceneShader {
 		return dest;
 	}
 	
-	// Naive recursion was too slow so optimize by shooting in straight lines
-	/*
-	TODO: Fix these functions to not be wrong
-	public opacityTolVisibilityRasterOptX( opacity:ShadeRaster, x:number, y:number, maxDistance:number, dest:ShadeRaster, dx:number ):void {
-		if( x < 0 || y < 0 || x >= opacity.width || y >= opacity.height ) return;
-		
-		if( maxDistance > 255 ) maxDistance = 255;
-		const idx = x+y*opacity.width;
-		maxDistance = Math.floor( maxDistance * (255-opacity.data[idx])/255);
-		while( x >= 0 && x <= opacity.width && maxDistance > dest.data[idx] ) {
-			dest.data[idx] = maxDistance;
-			--maxDistance;
-			this.opacityTolVisibilityRasterOptY( opacity, x  , y+1, maxDistance, dest, +1 );
-			this.opacityTolVisibilityRasterOptY( opacity, x  , y-1, maxDistance, dest, -1 );
-			x += dx;
-		}
-	}
-
-	public opacityTolVisibilityRasterOptY( opacity:ShadeRaster, x:number, y:number, maxDistance:number, dest:ShadeRaster, dy:number ):void {
-		if( x < 0 || y < 0 || x >= opacity.width || y >= opacity.height ) return;
-		
-		if( maxDistance > 255 ) maxDistance = 255;
-		const idx = x+y*opacity.width;
-		maxDistance = Math.floor( maxDistance * (255-opacity.data[idx])/255);
-		while( y >= 0 && y <= opacity.height && maxDistance > dest.data[idx] ) {
-			dest.data[idx] = maxDistance;
-			--maxDistance;
-			this.opacityTolVisibilityRasterOptX( opacity, x+1, y  , maxDistance, dest, +1 );
-			this.opacityTolVisibilityRasterOptX( opacity, x-1, y  , maxDistance, dest, -1 );
-			y += dy;
-		}
-	}
-	*/
-	
 	/**
 	 * Fill dest with zeroes and then call this
 	 * for each cell with eyes.
 	 */
 	public opacityTolVisibilityRaster2( opacity:ShadeRaster, x:number, y:number, dx:number, dy:number, maxDistance:number, dest:ShadeRaster ):void {
+		if( maxDistance <= VISIBILITY_NONE ) return;
 		if( x < 0 || y < 0 || x >= opacity.width || y >= opacity.height ) return;
 		x |= 0; y |= 0;
 		
-		if( maxDistance > 255 ) maxDistance = 255;
+		if( maxDistance > VISIBILITY_MAX ) maxDistance = VISIBILITY_MAX;
 		const idx = x+y*opacity.width;
-		maxDistance = Math.floor( maxDistance * (255-opacity.data[idx])/255);
+		const od = opacity.data[idx];
+		if( od >= OPACITY_VOID ) return;
+		maxDistance = VISIBILITY_NONE + Math.floor( (maxDistance-VISIBILITY_NONE) * (OPACITY_OPAQUE-od)/OPACITY_OPAQUE);
 		if( maxDistance > dest.data[idx] ) {
 			dest.data[idx] = maxDistance;
-			if( maxDistance > 0 ) {
+			if( maxDistance >= VISIBILITY_MIN ) {
 				const ndA = maxDistance - 1;
 				const ndB = (dx == 0 && dy == 0) ? ndA : Math.floor(maxDistance/2);
 				this.opacityTolVisibilityRaster2( opacity, x+1, y+0, +1,  0, plax(+1, 0,dx,dy,ndA,ndB), dest );
 				this.opacityTolVisibilityRaster2( opacity, x+0, y+1,  0, +1, plax( 0,+1,dx,dy,ndA,ndB), dest );
 				this.opacityTolVisibilityRaster2( opacity, x-1, y+0, -1,  0, plax(-1, 0,dx,dy,ndA,ndB), dest );
 				this.opacityTolVisibilityRaster2( opacity, x+0, y-1,  0, -1, plax( 0,-1,dx,dy,ndA,ndB), dest );
-				/*
-				this.opacityTolVisibilityRasterOptX( opacity, x+1, y  , maxDistanceMinus1, dest, +1 );
-				this.opacityTolVisibilityRasterOptY( opacity, x  , y+1, maxDistanceMinus1, dest, +1 );
-				this.opacityTolVisibilityRasterOptX( opacity, x-1, y  , maxDistanceMinus1, dest, -1 );
-				this.opacityTolVisibilityRasterOptY( opacity, x  , y-1, maxDistanceMinus1, dest, -1 );
-				*/
 			}
+		}
+	}
+	
+	public initializeVisibilityRaster( opacity:ShadeRaster, dest:ShadeRaster, opaqueVisibility:number=VISIBILITY_NONE ):void {
+		if( dest.width != opacity.width || dest.height != opacity.height ) {
+			throw new Error("Opacity and destination visibility rasters must have the same dimensions; given "+
+				opacity.width+"x"+opacity.height+" and "+dest.width+"x"+dest.height);
+		}
+		// Translate voidness to visibility raster
+		const opDat = opacity.data, destDat = dest.data;
+		for( let i=opacity.width*opacity.height-1; i>=0; --i ) {
+			destDat[i] = opDat[i] == OPACITY_VOID ? VISIBILITY_VOID : opaqueVisibility;
 		}
 	}
 	
@@ -260,26 +243,28 @@ export default class SceneShader {
 		const dat = visibility.data;
 		const w = visibility.width;
 		const h = visibility.height;
-		for( let i=0, y=0; y<h; ++y ) for( let x=0; x<w; ++x, ++i ) {
-			if( dat[i] > 0 && dat[i] < 255 ) ++dat[i];
-		}
+		
+		// Increase the value of any cells with visibility=NONE
+		// to MIN if they have any neighbor with visibility>MIN.
+		// Spread horizontally:
 		for( let i=0, y=0; y<h; ++y ) for( let prevVal=0, x=0; x<w; ++x, ++i ) {
-			if( dat[i] == 0 ) {
-				if( prevVal || x < w-1 && dat[i+1] ) {
-					dat[i] = 1;
+			if( dat[i] == VISIBILITY_NONE ) {
+				if( prevVal >= VISIBILITY_MIN || x < w-1 && dat[i+1] >= VISIBILITY_MIN ) {
+					dat[i] = VISIBILITY_MIN;
 				}
-				prevVal = 0;
+				prevVal = VISIBILITY_NONE; // The original value of this cell, not the new one
 			} else {
 				prevVal = dat[i];
 			}
 		}
+		// Spread vertically:
 		for( let x=0; x<w; ++x ) for( let prevVal=0, y=0; y<h; ++y ) {
 			const i = y*w+x;
-			if( dat[i] == 0 ) {
-				if( prevVal || y < h-1 && dat[i+w] ) {
-					dat[i] = 1;
+			if( dat[i] == VISIBILITY_NONE ) {
+				if( prevVal >= VISIBILITY_MIN || y < h-1 && dat[i+w] >= VISIBILITY_MIN ) {
+					dat[i] = VISIBILITY_MIN;
 				}
-				prevVal = 0;
+				prevVal = VISIBILITY_NONE; // The original value of this cell, not the new one
 			} else {
 				prevVal = dat[i];
 			}

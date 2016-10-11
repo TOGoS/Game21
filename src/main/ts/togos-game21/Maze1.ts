@@ -22,7 +22,7 @@ import {
 } from './aabbs';
 import Quaternion from './Quaternion';
 import TransformationMatrix3D from './TransformationMatrix3D';
-import SceneShader, { ShadeRaster } from './SceneShader';
+import SceneShader, { ShadeRaster, VISIBILITY_VOID, VISIBILITY_NONE, VISIBILITY_MIN } from './SceneShader';
 import { uuidUrn, newType4Uuid } from '../tshash/uuids';
 import { makeTileTreeRef, makeTileEntityPaletteRef, eachSubEntity, connectRooms } from './worldutil';
 import * as dat from './maze1demodata';
@@ -315,7 +315,7 @@ export class MazeView {
 		ctx.clearRect(0,0,this.canvas.width,this.canvas.height);
 	}
 
-	protected drawRaster(rast:ShadeRaster, drawValue:number, fillStyle:string, drawMargin:boolean, borderColor?:string):void {
+	protected drawRaster(rast:ShadeRaster, minDrawValue:number, maxDrawValue:number, fillStyle:string, drawMargin:boolean, borderColor?:string):void {
 		const ctx = this.canvas.getContext('2d');
 		if( !ctx ) return;
 		const cx = this.canvas.width/2;
@@ -363,16 +363,19 @@ export class MazeView {
 				ppm         / rast.resolution
 			);
 		};
-
+		
+		const showValue = false; // Turn to true for debuggin'
+		if( showValue ) ctx.strokeStyle = '#F0F'; // For le debug text
 		for( i=0, y=0; y<vrHeight; ++y ) {
 			let spanStart:number|null = null;
 			for( let x=0; x<vrWidth; ++x, ++i ) {
-				if( vrData[i] == drawValue ) {
+				if( vrData[i] >= minDrawValue && vrData[i] <= maxDrawValue ) {
 					if( spanStart == null ) spanStart = x;
 				} else if( spanStart != null ) {
 					fillFog(spanStart, x);
 					spanStart = null;
 				}
+				if( showValue ) ctx.strokeText( ""+(vrData[i] > 9 ? 9 : vrData[i]), cx+ppm*(x/rast.resolution - rast.originX), 8+cy+ppm*( y/rast.resolution - rast.originY) );
 			}
 			if( spanStart != null ) {
 				fillFog(spanStart, vrWidth);
@@ -381,7 +384,7 @@ export class MazeView {
 	}
 	
 	protected drawOcclusionFog(viz:ShadeRaster):void {
-		this.drawRaster( viz, 0, this.occlusionFillStyle, true);
+		this.drawRaster( viz, VISIBILITY_VOID, VISIBILITY_NONE, this.occlusionFillStyle, true);
 	}
 
 	protected draw():void {
@@ -461,7 +464,7 @@ function roomToMazeViewage( roomRef:string, roomPosition:Vector3D, gdm:GameDataM
 			let visible = false;
 			isVisibleLoop: for( let vry=minVrY; vry<maxVrY; ++vry ) for( let vrx=minVrX; vrx<maxVrX; ++vrx ) {
 				//console.log("Check bisibility raster@"+vrx+","+vry+"; "+(visibility.width*vry+vrx)+" = "+visibility.data[visibility.width*vry+vrx]);
-				if( visibility.data[visibility.width*vry+vrx] ) {
+				if( visibility.data[visibility.width*vry+vrx] >= VISIBILITY_MIN ) {
 					visible = true;
 					break isVisibleLoop;
 				}
@@ -1522,20 +1525,21 @@ export class MazeDemo {
 			const visibilityRaster   = new ShadeRaster(rasterWidth, rasterHeight, rasterResolution, rasterOriginX, rasterOriginY);
 			let opacityRaster:ShadeRaster|undefined;
 			const seeAll = this.mode == DemoMode.EDIT;
+
+			const visibilityDistanceInRasterPixels = rasterResolution*distance;
+			opacityRaster = new ShadeRaster(rasterWidth, rasterHeight, rasterResolution, rasterOriginX, rasterOriginY);
+			const sceneShader = new SceneShader(this.game.gameDataManager);
+			sceneShader.sceneOpacityRaster(playerLoc.roomRef, scaleVector(playerLoc.position, -1), opacityRaster);
+			if( isAllZero(opacityRaster.data) ) console.log("Opacity raster is all zero!");
+			if( isAllNonZero(opacityRaster.data) ) console.log("Opacity raster is all nonzero!");
 			if( seeAll ) {
-				visibilityRaster.data.fill(255);
+				sceneShader.initializeVisibilityRaster(opacityRaster, visibilityRaster, VISIBILITY_MIN);
 			} else {
-				const distanceInPixels = rasterResolution*distance;
-				opacityRaster = new ShadeRaster(rasterWidth, rasterHeight, rasterResolution, rasterOriginX, rasterOriginY);
-				const sceneShader = new SceneShader(this.game.gameDataManager);
-				sceneShader.sceneOpacityRaster(playerLoc.roomRef, scaleVector(playerLoc.position, -1), opacityRaster);
-				if( isAllZero(opacityRaster.data) ) console.log("Opacity raster is all zero!");
-				if( isAllNonZero(opacityRaster.data) ) console.log("Opacity raster is all nonzero!");
-				sceneShader.opacityTolVisibilityRaster(opacityRaster, (rasterOriginX-1/4)*rasterResolution, rasterOriginY*rasterResolution, distanceInPixels, visibilityRaster);
-				sceneShader.opacityTolVisibilityRaster(opacityRaster, (rasterOriginX+1/4)*rasterResolution, rasterOriginY*rasterResolution, distanceInPixels, visibilityRaster);
-				if( isAllZero(visibilityRaster.data) ) console.log("Visibility raster is all zero!");
-				if( isAllNonZero(visibilityRaster.data) ) console.log("Visibility raster is all nonzero!");
-				sceneShader.growVisibility(visibilityRaster); // Not quite!  Since this expands visibility into non-room space.
+				sceneShader.initializeVisibilityRaster(opacityRaster, visibilityRaster);
+				// Player eyes (TODO: configure on entity class):
+				sceneShader.opacityTolVisibilityRaster(opacityRaster, (rasterOriginX-1/4)*rasterResolution, rasterOriginY*rasterResolution, visibilityDistanceInRasterPixels, visibilityRaster);
+				sceneShader.opacityTolVisibilityRaster(opacityRaster, (rasterOriginX+1/4)*rasterResolution, rasterOriginY*rasterResolution, visibilityDistanceInRasterPixels, visibilityRaster);
+				sceneShader.growVisibility(visibilityRaster);
 			}
 			sceneToMazeViewage( playerLoc.roomRef, scaleVector(playerLoc.position, -1), this.game.gameDataManager, newViewage, visibilityRaster, seeAll );
 			if( seeAll ) newViewage.cameraLocation = playerLoc;
