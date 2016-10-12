@@ -73,26 +73,35 @@ export function eachSubEntityIntersectingBb<T>(
 		const tilePaletteIndexes = tt.childEntityIndexes;
 		const tilePalette = gdm.getObject<TileEntityPalette>(tt.childEntityPaletteRef);
 		if( tilePalette == null ) return;
+		
+		const ttBb = tt.tilingBoundingBox;
 		const zDivs = tt.zDivisions, yDivs = tt.yDivisions, xDivs = tt.xDivisions;
-		const xd = aabbWidth( tt.tilingBoundingBox)/xDivs;
-		const yd = aabbHeight(tt.tilingBoundingBox)/yDivs;
-		const zd = aabbDepth( tt.tilingBoundingBox)/zDivs;
+		const ttWidth = ttBb.maxX-ttBb.minX, ttHeight = ttBb.maxY-ttBb.minY, ttDepth = ttBb.maxZ-ttBb.minZ;
+		const xd = ttWidth/xDivs, yd = ttHeight/yDivs, zd = ttDepth/zDivs;
 		const halfZd = zd/2, halfXd = xd/2, halfYd = yd/2;
-		const x0 = pos.x - aabbWidth( tt.tilingBoundingBox)/2 + halfXd;
-		const y0 = pos.y - aabbHeight(tt.tilingBoundingBox)/2 + halfYd;
-		const z0 = pos.z - aabbDepth( tt.tilingBoundingBox)/2 + halfZd;
+		
+		// Tile tree corners, adjusted by pos:
+		const x0 = pos.x - ttWidth /2, x1 = pos.x + ttWidth /2;
+		const y0 = pos.y - ttHeight/2, y1 = pos.y + ttHeight/2;
+		const z0 = pos.z - ttDepth /2, z1 = pos.z + ttDepth /2;
 		const bbMinX = bbPos.x+bb.minX, bbMaxX = bbPos.x+bb.maxX;
 		const bbMinY = bbPos.y+bb.minY, bbMaxY = bbPos.y+bb.maxY;
 		const bbMinZ = bbPos.z+bb.minZ, bbMaxZ = bbPos.z+bb.maxZ;
-		slices: for( let z=0; z < zDivs; ++z ) {
-			const subZ = z0+z*zd;
-			if( subZ - halfZd >= bbMaxZ || subZ + halfZd <= bbMinZ ) continue slices;
-			rows: for( let y=0; y < yDivs; ++y ) {
-				const subY = y0+y*yd;
-				if( subY - halfYd >= bbMaxY || subY + halfYd <= bbMinY ) continue rows;
-				cells: for( let x=0, i=x+(y*xDivs)+(z*xDivs*yDivs); x < xDivs; ++x, ++i ) {
-					const subX = x0+x*xd;
-					if( subX - halfXd >= bbMaxX || subX + halfXd <= bbMinX ) continue cells;
+		
+		// Slice/row/cell numbers that intersect the bounding box
+		const cx0 = bbMinX <= x0 ? 0 : bbMinX >= x1 ? xDivs : Math.floor((bbMinX-x0)/xd);
+		const cx1 = bbMaxX <= x0 ? 0 : bbMaxX >= x1 ? xDivs : Math.ceil( (bbMaxX-x0)/xd);
+		const cy0 = bbMinY <= y0 ? 0 : bbMinY >= y1 ? yDivs : Math.floor((bbMinY-y0)/yd);
+		const cy1 = bbMaxY <= y0 ? 0 : bbMaxY >= y1 ? yDivs : Math.ceil( (bbMaxY-y0)/yd);
+		const cz0 = bbMinZ <= z0 ? 0 : bbMinZ >= z1 ? zDivs : Math.floor((bbMinZ-z0)/zd);
+		const cz1 = bbMaxZ <= z0 ? 0 : bbMaxZ >= z1 ? zDivs : Math.ceil( (bbMaxZ-z0)/zd);
+		
+		for( let cz=cz0; cz < cz1; ++cz ) {
+			const subZ = z0+cz*zd+halfZd;
+			for( let cy=cy0; cy < cy1; ++cy ) {
+				const subY = y0+cy*yd+halfYd;
+				for( let cx=cx0, i=cx+(cy*xDivs)+(cz*xDivs*yDivs); cx < cx1; ++cx, ++i ) {
+					const subX = x0+cx*xd+halfXd;
 					const tileEntity = tilePalette[tilePaletteIndexes[i]];
 					if( tileEntity != null ) {
 						let v = callback.call( callbackThis, tileEntity.entity, setVector(posBuffer, subX, subY, subZ), tileEntity.orientation );
