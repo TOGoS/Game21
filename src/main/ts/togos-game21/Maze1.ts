@@ -54,7 +54,19 @@ import {
 	StorageCompartmentContentUI
 } from './ui/inventory';
 
-import { EntityMessageData } from './simulationmessaging';
+import {
+	EntityPath,
+	EntityMessageData,
+	SimulationAction,
+	SendDataPacketAction,
+	SendAnalogValueAction,
+	ReceiveMessageAction,
+	ROOMID_SIMULATOR,
+	ROOMID_FINDENTITY,
+	ROOMID_EXTERNAL,
+} from './simulationmessaging';
+
+const UI_ENTIY_PATH = [ROOMID_EXTERNAL, "demo UI"];
 
 function entityMessageDataPath(emd:EntityMessageData):string {
 	return ""+emd[0];
@@ -65,12 +77,6 @@ function base64Encode(data:Uint8Array):string {
 	const strs = new Array(data.length);
 	for( let i=data.length-1; i>=0; --i ) strs[i] = String.fromCharCode(data[i]);
 	return btoa(strs.join(""));
-}
-
-interface EntityMessage {
-	sourceId : string;
-	destinationId : string;
-	payload : EntityMessageData;
 }
 
 function newUuidRef():string { return uuidUrn(newType4Uuid()); }
@@ -653,7 +659,7 @@ interface Collision {
 }
 
 export class MazeGamePhysics {
-	constructor( protected game:MazeGame ) { }
+	constructor( protected game:MazeSimulator ) { }
 	
 	public activeRoomIds:KeyedList<string> = {};
 	public activatedRoomIds:KeyedList<string> = {};
@@ -1143,21 +1149,18 @@ export class MazeGamePhysics {
 
 // TODO: Rename to MazeGameSimulator,
 // move active room management to GameDataManager.
-export class MazeGame {
+export class MazeSimulator {
 	protected rooms:KeyedList<Room> = {};
 	protected activeRoomIds:KeyedList<string> = {};
 	protected phys = new MazeGamePhysics(this);
 	public logger:Logger = console;
 	
-	protected entityMessages:KeyedList<EntityMessage[]> = {};
+	protected enqueuedActions:SimulationAction[] = [];
 
 	public constructor( public gameDataManager:GameDataManager ) { }
 	
-	public enqueueEntityMessage( em:EntityMessage ):void {
-		if( !this.entityMessages[em.destinationId] ) {
-			this.entityMessages[em.destinationId] = [];
-		}
-		this.entityMessages[em.destinationId].push(em);
+	public enqueueAction( act:SimulationAction ):void {
+		this.enqueuedActions.push(act);
 	}
 	
 	public get activeRooms() { return this.rooms; }
@@ -1320,12 +1323,13 @@ export class MazeGame {
 	
 	protected processEntityMessage(
 		roomId:string, room:Room, entityId:string,
-		roomEntity:RoomEntity, em:EntityMessage
+		roomEntity:RoomEntity, md:EntityMessageData
 	):void {
-		const md = em.payload;
 		const path = entityMessageDataPath(md);
 		if( path == "/desiredmovementdirection" ) {
 			roomEntity.entity.desiredMovementDirection = makeVector(+md[1],+md[2],+md[3]);
+			// Make sure the room is marked as active:
+			this.activeRoomIds[roomId] = roomId;
 		} else if( path == "/painttiletreeblock" ) {
 			const relX = +md[1];
 			const relY = +md[2];
@@ -1356,13 +1360,13 @@ export class MazeGame {
 		}
 	}
 	
-	protected handleMessage(message:EntityMessage):void {
-		switch( message.payload[0] ) {
+	protected processSimulatorMessage(messageData:EntityMessageData):void {
+		switch( messageData[0] ) {
 		case '/create-room':
 			{
-				const roomId = message.payload[1];
+				const roomId = messageData[1];
 				if( typeof roomId != 'string' ) {
-					this.logger.error("'create-room' argument not a string", message.payload);
+					this.logger.error("'create-room' argument not a string", messageData);
 					return;
 				}
 				const ttId = newUuidRef();
@@ -1383,9 +1387,9 @@ export class MazeGame {
 			break;
 		case '/connect-rooms':
 			{
-				const room1Id = message.payload[1];
-				const dir = ""+message.payload[2];
-				const room2Id = message.payload[3];
+				const room1Id = messageData[1];
+				const dir = ""+messageData[2];
+				const room2Id = messageData[3];
 				// For now all rooms are 16x16, so
 				let nx = 0, ny = 0, nz = 0;
 				for( let i=0; i<dir.length; ++i ) {
@@ -1408,35 +1412,78 @@ export class MazeGame {
 			}
 			break;
 		default:
-			this.logger.warn("Unrecognized simulator message from "+message.sourceId+":", message.payload);
+			this.logger.warn("Unrecognized simulator message:", messageData);
 		}
 	}
 	
 	protected get hasPendingMessageUpdates():boolean {
-		for( let m in this.entityMessages ) return true;
-		return false;
+		return this.enqueuedActions.length > 0;
+	}
+	
+	protected findEntity(entityId:string):string|undefined{
+		for( let roomId in this.rooms ) {
+			const room = this.rooms[roomId];
+			if( room.roomEntities[entityId] ) return roomId;
+		}
+		return undefined;
+	}
+	
+	protected doReceiveMessageAction( act:ReceiveMessageAction ):void {
+		let roomId:string|undefined;
+		switch( act.entityPath[0] ) {
+		case ROOMID_SIMULATOR:
+			this.processSimulatorMessage(act.payload);
+			return;
+		case ROOMID_FINDENTITY:
+			roomId = this.findEntity(act.entityPath[1]);
+			if( roomId == null ) {
+				console.warn("Can't deliver entity message: failed to find room containing entity "+act.entityPath[1]);
+				return;
+			}
+			break;
+		case ROOMID_EXTERNAL:
+			console.log("Hey look, message to "+act.entityPath.join("/")+":", act.payload);
+			return;
+		default:
+			roomId = act.entityPath[0];
+		}
+		if( act.entityPath.length != 2 ) {
+			console.error("Can't deliver entity message: unsupported path length: "+act.entityPath.length);
+			return;
+		}
+		const room = this.rooms[roomId];
+		if( !room ) {
+			console.warn("Can't deliver entity message: no such room: '"+roomId+"'");
+			return;
+		}
+		const roomEntityKey = act.entityPath[1];
+		const roomEntity = room.roomEntities[roomEntityKey];
+		if( roomEntity == null ) {
+			console.warn("Can't deliver entity message: entity "+roomEntityKey+" not found in room "+roomId);
+			return;
+		}
+		// TODO: May need to handle more path... 
+		this.processEntityMessage(roomId, room, roomEntityKey, roomEntity, act.payload);
+	}
+	
+	protected doAction( act:SimulationAction ):void {
+		switch( act.classRef ) {
+		case "http://ns.nuke24.net/Game21/SimulationAction/ReceiveMessage":
+			this.doReceiveMessageAction(act);
+			break;
+		default:
+			console.error("Unrecognized action class: "+act.classRef);
+		}
+
 	}
 	
 	protected doMessageUpdate() {
-		const simulatorMessages = this.entityMessages[simulatorId];
-		if( simulatorMessages ) {
-			for( let m in simulatorMessages ) {
-				this.handleMessage(simulatorMessages[m]);
-			}
+		const handlingActions = this.enqueuedActions;
+		this.enqueuedActions = [];
+		for( let ac in handlingActions ) {
+			const act:SimulationAction = handlingActions[ac];
+			this.doAction(act);
 		}
-		
-		for( let r in this.rooms ) {
-			let room = this.rooms[r];
-			for( let re in room.roomEntities ) {
-				const roomEntity = room.roomEntities[re];
-				if( this.entityMessages[re] ) {
-					const msgs = this.entityMessages[re];
-					for( let m in msgs ) this.processEntityMessage( r, room, re, roomEntity, msgs[m] );
-					this.activeRoomIds[r] = r;
-				}
-			}
-		}
-		this.entityMessages = {};
 	}
 	
 	protected messageUpdateLength:number = 1/8192;
@@ -1510,7 +1557,7 @@ export class MazeDemo {
 	public datastore : Datastore<Uint8Array>;
 	public memoryDatastore : MemoryDatastore<Uint8Array>;
 	public exportDatastore : MemoryDatastore<Uint8Array>;
-	public game : MazeGame;
+	public simulator : MazeSimulator;
 	public canvas:HTMLCanvasElement;
 	public view : MazeView;
 	public playerId : string;
@@ -1528,7 +1575,7 @@ export class MazeDemo {
 	}
 	
 	protected set context(ctx:GameContext) {
-		if( this.game ) this.game.gameDataManager = ctx.gameDataManager;
+		if( this.simulator ) this.simulator.gameDataManager = ctx.gameDataManager;
 		if( this.view ) this.view.gameDataManager = ctx.gameDataManager;
 		for( let l in this.contextListeners ) {
 			this.contextListeners[l]( ctx );
@@ -1560,7 +1607,7 @@ export class MazeDemo {
 	}
 	
 	protected tick() {
-		this.game.update(this.tickRate);
+		this.simulator.update(this.tickRate);
 		this.updateView();
 	}
 
@@ -1568,7 +1615,7 @@ export class MazeDemo {
 		this.maybePaint();
 		const newViewage:MazeViewage = { visualEntities: [] };
 		
-		const playerLoc = this.game.locateRoomEntity(this.playerId);
+		const playerLoc = this.simulator.locateRoomEntity(this.playerId);
 
 		if( playerLoc ) {
 			const rasterWidth = 41;
@@ -1586,7 +1633,7 @@ export class MazeDemo {
 
 			const visibilityDistanceInRasterPixels = rasterResolution*distance;
 			opacityRaster = new ShadeRaster(rasterWidth, rasterHeight, rasterResolution, rasterOriginX, rasterOriginY);
-			const sceneShader = new SceneShader(this.game.gameDataManager);
+			const sceneShader = new SceneShader(this.simulator.gameDataManager);
 			sceneShader.sceneOpacityRaster(playerLoc.roomRef, scaleVector(playerLoc.position, -1), opacityRaster);
 			if( isAllZero(opacityRaster.data) ) console.log("Opacity raster is all zero!");
 			if( isAllNonZero(opacityRaster.data) ) console.log("Opacity raster is all nonzero!");
@@ -1599,7 +1646,7 @@ export class MazeDemo {
 				sceneShader.opacityTolVisibilityRaster(opacityRaster, (rasterOriginX+1/4)*rasterResolution, rasterOriginY*rasterResolution, visibilityDistanceInRasterPixels, visibilityRaster);
 				sceneShader.growVisibility(visibilityRaster);
 			}
-			sceneToMazeViewage( playerLoc.roomRef, scaleVector(playerLoc.position, -1), this.game.gameDataManager, newViewage, visibilityRaster, seeAll );
+			sceneToMazeViewage( playerLoc.roomRef, scaleVector(playerLoc.position, -1), this.simulator.gameDataManager, newViewage, visibilityRaster, seeAll );
 			if( seeAll ) newViewage.cameraLocation = playerLoc;
 
 			newViewage.visibility = visibilityRaster;
@@ -1644,8 +1691,8 @@ export class MazeDemo {
 		let moveX = right ? +1 : left ? -1 : 0;
 		let moveY = down  ? +1 : up   ? -1 : 0;
 		
-		if( this.game && this.playerId ) {
-			this.game.enqueueEntityMessage({sourceId: "ui", destinationId: this.playerId, payload:["/desiredmovementdirection", moveX, moveY, 0]});
+		if( this.simulator && this.playerId ) {
+			this.enqueueMessage([ROOMID_FINDENTITY, this.playerId], ["/desiredmovementdirection", moveX, moveY, 0]);
 		}
 	}
 	public keyDown(keyEvent:KeyboardEvent):void {
@@ -1672,7 +1719,7 @@ export class MazeDemo {
 		this.keysUpdated();
 	}
 	public saveGame():Promise<string> {
-		return this.game.flushUpdates().then( (gameDataRef) => {
+		return this.simulator.flushUpdates().then( (gameDataRef) => {
 			const saveGame = {
 				gameDataRef: gameDataRef,
 				rootRoomId: dat.room1Id,
@@ -1681,7 +1728,7 @@ export class MazeDemo {
 			return storeObject(saveGame, this.datastore);
 		});
 	}
-	public loadGame(saveRef:string):Promise<MazeGame> {
+	public loadGame(saveRef:string):Promise<MazeSimulator> {
 		this.stopSimulation();
 		this.loadingStatusUpdated("Loading game "+saveRef+"...");
 		const loadPromise = fetchObject(saveRef, this.datastore, true).then( (save:SaveGame) => {
@@ -1691,15 +1738,15 @@ export class MazeDemo {
 				gameDataManager: gdm,
 				entityImageManager: new EntityImageManager(gdm)
 			}
-			this.game = new MazeGame(gdm);
+			this.simulator = new MazeSimulator(gdm);
 			console.log("Loading save "+saveRef+"...", save);
-			return this.game.fullyLoadRooms( save.rootRoomId ).then( () => save );
+			return this.simulator.fullyLoadRooms( save.rootRoomId ).then( () => save );
 		}).then( (save) => {
 			console.log("Loaded!");
 			this.playerId = save.playerId;
 			this.updateView();
 			this.startSimulation();
-			return this.game;
+			return this.simulator;
 		});
 		loadPromise.then( (game) => {
 			this.loadingStatusUpdated("");
@@ -1711,7 +1758,7 @@ export class MazeDemo {
 	}
 	
 	public inspect(ref:string):Promise<any> {
-		return this.game.gameDataManager.fetchObject(ref);
+		return this.simulator.gameDataManager.fetchObject(ref);
 	}
 	
 	public exportCachedData() {
@@ -1753,11 +1800,10 @@ export class MazeDemo {
 		if( this.mode != DemoMode.EDIT ) return;
 		const coords = this.paintCoordinates;
 		if( coords ) {
-			this.game.enqueueEntityMessage({
-				sourceId: "ui",
-				destinationId: this.playerId,
-				payload: ["/painttiletreeblock", coords.x, coords.y, coords.z, 1, this.paintEntityClassRef]
-			})
+			this.enqueueMessage(
+				[ROOMID_FINDENTITY, this.playerId],
+				["/painttiletreeblock", coords.x, coords.y, coords.z, 1, this.paintEntityClassRef]
+			);
 		};
 	}
 	
@@ -1821,6 +1867,15 @@ export class MazeDemo {
 	public goToCommandHistoryBeginning() { this.goToCommandHistory(0); }
 	public goToCommandHistoryEnd() { this.goToCommandHistory(this.commandHistory.length); }
 	
+	public enqueueMessage(entityPath:EntityPath, payload:EntityMessageData, replyPath:EntityPath=UI_ENTIY_PATH):void {
+		this.simulator.enqueueAction({
+			classRef: "http://ns.nuke24.net/Game21/SimulationAction/ReceiveMessage",
+			entityPath: entityPath,
+			replyPath: replyPath,
+			payload: payload
+		});
+	}
+	
 	public submitConsoleCommand(cmd?:string) {
 		if( cmd == null ) {
 			cmd = this.consoleDialog.inputElement.value;
@@ -1863,11 +1918,7 @@ export class MazeDemo {
 					{
 						const newRoomUuid = newUuidRef();
 						this.logger.log("New room ID:", newRoomUuid);
-						this.game.enqueueEntityMessage({
-							destinationId: simulatorId,
-							sourceId: "ui",
-							payload: ["/create-room", newRoomUuid]
-						});
+						this.enqueueMessage([ROOMID_SIMULATOR], ["/create-room", newRoomUuid]);
 					}
 					break;
 				case 'connect-new-room':
@@ -1884,16 +1935,8 @@ export class MazeDemo {
 						const newRoomUuid = newUuidRef();
 						const dir = tokens[1].text;
 						this.logger.log("New room ID:", newRoomUuid);
-						this.game.enqueueEntityMessage({
-							destinationId: simulatorId,
-							sourceId: "ui",
-							payload: ["/create-room", newRoomUuid]
-						});
-						this.game.enqueueEntityMessage({
-							destinationId: simulatorId,
-							sourceId: "ui",
-							payload: ["/connect-rooms", currentLocation.roomRef, dir, newRoomUuid]
-						});
+						this.enqueueMessage([ROOMID_SIMULATOR], ["/create-room", newRoomUuid]);
+						this.enqueueMessage([ROOMID_SIMULATOR], ["/connect-rooms", currentLocation.roomRef, dir, newRoomUuid]);
 						console.log("Connecting "+currentLocation.roomRef+" "+dir+" to "+newRoomUuid);
 					}
 					break;
@@ -1906,11 +1949,7 @@ export class MazeDemo {
 						const roomAId = tokens[1].text;
 						const dirName = tokens[2].text;
 						const roomBId = tokens[3].text;
-						this.game.enqueueEntityMessage({
-							destinationId: simulatorId,
-							sourceId: "ui",
-							payload: ["/connect-rooms", roomAId, dirName, roomBId],
-						});
+						this.enqueueMessage([ROOMID_SIMULATOR], ["/connect-rooms", roomAId, dirName, roomBId]);
 					}
 					break;
 				default:
@@ -2040,7 +2079,7 @@ export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string, loadingSt
 	demo.importCacheStrings(cacheStrings);
 	
 	const tempGdm = new GameDataManager(ds);
-	const gameLoaded:Promise<MazeGame> = saveGameRef ? demo.loadGame(saveGameRef) :
+	const gameLoaded:Promise<MazeSimulator> = saveGameRef ? demo.loadGame(saveGameRef) :
 		dat.initData(tempGdm)
 		.then( () => tempGdm.flushUpdates() )
 		.then( (rootNodeUri) => storeObject( {
@@ -2064,7 +2103,7 @@ export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string, loadingSt
 		});
 		tpArea.appendChild( tpUi.element );
 		gameLoaded.then( (saveGame) => {
-			const entityRenderer = new TileEntityRenderer(demo.game.gameDataManager);
+			const entityRenderer = new TileEntityRenderer(demo.simulator.gameDataManager);
 			tpUi.entityRenderer = (ent:Entity, orientation:Quaternion):Promise<string|null> => {
 				return entityRenderer.entityIcon(ent, orientation).then( (icon) => icon.sheetRef );
 			};
@@ -2103,21 +2142,19 @@ export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string, loadingSt
 		const openDoorButton = document.createElement('button');
 		openDoorButton.appendChild(document.createTextNode("Up"));
 		openDoorButton.onclick = () => {
-			demo.game.enqueueEntityMessage({
-				sourceId: "ui",
-				destinationId: targetEntityIdBox.value,
-				payload: ["/desiredmovementdirection", 0, -1, 0]
-			})
+			demo.enqueueMessage(
+				[ROOMID_FINDENTITY, targetEntityIdBox.value],
+				["/desiredmovementdirection", 0, -1, 0]
+			);
 		}
 		
 		const closeDoorButton = document.createElement('button');
 		closeDoorButton.appendChild(document.createTextNode("Down"));
 		closeDoorButton.onclick = () => {
-			demo.game.enqueueEntityMessage({
-				sourceId: "ui",
-				destinationId: targetEntityIdBox.value,
-				payload: ["/desiredmovementdirection", 0, +1, 0]
-			})
+			demo.enqueueMessage(
+				[ROOMID_FINDENTITY, targetEntityIdBox.value],
+				["/desiredmovementdirection", 0, +1, 0]
+			);
 		}
 		
 		const udGroup:HTMLElement = document.createElement("fieldset");
