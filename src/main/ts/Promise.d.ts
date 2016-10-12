@@ -41,6 +41,7 @@ declare class Promise<T> implements Thenable<T> {
 }
 
 declare namespace Promise {
+	function resolve(): Promise<void>;
 	/**
 	 * Make a new promise from the thenable.
 	 * A thenable is promise-like in as far as it has a "then" method.
