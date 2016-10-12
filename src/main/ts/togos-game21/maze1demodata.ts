@@ -387,7 +387,7 @@ export function initData( gdm:GameDataManager ):Promise<string> {
 		platformSegmentEntityClassId,
 	], gdm);
 	
-	gdm.fastStoreObject<EntityClass>( {
+	gdm.tempStoreObject<EntityClass>( {
 		structureType: StructureType.INDIVIDUAL,
 		tilingBoundingBox:   QUNIT_CUBE,
 		physicalBoundingBox: QUNIT_CUBE,
@@ -399,7 +399,7 @@ export function initData( gdm:GameDataManager ):Promise<string> {
 		visualRef: doorFrameImgRef
 	}, doorFramePieceEntityId );
 	
-	gdm.fastStoreObject<EntityClass>( {
+	gdm.tempStoreObject<EntityClass>( {
 		debugLabel: "big yellow bricks",
 		structureType: StructureType.INDIVIDUAL,
 		tilingBoundingBox:   UNIT_CUBE,
@@ -410,7 +410,7 @@ export function initData( gdm:GameDataManager ):Promise<string> {
 		visualRef: bigYellowBrikImgRef
 	}, bigYellowBrikEntityClassId );
 	
-	gdm.fastStoreObject<EntityClass>( {
+	gdm.tempStoreObject<EntityClass>( {
 		debugLabel: "player",
 		structureType: StructureType.INDIVIDUAL,
 		tilingBoundingBox: UNIT_CUBE,
@@ -429,7 +429,7 @@ export function initData( gdm:GameDataManager ):Promise<string> {
 		maxJumpImpulse: 300,
 	}, playerEntityClassId );
 
-	gdm.storeObject<EntityClass>({
+	gdm.tempStoreObject<EntityClass>({
 		debugLabel: "bouncy ball",
 		structureType: StructureType.INDIVIDUAL,
 		tilingBoundingBox: HUNIT_CUBE,
@@ -444,7 +444,7 @@ export function initData( gdm:GameDataManager ):Promise<string> {
 	}, ballEntityClassId );
 	
 	const platformSegmentBounds = makeAabb(-0.25,-0.25,-0.5, +0.25,+0.25,+0.5);
-	gdm.fastStoreObject<EntityClass>( {
+	gdm.tempStoreObject<EntityClass>( {
 		debugLabel: "platform segment",
 		structureType: StructureType.INDIVIDUAL,
 		tilingBoundingBox:   platformSegmentBounds,
@@ -457,7 +457,7 @@ export function initData( gdm:GameDataManager ):Promise<string> {
 	}, platformSegmentEntityClassId );
 	
 	const platform3Bounds = makeAabb(-1.5,-0.25,-0.5, +1.5,+0.25,+0.5);
-	gdm.fastStoreObject<TileTree>( {
+	gdm.tempStoreObject<TileTree>( {
 		debugLabel: "1.5m-wide platform",
 		structureType: StructureType.TILE_TREE,
 		tilingBoundingBox: platform3Bounds,
@@ -479,7 +479,7 @@ export function initData( gdm:GameDataManager ):Promise<string> {
 	const doorSegmentBounds = makeAabb(-0.25,-0.5,-0.5, +0.25,+0.5,+0.5);
 	const doorSegmentVizBounds = makeAabb(-5/16,-0.5,-0.5, +5/16,+0.5,+0.5);
 	// It is a little wider visually so that it always occludes things!
-	gdm.fastStoreObject<EntityClass>( {
+	gdm.tempStoreObject<EntityClass>( {
 		debugLabel: "door segment",
 		structureType: StructureType.INDIVIDUAL,
 		tilingBoundingBox:   doorSegmentBounds,
@@ -493,7 +493,7 @@ export function initData( gdm:GameDataManager ):Promise<string> {
 	
 	const door3Bounds = makeAabb(-0.25,-1.5,-0.5, +0.25,+1.5,+0.5);
 	const door3VisBounds = makeAabb(-5/16,-1.5,-0.5, +5/16,+1.5,+0.5);
-	gdm.fastStoreObject<TileTree>( {
+	gdm.tempStoreObject<TileTree>( {
 		debugLabel: "3-segment vertical door",
 		structureType: StructureType.TILE_TREE,
 		tilingBoundingBox: door3Bounds,
@@ -512,7 +512,7 @@ export function initData( gdm:GameDataManager ):Promise<string> {
 		climbingSkill: 15/16, // So it can climb the frames!
 	}, door3EntityClassId);
 	
-	gdm.fastStoreObject<EntityClass>( {
+	gdm.tempStoreObject<EntityClass>( {
 		debugLabel: "bricks",
 		structureType: StructureType.INDIVIDUAL,
 		tilingBoundingBox: UNIT_CUBE,
@@ -523,7 +523,7 @@ export function initData( gdm:GameDataManager ):Promise<string> {
 		visualRef: brikImgRef
 	}, brikEntityClassId );
 	
-	gdm.fastStoreObject<EntityClass>( {
+	gdm.tempStoreObject<EntityClass>( {
 		debugLabel: "big bricks",
 		structureType: StructureType.INDIVIDUAL,
 		tilingBoundingBox: UNIT_CUBE,
@@ -534,7 +534,7 @@ export function initData( gdm:GameDataManager ):Promise<string> {
 		visualRef: bigBrikImgRef
 	}, bigBrikEntityClassId )
 	
-	gdm.fastStoreObject<EntityClass>( {
+	gdm.tempStoreObject<EntityClass>( {
 		debugLabel: "plant",
 		structureType: StructureType.INDIVIDUAL,
 		tilingBoundingBox: UNIT_CUBE,
@@ -545,7 +545,7 @@ export function initData( gdm:GameDataManager ):Promise<string> {
 		visualRef: plant1ImgRef
 	}, plant1EntityClassId );
 	
-	gdm.fastStoreObject<TileTree>( {
+	gdm.tempStoreObject<TileTree>( {
 		debugLabel: "door frame",
 		structureType: StructureType.TILE_TREE,
 		tilingBoundingBox: UNIT_CUBE,
@@ -559,7 +559,7 @@ export function initData( gdm:GameDataManager ):Promise<string> {
 		childEntityIndexes: doorFrameBlockData
 	}, doorFrameEntityClassId );
 
-	gdm.fastStoreObject<EntityClass>( {
+	gdm.tempStoreObject<EntityClass>( {
 		debugLabel: "ladder (+Z)",
 		structureType: StructureType.INDIVIDUAL,
 		tilingBoundingBox: UNIT_CUBE,
@@ -571,7 +571,7 @@ export function initData( gdm:GameDataManager ):Promise<string> {
 		visualRef: ladder1FrontImgRef,
 	}, backLadderEntityClassId );
 
-	gdm.fastStoreObject<EntityClass>( {
+	gdm.tempStoreObject<EntityClass>( {
 		debugLabel: "vines",
 		structureType: StructureType.INDIVIDUAL,
 		tilingBoundingBox: UNIT_CUBE,
@@ -582,7 +582,7 @@ export function initData( gdm:GameDataManager ):Promise<string> {
 		visualRef: vines1ImgRef
 	}, vines1EntityClassId );
 
-	gdm.fastStoreObject<EntityClass>( {
+	gdm.tempStoreObject<EntityClass>( {
 		debugLabel: "small lattice column",
 		structureType: StructureType.INDIVIDUAL,
 		tilingBoundingBox: HUNIT_CUBE,
@@ -593,7 +593,7 @@ export function initData( gdm:GameDataManager ):Promise<string> {
 		climbability: 1/16,
 		visualRef: latticeColumnImgRef
 	}, latticeColumnEntityClassId);
-	gdm.fastStoreObject<TileTree>( {
+	gdm.tempStoreObject<TileTree>( {
 		debugLabel: "small lattice column block (+x)",
 		structureType: StructureType.TILE_TREE,
 		tilingBoundingBox: UNIT_CUBE,
@@ -605,7 +605,7 @@ export function initData( gdm:GameDataManager ):Promise<string> {
 		childEntityPaletteRef: makeTileEntityPaletteRef([null, latticeColumnEntityClassId], gdm),
 		childEntityIndexes: [0,1,0,1,0,1,0,1]
 	}, latticeColumnRightBlockEntityClassId );
-	gdm.fastStoreObject<TileTree>( {
+	gdm.tempStoreObject<TileTree>( {
 		debugLabel: "small lattice column block (-x)",
 		structureType: StructureType.TILE_TREE,
 		tilingBoundingBox: UNIT_CUBE,
@@ -620,7 +620,7 @@ export function initData( gdm:GameDataManager ):Promise<string> {
 	
 	const bgLatticeBounds = makeAabb(-0.25,-0.25,-0.125, +0.25,+0.25,+0.125);
 	
-	gdm.fastStoreObject<EntityClass>( {
+	gdm.tempStoreObject<EntityClass>( {
 		debugLabel: "small lattice column (background)",
 		structureType: StructureType.INDIVIDUAL,
 		tilingBoundingBox: bgLatticeBounds,
@@ -631,7 +631,7 @@ export function initData( gdm:GameDataManager ):Promise<string> {
 		climbability: 1/16,
 		visualRef: latticeColumnBgImgRef
 	}, latticeColumnBgEntityClassId);
-	gdm.fastStoreObject<TileTree>( {
+	gdm.tempStoreObject<TileTree>( {
 		debugLabel: "small lattice column block (+x)",
 		structureType: StructureType.TILE_TREE,
 		tilingBoundingBox: UNIT_CUBE,
@@ -643,7 +643,7 @@ export function initData( gdm:GameDataManager ):Promise<string> {
 		childEntityPaletteRef: makeTileEntityPaletteRef([null, latticeColumnBgEntityClassId], gdm),
 		childEntityIndexes: [0,1,0,1,0,0,0,0,0,0,0,0,0,1,0,1]
 	}, latticeColumnBgRightBlockEntityClassId );
-	gdm.fastStoreObject<TileTree>( {
+	gdm.tempStoreObject<TileTree>( {
 		debugLabel: "small lattice column block (-x)",
 		structureType: StructureType.TILE_TREE,
 		tilingBoundingBox: UNIT_CUBE,
@@ -663,7 +663,7 @@ export function initData( gdm:GameDataManager ):Promise<string> {
 		plant1EntityClassId,
 		/* 4: */ doorFrameEntityClassId,
 		/* 5: */ backLadderEntityClassId,
-		/* 6: */ gdm.fastStoreObject<EntityClass>( {
+		/* 6: */ gdm.tempStoreObject<EntityClass>( {
 			debugLabel: "ladder (+X)",
 			structureType: StructureType.INDIVIDUAL,
 			tilingBoundingBox: UNIT_CUBE,
@@ -674,7 +674,7 @@ export function initData( gdm:GameDataManager ):Promise<string> {
 			isSolid: true,
 			visualRef: ladder1SideImgRef,
 		}),
-		/* 7: */ gdm.fastStoreObject<EntityClass>( {
+		/* 7: */ gdm.tempStoreObject<EntityClass>( {
 			debugLabel: "ladder (-X)",
 			structureType: StructureType.INDIVIDUAL,
 			tilingBoundingBox: UNIT_CUBE,
@@ -686,7 +686,7 @@ export function initData( gdm:GameDataManager ):Promise<string> {
 			visualRef: ladder1SideImgRef,
 		}),
 		/* 8 */ vines1EntityClassId,
-		/* 9: */ gdm.fastStoreObject<EntityClass>( {
+		/* 9: */ gdm.tempStoreObject<EntityClass>( {
 			debugLabel: "ladder (-Y)",
 			structureType: StructureType.INDIVIDUAL,
 			tilingBoundingBox: UNIT_CUBE,
@@ -706,7 +706,7 @@ export function initData( gdm:GameDataManager ):Promise<string> {
 	// do this as second step because we need to reference that tile tree palette by ID
 	const roomBounds = makeAabb(-8, -8, -0.5, 8, 8, 0.5);
 	
-	gdm.fastStoreObject<Room>({
+	gdm.tempStoreObject<Room>({
 		bounds: roomBounds,
 		roomEntities: {
 			[playerEntityId]: {
@@ -750,7 +750,7 @@ export function initData( gdm:GameDataManager ):Promise<string> {
 		}
 	}, room1Id);
 
-	gdm.fastStoreObject<Room>({
+	gdm.tempStoreObject<Room>({
 		bounds: roomBounds,
 		roomEntities: {
 			[room2TileTreeId]: {
