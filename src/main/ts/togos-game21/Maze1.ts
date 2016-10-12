@@ -833,6 +833,15 @@ export class MazeGamePhysics {
 				const entity = roomEntity.entity;
 				const entityClass = gdm.getEntityClass(entity.classRef);
 				
+				if( entityClass.mass == null || entityClass.mass == Infinity ) {
+					// This thing ain't going anywhere
+					if( entity.desiredMovementDirection == null ) {
+						// Nor is it attempting to apply forces onto anyone else.
+						// So we can skip doing anything with it at all.
+						continue;
+					}
+				}
+				
 				if( entityClass.isAffectedByGravity && entityClass.mass != null && entityClass.mass != Infinity ) {
 					this.induceVelocityChange(re, roomEntity, gravDv);
 				}
