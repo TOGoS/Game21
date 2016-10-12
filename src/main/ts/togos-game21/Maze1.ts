@@ -860,6 +860,8 @@ export class MazeGamePhysics {
 				// Room's got a possibly active entity in it,
 				// so add to the active rooms list.
 				this.activatedRoomIds[r] = r;
+				// TODO: Don't activate room if entity is settled into an unmoving state
+				// (would require activating neighbor rooms when things at edges change, etc)
 				
 				if( entityClass.isAffectedByGravity && entityClass.mass != null && entityClass.mass != Infinity ) {
 					this.registerReactionlessImpulse(r, re, roomEntity, scaleVector(gravDv, -entityClass.mass));
