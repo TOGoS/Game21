@@ -23,7 +23,6 @@ Maze1:
 - Draw additional neighbors if no overlap.
   Maybe collect a list, then draw nearest-farthest N,
   skipping ones that would overlap or are outside some bounds.
-- Generate some kind of packfile (PNG?)
 - Unify client/server view models; in edit mode, just send the room data as-is
   - This way we could ctrl+click TileTree blocks and stuff!
 - Keys, other inventory items
@@ -118,18 +117,12 @@ Density function tracer:
 - Quit when exiting bounding rectangle
 - Only return 'hole' if value at the last point is more negative than any other encountered
 
-Boring code stuff:
-- noImplicitAny: true
-- noImplicitReturns: true
-- strictNullChecks: true
-
 Infrastructure:
 - distributed bucket maps
 - Better WebSocket demo with packets and IP6Addresses and some options on the page like which URL to connect to
 - Router
 
 Fun stuff:
-- Visual demo of multi-room maze
 - Visual demo of train running on tracks
 
 - Define standard materials, including
@@ -143,17 +136,13 @@ Fun stuff:
 - Shader that only applies fog to opaque cells
 
 Possibly outdated but maybe not:
-- Demo for project log: Generate a bunch of different blocks from a shape
-  - Need a function that takes a shape, materials, and lighting conditions
 - A 'shape role' assigns specific meaning to shape parts (possibly allowing scaling)
   Shapes can indicate that they are implementing a role
 - Try loading an environment map image, blurring it, reading its pixels
-- Will need a base32 encoder; maybe npm has one; otherwise port yours again
-  - May need to port an SHA-1 and TigerTree function, too...
+* Will need a base32 encoder; maybe npm has one; otherwise port yours again
+- TigerTree function
 - Load a spritesheet, render tiles for game
 - Placeholder text/image in <canvas>
-- Lightning in that demo!
-  - and fb it again
 - Reflection using environment map (glassy and metallic reflection)
 - Import a pipe shape into the game
 - Self-shadowing (not useful for tiles, but fun to play with)
@@ -162,6 +151,8 @@ Possibly outdated but maybe not:
 
 ## Past Demos
 
+* Shape rendering with lightning
+* Generate a bunch of different blocks from a shape
 * ShapeSheet editor (http://www.nuke24.net/plog/11.html)
   * Separate out ForthProceduralShape
   * Save script, show URN
@@ -172,6 +163,7 @@ Possibly outdated but maybe not:
   * Change URL when saving/loading
   * Fix polygon and sphere rendering (avoid generating edge artifacts)
   * Show log in message area
+* Visual demo of multi-room maze
 
 ## Done!
 
@@ -186,6 +178,11 @@ Possibly outdated but maybe not:
   "Can only contain triangulated meshes." which should make my job easy.
   -- http://www.freecadweb.org/wiki/index.php?title=Manual:Import_and_export_to_other_filetypes
 * Delete MiniConsole, rename ui/MultiConsole to MultiLogger
+Boring code stuff:
+* Base32, SHA-1
+* noImplicitAny: true
+* noImplicitReturns: true
+* strictNullChecks: true
 Maze1:
 * Decentish quantized physics (overlaps not allowed)
 * Platform physics (good enough for now)
@@ -199,3 +196,4 @@ Maze1:
 * Show save game in console
 * Save savegames to server
 * requestAnimationFrame to render scene
+* Generate some kind of packfile (JSON of URN => data as string)
