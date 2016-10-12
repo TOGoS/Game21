@@ -418,16 +418,12 @@ export class MazeView {
 	
 	protected redrawRequested:boolean = false;
 	public requestRedraw():void {
-		if( this.redrawRequested ) {
-			console.log("Redraw already requested; skipping")
-			return;
-		}
+		if( this.redrawRequested ) return;
 		
 		this.redrawRequested = true;
 		// TODO: Skip drawing if not in viewport (but make sure it gets drawn when it is visible again!)
 		window.requestAnimationFrame( () => {
 			this.redrawRequested = false;
-			console.log("Draw!");
 			this.clear();
 			this.draw();
 		});
