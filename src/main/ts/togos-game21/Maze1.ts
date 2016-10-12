@@ -646,7 +646,9 @@ function impulseForAtLeastDesiredVelocity(
 }
 
 interface Collision {
+	roomAId : string;
 	roomEntityA : RoomEntity;
+	roomBId : string;
 	roomEntityB : RoomEntity;
 	velocity : Vector3D;
 }
@@ -654,19 +656,23 @@ interface Collision {
 export class MazeGamePhysics {
 	constructor( protected game:MazeGame ) { }
 	
-	public induceVelocityChange( entityId:string, roomEntity:RoomEntity, dv:Vector3D ):void {
+	public activeRoomIds:KeyedList<string> = {};
+	public activatedRoomIds:KeyedList<string> = {};
+	
+	public induceVelocityChange( roomId:string, entityId:string, roomEntity:RoomEntity, dv:Vector3D ):void {
 		if( vectorIsZero(dv) ) return; // Save ourselves a little bit of work
 		roomEntity.velocity = addVector(entityVelocity(roomEntity), dv);
+		this.activatedRoomIds[roomId] = roomId;
 	}
 	
-	public registerReactionlessImpulse( entityId:string, roomEntity:RoomEntity, impulse:Vector3D ):void {
+	public registerReactionlessImpulse( roomId:string, entityId:string, roomEntity:RoomEntity, impulse:Vector3D ):void {
 		const entityClass = this.game.gameDataManager.getEntityClass(roomEntity.entity.classRef);
 		const mass = entityMass(entityClass);
 		if( mass == Infinity ) return; // Nothing's going to happen
-		this.induceVelocityChange(entityId, roomEntity, scaleVector(impulse, -1/mass));
+		this.induceVelocityChange(roomId, entityId, roomEntity, scaleVector(impulse, -1/mass));
 	}
 	
-	public registerImpulse( entityAId:string, entityA:RoomEntity, entityBId:string, entityB:RoomEntity, impulse:Vector3D ):void {
+	public registerImpulse( eARoomId:string, entityAId:string, entityA:RoomEntity, eBRoomId:string, entityBId:string, entityB:RoomEntity, impulse:Vector3D ):void {
 		if( vectorIsZero(impulse) ) return; // Save ourselves a little bit of work
 		
 		const eAClass = this.game.gameDataManager.getEntityClass(entityA.entity.classRef);
@@ -701,28 +707,35 @@ export class MazeGamePhysics {
 		const relativeDv = scaleVector(impulse, 1/eBMass + 1/eAMass);
 		//const eADv = scaleVector(impulse, -1/eAMass);
 		
-		if( aRat != 0 ) this.induceVelocityChange(entityAId, entityA, scaleVector(relativeDv, -aRat));
-		if( bRat != 0 ) this.induceVelocityChange(entityBId, entityB, scaleVector(relativeDv, +bRat));
+		if( aRat != 0 ) this.induceVelocityChange(eARoomId, entityAId, entityA, scaleVector(relativeDv, -aRat));
+		if( bRat != 0 ) this.induceVelocityChange(eBRoomId, entityBId, entityB, scaleVector(relativeDv, +bRat));
 	}
 
 	protected applyCollisions() {
 		for( let collEntityAId in this.collisions ) {
 			for( let collEntityBId in this.collisions[collEntityAId] ) {
-				const collision = this.collisions[collEntityAId][collEntityBId];
+				const collision:Collision = this.collisions[collEntityAId][collEntityBId];
 				const eAClass = this.game.gameDataManager.getEntityClass(collision.roomEntityA.entity.classRef);
 				const eBClass = this.game.gameDataManager.getEntityClass(collision.roomEntityB.entity.classRef);
 				// TODO: Figure out collision physics better?
 				const impulse = scaleVector(collision.velocity, Math.min(entityMass(eAClass), entityMass(eBClass))*(1+bounceFactor(eAClass, eBClass)));
-				this.registerImpulse( collEntityAId, collision.roomEntityA, collEntityBId, collision.roomEntityB, impulse );
+				this.registerImpulse(
+					collision.roomAId, collEntityAId, collision.roomEntityA,
+					collision.roomBId, collEntityBId, collision.roomEntityB,
+					impulse
+				);
 			}
 		}
 		this.collisions = {};
 	}
 
 	protected collisions:KeyedList<KeyedList<Collision>>;
-	public registerCollision( eAId:string, eA:RoomEntity, eBId:string, eB:RoomEntity, velocity:Vector3D ):void {
+	public registerCollision(
+		roomAId:string, eAId:string, eA:RoomEntity,
+		roomBId:string, eBId:string, eB:RoomEntity, velocity:Vector3D
+	):void {
 		if( eAId > eBId ) {
-			return this.registerCollision( eBId, eB, eAId, eA, scaleVector(velocity, -1));
+			return this.registerCollision( roomBId, eBId, eB, roomAId, eAId, eA, scaleVector(velocity, -1));
 		}
 		
 		if( !this.collisions[eAId] ) this.collisions[eAId] = {};
@@ -731,7 +744,9 @@ export class MazeGamePhysics {
 		if( already && vectorLength(already.velocity) > vectorLength(velocity) ) return;
 		
 		this.collisions[eAId][eBId] = {
+			roomAId: roomAId,
 			roomEntityA: eA,
+			roomBId: roomBId,
 			roomEntityB: eB,
 			velocity: velocity
 		}
@@ -826,7 +841,7 @@ export class MazeGamePhysics {
 		
 		// Collect impulses
 		// impulses from previous step are also included.
-		for( let r in rooms ) {
+		for( let r in this.activeRoomIds ) {
 			let room = rooms[r];
 			for( let re in room.roomEntities ) {
 				const roomEntity = room.roomEntities[re];
@@ -842,8 +857,13 @@ export class MazeGamePhysics {
 					}
 				}
 				
+				// Room's got a possibly active entity in it,
+				// so add to the active rooms list.
+				this.activatedRoomIds[r] = r;
+				
 				if( entityClass.isAffectedByGravity && entityClass.mass != null && entityClass.mass != Infinity ) {
-					this.induceVelocityChange(re, roomEntity, gravDv);
+					this.registerReactionlessImpulse(r, re, roomEntity, scaleVector(gravDv, -entityClass.mass));
+					//this.induceVelocityChange(r, re, roomEntity, gravDv);
 				}
 				
 				const otherEntityFilter:EntityFilter =
@@ -901,7 +921,9 @@ export class MazeGamePhysics {
 							entityClass.mass, gdm.getEntityClass(mostClimbable.roomEntity.entity.classRef).mass,
 							maxClimbSpeed, interval*maxClimbForce, -1
 						);
-						this.registerImpulse( re, roomEntity, mostClimbable.roomEntityId, mostClimbable.roomEntity, climbImpulse);
+						this.registerImpulse(
+							r, re, roomEntity, mostClimbable.roomRef,
+							mostClimbable.roomEntityId, mostClimbable.roomEntity, climbImpulse);
 					}
 				}
 				
@@ -922,13 +944,15 @@ export class MazeGamePhysics {
 					const walkForce = clampAbs( -attemptDdvx*entityClass.mass/interval, maxWalkForce );
 					const walkImpulse = {x:walkForce*interval, y:0, z:0};
 					this.registerImpulse(
-						re, roomEntity,
-						floorCollision.roomEntityId, floorCollision.roomEntity,
+						r, re, roomEntity,
+						floorCollision.roomRef, floorCollision.roomEntityId, floorCollision.roomEntity,
 						walkImpulse);
 					
 					if( dmd.y < 0 && entityClass.maxJumpImpulse ) {
 						const jumpImpulse:Vector3D = {x:0, y:entityClass.maxJumpImpulse, z:0};
-						this.registerImpulse(re, roomEntity, floorCollision.roomEntityId, floorCollision.roomEntity, jumpImpulse);
+						this.registerImpulse(
+							r, re, roomEntity,
+							floorCollision.roomRef, floorCollision.roomEntityId, floorCollision.roomEntity, jumpImpulse);
 					}
 				} else {
 					if( dmd && dmd.y < 0 && entityClass.maxJumpImpulse ) {
@@ -937,7 +961,8 @@ export class MazeGamePhysics {
 				}
 				
 				if( !climbing && !onFloor && dmd && entityClass.maxFlyingForce ) {
-					this.registerReactionlessImpulse(re, roomEntity, scaleVector(dmd, -entityClass.maxFlyingForce*interval) );
+					this.registerReactionlessImpulse(
+						r, re, roomEntity, scaleVector(dmd, -entityClass.maxFlyingForce*interval) );
 				}
 				
 				if( roomEntity.velocity && !vectorIsZero(roomEntity.velocity) ) {
@@ -1007,6 +1032,7 @@ export class MazeGamePhysics {
 							position: newPosition,
 							velocityPosition: newVelocityLocation.position
 						});
+						this.activatedRoomIds[newRoomRef] = newRoomRef;
 						entityRoomRef = newRoomRef;
 						if( stepDisplacementRatio == 1 ) break displacementStep; // Shortcut; this should happen anyway
 						// Subtract what we did and go again
@@ -1075,12 +1101,14 @@ export class MazeGamePhysics {
 						
 						if( maxDvxColl ) {
 							this.registerCollision(
-								entityId, roomEntity, maxDvxColl.roomEntityId, maxDvxColl.roomEntity, makeVector(maxDvx, 0, 0) 
+								newRoomRef, entityId, roomEntity,
+								maxDvxColl.roomRef, maxDvxColl.roomEntityId, maxDvxColl.roomEntity, makeVector(maxDvx, 0, 0) 
 							);
 						}
 						if( maxDvyColl ) {
 							this.registerCollision(
-								entityId, roomEntity, maxDvyColl.roomEntityId, maxDvyColl.roomEntity, makeVector(0, maxDvy, 0)
+								newRoomRef, entityId, roomEntity,
+								maxDvyColl.roomRef, maxDvyColl.roomEntityId, maxDvyColl.roomEntity, makeVector(0, maxDvy, 0)
 							);
 						}
 						
@@ -1116,6 +1144,7 @@ export class MazeGamePhysics {
 // move active room management to GameDataManager.
 export class MazeGame {
 	protected rooms:KeyedList<Room> = {};
+	protected activeRoomIds:KeyedList<string> = {};
 	protected phys = new MazeGamePhysics(this);
 	public logger:Logger = console;
 	
@@ -1380,7 +1409,6 @@ export class MazeGame {
 		default:
 			this.logger.warn("Unrecognized simulator message from "+message.sourceId+":", message.payload);
 		}
-		
 	}
 	
 	public playerEntityId?:string;
@@ -1399,17 +1427,22 @@ export class MazeGame {
 				if( this.entityMessages[re] ) {
 					const msgs = this.entityMessages[re];
 					for( let m in msgs ) this.processEntityMessage( r, room, re, roomEntity, msgs[m] );
+					this.activeRoomIds[r] = r;
 				}
 			}
 		}
 		this.entityMessages = {};
+		
+		this.phys.activeRoomIds = this.activeRoomIds;
+		this.phys.activatedRoomIds = {};
 		this.phys.updateEntities(interval);
+		this.activeRoomIds = this.phys.activatedRoomIds;
 	}
 	
 	public flushUpdates():Promise<String> {
 		return this.gameDataManager.flushUpdates();
 	}
-
+	
 	public locateRoomEntity( id:string ):RoomLocation|undefined {
 		for( let r in this.rooms ) {
 			const room = this.rooms[r];
