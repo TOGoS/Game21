@@ -37,14 +37,26 @@ export enum StructureType {
 	LIST = 4, // A set of RoomEntities
 }
 
-export interface StorageCompartmentClass {
+export interface AttachmentZone {
 	maxVolume : number; // m³
 	maxItemCount? : number; // e.g. hands can hold only one item
 }
 
+const AZTYPE_BAG   = "http://ns.nuke24.net/Game21/AttachmentZoneTypes/Bag"  ; // Can hold a (conceptually) unordered set of items
+const AZTYPE_PANEL = "http://ns.nuke24.net/Game21/AttachmentZoneTypes/Panel"; // A 2D grid of connectors
+const AZTYPE_BOX   = "http://ns.nuke24.net/Game21/AttachmentZoneTypes/Box"  ; // A 3D volume with explicitly-placed contents
+const AZTYPE_HAND  = "http://ns.nuke24.net/Game21/AttachmentZoneTypes/Hand" ; // Can hold a single item of arbitrary size
+
+export interface PegType {
+	/** partner peg type ref => true, if attachable */
+	partnersTo : KeyedList<boolean>;	
+}
+
 export interface AttachmentPointClass {
-	/** partner attachment point class ref => true, if attachable */
-	partnersTo : KeyedList<boolean>;
+	/** One of the AZTYPE_* constants */
+	attachmentZoneTypeRef : string;
+	
+	pegTypeRef? : string;
 	
 	maxForce? : number; // Maximum force that the attachment can withstand; undefined=infinity
 	mayPassPower? : boolean; // Default = false
@@ -91,17 +103,20 @@ export interface EntityClass {
 	// By default this could be computed from tilingBoundingBox or something I guess
 	storageVolume? : number;
 	
-	// For storage compartments and attachment points,
-	// keys are arbitrary and identify the thing on the item (e.g. 'pocket 1', 'pocket 2').
-	// Values are storage compartment/attachment point class references
+	// keys are arbitrary and identify the specific zone on the item (e.g. 'pocket 1', 'pocket 2', 'belt loops').
+	// Values are storage attachment zone class references
 	
-	storageCompartments? : KeyedList<string>;
-	attachmentPoints? : KeyedList<string>;
+	attachmentZoneClasseRefs? : KeyedList<string>;
 }
 
-export interface StorageCompartment {
+export interface AttachmentEntity {
+	position : Vector3D; // Can be ZERO_VECTOR for 'bag'-type attachment zones
+	entity : Entity;
+}
+
+export interface AttachmentZone {
 	classRef : string;
-	contents : Entity[];
+	items : KeyedList<AttachmentEntity>;
 }
 
 /**
@@ -123,8 +138,7 @@ export interface Entity {
 	
 	desiredMovementDirection? : Vector3D;
 	
-	storageCompartments? : KeyedList<StorageCompartment>;
-	attachments? : KeyedList<Entity>;
+	attachmentZones? : KeyedList<AttachmentZone>;
 }
 
 /**
