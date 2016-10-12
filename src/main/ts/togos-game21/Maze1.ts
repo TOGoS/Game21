@@ -24,7 +24,7 @@ import Quaternion from './Quaternion';
 import TransformationMatrix3D from './TransformationMatrix3D';
 import SceneShader, { ShadeRaster, VISIBILITY_VOID, VISIBILITY_NONE, VISIBILITY_MIN } from './SceneShader';
 import { uuidUrn, newType4Uuid } from '../tshash/uuids';
-import { makeTileTreeRef, makeTileEntityPaletteRef, eachSubEntity, connectRooms } from './worldutil';
+import { makeTileTreeRef, makeTileEntityPaletteRef, eachSubEntity, eachSubEntityIntersectingBb, connectRooms } from './worldutil';
 import * as dat from './maze1demodata';
 import * as http from './http';
 import {
@@ -1195,7 +1195,11 @@ export class MazeGame {
 			delete room.roomEntities[entityId];
 		}
 	}
-
+	
+	/**
+	 * It should be safe to pass entityPositionBuffer as the entity position,
+	 * since checking intersections is the last thing done with it.
+	 */
 	protected entitiesAt3(
 		roomRef:string, roomEntityId:string, roomEntity:RoomEntity, // Root roomEntity
 		entityPos:Vector3D, entity:Entity, // Individual entity being checked against (may be a sub-entity of the roomEntity)
@@ -1212,14 +1216,14 @@ export class MazeGame {
 				roomRef: roomRef,
 				roomEntityId: roomEntityId,
 				roomEntity: roomEntity,
-				entityPosition: entityPos,
+				entityPosition: {x:entityPos.x, y:entityPos.y, z:entityPos.z},
 				entity: entity,
 				entityClass: proto,
 			} );
 		} else {
-			eachSubEntity( entity, entityPos, this.gameDataManager, (subEnt, subEntPos, ori) => {
+			eachSubEntityIntersectingBb( entity, entityPos, checkPos, checkBb, this.gameDataManager, (subEnt, subEntPos, ori) => {
 				this.entitiesAt3( roomRef, roomEntityId, roomEntity, subEntPos, subEnt, checkPos, checkBb, filter, into );
-			}, this, entityPos);
+			}, this, entityPositionBuffer);
 		};
 	}
 	

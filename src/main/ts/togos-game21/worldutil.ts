@@ -3,7 +3,7 @@ import { makeVector, setVector, vectorToArray, ZERO_VECTOR } from './vector3ds';
 import { scaleVector } from './vector3dmath';
 import Quaternion from './Quaternion';
 import AABB from './AABB';
-import { makeAabb, aabbWidth, aabbHeight, aabbDepth } from './aabbs';
+import { makeAabb, aabbWidth, aabbHeight, aabbDepth, UNBOUNDED_AABB } from './aabbs';
 import { Room, RoomEntity, Entity, EntityClass, StructureType, TileTree, TileEntityPalette } from './world';
 import GameDataManager from './GameDataManager';
 import { deepFreeze } from './DeepFreezer';
@@ -55,8 +55,10 @@ export function makeTileEntityPaletteRef( palette:any, gdm?:GameDataManager, ali
  * so long as you don't rely on that buffer
  * calling eachSubEntity.
  */
-export function eachSubEntity<T>(
-	entity:Entity, pos:Vector3D, gdm:GameDataManager,
+export function eachSubEntityIntersectingBb<T>(
+	entity:Entity, pos:Vector3D,
+	bbPos:Vector3D, bb:AABB,
+	gdm:GameDataManager,
 	callback:(subEnt:Entity, pos:Vector3D, orientation:Quaternion)=>T|undefined,
 	callbackThis:any=null, posBuffer:Vector3D|undefined=undefined
 ):T|undefined {
@@ -71,23 +73,55 @@ export function eachSubEntity<T>(
 		const tilePaletteIndexes = tt.childEntityIndexes;
 		const tilePalette = gdm.getObject<TileEntityPalette>(tt.childEntityPaletteRef);
 		if( tilePalette == null ) return;
-		const xd = aabbWidth( tt.tilingBoundingBox)/tt.xDivisions;
-		const yd = aabbHeight(tt.tilingBoundingBox)/tt.yDivisions;
-		const zd = aabbDepth( tt.tilingBoundingBox)/tt.zDivisions;
-		const x0 = pos.x - aabbWidth( tt.tilingBoundingBox)/2 + xd/2;
-		const y0 = pos.y - aabbHeight(tt.tilingBoundingBox)/2 + yd/2;
-		const z0 = pos.z - aabbDepth( tt.tilingBoundingBox)/2 + zd/2;
-		for( let i=0, z=0; z < tt.zDivisions; ++z ) for( let y=0; y < tt.yDivisions; ++y ) for( let x=0; x < tt.xDivisions; ++x, ++i ) {
-			const tileEntity = tilePalette[tilePaletteIndexes[i]];
-			if( tileEntity != null ) {
-				let v = callback.call( callbackThis, tileEntity.entity, setVector(posBuffer, x0+x*xd, y0+y*yd, z0+z*zd), tileEntity.orientation );
-				if( v != null ) return v;
+		const zDivs = tt.zDivisions, yDivs = tt.yDivisions, xDivs = tt.xDivisions;
+		const xd = aabbWidth( tt.tilingBoundingBox)/xDivs;
+		const yd = aabbHeight(tt.tilingBoundingBox)/yDivs;
+		const zd = aabbDepth( tt.tilingBoundingBox)/zDivs;
+		const halfZd = zd/2, halfXd = xd/2, halfYd = yd/2;
+		const x0 = pos.x - aabbWidth( tt.tilingBoundingBox)/2 + halfXd;
+		const y0 = pos.y - aabbHeight(tt.tilingBoundingBox)/2 + halfYd;
+		const z0 = pos.z - aabbDepth( tt.tilingBoundingBox)/2 + halfZd;
+		const bbMinX = bbPos.x+bb.minX, bbMaxX = bbPos.x+bb.maxX;
+		const bbMinY = bbPos.y+bb.minY, bbMaxY = bbPos.y+bb.maxY;
+		const bbMinZ = bbPos.z+bb.minZ, bbMaxZ = bbPos.z+bb.maxZ;
+		slices: for( let z=0; z < zDivs; ++z ) {
+			const subZ = z0+z*zd;
+			if( subZ - halfZd >= bbMaxZ || subZ + halfZd <= bbMinZ ) continue slices;
+			rows: for( let y=0; y < yDivs; ++y ) {
+				const subY = y0+y*yd;
+				if( subY - halfYd >= bbMaxY || subY + halfYd <= bbMinY ) continue rows;
+				cells: for( let x=0, i=x+(y*xDivs)+(z*xDivs*yDivs); x < xDivs; ++x, ++i ) {
+					const subX = x0+x*xd;
+					if( subX - halfXd >= bbMaxX || subX + halfXd <= bbMinX ) continue cells;
+					const tileEntity = tilePalette[tilePaletteIndexes[i]];
+					if( tileEntity != null ) {
+						let v = callback.call( callbackThis, tileEntity.entity, setVector(posBuffer, subX, subY, subZ), tileEntity.orientation );
+						if( v != null ) return v;
+					}
+				}
 			}
 		}
 	} else {
 		throw new Error("Unrecognized physical object type: "+proto.structureType);
 	}
 	return undefined;
+}
+
+/**
+ * It is safe to pass posBuffer = pos
+ * so long as you don't rely on that buffer
+ * calling eachSubEntity.
+ */
+export function eachSubEntity<T>(
+	entity:Entity, pos:Vector3D, gdm:GameDataManager,
+	callback:(subEnt:Entity, pos:Vector3D, orientation:Quaternion)=>T|undefined,
+	callbackThis:any=null, posBuffer:Vector3D|undefined=undefined
+):T|undefined {
+	return eachSubEntityIntersectingBb(
+		entity, pos,
+		ZERO_VECTOR, UNBOUNDED_AABB,
+		gdm, callback, callbackThis, posBuffer
+	);
 }
 
 export function makeTileTreeNode( palette:any, w:number, h:number, d:number, indexes:number[], gdm:GameDataManager, opts:MakeTileTreeOptions={} ):TileTree {

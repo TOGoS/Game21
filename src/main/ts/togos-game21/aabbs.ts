@@ -56,3 +56,4 @@ export function offsetAabbContainsVector( bbOffset:Vector3D, bb:AABB, v:Vector3D
 }
 
 export const UNIT_CUBE:AABB = deepFreeze(makeAabb(-0.5,-0.5,-0.5, +0.5,+0.5,+0.5));
+export const UNBOUNDED_AABB:AABB = deepFreeze(makeAabb(-Infinity,-Infinity,-Infinity, +Infinity,+Infinity,+Infinity));
