@@ -1411,7 +1411,6 @@ export class MazeGame {
 		}
 	}
 	
-	public playerEntityId?:string;
 	public update(interval:number=1/16) {
 		const simulatorMessages = this.entityMessages[simulatorId];
 		if( simulatorMessages ) {
@@ -1676,7 +1675,7 @@ export class MazeDemo {
 			return this.game.fullyLoadRooms( save.rootRoomId ).then( () => save );
 		}).then( (save) => {
 			console.log("Loaded!");
-			this.playerId = this.game.playerEntityId = save.playerId;
+			this.playerId = save.playerId;
 			this.updateView();
 			this.startSimulation();
 			return this.game;
