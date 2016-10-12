@@ -1413,7 +1413,12 @@ export class MazeGame {
 		}
 	}
 	
-	public update(interval:number=1/16) {
+	protected get hasPendingMessageUpdates():boolean {
+		for( let m in this.entityMessages ) return true;
+		return false;
+	}
+	
+	protected doMessageUpdate() {
 		const simulatorMessages = this.entityMessages[simulatorId];
 		if( simulatorMessages ) {
 			for( let m in simulatorMessages ) {
@@ -1433,11 +1438,26 @@ export class MazeGame {
 			}
 		}
 		this.entityMessages = {};
+	}
+	
+	protected messageUpdateLength:number = 1/8192;
+	
+	protected doMessageUpdates(interval:number) {
+		let count = Math.floor(interval/this.messageUpdateLength);
+		for( let i=0; i<count && this.hasPendingMessageUpdates; ++i ) {
+			this.doMessageUpdate();
+		}
+	}
+	
+	public update(interval:number=1/16) {
+		this.doMessageUpdates(interval/2);
 		
 		this.phys.activeRoomIds = this.activeRoomIds;
 		this.phys.activatedRoomIds = {};
 		this.phys.updateEntities(interval);
 		this.activeRoomIds = this.phys.activatedRoomIds;
+		
+		this.doMessageUpdates(interval/2);
 	}
 	
 	public flushUpdates():Promise<String> {
