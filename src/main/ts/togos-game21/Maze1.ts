@@ -54,8 +54,7 @@ import {
 	StorageCompartmentContentUI
 } from './ui/inventory';
 
-// Same format as an OSC message, minus the type header
-type EntityMessageData = any[];
+import { EntityMessageData } from './simulationmessaging';
 
 function entityMessageDataPath(emd:EntityMessageData):string {
 	return ""+emd[0];
