@@ -1371,7 +1371,6 @@ export class MazeGame {
 	}
 	
 	public playerEntityId?:string;
-	public playerDesiredMovementDirection:Vector3D = ZERO_VECTOR;
 	public update(interval:number=1/16) {
 		const simulatorMessages = this.entityMessages[simulatorId];
 		if( simulatorMessages ) {
@@ -1384,9 +1383,6 @@ export class MazeGame {
 			let room = this.rooms[r];
 			for( let re in room.roomEntities ) {
 				const roomEntity = room.roomEntities[re];
-				if( re == this.playerEntityId ) {
-					roomEntity.entity.desiredMovementDirection = this.playerDesiredMovementDirection;
-				}
 				if( this.entityMessages[re] ) {
 					const msgs = this.entityMessages[re];
 					for( let m in msgs ) this.processEntityMessage( r, room, re, roomEntity, msgs[m] );
@@ -1582,7 +1578,9 @@ export class MazeDemo {
 		let moveX = right ? +1 : left ? -1 : 0;
 		let moveY = down  ? +1 : up   ? -1 : 0;
 		
-		this.game.playerDesiredMovementDirection = makeVector(moveX, moveY, 0);
+		if( this.game && this.playerId ) {
+			this.game.enqueueEntityMessage({sourceId: "ui", destinationId: this.playerId, payload:["/desiredmovementdirection", moveX, moveY, 0]});
+		}
 	}
 	public keyDown(keyEvent:KeyboardEvent):void {
 		if( keyEvent.keyCode == 9 ) {
