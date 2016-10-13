@@ -365,7 +365,7 @@ export function literalValueWord( v:any, name?:string ) : RuntimeWord {
 		name: name,
 		wordType: WordType.PUSH_VALUE,
 		value: v,
-		forthRun: function(ctx:RuntimeContext) {
+		forthRun: function(this:{value:any}, ctx:RuntimeContext) {
 			--ctx.fuel;
 			ctx.dataStack.push(this.value);
 		}

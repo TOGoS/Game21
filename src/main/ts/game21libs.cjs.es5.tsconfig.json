@@ -6,6 +6,7 @@
 		"noFallthroughCasesInSwitch": true,
 		"noImplicitAny": true,
 		"noImplicitReturns": true,
+		"noImplicitThis": true,
 		"strictNullChecks": true,
 		"rootDir": ".",
 		"outDir": "../../../target/cjs"
