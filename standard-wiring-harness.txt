@@ -1,0 +1,33 @@
+Standard placement for wiring
+and plumbing in a 1x1x1m block.
+
+  +z/+x/+z ->
++y/+y/-x
+ | +---+---+---+---+
+ v |A           +-+|
+   |            |W||
+   |B           +-+|
+   +   +---+---+   +
+   |C  |       |+-+|
+   |   |       ||X||
+   |D  | Cargo |+-+|
+   +   + space +   +
+   |E  |       |+-+|
+   |   |       ||Y||
+   |F  |       |+-+|
+   +   +---+---+...+
+   |G          ;+-+|
+   |           ;|Z||
+   |H          ;+-+|
+   +---+---+---+---+
+
+A = Analog 0
+B = Ethernet 0
+C = Analog 1
+D = Ethernet 1
+G = +120VDC
+H = Power ground
+Z = Fluid 0 (usually water)
+Y = Fluid 1 (usually air)
+X = Fluid 2
+W = Fluid 3
