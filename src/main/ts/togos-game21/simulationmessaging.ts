@@ -29,6 +29,19 @@ export const CHAN_ANALOG_2 = 2;
 // More analog channels?
 export const CHAN_ETHERNET = 8023; // Data assumed to be Ethernet Type II frames
 
+/**
+ * Will result in a HearText message on any entity that can hear it
+ */
+export interface SpeakTextAction {
+	classRef: "http://ns.nuke24.net/Game21/SimulationAction/SpeakText";
+	voiceRef: string;
+	speakerName: string;
+	originRoomRef: string;
+	originPosition: Vector3D;
+	loudness: number; // Determines how far the sound travels
+	text: string;
+}
+
 export interface SendAnalogValueAction {
 	classRef: "http://ns.nuke24.net/Game21/SimulationAction/SendAnalogValue";
 	originRoomRef: string;
@@ -62,10 +75,11 @@ export interface SendDataPacketAction {
 export interface ReceiveMessageAction {
 	classRef: "http://ns.nuke24.net/Game21/SimulationAction/ReceiveMessage";
 	entityPath: EntityPath;
+	// TODO: Replace with a proper SimulationMessage type, roughly mirroring SimulationActions
 	payload: EntityMessageData;
 	// Do we want entities to be able to be able to reply to messages in certain situations?
 	// Maybe messages aren't that high-level a thing?
 	replyPath?: EntityPath;
 }
 
-export type SimulationAction = SendAnalogValueAction|SendDataPacketAction|ReceiveMessageAction;
+export type SimulationAction = SendAnalogValueAction|SendDataPacketAction|ReceiveMessageAction|SpeakTextAction;

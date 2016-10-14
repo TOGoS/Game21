@@ -20,6 +20,16 @@
 ## Misc to-do items
 
 Maze1:
+- Figure out messaging.  OSC-like interface seems kind of silly.
+  Maybe better to mirror the SimulationAction types with SimulationMessage ones.
+  OSC messages work at a totally different level anyway.
+  (Did something simlar for NetworkRTS and it worked fine.)
+- Talk command, show talked messages
+  - this will allow showing early machine interaction working, as machines
+    can speak "You touched me!" and stuff.
+- Some way to 'trigger' things; buttons or pressure plates or something
+  - keep in mind will want to trigger with item, e.g. key
+  - way for objects to 'appear to be usable with an item'
 - Draw additional neighbors if no overlap.
   Maybe collect a list, then draw nearest-farthest N,
   skipping ones that would overlap or are outside some bounds.
