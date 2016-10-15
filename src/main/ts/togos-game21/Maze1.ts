@@ -56,11 +56,14 @@ import {
 
 import {
 	EntityPath,
-	EntityMessageData,
+	EntityCommandData,
 	SimulationAction,
 	SendDataPacketAction,
 	SendAnalogValueAction,
 	ReceiveMessageAction,
+	SimulationMessage,
+	TextHeard,
+	CommandReceived,
 	ROOMID_SIMULATOR,
 	ROOMID_FINDENTITY,
 	ROOMID_EXTERNAL,
@@ -68,7 +71,7 @@ import {
 
 const UI_ENTIY_PATH = [ROOMID_EXTERNAL, "demo UI"];
 
-function entityMessageDataPath(emd:EntityMessageData):string {
+function entityMessageDataPath(emd:EntityCommandData):string {
 	return ""+emd[0];
 }
 
@@ -1323,8 +1326,18 @@ export class MazeSimulator {
 	
 	protected processEntityMessage(
 		roomId:string, room:Room, entityId:string,
-		roomEntity:RoomEntity, md:EntityMessageData
+		roomEntity:RoomEntity, md:SimulationMessage
 	):void {
+		switch( md.classRef ) {
+		case "http://ns.nuke24.net/Game21/SimulationMessage/CommandReceived":
+			return this.processEntityCommand(roomId, room, entityId, roomEntity, md.command);
+		}
+	}
+	
+	protected processEntityCommand(
+		roomId:string, room:Room, entityId:string,
+		roomEntity:RoomEntity, md:EntityCommandData
+	):void {	
 		const path = entityMessageDataPath(md);
 		if( path == "/desiredmovementdirection" ) {
 			roomEntity.entity.desiredMovementDirection = makeVector(+md[1],+md[2],+md[3]);
@@ -1360,7 +1373,14 @@ export class MazeSimulator {
 		}
 	}
 	
-	protected processSimulatorMessage(messageData:EntityMessageData):void {
+	protected processSimulatorMessage(msg:SimulationMessage):void {
+		switch( msg.classRef ) {
+		case "http://ns.nuke24.net/Game21/SimulationMessage/CommandReceived":
+			return this.processSimulatorCommand(msg.command);
+		}
+	}
+	
+	protected processSimulatorCommand(messageData:EntityCommandData):void {
 		switch( messageData[0] ) {
 		case '/create-room':
 			{
@@ -1432,7 +1452,7 @@ export class MazeSimulator {
 		let roomId:string|undefined;
 		switch( act.entityPath[0] ) {
 		case ROOMID_SIMULATOR:
-			this.processSimulatorMessage(act.payload);
+			this.processSimulatorMessage(act.message);
 			return;
 		case ROOMID_FINDENTITY:
 			roomId = this.findEntity(act.entityPath[1]);
@@ -1442,7 +1462,7 @@ export class MazeSimulator {
 			}
 			break;
 		case ROOMID_EXTERNAL:
-			console.log("Hey look, message to "+act.entityPath.join("/")+":", act.payload);
+			console.log("Hey look, message to "+act.entityPath.join("/")+":", act.message);
 			return;
 		default:
 			roomId = act.entityPath[0];
@@ -1463,7 +1483,7 @@ export class MazeSimulator {
 			return;
 		}
 		// TODO: May need to handle more path... 
-		this.processEntityMessage(roomId, room, roomEntityKey, roomEntity, act.payload);
+		this.processEntityMessage(roomId, room, roomEntityKey, roomEntity, act.message);
 	}
 	
 	protected doAction( act:SimulationAction ):void {
@@ -1867,12 +1887,15 @@ export class MazeDemo {
 	public goToCommandHistoryBeginning() { this.goToCommandHistory(0); }
 	public goToCommandHistoryEnd() { this.goToCommandHistory(this.commandHistory.length); }
 	
-	public enqueueMessage(entityPath:EntityPath, payload:EntityMessageData, replyPath:EntityPath=UI_ENTIY_PATH):void {
+	public enqueueMessage(entityPath:EntityPath, command:EntityCommandData, replyPath:EntityPath=UI_ENTIY_PATH):void {
 		this.simulator.enqueueAction({
 			classRef: "http://ns.nuke24.net/Game21/SimulationAction/ReceiveMessage",
 			entityPath: entityPath,
 			replyPath: replyPath,
-			payload: payload
+			message: {
+				classRef: "http://ns.nuke24.net/Game21/SimulationMessage/CommandReceived",
+				command: command
+			}
 		});
 	}
 	

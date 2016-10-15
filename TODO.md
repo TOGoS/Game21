@@ -20,10 +20,6 @@
 ## Misc to-do items
 
 Maze1:
-- Figure out messaging.  OSC-like interface seems kind of silly.
-  Maybe better to mirror the SimulationAction types with SimulationMessage ones.
-  OSC messages work at a totally different level anyway.
-  (Did something simlar for NetworkRTS and it worked fine.)
 - Talk command, show talked messages
   - this will allow showing early machine interaction working, as machines
     can speak "You touched me!" and stuff.

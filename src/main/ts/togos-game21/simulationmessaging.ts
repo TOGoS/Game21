@@ -19,7 +19,7 @@ export const ROOMID_SIMULATOR = 'simulator'; // The simulation itself (entity ID
 export const ROOMID_EXTERNAL = 'external'; // For referring to recipients outside the simulation
 
 // Same format as an OSC message, minus the type header
-export type EntityMessageData = any[];
+export type EntityCommandData = any[];
 
 export const XMSN_SPACE = "http://ns.nuke24.net/Game21/TransmissionMedia/Space";
 export const XMSN_COPPER = "http://ns.nuke24.net/Game21/TransmissionMedia/Copper";
@@ -28,6 +28,22 @@ export const CHAN_ANALOG_1 = 1;
 export const CHAN_ANALOG_2 = 2;
 // More analog channels?
 export const CHAN_ETHERNET = 8023; // Data assumed to be Ethernet Type II frames
+
+export interface TextHeard {
+	classRef: "http://ns.nuke24.net/Game21/SimulationMessage/TextHeard";
+	sourcePosition: Vector3D;
+	loudness: number; // How loud was it when you heard it?
+	voiceRef: string;
+	speakerName: string;
+	text: string;
+}
+
+export interface CommandReceived {
+	classRef: "http://ns.nuke24.net/Game21/SimulationMessage/CommandReceived";
+	command: EntityCommandData;
+}
+
+export type SimulationMessage = TextHeard|CommandReceived;
 
 /**
  * Will result in a HearText message on any entity that can hear it
@@ -75,8 +91,7 @@ export interface SendDataPacketAction {
 export interface ReceiveMessageAction {
 	classRef: "http://ns.nuke24.net/Game21/SimulationAction/ReceiveMessage";
 	entityPath: EntityPath;
-	// TODO: Replace with a proper SimulationMessage type, roughly mirroring SimulationActions
-	payload: EntityMessageData;
+	message: SimulationMessage;
 	// Do we want entities to be able to be able to reply to messages in certain situations?
 	// Maybe messages aren't that high-level a thing?
 	replyPath?: EntityPath;
