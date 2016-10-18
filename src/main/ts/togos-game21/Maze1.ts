@@ -1526,7 +1526,7 @@ export class MazeSimulator {
 		this.doMessageUpdates(interval/2);
 	}
 	
-	public flushUpdates():Promise<String> {
+	public flushUpdates():Promise<string> {
 		return this.gameDataManager.flushUpdates();
 	}
 	
@@ -1740,12 +1740,12 @@ export class MazeDemo {
 	}
 	public saveGame():Promise<string> {
 		return this.simulator.flushUpdates().then( (gameDataRef) => {
-			const saveGame = {
+			const saveGame:SaveGame = {
 				gameDataRef: gameDataRef,
 				rootRoomId: dat.room1Id,
 				playerId: this.playerId
 			};
-			return storeObject(saveGame, this.datastore);
+			return storeObject<SaveGame>(saveGame, this.datastore);
 		});
 	}
 	public loadGame(saveRef:string):Promise<MazeSimulator> {
