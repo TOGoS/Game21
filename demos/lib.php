@@ -175,15 +175,26 @@ function fitpar($cw, $ch, $iw, $ih) {
 	return array($iw, $ih);
 }
 
-function find_ts_test_modules( $dir='src/main/ts', $modPfx='', array &$modules=[] ) {
+function find_ts_test_modules( $reqs=[], $dir='src/main/ts', $modPfx='', array &$modules=[] ) {
 	$filenames = scandir($dir);
 	foreach( $filenames as $fn ) {
+		$path = $dir.'/'.$fn;
 		if( $fn[0] == '.' ) continue;
-		if( preg_match('/^(.*Test)\.ts$/',$fn,$bif) ) {
+		if( preg_match('#^ (.*Test) \.ts$#x',$fn,$bif) ) {
+			$modSource = file_get_contents($path);
+			$appEnvs = null;
+			if( preg_match('#^// \s* applicable-environments: \s* (.*) $#mx', $modSource, $baf) and isset($reqs['environment']) ) {
+				$appEnvs = explode(', ',$baf[1]);
+				$applicable = false;
+				foreach( $appEnvs as $ae ) {
+					if( trim($ae) == $reqs['environment'] ) $applicable = true;
+				}
+				if( !$applicable ) return;
+			}
 			$modName = $modPfx.$bif[1];
 			$modules[$modName] = $modName;
-		} else if( is_dir($subDir = $dir.'/'.$fn) ) {
-			find_ts_test_modules( $subDir, $modPfx.$fn.'/', $modules );
+		} else if( is_dir($path) ) {
+			find_ts_test_modules( $reqs, $path, $modPfx.$fn.'/', $modules );
 		}
 	}
 	return $modules;

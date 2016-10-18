@@ -1,3 +1,4 @@
+// applicable-environments: node
 /// <reference path="../../node.d.ts"/>
 
 import RouterCLI from './RouterCLI';

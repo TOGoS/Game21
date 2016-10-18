@@ -1,5 +1,5 @@
 <?php
-	require_once ($rp = '.').'/demos/lib.php';
+	require_once ($rrp = $wrp = '.').'/demos/lib.php';
 	
 	if( !isset($title) ) $title = "JS Tests";
 	if( !isset($inlineResources) ) $inlineResources = false;
@@ -25,7 +25,7 @@
 <?php require_game21_js_libs($inlineResources); ?>
 <script type="text/javascript">//<![CDATA[
 (function() {
-	var testModuleNames = <?php ejsv(array_values(find_ts_test_modules())); ?>;
+	var testModuleNames = <?php ejsv(array_values(find_ts_test_modules(['environment'=>'browser']))); ?>;
 	var totalTestCount = testModuleNames.length;
 	var runTestCount = 0;
 	var passedTestCount = 0;
