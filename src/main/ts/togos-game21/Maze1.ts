@@ -2105,7 +2105,7 @@ export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string, loadingSt
 	const gameLoaded:Promise<MazeSimulator> = saveGameRef ? demo.loadGame(saveGameRef) :
 		dat.initData(tempGdm)
 		.then( () => tempGdm.flushUpdates() )
-		.then( (rootNodeUri) => storeObject( {
+		.then( (rootNodeUri) => storeObject<SaveGame>( {
 			gameDataRef: rootNodeUri,
 			playerId: dat.playerEntityId,
 			rootRoomId: dat.room1Id,

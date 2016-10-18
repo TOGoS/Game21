@@ -21,7 +21,7 @@ export function identifyObject( v:any, identifyData:(v:Uint8Array)=>string ):str
 	return dataUrnToSubjectUrn(identifyData(encodeObject(v)));
 }
 
-export function storeObject( v:any, datastore:Datastore<Uint8Array> ):Promise<string> {
+export function storeObject<T>( v:T, datastore:Datastore<Uint8Array> ):Promise<string> {
 	if( v instanceof Uint8Array ) {
 		return datastore.store(v);
 	}
