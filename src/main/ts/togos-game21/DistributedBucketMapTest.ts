@@ -49,7 +49,7 @@ registerTestResult(
 				reject(new Error("Baz should've mapped to undefined after storeValues({'baz':undefined})"));
 			}
 		});
-
+		
 		dbm.flushUpdates().then( () => {
 			return dbm.fetchValue("foo").then( (foo) => {
 				if( foo !== "fough" ) {
@@ -65,7 +65,7 @@ registerTestResult(
 		}).then(() => {
 			resolve({});
 		});
-
-		setTimeout( () => reject(new Error("DistributedBucketMapManager test never finished.  :(")), 100);
+		
+		setTimeout( () => reject(new Error("DistributedBucketMapManager test never finished.  :(")), 1000);
 	})
 );
