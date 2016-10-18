@@ -371,7 +371,7 @@ const room2TileTreeId     = 'urn:uuid:67228411-243c-414c-99d7-960f1151b970';
 /**
  * Returns a promise for the new game data root node URI
  */
-export function initData( gdm:GameDataManager ):Promise<string> {
+export function initData( gdm:GameDataManager ):Promise<void> {
 	const doorFrameBlockEntityPaletteRef = makeTileEntityPaletteRef([
 		null,
 		doorFramePieceEntityId,
@@ -780,7 +780,7 @@ export function initData( gdm:GameDataManager ):Promise<string> {
 		}
 	}, room2Id);
 	
-	return gdm.flushUpdates();
+	return Promise.resolve();
 }
 
 import { sha1Urn } from '../tshash/index';

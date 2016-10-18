@@ -1748,33 +1748,42 @@ export class MazeDemo {
 			return storeObject<SaveGame>(saveGame, this.datastore);
 		});
 	}
-	public loadGame(saveRef:string):Promise<MazeSimulator> {
+	
+	public loadGame2(gdm:GameDataManager, playerId:string, rootRoomId:string, saveRef:string):Promise<MazeSimulator> {
 		this.stopSimulation();
-		this.loadingStatusUpdated("Loading game "+saveRef+"...");
-		const loadPromise = fetchObject(saveRef, this.datastore, true).then( (save:SaveGame) => {
-			if( !save.gameDataRef ) return Promise.reject(new Error("Oh no, save data all messed up? "+JSON.stringify(save)));
-			const gdm = new GameDataManager(this.datastore, save.gameDataRef);
-			this.context = {
-				gameDataManager: gdm,
-				entityImageManager: new EntityImageManager(gdm)
-			}
-			this.simulator = new MazeSimulator(gdm);
-			console.log("Loading save "+saveRef+"...", save);
-			return this.simulator.fullyLoadRooms( save.rootRoomId ).then( () => save );
-		}).then( (save) => {
-			console.log("Loaded!");
-			this.playerId = save.playerId;
+		this.loadingStatusUpdated("Loading game from save "+saveRef+"...");
+		this.context = {
+			gameDataManager: gdm,
+			entityImageManager: new EntityImageManager(gdm)
+		};
+		this.simulator = new MazeSimulator(gdm);
+		
+		const loadPromise = this.simulator.fullyLoadRooms( rootRoomId ).then( () => {
+			this.playerId = playerId;
 			this.updateView();
 			this.startSimulation();
 			return this.simulator;
 		});
+		
 		loadPromise.then( (game) => {
+			console.log("Loaded "+saveRef);
 			this.loadingStatusUpdated("");
 		}).catch( (err) => {
-			this.loadingStatusUpdated("Error loading!");
 			this.logger.log("Error loading "+saveRef, err);
+			this.loadingStatusUpdated("Error loading!");
 		});
+		
 		return loadPromise;
+	}
+	
+	public loadGame(saveRef:string):Promise<MazeSimulator> {
+		this.stopSimulation();
+		this.loadingStatusUpdated("Loading save "+saveRef+"...");
+		return fetchObject(saveRef, this.datastore, true).then( (save:SaveGame) => {
+			if( !save.gameDataRef ) return Promise.reject(new Error("Oh no, save data all messed up? "+JSON.stringify(save)));
+			const gdm = new GameDataManager(this.datastore, save.gameDataRef);
+			return this.loadGame2(gdm, save.playerId, save.rootRoomId, saveRef );
+		});
 	}
 	
 	public inspect(ref:string):Promise<any> {
@@ -2103,14 +2112,7 @@ export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string, loadingSt
 	
 	const tempGdm = new GameDataManager(ds);
 	const gameLoaded:Promise<MazeSimulator> = saveGameRef ? demo.loadGame(saveGameRef) :
-		dat.initData(tempGdm)
-		.then( () => tempGdm.flushUpdates() )
-		.then( (rootNodeUri) => storeObject<SaveGame>( {
-			gameDataRef: rootNodeUri,
-			playerId: dat.playerEntityId,
-			rootRoomId: dat.room1Id,
-		}, ds ))
-		.then( (saveRef) => demo.loadGame(saveRef) );
+		dat.initData(tempGdm).then( () => demo.loadGame2( tempGdm, dat.playerEntityId, dat.room1Id, "generated maze" ) );
 	
 	canv.addEventListener('mousedown', demo.handleMouseEvent.bind(demo));
 	canv.addEventListener('mouseup'  , demo.handleMouseEvent.bind(demo));
