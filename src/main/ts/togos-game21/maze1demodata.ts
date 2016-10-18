@@ -793,7 +793,7 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 import { sha1Urn } from '../tshash/index';
 import Datastore from './Datastore';
 import HTTPHashDatastore from './HTTPHashDatastore';
-	
+
 if( typeof require != 'undefined' && typeof module != 'undefined' && require.main === module ) {
 	const dataIdent = sha1Urn;
 	const ds:Datastore<Uint8Array> = HTTPHashDatastore.createDefault();

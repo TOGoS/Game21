@@ -19,6 +19,18 @@
 
 ## Misc to-do items
 
+Random maze generation:
+- 8x8 rooms
+- generate graph
+- translate graph nodes to rooms
+- print out solution (left, right, down, etc)
+Room templates:
+- Bunch of rooms are created by me
+- Corners chosen independently based on open sides
+- Best match with neighbor tile always used
+- Assume all exits of a room are reachable
+- Assume movement 'up' is only possible when there is a ladder.
+
 Maze1:
 - Talk command, show talked messages
   - this will allow showing early machine interaction working, as machines

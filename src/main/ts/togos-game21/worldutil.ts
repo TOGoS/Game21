@@ -201,14 +201,24 @@ export function makeTileTreeRef( palette:any, w:number, h:number, d:number, inde
 	return gdm.tempStoreObject(tt, alias);
 }
 
+export function roomNeighborKey( room0Ref:string, offset:Vector3D, room1Ref:string ):string {
+	return "n"+base32Encode(hash(room0Ref+";"+room1Ref+";"+vectorToArray(offset).join(","), SHA1));
+}
+
+export function roomNeighborKeys( room0Ref:string, offset:Vector3D, room1Ref:string ):[string,string] {
+	return [
+		roomNeighborKey(room0Ref, offset, room1Ref),
+		roomNeighborKey(room1Ref, scaleVector(offset, -1), room0Ref),
+	];
+}
+
 export function connectRooms( gdm:GameDataManager, room0Ref:string, room1Ref:string, offset:Vector3D ):void {
 	offset = deepFreeze(offset);
 	const room0 = gdm.getMutableRoom(room0Ref);
 	if( room0 == null ) throw new Error("Failed to get room "+room0Ref);
 	const room1 = gdm.getMutableRoom(room1Ref);
 	if( room1 == null ) throw new Error("Failed to get room "+room1Ref);
-	const neighborKey0To1 = "n"+base32Encode(hash(room0Ref+";"+room1Ref+";"+vectorToArray(offset).join(","), SHA1));
-	const neighborKey1To0 = "n"+base32Encode(hash(room1Ref+";"+room0Ref+";"+vectorToArray(scaleVector(offset, -1)).join(","), SHA1));
+	const [neighborKey0To1,neighborKey1To0] = roomNeighborKeys(room0Ref, offset, room1Ref);
 	room0.neighbors[neighborKey0To1] = {
 		offset: offset,
 		roomRef: room1Ref,
