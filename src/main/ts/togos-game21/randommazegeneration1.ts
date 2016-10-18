@@ -156,15 +156,31 @@ function fill(tileIndexes:number[], x0:number, y0:number, x1:number, y1:number, 
 	}
 }
 
+function randInt(min:number, max:number) {
+	const m = Math.floor(max-min)+1;
+	return min + Math.floor( m * Math.random() );
+}
+
 function nodeTileIndexes(mgn:MazeGraphNode):number[] {
 	let tileIndexes:number[] = [];
 	for( let i=0; i<64; ++i ) tileIndexes[i] = 1;
+	
+	const ceilingY   = randInt(1,4);
+	const leftWallX  = randInt(1,4);
+	const rightWallX = randInt(4,7);
+	
+	fill( tileIndexes, leftWallX,ceilingY, rightWallX,5, 0);
+	
+	const floorLeftX  = Math.min(leftWallX, mgn.neighborIds[2] ? 0 : 3);
+	const floorRightX = Math.max(rightWallX, mgn.neighborIds[0] ? 8 : 5);
+	fill( tileIndexes, floorLeftX,5, floorRightX,6, 2);
+	
 	if( mgn.neighborIds[0] != undefined ) fill(tileIndexes, 3,3, 8,5, 0);
 	if( mgn.neighborIds[1] != undefined ) fill(tileIndexes, 3,3, 5,8, 0);
 	if( mgn.neighborIds[2] != undefined ) fill(tileIndexes, 0,3, 5,5, 0);
 	if( mgn.neighborIds[3] != undefined ) fill(tileIndexes, 3,0, 5,5, 0);
 	if( mgn.ladderDown ) {
-		fill(tileIndexes, 3,5, 4,6, 1);
+		fill(tileIndexes, 3,5, 4,6, 2);
 		fill(tileIndexes, 4,4, 5,8, 5);
 	}
 	if( mgn.ladderUp ) {
