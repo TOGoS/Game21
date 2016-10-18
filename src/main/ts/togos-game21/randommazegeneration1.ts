@@ -143,9 +143,9 @@ import {
 	newType4Uuid,
 	uuidUrn,
 } from '../tshash/uuids';
+import * as dat from './maze1demodata';
 import {
 	basicTileEntityPaletteRef,
-	initData as initDemoData
 } from './maze1demodata';
 
 function fill(tileIndexes:number[], x0:number, y0:number, x1:number, y1:number, tileIndex:number):void {
@@ -159,10 +159,10 @@ function fill(tileIndexes:number[], x0:number, y0:number, x1:number, y1:number, 
 function nodeTileIndexes(mgn:MazeGraphNode):number[] {
 	let tileIndexes:number[] = [];
 	for( let i=0; i<64; ++i ) tileIndexes[i] = 1;
-	if( mgn.neighborIds[0] ) fill(tileIndexes, 3,3, 8,5, 0);
-	if( mgn.neighborIds[1] ) fill(tileIndexes, 3,3, 5,8, 0);
-	if( mgn.neighborIds[2] ) fill(tileIndexes, 0,3, 5,5, 0);
-	if( mgn.neighborIds[3] ) fill(tileIndexes, 3,0, 5,5, 0);
+	if( mgn.neighborIds[0] != undefined ) fill(tileIndexes, 3,3, 8,5, 0);
+	if( mgn.neighborIds[1] != undefined ) fill(tileIndexes, 3,3, 5,8, 0);
+	if( mgn.neighborIds[2] != undefined ) fill(tileIndexes, 0,3, 5,5, 0);
+	if( mgn.neighborIds[3] != undefined ) fill(tileIndexes, 3,0, 5,5, 0);
 	if( mgn.ladderDown ) {
 		fill(tileIndexes, 3,5, 4,6, 1);
 		fill(tileIndexes, 4,4, 5,8, 5);
@@ -202,10 +202,10 @@ function mazeToRooms(mg:MazeGraph, gdm:GameDataManager):Promise<MazeGraph> {
 			if( nnId != undefined ) {
 				let nOffset:Vector3D;
 				switch( n ) {
-				case 0: nOffset = {x:+16, y:  0, z:0}; break;
-				case 1: nOffset = {x:  0, y:+16, z:0}; break;
-				case 2: nOffset = {x:-16, y:  0, z:0}; break;
-				case 3: nOffset = {x:  0, y:-16, z:0}; break;
+				case 0: nOffset = {x:+8, y:  0, z:0}; break;
+				case 1: nOffset = {x: 0, y:+8, z:0}; break;
+				case 2: nOffset = {x:-8, y:  0, z:0}; break;
+				case 3: nOffset = {x: 0, y:-8, z:0}; break;
 				default: throw new Error("Unknown offset for direction "+n);
 				}
 				const nn = mg.nodes[nnId];
@@ -238,19 +238,37 @@ function mazeToRooms(mg:MazeGraph, gdm:GameDataManager):Promise<MazeGraph> {
 import { sha1Urn } from '../tshash/index';
 import Datastore from './Datastore';
 import HTTPHashDatastore from './HTTPHashDatastore';
+import { SaveGame } from './Maze1';
 
 if( typeof require != 'undefined' && typeof module != 'undefined' && require.main === module ) {
 	const dataIdent = sha1Urn;
 	const ds:Datastore<Uint8Array> = HTTPHashDatastore.createDefault();
 	const gdm:GameDataManager = new GameDataManager(ds);
-
+	
+	const addPlayer = true;
+	const saveGame = true;
+	
 	console.log("Generating maze graph...");
 	
 	generateMazeGraph( 8, 12 ).then( (mg) => Promise.all([
-		initDemoData(gdm),
+		dat.initData(gdm),
 		gdm.fetchObject(basicTileEntityPaletteRef)
 	]).then( () => mg )).then( (mg) => {
 		return mazeToRooms(mg, gdm);
+	}).then( (mg) => {
+		if( addPlayer ) {
+			const rootRoomId = mg.nodes[0].roomRef;
+			if( !rootRoomId ) return Promise.reject(new Error("Oh no, no rootRoomId (when adding player)"));
+			const room = gdm.getMutableRoom(rootRoomId);
+			room.roomEntities[dat.playerEntityId] = {
+				position: {x:0,y:0,z:0},
+				entity: {
+					id: dat.playerEntityId,
+					classRef: dat.playerEntityClassId
+				}
+			}
+		}
+		return mg;
 	}).then( (mg) => {
 		const dirStrs:string[] = mg.solution.directions.map(directionToString);
 		console.log("Solution from "+mg.solution.startNodeId+" to " +mg.solution.endNodeId+": "+dirStrs.join(","));
@@ -259,6 +277,21 @@ if( typeof require != 'undefined' && typeof module != 'undefined' && require.mai
 			if( mg.nodes[i].isStartRoom ) console.log("Start room: "+mg.nodes[i].roomRef);
 			if( mg.nodes[i].isEndRoom ) console.log("End room: "+mg.nodes[i].roomRef);
 		}
+		return mg;
+	}).then( (mg) => {
+		if( saveGame ) return gdm.flushUpdates().then( (gameDataRef) => {
+				const rootRoomId = mg.nodes[0].roomRef;
+				if( !rootRoomId ) return Promise.reject(new Error("Oh no, no rootRoomId (when saving)"));
+				return gdm.storeObject<SaveGame>( {
+					gameDataRef,
+					playerId: dat.playerEntityId,
+					rootRoomId,
+				});
+			}).then( (saveRef) => {
+				console.log("Saved game as "+saveRef);
+				return mg;
+			});
+		return Promise.resolve(mg);
 	}).catch( (err) => {
 		console.error("Failed to generate maze!", err);
 		process.exit(1);

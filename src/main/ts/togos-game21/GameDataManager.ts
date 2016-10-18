@@ -171,6 +171,9 @@ export default class GameDataManager {
 		}
 	}
 	
+	/**
+	 * Returns a promise of the root data map URN
+	 */
 	public flushUpdates():Promise<string> {
 		for( let k in this.mutableObjects ) {
 			const obj = this.mutableObjects[k];
