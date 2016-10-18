@@ -303,8 +303,15 @@ const defaultRoomData = [
 ];
 
 export const basicTileEntityPaletteRef = 'urn:sha1:IMPKF5EUH4AW7TCEK4LP66ZTG2DXRH3Q#';
-export function getDefaultRoomTileTreeRef(gdm:GameDataManager):string {
-	return makeTileTreeRef(basicTileEntityPaletteRef, 16, 16, 1, defaultRoomData, gdm, { infiniteMass: true });
+
+function makeSolidArray<T>(v:T, length:number):T[] {
+	let arr:T[] = [];
+	for( let i=0; i<length; ++i ) arr.push(v);
+	return arr;
+}
+
+export function getDefaultRoomTileTreeRef(gdm:GameDataManager, width:number, height:number, depth:number):string {
+	return makeTileTreeRef(basicTileEntityPaletteRef, width, height, depth, makeSolidArray(1,width*height*depth), gdm, { infiniteMass: true });
 };
 
 //// Tile tree data

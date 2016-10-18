@@ -1389,15 +1389,16 @@ export class MazeSimulator {
 					this.logger.error("'create-room' argument not a string", messageData);
 					return;
 				}
+				const size = +(messageData[2] || 16);
 				const ttId = newUuidRef();
 				this.gameDataManager.putMutableObject<Room>(roomId, {
-					bounds: makeAabb(-8,-8,-8, 8,8,8),
+					bounds: makeAabb(-size/2,-size/2,-8, size/2,size/2,8),
 					neighbors: {},
 					roomEntities: {
 						[ttId]: {
 							position: ZERO_VECTOR,
 							entity: {
-								classRef: dat.getDefaultRoomTileTreeRef(this.gameDataManager)
+								classRef: dat.getDefaultRoomTileTreeRef(this.gameDataManager, size, size, 1)
 							}
 						}
 					}
@@ -1425,7 +1426,20 @@ export class MazeSimulator {
 					}
 				}
 				try {
-					connectRooms(this.gameDataManager, room1Id, room2Id, makeVector(nx*16, ny*16, nz*16));
+					const room1 = this.gameDataManager.getRoom(room1Id);
+					const room2 = this.gameDataManager.getRoom(room2Id);
+					const dx =
+						nx > 0 ? room1.bounds.maxX-room2.bounds.minX :
+						nx < 0 ? room1.bounds.minX-room2.bounds.maxX : 0;
+					const dy =
+						ny > 0 ? room1.bounds.maxY-room2.bounds.minY :
+						ny < 0 ? room1.bounds.minY-room2.bounds.maxY : 0;
+					const dz =
+						nz > 0 ? room1.bounds.maxZ-room2.bounds.minZ :
+						nz < 0 ? room1.bounds.minZ-room2.bounds.maxZ : 0;
+					const nVec = makeVector(dx, dy, dz);
+					this.logger.log("Connecting "+room1Id+" to "+room2Id+" @ "+vectorToString(nVec));
+					connectRooms(this.gameDataManager, room1Id, room2Id, nVec);
 				} catch( err ) {
 					this.logger.error("Failed to connect rooms", err);
 				}
@@ -1893,6 +1907,8 @@ export class MazeDemo {
 		input.setSelectionRange(text.length, text.length);
 	}
 	
+	protected defaultNewRoomSize = 16;
+	
 	public goToCommandHistoryBeginning() { this.goToCommandHistory(0); }
 	public goToCommandHistoryEnd() { this.goToCommandHistory(this.commandHistory.length); }
 	
@@ -1912,6 +1928,8 @@ export class MazeDemo {
 		if( cmd == null ) {
 			cmd = this.consoleDialog.inputElement.value;
 			this.consoleDialog.inputElement.value = "";
+			this.addToCommandHistory(cmd);
+			this.goToCommandHistoryEnd();
 		}
 		cmd = cmd.trim();
 		if( cmd == '' ) {
@@ -1946,14 +1964,23 @@ export class MazeDemo {
 						this.loadGame(tokens[1].text);
 					}
 					break;
+				case 'default-room-size':
+					{
+						if( tokens[1] ) {
+							this.defaultNewRoomSize = +tokens[1].text;
+						}
+						this.logger.log("Default room size is now "+this.defaultNewRoomSize);
+					}
+					break;
 				case 'create-new-room':
 					{
 						const newRoomUuid = newUuidRef();
 						this.logger.log("New room ID:", newRoomUuid);
-						this.enqueueMessage([ROOMID_SIMULATOR], ["/create-room", newRoomUuid]);
+						const size = tokens[2] ? +tokens[2].text : this.defaultNewRoomSize;
+						this.enqueueMessage([ROOMID_SIMULATOR], ["/create-room", newRoomUuid, size]);
 					}
 					break;
-				case 'connect-new-room':
+				case 'connect-new-room': case 'dig-new-room': case 'dnr':
 					{
 						const currentLocation = this.view.viewage.cameraLocation;
 						if( !currentLocation || !currentLocation.roomRef ) {
@@ -1967,9 +1994,8 @@ export class MazeDemo {
 						const newRoomUuid = newUuidRef();
 						const dir = tokens[1].text;
 						this.logger.log("New room ID:", newRoomUuid);
-						this.enqueueMessage([ROOMID_SIMULATOR], ["/create-room", newRoomUuid]);
+						this.enqueueMessage([ROOMID_SIMULATOR], ["/create-room", newRoomUuid, this.defaultNewRoomSize]);
 						this.enqueueMessage([ROOMID_SIMULATOR], ["/connect-rooms", currentLocation.roomRef, dir, newRoomUuid]);
-						console.log("Connecting "+currentLocation.roomRef+" "+dir+" to "+newRoomUuid);
 					}
 					break;
 				case 'cr': case 'connect-rooms':
@@ -1990,7 +2016,6 @@ export class MazeDemo {
 				}
 			}
 		}
-		this.addToCommandHistory(cmd);
 	}
 	
 	public popUpConsole(initialText:string) {
