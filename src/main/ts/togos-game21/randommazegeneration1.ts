@@ -132,14 +132,21 @@ function nodesConnectable( node0:MazeGraphNode, node1:MazeGraphNode, directionFi
 	for( let i=0; i<4; ++i ) {
 		if( directionFitness(i) <= 0 ) continue;
 		if( node0.neighborIds[i] != undefined ) continue;
-		const o = oppositeDirection(i);
+		const o = oppositeDirection(i); 
 		if( node1.neighborIds[o] != undefined ) continue;
 		return true;
 	}
 	return false;
 }
 
-function generatePrimaryPath(nodes:MazeGraphNode[], startNodeId:number, len:number):MazePath {
+interface MazeGenerationOptions {
+	primaryPathLength : number;
+	maxRoomCount : number;
+	allowOneWaysInPrimaryPath : boolean;
+}
+
+function generatePrimaryPath(nodes:MazeGraphNode[], startNodeId:number, opts:MazeGenerationOptions):MazePath {
+	let len = opts.primaryPathLength;
 	let curNodeId = startNodeId;
 	const path:MazePath = {
 		startNodeId: startNodeId,
@@ -152,7 +159,8 @@ function generatePrimaryPath(nodes:MazeGraphNode[], startNodeId:number, len:numb
 		const newNode = blankMazeNode(newNodeId);
 		nodes.push(newNode);
 		const dir = pickLinkDirection(curNode, newNode);
-		connectNodes(curNode, dir, newNode, true);
+		const pit = dir == DIR_DOWN && opts.allowOneWaysInPrimaryPath && Math.random() < 0.5; 
+		connectNodes(curNode, dir, newNode, !pit);
 		path.directions.push(dir);
 		curNodeId = newNodeId;
 		--len;
@@ -209,7 +217,10 @@ function digNode( nodes:MazeGraphNode[], node:MazeGraphNode, direction:number, b
 function generateBranches( nodes:MazeGraphNode[], maxRoomCount:number ) {
 	try {
 		while( nodes.length < maxRoomCount ) {
-			const n = pick( nodes, 4, (node:MazeGraphNode) => Math.min(2, 4 - neighborCount(node)) );
+			const n = pick( nodes, 4, (node:MazeGraphNode):number => {
+				if( node.isEndRoom ) return 0.1;
+				return Math.min(2, 4 - neighborCount(node));
+			});
 			const dir = pickLinkDirection(n);
 			digNode( nodes, n, dir, true );
 		}
@@ -224,6 +235,7 @@ function populateDistances( graph:MazeGraph, nodeId:number=graph.solution.endNod
 	node.distanceFromEnd = distance;
 	for( let i=0; i<4; ++i ) {
 		if( node.neighborIds[i] != undefined ) {
+			if( i == 1 && !node.ladderDown ) continue; // Ha ha can't jump up here
 			populateDistances( graph, node.neighborIds[i], distance+1 );
 		}
 	}
@@ -243,8 +255,24 @@ function connectLoops( nodes:MazeGraphNode[], count:number ) {
 			const n0 = pick(nodes, 4, (n) => Math.max(2, 4 - n.neighborIds.length) );
 			const n1 = pick(nodes, 4, (n) => {
 				if( !nodesConnectable(n,n0) ) return 0;
-				return Math.max(1, (2 - n.neighborIds.length)) * closeness(n.distanceFromEnd!, n0.distanceFromEnd!);
+				// If they can be connected vertically
+				const closeyness:number = nodesConnectable(n0,n1, (dir) => dir == DIR_DOWN ? 1 : 0) ?
+					1 : closeness(n.distanceFromEnd!, n0.distanceFromEnd!);
+				return Math.max(1, (2 - n.neighborIds.length)) * closeyness;
 			});
+			// Make the maze 'hard' by always having one-ways go backwards
+			// (unless the primary path also has one-ways, the player will learn to just never jump down pits)
+			if( n0.distanceFromEnd < n1.distanceFromEnd ) {
+				try {
+					connectNodes(n0, DIR_DOWN, n1, false);
+				} catch( err ) {}
+			}
+			if( n1.distanceFromEnd < n0.distanceFromEnd ) {
+				try {
+					connectNodes(n1, DIR_DOWN, n0, false);
+				} catch( err ) {}
+			}
+			// Otherwise just connect them in whatever way possible.
 			connectNodes(n0, undefined, n1, undefined);
 			++loopCount;
 		}
@@ -253,19 +281,20 @@ function connectLoops( nodes:MazeGraphNode[], count:number ) {
 	}
 }
 
-function generateMazeGraph(pathLength:number, maxRoomCount:number):Promise<MazeGraph> {
+function generateMazeGraph(opts:MazeGenerationOptions):Promise<MazeGraph> {
 	const nodes:MazeGraphNode[] = [];
 	nodes.push(blankMazeNode(0));
 	nodes[0].isStartRoom = true;
-	const solution = generatePrimaryPath( nodes, 0, pathLength );
-	generateBranches( nodes, maxRoomCount );
+	const solution = generatePrimaryPath( nodes, 0, opts );
+	nodes[solution.endNodeId].isEndRoom = true;
+	generateBranches( nodes, opts.maxRoomCount );
 	const mazeGraph = {
 		solution: solution,
 		nodes: nodes,
 	};
 	populateDistances(mazeGraph);
-	connectLoops( nodes, maxRoomCount / 4 );
-	nodes[solution.endNodeId].isEndRoom = true;
+	console.log("Minimum distance: "+nodes[solution.startNodeId].distanceFromEnd);
+	connectLoops( nodes, opts.maxRoomCount / 8 );
 	return Promise.resolve(mazeGraph);
 }
 
@@ -303,6 +332,10 @@ function randInt(min:number, max:number) {
 	return min + Math.floor( m * Math.random() );
 }
 
+function clamp( min:number, v:number, max:number ) {
+	return v < min ? min : v > max ? max : v;
+}
+
 function nodeTileIndexes(mgn:MazeGraphNode):number[] {
 	let tileIndexes:number[] = [];
 	for( let i=0; i<64; ++i ) tileIndexes[i] = mgn.isStartRoom ? 1 : mgn.isEndRoom ? 15 : 14;
@@ -321,6 +354,16 @@ function nodeTileIndexes(mgn:MazeGraphNode):number[] {
 	if( mgn.neighborIds[1] != undefined ) fill(tileIndexes, 3,3, 5,8, 0);
 	if( mgn.neighborIds[2] != undefined ) fill(tileIndexes, 0,3, 5,5, 0);
 	if( mgn.neighborIds[3] != undefined ) fill(tileIndexes, 3,0, 5,5, 0);
+	
+	const vineTop = randInt(-1,3);
+	const vineBottom = randInt(1,7);
+	
+	for( let x=leftWallX; x<rightWallX; ++x ) {
+		const vineColumnTop = clamp( 1, randInt(1, vineTop), 4 );
+		const vineColumnBottom = clamp( 1, randInt(1, vineBottom), 4 );
+		fill( tileIndexes, x,vineColumnTop, x+1,vineColumnBottom, 8 );
+	}
+	
 	if( mgn.ladderDown ) {
 		fill(tileIndexes, 3,5, 4,6, 2);
 		fill(tileIndexes, 4,4, 5,8, 5);
@@ -398,10 +441,52 @@ import Datastore from './Datastore';
 import HTTPHashDatastore from './HTTPHashDatastore';
 import { SaveGame } from './Maze1';
 
+function strictParseInt(r:string, min:number, max:number, ctx:string) {
+	const v = parseInt(r);
+	if( isNaN(v) ) throw new Error(ctx+" '"+r+"' did not parse as a number");
+	if( v < min || v > max ) throw new Error(ctx+" must be between "+min+" and "+max+" (inclusive); "+v+" is not");
+	return v;
+}
+
 if( typeof require != 'undefined' && typeof module != 'undefined' && require.main === module ) {
 	const dataIdent = sha1Urn;
 	const ds:Datastore<Uint8Array> = HTTPHashDatastore.createDefault();
 	const gdm:GameDataManager = new GameDataManager(ds);
+	
+	const mgOpts = {
+		primaryPathLength: 8,
+		maxRoomCount: 16,
+		allowOneWaysInPrimaryPath: true,
+	};
+	
+	let maxRoomCount:number|undefined = undefined;
+	let primaryPathLength:number|undefined = undefined;
+	
+	const argv = process.argv;
+	for( let i=2; i<argv.length; ++i ) {
+		const arg = argv[i];
+		if( arg == '-size' ) {
+			maxRoomCount = strictParseInt(argv[++i], 1, 1024, "size");
+		} else if( arg == '-length' ) {
+			primaryPathLength = strictParseInt(argv[++i], 1, 1024, "length");
+		} else if( arg == '-no-mandatory-one-ways' ) {
+			mgOpts.allowOneWaysInPrimaryPath = false;
+		} else {
+			console.error("Unrecognized argument "+i+": ''"+arg+"'");
+			console.error("Argv:", argv);
+			process.exit(1);
+		}
+	}
+	
+	if( maxRoomCount ) {
+		mgOpts.maxRoomCount = maxRoomCount;
+		mgOpts.primaryPathLength = primaryPathLength || maxRoomCount / 2;
+	} else {
+		if( !primaryPathLength ) primaryPathLength = 8;
+		maxRoomCount = primaryPathLength*2;
+		mgOpts.maxRoomCount = maxRoomCount;
+		mgOpts.primaryPathLength = primaryPathLength;
+	}
 	
 	const addPlayer = true;
 	const saveGame = true;
@@ -409,7 +494,7 @@ if( typeof require != 'undefined' && typeof module != 'undefined' && require.mai
 	console.log("Generating maze graph...");
 	
 	let mg : MazeGraph;
-	generateMazeGraph( 8, 16 ).then( (_mg) => {
+	generateMazeGraph( mgOpts ).then( (_mg) => {
 		mg = _mg;
 		return dat.initData(gdm);
 	}).then( () => gdm.fetchTranslation(dat.tileEntityPaletteId) ).then( (tileEntityPaletteRef) => {
@@ -438,6 +523,7 @@ if( typeof require != 'undefined' && typeof module != 'undefined' && require.mai
 		}
 		return mg;
 	}).then( (mg) => {
+		console.log("Saving...");
 		if( saveGame ) return gdm.flushUpdates().then( (gameDataRef) => {
 				const rootRoomId = mg.nodes[0].roomRef;
 				if( !rootRoomId ) return Promise.reject(new Error("Oh no, no rootRoomId (when saving)"));
