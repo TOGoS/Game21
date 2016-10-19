@@ -52,6 +52,11 @@ export default class GameDataManager {
 	
 	public get rootMapNodeUri():string { return this.objectMapManager.rootNodeUri; }
 	
+	public fetchTranslation( name:string ):Promise<string> {
+		if( this.tempNameMap[name] ) return Promise.resolve(this.tempNameMap[name]);
+		return this.objectMapManager.fetchValue(name);
+	}
+	
 	public getObjectIfLoaded<T>( ref:string, initiateFetch:boolean=false ):T|undefined {
 		let v = this.mutableObjects[ref];
 		if( v == null ) v = this.objectCache[ref];

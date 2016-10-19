@@ -163,7 +163,7 @@ function randInt(min:number, max:number) {
 
 function nodeTileIndexes(mgn:MazeGraphNode):number[] {
 	let tileIndexes:number[] = [];
-	for( let i=0; i<64; ++i ) tileIndexes[i] = 1;
+	for( let i=0; i<64; ++i ) tileIndexes[i] = mgn.isStartRoom ? 1 : mgn.isEndRoom ? 15 : 14;
 	
 	const ceilingY   = randInt(1,4);
 	const leftWallX  = randInt(1,4);
@@ -197,7 +197,7 @@ function newUuidRef():string { return uuidUrn(newType4Uuid()); }
  * the MazeGraph will be modified in-place such that
  * nodes all have a roomRef and returned.
  */
-function mazeToRooms(mg:MazeGraph, gdm:GameDataManager):Promise<MazeGraph> {
+function mazeToRooms(mg:MazeGraph, gdm:GameDataManager, tileEntityPaletteRef:string):Promise<MazeGraph> {
 	const roomBounds:AABB = makeAabb(-4,-4,-4, 4,4,4);
 	for( let n in mg.nodes ) {
 		const mgn = mg.nodes[n];
@@ -208,7 +208,7 @@ function mazeToRooms(mg:MazeGraph, gdm:GameDataManager):Promise<MazeGraph> {
 		if( mgn.roomRef == undefined ) throw new Error("Ung how did happen");
 		const tileIndexes = nodeTileIndexes(mgn);
 		const ttClassRef = makeTileTreeRef(
-			basicTileEntityPaletteRef,
+			tileEntityPaletteRef,
 			8, 8, 1, tileIndexes, gdm,
 			{ infiniteMass: true }
 		);
@@ -266,11 +266,12 @@ if( typeof require != 'undefined' && typeof module != 'undefined' && require.mai
 	
 	console.log("Generating maze graph...");
 	
-	generateMazeGraph( 8, 12 ).then( (mg) => Promise.all([
-		dat.initData(gdm),
-		gdm.fetchObject(basicTileEntityPaletteRef)
-	]).then( () => mg )).then( (mg) => {
-		return mazeToRooms(mg, gdm);
+	let mg : MazeGraph;
+	generateMazeGraph( 8, 12 ).then( (_mg) => {
+		mg = _mg;
+		return dat.initData(gdm);
+	}).then( () => gdm.fetchTranslation(dat.tileEntityPaletteId) ).then( (tileEntityPaletteRef) => {
+		return mazeToRooms(mg, gdm, tileEntityPaletteRef);
 	}).then( (mg) => {
 		if( addPlayer ) {
 			const rootRoomId = mg.nodes[0].roomRef;
