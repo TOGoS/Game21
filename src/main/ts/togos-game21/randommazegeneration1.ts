@@ -57,17 +57,24 @@ function oppositeDirection(dir:number):number {
 	return (dir + 2) % 4;
 }
 
-function pickLinkDirection(node0:MazeGraphNode, node1?:MazeGraphNode):number|undefined {
+const EVERYTHING_FITS = (t:any)=>1;
+
+function pickLinkDirection(
+	node0:MazeGraphNode, node1?:MazeGraphNode,
+	fitnessFunction:(dir:number)=>number=EVERYTHING_FITS
+):number {
 	const rs = Math.floor(Math.random()*4);
 	for( let i=0; i<4; ++i ) {
 		const dir0 = (i + rs) % 4;
+		if( fitnessFunction(dir0) <= 0 ) continue;
 		if( node0.neighborIds[dir0] == undefined ) {
 			if( node1 == undefined ) return dir0;
 			const dir1 = oppositeDirection(dir0);
 			if( node1.neighborIds[dir1] == undefined ) return dir0;
 		}
 	}
-	return undefined;
+	if( node1 ) throw new Error("No matching free sides between nodes "+node0.id+" and "+node1.id);
+	throw new Error("No free side on nodes "+node0.id);
 }
 
 interface MazePath {
@@ -76,9 +83,33 @@ interface MazePath {
 	directions : number[];
 }
 
-function connectNodes(node0:MazeGraphNode, dir0:number, node1:MazeGraphNode, bidirectional:boolean):void {
-	if( !bidirectional && dir0 != 1 ) {
-		throw new Error("Unidirectional links can only be downwards (direction = 1)");
+const DIR_RIGHT = 0;
+const DIR_DOWN  = 1;
+const DIR_LEFT  = 2;
+const DIR_UP    = 3;
+
+function directionIsHorizontal( dir:number ):boolean {
+	return (dir == DIR_RIGHT) || (dir == DIR_LEFT);
+}
+
+/**
+ * Connects nodes.
+ * 
+ * By default a random direction is picked, unless bidirectional = false,
+ * in which case the direction must be downwards.
+ * 
+ * By default, vertical links are made without ladders.
+ */
+function connectNodes(node0:MazeGraphNode, dir0:number|undefined, node1:MazeGraphNode, bidirectional:boolean|undefined):void {
+	if( dir0 == undefined ) {
+		const dirFitness = bidirectional == false ? ((dir:number) => dir == DIR_DOWN ? 1 : 0) : EVERYTHING_FITS; 
+		dir0 = pickLinkDirection(node0, node1, dirFitness);
+	}
+	
+	if( bidirectional == undefined ) bidirectional = directionIsHorizontal(dir0);
+	
+	if( !bidirectional && dir0 != DIR_DOWN ) {
+		throw new Error("Unidirectional links can only be downwards");
 	}
 	
 	const dir1 = oppositeDirection(dir0);
@@ -87,14 +118,25 @@ function connectNodes(node0:MazeGraphNode, dir0:number, node1:MazeGraphNode, bid
 	node0.neighborIds[dir0] = node1.id;
 	node1.neighborIds[dir1] = node0.id;
 	if( bidirectional ) {
-		if( dir0 == 1 ) {
+		if( dir0 == DIR_DOWN ) {
 			node0.ladderDown = true;
 			node1.ladderUp = true;
-		} else if( dir0 == 3 ) {
+		} else if( dir1 == DIR_DOWN ) {
 			node0.ladderUp = true;
 			node1.ladderDown = true;
 		}
 	}
+}
+
+function nodesConnectable( node0:MazeGraphNode, node1:MazeGraphNode, directionFitness:(dir:number)=>number=EVERYTHING_FITS ):boolean {
+	for( let i=0; i<4; ++i ) {
+		if( directionFitness(i) <= 0 ) continue;
+		if( node0.neighborIds[i] != undefined ) continue;
+		const o = oppositeDirection(i);
+		if( node1.neighborIds[o] != undefined ) continue;
+		return true;
+	}
+	return false;
 }
 
 function generatePrimaryPath(nodes:MazeGraphNode[], startNodeId:number, len:number):MazePath {
@@ -110,7 +152,6 @@ function generatePrimaryPath(nodes:MazeGraphNode[], startNodeId:number, len:numb
 		const newNode = blankMazeNode(newNodeId);
 		nodes.push(newNode);
 		const dir = pickLinkDirection(curNode, newNode);
-		if( dir == undefined ) throw new Error("Failed to pick direction to next maze node");
 		connectNodes(curNode, dir, newNode, true);
 		path.directions.push(dir);
 		curNodeId = newNodeId;
@@ -170,7 +211,6 @@ function generateBranches( nodes:MazeGraphNode[], maxRoomCount:number ) {
 		while( nodes.length < maxRoomCount ) {
 			const n = pick( nodes, 4, (node:MazeGraphNode) => Math.min(2, 4 - neighborCount(node)) );
 			const dir = pickLinkDirection(n);
-			if( dir == undefined ) throw new Error("Faled to pick a link direction!");
 			digNode( nodes, n, dir, true );
 		}
 	} catch( err ) {
@@ -178,8 +218,39 @@ function generateBranches( nodes:MazeGraphNode[], maxRoomCount:number ) {
 	}
 }
 
-function populateDistances( graph:MazeGraph, startAtNodeId:number=graph.solution.endNodeId, startDistance:number=0 ) {
-	// TODO
+function populateDistances( graph:MazeGraph, nodeId:number=graph.solution.endNodeId, distance:number=0 ) {
+	const node = graph.nodes[nodeId];
+	if( node.distanceFromEnd != undefined && node.distanceFromEnd <= distance ) return;
+	node.distanceFromEnd = distance;
+	for( let i=0; i<4; ++i ) {
+		if( node.neighborIds[i] != undefined ) {
+			populateDistances( graph, node.neighborIds[i], distance+1 );
+		}
+	}
+}
+
+/**
+ * Returns 1 when n0 == n1, and something (0..1] for values further apart.
+ */
+function closeness( n0:number, n1:number ):number {
+	return 1 / (1+Math.abs(n0 - n1));
+}
+
+function connectLoops( nodes:MazeGraphNode[], count:number ) {
+	let loopCount = 0;
+	try {
+		for( let i=0; i<count; ++i ) {
+			const n0 = pick(nodes, 4, (n) => Math.max(2, 4 - n.neighborIds.length) );
+			const n1 = pick(nodes, 4, (n) => {
+				if( !nodesConnectable(n,n0) ) return 0;
+				return Math.max(1, (2 - n.neighborIds.length)) * closeness(n.distanceFromEnd!, n0.distanceFromEnd!);
+			});
+			connectNodes(n0, undefined, n1, undefined);
+			++loopCount;
+		}
+	} catch( err ) {
+		console.warn("Failed to make as many loops as we wanted ("+loopCount+" of "+count+")");
+	}
 }
 
 function generateMazeGraph(pathLength:number, maxRoomCount:number):Promise<MazeGraph> {
@@ -193,6 +264,7 @@ function generateMazeGraph(pathLength:number, maxRoomCount:number):Promise<MazeG
 		nodes: nodes,
 	};
 	populateDistances(mazeGraph);
+	connectLoops( nodes, maxRoomCount / 4 );
 	nodes[solution.endNodeId].isEndRoom = true;
 	return Promise.resolve(mazeGraph);
 }
@@ -337,7 +409,7 @@ if( typeof require != 'undefined' && typeof module != 'undefined' && require.mai
 	console.log("Generating maze graph...");
 	
 	let mg : MazeGraph;
-	generateMazeGraph( 8, 12 ).then( (_mg) => {
+	generateMazeGraph( 8, 16 ).then( (_mg) => {
 		mg = _mg;
 		return dat.initData(gdm);
 	}).then( () => gdm.fetchTranslation(dat.tileEntityPaletteId) ).then( (tileEntityPaletteRef) => {
