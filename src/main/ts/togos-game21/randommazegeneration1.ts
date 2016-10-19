@@ -7,9 +7,9 @@ interface MazeGraphNode {
 	neighborIds : (number|undefined)[];
 	ladderUp : boolean;
 	ladderDown : boolean;
-	distanceFromStart : number;
 	isStartRoom : boolean;
 	isEndRoom : boolean;
+	distanceFromEnd? : number;
 	roomRef? : string;
 }
 
@@ -32,10 +32,15 @@ function blankMazeNode(id:number):MazeGraphNode {
 		neighborIds: [undefined, undefined, undefined, undefined],
 		ladderUp: false,
 		ladderDown: false,
-		distanceFromStart: 0,
 		isStartRoom: false,
 		isEndRoom: false
 	};
+}
+
+function newMazeNode(nodes:MazeGraphNode[]):MazeGraphNode {
+	const newNode = blankMazeNode(nodes.length);
+	nodes.push(newNode);
+	return newNode;
 }
 
 function directionToString(dir:number):string {
@@ -52,12 +57,15 @@ function oppositeDirection(dir:number):number {
 	return (dir + 2) % 4;
 }
 
-function pickLinkDirection(node0:MazeGraphNode, node1:MazeGraphNode):number|undefined {
+function pickLinkDirection(node0:MazeGraphNode, node1?:MazeGraphNode):number|undefined {
 	const rs = Math.floor(Math.random()*4);
 	for( let i=0; i<4; ++i ) {
 		const dir0 = (i + rs) % 4;
-		const dir1 = oppositeDirection(dir0);
-		if( node0.neighborIds[dir0] == undefined && node1.neighborIds[dir1] == undefined ) return dir0;
+		if( node0.neighborIds[dir0] == undefined ) {
+			if( node1 == undefined ) return dir0;
+			const dir1 = oppositeDirection(dir0);
+			if( node1.neighborIds[dir1] == undefined ) return dir0;
+		}
 	}
 	return undefined;
 }
@@ -112,16 +120,81 @@ function generatePrimaryPath(nodes:MazeGraphNode[], startNodeId:number, len:numb
 	return path;
 }
 
+function pickOne<T>( things:T[] ):T {
+	if( things.length == 0 ) throw new Error("Can't pick from zero-length list");
+	const i = Math.floor(Math.random()*things.length);
+	return things[i];
+}
+
+function pick<T>( things:T[], pickAttempts:number, fitFunction:(node:T)=>number ):T {
+	let bestFit:T|undefined = undefined;
+	let bestFitness:number = -Infinity;
+	for( let i=0; i<pickAttempts; ++i ) {
+		const t = pickOne(things)
+		const f = fitFunction(t);
+		if( f > bestFitness ) {
+			bestFit = t;
+			bestFitness = f;
+		}
+	}
+	
+	if( bestFitness > 0 ) return bestFit!; 
+	
+	for( let i=0; i<things.length; ++i ) {
+		const o = Math.floor(Math.random()*things.length);
+		const i2 = (i+o) % things.length;
+		if( fitFunction(things[i2]) > 0 ) {
+			return things[i2];
+		}
+	}
+	
+	throw new Error("Failed to find anything with fitness > 0");
+}
+
+function neighborCount( node:MazeGraphNode ):number {
+	let count = 0;
+	for( let i=0; i<node.neighborIds.length; ++i ) {
+		if( node.neighborIds[i] != undefined ) ++count;
+	}
+	return count;
+}
+
+function digNode( nodes:MazeGraphNode[], node:MazeGraphNode, direction:number, bidirectional:boolean ):MazeGraphNode {
+	const newNode = newMazeNode(nodes);
+	connectNodes( node, direction, newNode, bidirectional );
+	return newNode;
+}
+
+function generateBranches( nodes:MazeGraphNode[], maxRoomCount:number ) {
+	try {
+		while( nodes.length < maxRoomCount ) {
+			const n = pick( nodes, 4, (node:MazeGraphNode) => Math.min(2, 4 - neighborCount(node)) );
+			const dir = pickLinkDirection(n);
+			if( dir == undefined ) throw new Error("Faled to pick a link direction!");
+			digNode( nodes, n, dir, true );
+		}
+	} catch( err ) {
+		console.warn("Failed to load connect as many branches as we wanted.");
+	}
+}
+
+function populateDistances( graph:MazeGraph, startAtNodeId:number=graph.solution.endNodeId, startDistance:number=0 ) {
+	// TODO
+}
+
 function generateMazeGraph(pathLength:number, maxRoomCount:number):Promise<MazeGraph> {
 	const nodes:MazeGraphNode[] = [];
 	nodes.push(blankMazeNode(0));
 	nodes[0].isStartRoom = true;
 	const solution = generatePrimaryPath( nodes, 0, pathLength );
-	nodes[solution.endNodeId].isEndRoom = true;
-	return Promise.resolve({
+	generateBranches( nodes, maxRoomCount );
+	const mazeGraph = {
 		solution: solution,
 		nodes: nodes,
-	});
+	};
+	populateDistances(mazeGraph);
+	nodes[solution.endNodeId].isEndRoom = true;
+	return Promise.resolve(mazeGraph);
 }
 
 import KeyedList from './KeyedList';
@@ -144,9 +217,6 @@ import {
 	uuidUrn,
 } from '../tshash/uuids';
 import * as dat from './maze1demodata';
-import {
-	basicTileEntityPaletteRef,
-} from './maze1demodata';
 
 function fill(tileIndexes:number[], x0:number, y0:number, x1:number, y1:number, tileIndex:number):void {
 	for( let y=y0; y<y1; ++y ) {
