@@ -69,6 +69,11 @@ export interface Conductor {
 	endpointPositions : Vector3D[];
 }
 
+export interface EntityInternalSystem {
+	classRef : string;
+	state : KeyedList<any>; // Interpretation of content depends on class
+}
+
 /**
  * These should be considered immutable.
  */
@@ -123,8 +128,7 @@ export interface EntityClass {
 	 *   (e.g. doors, lifts); may be locked or unlocked
 	 * - doorbell -> powers something, may require a key
 	 */
-	internalSystemClassRefs? : KeyedList<string>;
-	internalSystemDefaultStates? : KeyedList<EntityInternalSystemState>;
+	defaultInternalSystems? : KeyedList<EntityInternalSystem>;
 }
 
 export interface AttachmentEntity {
@@ -136,8 +140,6 @@ export interface AttachmentZone {
 	classRef : string;
 	items : KeyedList<AttachmentEntity>;
 }
-
-export interface EntityInternalSystemState { } // Fields depend on class!
 
 /**
  * A game object: class + internal state.
@@ -155,7 +157,7 @@ export interface Entity {
 	 * which may be used by behavior and rendering
 	 */ 
 	state? : KeyedList<any>;
-	internalSystemStates? : KeyedList<EntityInternalSystemState>
+	internalSystems? : KeyedList<EntityInternalSystem>
 	
 	desiredMovementDirection? : Vector3D;
 	
