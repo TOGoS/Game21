@@ -225,6 +225,43 @@ const latticeColumnPix = [
 	1,1,0,0,0,0,1,1,
 	1,1,1,1,1,1,1,1,
 ];
+const keyPix = [
+	0,1,1,1,0,0,0,0,
+	1,1,0,1,1,1,1,1,
+	1,1,0,1,1,1,1,1,
+	0,1,1,1,0,1,0,1,
+]
+const cheapDoorPix = [
+	0,0,0,0,1,1,0,1,1,0,1,1,0,0,0,0,
+	0,0,0,0,1,1,0,1,1,0,1,1,0,0,0,0,
+	0,0,0,0,0,1,1,0,0,1,1,0,0,0,0,0,
+	0,0,0,0,1,1,0,1,1,0,1,1,0,0,0,0,
+	0,0,0,0,1,1,0,1,1,0,1,1,0,0,0,0,
+	0,0,0,0,0,1,1,0,0,1,1,0,0,0,0,0,
+	0,0,0,0,1,1,0,1,1,0,1,1,0,0,0,0,
+	0,0,0,0,1,1,0,1,1,0,1,1,0,0,0,0,
+	0,0,0,0,1,1,0,1,1,0,1,1,0,0,0,0,
+	0,0,0,0,1,1,0,1,1,0,1,1,0,0,0,0,
+	0,0,0,0,0,1,1,0,0,1,1,0,0,0,0,0,
+	0,0,0,0,1,1,0,1,1,0,1,1,0,0,0,0,
+	0,0,0,0,1,1,0,1,1,0,1,1,0,0,0,0,
+	0,0,0,0,0,1,1,0,0,1,1,0,0,0,0,0,
+	0,0,0,0,1,1,0,1,1,0,1,1,0,0,0,0,
+	0,0,0,0,1,1,0,1,1,0,1,1,0,0,0,0,
+]
+
+function bitImgColor(c:number|number[]):number {
+	if( typeof c == 'number' ) return c;
+	if( c.length == 3 ) {
+		return rgbaToNumber(c[0], c[1], c[2], 255);
+	} else if( c.length == 4 ) {
+		return rgbaToNumber(c[0], c[1], c[2], c[3]);
+	}
+	throw new Error("BitImg color parameter must be a number of array of length 3 or 4");
+}
+function bitImgRef(color0:number|number[],color1:number|number[],pixDat:number[]):string {
+	return "bitimg:color="+bitImgColor(color0)+";color1="+bitImgColor(color1)+","+hexEncodeBits(pixDat);
+}
 
 const brikImgRef = "bitimg:color0=0;color1="+rgbaToNumber(200,200,180,255)+","+hexEncodeBits(brikPix);
 const brownBrikImgRef = "bitimg:color0=0;color1="+rgbaToNumber(200,180,128,255)+","+hexEncodeBits(brikPix);
@@ -243,6 +280,14 @@ const ladder1SideImgRef = "bitimg:width=4;height=16;color1="+rgbaToNumber(128,96
 const ladder1TopImgRef = "bitimg:width=16;height=4;color1="+rgbaToNumber(128,96,96,255)+","+hexEncodeBits(ladder1TopPix);
 const latticeColumnImgRef = "bitimg:color1="+rgbaToNumber(192,192,192,255)+","+hexEncodeBits(latticeColumnPix);
 const latticeColumnBgImgRef = "bitimg:color1="+rgbaToNumber(64,64,64,255)+","+hexEncodeBits(latticeColumnPix);
+
+const blueKeyImgRef = bitImgRef(0,[0,0,192],keyPix);
+const yellowKeyImgRef = bitImgRef(0,[192,192,0],keyPix);
+const redKeyImgRef = bitImgRef(0,[192,0,0],keyPix);
+
+const cheapBlueDoorImgRef = bitImgRef(0,[0,0,192],cheapDoorPix);
+const cheapYellowDoorImgRef = bitImgRef(0,[192,192,0],cheapDoorPix);
+const cheapRedDoorImgRef = bitImgRef(0,[192,0,0],cheapDoorPix);
 
 //// Room data
 
@@ -378,6 +423,14 @@ export const door3EntityId       = 'urn:uuid:1a8455be-8cce-4721-8ccb-7f5644e3008
 export const platformEntityId    = 'urn:uuid:27c27635-99ba-4ef3-b3ff-445eb9b132e5';
 const room1TileTreeId     = 'urn:uuid:a11ed6ae-f096-4b30-bd39-2a78d39a1385';
 const room2TileTreeId     = 'urn:uuid:67228411-243c-414c-99d7-960f1151b970';
+
+const redKeyEntityClassId    = 'urn:uuid:f2f4bea7-7a6a-45af-9a70-83c7ce58ba31';
+const yellowKeyEntityClassId = 'urn:uuid:f2f4bea7-7a6a-45af-9a70-83c7ce58ba32';
+const blueKeyEntityClassId   = 'urn:uuid:f2f4bea7-7a6a-45af-9a70-83c7ce58ba33';
+
+const cheapRedDoorEntityClassId    = 'urn:uuid:0575864a-e0d0-4fa4-b84a-a724a66dcb61';
+const cheapYellowDoorEntityClassId = 'urn:uuid:0575864a-e0d0-4fa4-b84a-a724a66dcb62';
+const cheapBlueDoorEntityClassId   = 'urn:uuid:0575864a-e0d0-4fa4-b84a-a724a66dcb63';
 
 /**
  * Returns a promise for the new game data root node URI
@@ -690,6 +743,31 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 		childEntityIndexes: [1,0,1,0,0,0,0,0,0,0,0,0,1,0,1,0]
 	}, latticeColumnBgLeftBlockEntityClassId );
 	
+	const keyBoundingBox = makeAabb(-0.25,-0.125,-0.125, +0.25,+0.125,+0.125);
+	const cheapDoorBoundingBox = makeAabb(-0.25,-0.5,-0.5, +0.25,+0.5,+0.5);
+
+	const keyColors = ["blue", "yellow", "red"];
+	const keyClassRefs = [blueKeyEntityClassId, yellowKeyEntityClassId, redKeyEntityClassId];
+	const cheapDoorClassRefs = [cheapBlueDoorEntityClassId, cheapYellowDoorEntityClassId, cheapRedDoorEntityClassId]
+	for( let i=0; i<keyClassRefs.length; ++i ) {
+		gdm.tempStoreObject<EntityClass>( {
+			debugLabel: keyColors[i]+" key",
+			structureType: StructureType.INDIVIDUAL,
+			tilingBoundingBox: HUNIT_CUBE,
+			physicalBoundingBox: keyBoundingBox,
+			visualBoundingBox: keyBoundingBox,
+			isMaze1AutoPickup: true,
+			mass: 0.25, // It's a big key
+		}, keyClassRefs[i])
+		gdm.tempStoreObject<EntityClass>( {
+			debugLabel: "cheap "+keyColors[i]+"-lock door",
+			structureType: StructureType.INDIVIDUAL,
+			tilingBoundingBox: HUNIT_CUBE,
+			physicalBoundingBox: cheapDoorBoundingBox,
+			visualBoundingBox: cheapDoorBoundingBox,
+		}, cheapDoorClassRefs[i]);
+	}
+	
 	const regularTileEntityPaletteRef = makeTileEntityPaletteRef( [
 		null,
 		brikEntityClassId,
@@ -737,6 +815,9 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 		/* 13 */ latticeColumnBgLeftBlockEntityClassId,
 		/* 14 */ brownBrikEntityClassId,
 		/* 15 */ blueBrikEntityClassId,
+		/* 16 */ cheapBlueDoorEntityClassId,
+		/* 17 */ cheapYellowDoorEntityClassId,
+		/* 18 */ cheapRedDoorEntityClassId,
 	], gdm, tileEntityPaletteId);
 
 	// do this as second step because we need to reference that tile tree palette by ID

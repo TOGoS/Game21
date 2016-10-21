@@ -69,10 +69,13 @@ export interface Conductor {
 	endpointPositions : Vector3D[];
 }
 
-export interface EntityInternalSystem {
-	classRef : string;
-	state : KeyedList<any>; // Interpretation of content depends on class
+/** A door that disintegrates when touched with the proper key */
+export interface CheapDoorInternalSystem {
+	classRef: "http://ns.nuke24.net/Game21/EntityInternalSystem/CheapDoor";
+	unlockingItemClassRefs: KeyedList<boolean>; // Keys are class IDs of keys that can unlock it
 }
+
+export type EntityInternalSystem = CheapDoorInternalSystem;
 
 /**
  * These should be considered immutable.
@@ -108,6 +111,8 @@ export interface EntityClass {
 	maxFlyingForce? : number; // Maximum force that can be exerted against the universe so that an entity can maneuver itself in the air
 	climbingSkill? : number; // can climb things with 1-climbingSkill climbability; default = 0
 	normalClimbingSpeed? : number; // Normal maximum speed attained while climbing; default = walking speed
+
+	isMaze1AutoPickup? : boolean;
 	
 	visualRef? : string;
 	
