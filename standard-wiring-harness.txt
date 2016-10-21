@@ -28,6 +28,11 @@ D = Ethernet 1
 G = +120VDC
 H = Power ground
 Z = Fluid 0 (usually water)
-Y = Fluid 1 (usually air)
+Y = Simplified Direct Power Control
 X = Fluid 2
 W = Fluid 3
+
+
+Simplified Direct Power Control (SDPC).
+Contain virtual power (+ or - some voltage) and return (always 0V) wires.
+Can ignore load for simplified simulations with an infinitely powerful power source.

@@ -63,6 +63,12 @@ export interface AttachmentPointClass {
 	mayPassData?  : boolean; // Undefined = false
 }
 
+/** @conceptual */
+export interface Conductor {
+	mediumRef: string; // Same as message transmission mediums, e.g. "http://ns.nuke24.net/Game21/TransmissionMedia/Copper"
+	endpointPositions : Vector3D[];
+}
+
 /**
  * These should be considered immutable.
  */
@@ -107,6 +113,18 @@ export interface EntityClass {
 	// Values are storage attachment zone class references
 	
 	attachmentZoneClasseRefs? : KeyedList<string>;
+	
+	/**
+	 * @conceptual
+	 * Internal systems determine how an entity behaves.
+	 * Some entity class info (e.g. climbing skill) should be moved to system classes.
+	 * e.g.
+	 * - motor -> spends entity's energy attempting to climb when in contact with a direct power rail
+	 *   (e.g. doors, lifts); may be locked or unlocked
+	 * - doorbell -> powers something, may require a key
+	 */
+	internalSystemClassRefs? : KeyedList<string>;
+	internalSystemDefaultStates? : KeyedList<EntityInternalSystemState>;
 }
 
 export interface AttachmentEntity {
@@ -118,6 +136,8 @@ export interface AttachmentZone {
 	classRef : string;
 	items : KeyedList<AttachmentEntity>;
 }
+
+export interface EntityInternalSystemState { } // Fields depend on class!
 
 /**
  * A game object: class + internal state.
@@ -135,6 +155,7 @@ export interface Entity {
 	 * which may be used by behavior and rendering
 	 */ 
 	state? : KeyedList<any>;
+	internalSystemStates? : KeyedList<EntityInternalSystemState>
 	
 	desiredMovementDirection? : Vector3D;
 	

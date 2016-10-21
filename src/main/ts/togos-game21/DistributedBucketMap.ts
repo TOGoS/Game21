@@ -164,7 +164,7 @@ export class DistributedBucketMapManager<T> {
 
 	protected pendingUpdates : KeyedList<T|undefined> = {};
 	protected currentUpdates : KeyedList<T|undefined> = {};
-
+	
 	public fetchValue( k:string ):Promise<T|undefined> {
 		if( this.pendingUpdates.hasOwnProperty(k) ) {
 			return Promise.resolve(this.pendingUpdates[k]);
@@ -174,7 +174,7 @@ export class DistributedBucketMapManager<T> {
 		}
 		return fetchValue(k, this._rootNodeUri, this._datastore);
 	}
-
+	
 	public storeValues( updates:KeyedList<T|undefined> ):Promise<string> {
 		for( let u in updates ) {
 			 this.pendingUpdates[u] = updates[u];

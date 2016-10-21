@@ -20,16 +20,14 @@
 ## Misc to-do items
 
 Random maze generation:
-- 8x8 rooms
-- generate graph
-- translate graph nodes to rooms
-- print out solution (left, right, down, etc)
-Room templates:
-- Bunch of rooms are created by me
-- Corners chosen independently based on open sides
-- Best match with neighbor tile always used
-- Assume all exits of a room are reachable
-- Assume movement 'up' is only possible when there is a ladder.
+- keys, locked doors
+  - maybe cheat on implementation; don't need to simulate everything 
+- cave rooms;
+  - stalactites/stalagmites
+  - multiple horizontally-connected nodes may be generated as a single cave room
+  - tunnel/ladder/bridge through to enforce passability
+- wave function collapse-generated rooms
+- submit to contest by 30th
 
 Maze1:
 - Talk command, show talked messages
@@ -215,3 +213,8 @@ Maze1:
 * Save savegames to server
 * requestAnimationFrame to render scene
 * Generate some kind of packfile (JSON of URN => data as string)
+Random maze generation:
+* 8x8 rooms
+* generate maze graph
+* translate graph nodes to rooms
+* print out solution (left, right, down, etc)
