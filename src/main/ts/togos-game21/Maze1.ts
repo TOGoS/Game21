@@ -298,6 +298,8 @@ export class MazeView {
 	}
 	
 	public getTileEntityAt( coords:Vector3D, tileSize:number=1 ):TileEntity|undefined {
+		let closestMatchValue = 0;
+		let closestMatch:TileEntity = undefined;
 		const viewItems = this._viewage.visualEntities;
 		for( let i in viewItems ) {
 			const vi = viewItems[i];
@@ -305,16 +307,22 @@ export class MazeView {
 			const gdm = this._gameDataManager;
 			if( te && gdm ) {
 				const ec = gdm.getObjectIfLoaded<EntityClass>(te.classRef);
-				if( ec && ec.tilingBoundingBox.maxX-ec.tilingBoundingBox.minX == tileSize && offsetAabbContainsVector(vi.position, ec.tilingBoundingBox, coords) ) {
-					return {
-						orientation: vi.orientation || Quaternion.IDENTITY,
-						entity: te
+				if( ec && offsetAabbContainsVector(vi.position, ec.tilingBoundingBox, coords) ) {
+					let matchValue = 1;
+					if( ec.tilingBoundingBox.maxX-ec.tilingBoundingBox.minX == tileSize ) {
+						++matchValue;
+					}
+					if( matchValue > closestMatchValue ) {
+						closestMatch = {
+							orientation: vi.orientation || Quaternion.IDENTITY,
+							entity: te
+						};
+						closestMatchValue = matchValue;
 					}
 				}
-				
 			}
 		}
-		return undefined;
+		return closestMatch;
 	}
 	
 	public clear():void {
