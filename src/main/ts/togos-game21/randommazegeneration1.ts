@@ -1,6 +1,17 @@
 /// <reference path="../Promise.d.ts"/>
 /// <reference path="../node.d.ts"/>
 
+import {
+	blueKeyEntityClassId,
+	yellowKeyEntityClassId,
+	redKeyEntityClassId,
+	cheapBlueDoorEntityClassId,
+	cheapYellowDoorEntityClassId,
+	cheapRedDoorEntityClassId,
+	keyClassRefs,
+	keyDoorClassRefs,
+} from './maze1demodata';
+
 interface MazeGraphNode {
 	id : number;
 	// east, south, west, north neighbors
@@ -9,15 +20,19 @@ interface MazeGraphNode {
 	ladderDown : boolean;
 	isStartRoom : boolean;
 	isEndRoom : boolean;
+	keysRequired : KeyedList<boolean>; // Key class => true
 	distanceFromEnd? : number;
 	roomRef? : string;
+	items : KeyedList<string>; // Arbitray item key => class ref
 }
 
 type MazeLinkDirection = number;
 
 interface MazeGraph {
-	solution : MazePath;
+	//solution : MazePath;
 	nodes : MazeGraphNode[]
+	startNodeId : number;
+	endNodeId : number;
 };
 
 // Algorithm!
@@ -30,6 +45,8 @@ function blankMazeNode(id:number):MazeGraphNode {
 	return {
 		id: id,
 		neighborIds: [undefined, undefined, undefined, undefined],
+		items: {},
+		keysRequired: {},
 		ladderUp: false,
 		ladderDown: false,
 		isStartRoom: false,
@@ -37,8 +54,9 @@ function blankMazeNode(id:number):MazeGraphNode {
 	};
 }
 
-function newMazeNode(nodes:MazeGraphNode[]):MazeGraphNode {
+function newMazeNode(nodes:MazeGraphNode[], template?:MazeGraphNode):MazeGraphNode {
 	const newNode = blankMazeNode(nodes.length);
+	if( template ) newNode.keysRequired = template.keysRequired;
 	nodes.push(newNode);
 	return newNode;
 }
@@ -61,8 +79,15 @@ const EVERYTHING_FITS = (t:any)=>1;
 
 function pickLinkDirection(
 	node0:MazeGraphNode, node1?:MazeGraphNode,
-	fitnessFunction:(dir:number)=>number=EVERYTHING_FITS
+	fitnessFunction?:(dir:number)=>number
 ):number {
+	if( !fitnessFunction ) {
+		if( node1 && !isSameSet(node0.keysRequired, node1.keysRequired) ) {
+			fitnessFunction = dir => directionIsHorizontal(dir) ? 1 : 0;
+		} else {
+			fitnessFunction = EVERYTHING_FITS;
+		}
+	}
 	const rs = Math.floor(Math.random()*4);
 	for( let i=0; i<4; ++i ) {
 		const dir0 = (i + rs) % 4;
@@ -88,6 +113,10 @@ const DIR_DOWN  = 1;
 const DIR_LEFT  = 2;
 const DIR_UP    = 3;
 
+function directionIsVertical( dir:number ):boolean {
+	return (dir == DIR_DOWN) || (dir == DIR_UP);
+}
+
 function directionIsHorizontal( dir:number ):boolean {
 	return (dir == DIR_RIGHT) || (dir == DIR_LEFT);
 }
@@ -102,7 +131,12 @@ function directionIsHorizontal( dir:number ):boolean {
  */
 function connectNodes(node0:MazeGraphNode, dir0:number|undefined, node1:MazeGraphNode, bidirectional:boolean|undefined):void {
 	if( dir0 == undefined ) {
-		const dirFitness = bidirectional == false ? ((dir:number) => dir == DIR_DOWN ? 1 : 0) : EVERYTHING_FITS; 
+		const allowVertical = isSameSet(node0.keysRequired, node1.keysRequired);
+		const dirFitness = (dir:number) => {
+			if( !allowVertical && directionIsVertical(dir) ) return 0;
+			if( bidirectional == false && dir != DIR_DOWN ) return 0;
+			return 1;
+		}; 
 		dir0 = pickLinkDirection(node0, node1, dirFitness);
 	}
 	
@@ -143,9 +177,10 @@ interface MazeGenerationOptions {
 	primaryPathLength : number;
 	maxRoomCount : number;
 	allowOneWaysInPrimaryPath : boolean;
+	requiredKeyCount : number;
 }
 
-function generatePrimaryPath(nodes:MazeGraphNode[], startNodeId:number, opts:MazeGenerationOptions):MazePath {
+function generatePrimaryPath(nodes:MazeGraphNode[], startNodeId:number, opts:MazeGenerationOptions, additionallyRequiredKeys:KeyedList<boolean>={}):MazePath {
 	let len = opts.primaryPathLength;
 	let curNodeId = startNodeId;
 	const path:MazePath = {
@@ -156,8 +191,8 @@ function generatePrimaryPath(nodes:MazeGraphNode[], startNodeId:number, opts:Maz
 	while( len > 0 ) {
 		const curNode = nodes[curNodeId];
 		const newNodeId = nodes.length;
-		const newNode = blankMazeNode(newNodeId);
-		nodes.push(newNode);
+		const newNode = newMazeNode(nodes, curNode);
+		newNode.keysRequired = union(curNode.keysRequired, additionallyRequiredKeys);
 		const dir = pickLinkDirection(curNode, newNode);
 		const pit = dir == DIR_DOWN && opts.allowOneWaysInPrimaryPath && Math.random() < 0.5; 
 		connectNodes(curNode, dir, newNode, !pit);
@@ -167,6 +202,70 @@ function generatePrimaryPath(nodes:MazeGraphNode[], startNodeId:number, opts:Maz
 	}
 	path.endNodeId = curNodeId;
 	return path;
+}
+
+function union<T>( a:KeyedList<T>, b:KeyedList<T> ):KeyedList<T> {
+	let aIsComplete:boolean = true;
+	let bIsComplete:boolean = true;
+	for( let k in a ) if( !b[k] ) bIsComplete = false;
+	if( bIsComplete ) return b;
+	for( let k in b ) if( !a[k] ) aIsComplete = false;
+	if( aIsComplete ) return a;
+	const union:KeyedList<T> = {};
+	for( let k in a ) union[k] = a[k];
+	for( let k in b ) union[k] = b[k];
+	return union;
+}
+
+function isSubset<T>( a:KeyedList<T>, b:KeyedList<T> ):boolean {
+	for( let k in a ) if( !b[k] ) return false;
+	return true;
+}
+
+function isSameSet<T>( a:KeyedList<T>, b:KeyedList<T> ):boolean {
+	return isSubset(a,b) && isSubset(b,a);
+}
+
+function generatePrimaryPaths(nodes:MazeGraphNode[], startNodeId:number, opts:MazeGenerationOptions, ):number {
+	let p0 = generatePrimaryPath(nodes, startNodeId, opts);
+	
+	const keysRequiredForFinish:KeyedList<boolean> = {}
+	for( let i = 0; i < Math.min(keyClassRefs.length, opts.requiredKeyCount); ++i ) {
+		const key = keyClassRefs[i];
+		keysRequiredForFinish[key] = true;
+		let pathToKey:MazePath|undefined;
+		attemptPath: for( let a=0; a<5; ++a ) { 
+			const startNode = pickOne(nodes);
+			try {
+				pathToKey = generatePrimaryPath(nodes, p0.endNodeId, opts);
+			} catch( err ) {
+				continue attemptPath;
+			}
+			nodes[pathToKey.endNodeId].items[key] = key;
+			break attemptPath;
+		}
+		if( pathToKey == undefined ) throw new Error("Failed to create a path");
+		
+		generateBranches(nodes, Math.max(4, opts.maxRoomCount-nodes.length));
+		generateBranches(nodes, Math.max(4, opts.maxRoomCount-nodes.length), {[key]: true});
+	}
+	
+	const startNode = pickOne(nodes);
+	let pathToEnd = generatePrimaryPath(nodes, p0.endNodeId, opts, keysRequiredForFinish);
+	generateBranches(nodes, Math.max(4, opts.maxRoomCount-nodes.length), keysRequiredForFinish);
+	
+	return pathToEnd.endNodeId;
+	
+	// Generate unlocked branches
+	// For each key:
+	//   Pick random node
+	//   Generate primary path
+	//   Place key
+	//   XX Generate normal branches
+	//   XX Generate branches requiring keys
+	// Pick random node
+	//   generate primary path requiring all keys
+	// Generate loops
 }
 
 function pickOne<T>( things:T[] ):T {
@@ -208,34 +307,43 @@ function neighborCount( node:MazeGraphNode ):number {
 	return count;
 }
 
-function digNode( nodes:MazeGraphNode[], node:MazeGraphNode, direction:number, bidirectional:boolean ):MazeGraphNode {
-	const newNode = newMazeNode(nodes);
+function digNode( nodes:MazeGraphNode[], node:MazeGraphNode, direction:number, bidirectional:boolean, additionallyRequiredKeys:KeyedList<boolean>={} ):MazeGraphNode {
+	const newNode = newMazeNode(nodes, node);
+	newNode.keysRequired = union(node.keysRequired, additionallyRequiredKeys);
 	connectNodes( node, direction, newNode, bidirectional );
 	return newNode;
 }
 
-function generateBranches( nodes:MazeGraphNode[], maxRoomCount:number ) {
+function hasFreeHorizontalLinks( node:MazeGraphNode ) {
+	if( node.neighborIds[0] == undefined ) return true;
+	if( node.neighborIds[2] == undefined ) return true;
+	return false;
+} 
+
+function generateBranches( nodes:MazeGraphNode[], maxRoomCount:number, additionallyRequiredKeys:KeyedList<boolean>={} ) {
 	try {
 		while( nodes.length < maxRoomCount ) {
 			const n = pick( nodes, 4, (node:MazeGraphNode):number => {
+				if( !isSubset(additionallyRequiredKeys, node.keysRequired) && !hasFreeHorizontalLinks(node) ) return 0;
 				if( node.isEndRoom ) return 0.1;
 				return Math.min(2, 4 - neighborCount(node));
 			});
-			const dir = pickLinkDirection(n);
-			digNode( nodes, n, dir, true );
+			const needHorizontal = !isSubset(additionallyRequiredKeys, n.keysRequired);
+			const dir = pickLinkDirection(n, undefined, d => (!needHorizontal || directionIsHorizontal(d)) ? 1 : 0);
+			digNode( nodes, n, dir, true, additionallyRequiredKeys );
 		}
 	} catch( err ) {
 		console.warn("Failed to load connect as many branches as we wanted.");
 	}
 }
 
-function populateDistances( graph:MazeGraph, nodeId:number=graph.solution.endNodeId, distance:number=0 ) {
+function populateDistances( graph:MazeGraph, nodeId:number=graph.endNodeId, distance:number=0 ) {
 	const node = graph.nodes[nodeId];
 	if( node.distanceFromEnd != undefined && node.distanceFromEnd <= distance ) return;
 	node.distanceFromEnd = distance;
 	for( let i=0; i<4; ++i ) {
 		if( node.neighborIds[i] != undefined ) {
-			if( i == 1 && !node.ladderDown ) continue; // Ha ha can't jump up here
+			if( i == DIR_DOWN && !node.ladderDown ) continue; // Ha ha can't jump up here
 			populateDistances( graph, node.neighborIds[i], distance+1 );
 		}
 	}
@@ -260,16 +368,19 @@ function connectLoops( nodes:MazeGraphNode[], count:number ) {
 					1 : closeness(n.distanceFromEnd!, n0.distanceFromEnd!);
 				return Math.max(1, (2 - n.neighborIds.length)) * closeyness;
 			});
-			// Make the maze 'hard' by always having one-ways go backwards
-			// (unless the primary path also has one-ways, the player will learn to just never jump down pits)
-			if( n0.distanceFromEnd < n1.distanceFromEnd ) {
+			const allowFallToN1 = (n0.distanceFromEnd < n1.distanceFromEnd) && isSubset(n1.keysRequired, n0.keysRequired);
+			const allowFallToN0 = (n1.distanceFromEnd < n0.distanceFromEnd) && isSubset(n0.keysRequired, n1.keysRequired);
+			// Make the maze 'hard' by always having one-ways go backwards when possible
+			if( allowFallToN1 ) {
 				try {
 					connectNodes(n0, DIR_DOWN, n1, false);
+					return;
 				} catch( err ) {}
 			}
-			if( n1.distanceFromEnd < n0.distanceFromEnd ) {
+			if( allowFallToN0 ) {
 				try {
 					connectNodes(n1, DIR_DOWN, n0, false);
+					return;
 				} catch( err ) {}
 			}
 			// Otherwise just connect them in whatever way possible.
@@ -285,15 +396,17 @@ function generateMazeGraph(opts:MazeGenerationOptions):Promise<MazeGraph> {
 	const nodes:MazeGraphNode[] = [];
 	nodes.push(blankMazeNode(0));
 	nodes[0].isStartRoom = true;
-	const solution = generatePrimaryPath( nodes, 0, opts );
-	nodes[solution.endNodeId].isEndRoom = true;
+	const endNodeId:number = generatePrimaryPaths( nodes, 0, opts );
+	//const solution = 
+	nodes[endNodeId].isEndRoom = true;
 	generateBranches( nodes, opts.maxRoomCount );
-	const mazeGraph = {
-		solution: solution,
-		nodes: nodes,
+	const mazeGraph:MazeGraph = {
+		startNodeId: 0,
+		endNodeId,
+		nodes,
 	};
 	populateDistances(mazeGraph);
-	console.log("Minimum distance: "+nodes[solution.startNodeId].distanceFromEnd);
+	//console.log("Minimum distance: "+nodes[0].distanceFromEnd);
 	connectLoops( nodes, opts.maxRoomCount / 8 );
 	return Promise.resolve(mazeGraph);
 }
@@ -337,8 +450,26 @@ function clamp( min:number, v:number, max:number ) {
 }
 
 function nodeTileIndexes(mgn:MazeGraphNode):number[] {
+	/*
+	 * Bricks:
+	 *  1 = light gray
+	 * 14 = brown
+	 * 15 = blue
+	 * 19 = yellow
+	 * 20 = red
+	 * 21 = gray
+	 */
+	
+	let brik:number;
+	if( mgn.isStartRoom ) brik = 14;
+	else if( mgn.isEndRoom ) brik = 1;
+	else if( mgn.keysRequired[dat.redKeyEntityClassId] ) brik = 20;
+	else if( mgn.keysRequired[dat.yellowKeyEntityClassId] ) brik = 19;
+	else if( mgn.keysRequired[dat.blueKeyEntityClassId] ) brik = 15;
+	else brik = 21;
+	
 	let tileIndexes:number[] = [];
-	for( let i=0; i<64; ++i ) tileIndexes[i] = mgn.isStartRoom ? 1 : mgn.isEndRoom ? 15 : 14;
+	for( let i=0; i<64; ++i ) tileIndexes[i] = brik;
 	
 	const ceilingY   = randInt(1,4);
 	const leftWallX  = randInt(1,4);
@@ -457,6 +588,7 @@ if( typeof require != 'undefined' && typeof module != 'undefined' && require.mai
 		primaryPathLength: 8,
 		maxRoomCount: 16,
 		allowOneWaysInPrimaryPath: true,
+		requiredKeyCount: 2,
 	};
 	
 	let maxRoomCount:number|undefined = undefined;
@@ -494,12 +626,12 @@ if( typeof require != 'undefined' && typeof module != 'undefined' && require.mai
 	console.log("Generating maze graph...");
 	
 	let mg : MazeGraph;
-	generateMazeGraph( mgOpts ).then( (_mg) => {
+	generateMazeGraph( mgOpts ).then( (_mg:MazeGraph) => {
 		mg = _mg;
 		return dat.initData(gdm);
 	}).then( () => gdm.fetchTranslation(dat.tileEntityPaletteId) ).then( (tileEntityPaletteRef) => {
 		return mazeToRooms(mg, gdm, tileEntityPaletteRef);
-	}).then( (mg) => {
+	}).then( (mg:MazeGraph) => {
 		if( addPlayer ) {
 			const rootRoomId = mg.nodes[0].roomRef;
 			if( !rootRoomId ) return Promise.reject(new Error("Oh no, no rootRoomId (when adding player)"));
@@ -513,16 +645,16 @@ if( typeof require != 'undefined' && typeof module != 'undefined' && require.mai
 			}
 		}
 		return mg;
-	}).then( (mg) => {
-		const dirStrs:string[] = mg.solution.directions.map(directionToString);
-		console.log("Solution from "+mg.solution.startNodeId+" to " +mg.solution.endNodeId+": "+dirStrs.join(","));
+	}).then( (mg:MazeGraph) => {
+		//const dirStrs:string[] = mg.solution.directions.map(directionToString);
+		//console.log("Solution from "+mg.solution.startNodeId+" to " +mg.solution.endNodeId+": "+dirStrs.join(","));
 		console.log("Root room ref: "+mg.nodes[0].roomRef);
 		for( let i=0; i<mg.nodes.length; ++i ) {
 			if( mg.nodes[i].isStartRoom ) console.log("Start room: "+mg.nodes[i].roomRef);
 			if( mg.nodes[i].isEndRoom ) console.log("End room: "+mg.nodes[i].roomRef);
 		}
 		return mg;
-	}).then( (mg) => {
+	}).then( (mg:MazeGraph) => {
 		console.log("Saving...");
 		if( saveGame ) return gdm.flushUpdates().then( (gameDataRef) => {
 				const rootRoomId = mg.nodes[0].roomRef;

@@ -272,7 +272,10 @@ function bitImgRef(color0:number|number[],color1:number|number[],pixDat:number[]
 
 const brikImgRef = "bitimg:color0=0;color1="+rgbaToNumber(200,200,180,255)+","+hexEncodeBits(brikPix);
 const brownBrikImgRef = "bitimg:color0=0;color1="+rgbaToNumber(200,180,128,255)+","+hexEncodeBits(brikPix);
+const grayBrikImgRef = "bitimg:color0=0;color1="+rgbaToNumber(128,128,128,255)+","+hexEncodeBits(brikPix);
 const blueBrikImgRef = "bitimg:color0=0;color1="+rgbaToNumber(128,128,220,255)+","+hexEncodeBits(brikPix);
+const yellowBrikImgRef = "bitimg:color0=0;color1="+rgbaToNumber(220,220,128,255)+","+hexEncodeBits(brikPix);
+const redBrikImgRef = "bitimg:color0=0;color1="+rgbaToNumber(220,128,128,255)+","+hexEncodeBits(brikPix);
 const bigBrikImgRef = "bitimg:color0=0;color1="+rgbaToNumber(220,220,200,255)+","+hexEncodeBits(bigBrikPix);
 const bigYellowBrikImgRef = "bitimg:color0=0;color1="+rgbaToNumber(220,220,128,255)+","+hexEncodeBits(bigBrikPix);
 const playerImgRef = "bitimg:color0=0;color1="+rgbaToNumber(224,224,96,255)+","+hexEncodeBits(playerPix);
@@ -425,9 +428,12 @@ export const platformSegmentEntityClassId = 'urn:uuid:819f8257-bcad-4d2f-a64e-0a
 export const platform3EntityClassId = 'urn:uuid:585927b9-b225-49d7-a49a-dff0445a1f78';
 export const tileEntityPaletteId = 'urn:uuid:50c19be4-7ab9-4dda-a52f-cf4cfe2562ac';
 export const playerEntityClassId = 'urn:uuid:416bfc18-7412-489f-a45e-6ff4c6a4e08b';
-export const brikEntityClassId = 'urn:uuid:7164c409-9d00-4d75-8fc6-4f30a5755f77';
-export const brownBrikEntityClassId = 'urn:uuid:7164c409-9d00-4d75-8fc6-4f30a5755f78';
-export const blueBrikEntityClassId = 'urn:uuid:7164c409-9d00-4d75-8fc6-4f30a5755f79';
+export const brikEntityClassId       = 'urn:uuid:7164c409-9d00-4d75-8fc6-4f30a5755f77';
+export const brownBrikEntityClassId  = 'urn:uuid:7164c409-9d00-4d75-8fc6-4f30a5755f78';
+export const blueBrikEntityClassId   = 'urn:uuid:7164c409-9d00-4d75-8fc6-4f30a5755f79';
+export const yellowBrikEntityClassId = 'urn:uuid:7164c409-9d00-4d75-8fc6-4f30a5755f7a';
+export const redBrikEntityClassId    = 'urn:uuid:7164c409-9d00-4d75-8fc6-4f30a5755f7b';
+export const grayBrikEntityClassId   = 'urn:uuid:7164c409-9d00-4d75-8fc6-4f30a5755f7c';
 export const bigBrikEntityClassId = 'urn:uuid:de6fbe4f-a475-46fe-8613-1900d6a5d36c';
 export const plant1EntityClassId = 'urn:uuid:159aa4e5-016a-473d-9be7-5ba492fa899b';
 export const vines1EntityClassId = 'urn:uuid:4ee24c8f-7309-462e-b219-ed60505bdb52';
@@ -461,6 +467,17 @@ export const yellowKeyEntityClassId = 'urn:uuid:f2f4bea7-7a6a-45af-9a70-83c7ce58
 export const cheapBlueDoorEntityClassId   = 'urn:uuid:0575864a-e0d0-4fa4-b84a-a724a66dcb61';
 export const cheapRedDoorEntityClassId    = 'urn:uuid:0575864a-e0d0-4fa4-b84a-a724a66dcb62';
 export const cheapYellowDoorEntityClassId = 'urn:uuid:0575864a-e0d0-4fa4-b84a-a724a66dcb63';
+
+export const keyDoorClassRefs = {
+	blueKeyEntityClassId: cheapBlueDoorEntityClassId,
+	yellowKeyEntityClassId: cheapYellowDoorEntityClassId,
+	redKeyEntityClassId: cheapRedDoorEntityClassId,	
+}
+export const keyClassRefs  = [
+	blueKeyEntityClassId,
+	yellowKeyEntityClassId,
+	redKeyEntityClassId,
+]
 
 /**
  * Returns a promise for the new game data root node URI
@@ -619,7 +636,7 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 	}, door3EntityClassId);
 	
 	gdm.tempStoreObject<EntityClass>( {
-		debugLabel: "bricks",
+		debugLabel: "light gray bricks",
 		structureType: StructureType.INDIVIDUAL,
 		tilingBoundingBox: UNIT_CUBE,
 		physicalBoundingBox: UNIT_CUBE,
@@ -650,7 +667,36 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 		opacity: 1,
 		visualRef: blueBrikImgRef
 	}, blueBrikEntityClassId );
-	
+	gdm.tempStoreObject<EntityClass>( {
+		debugLabel: "yellow bricks",
+		structureType: StructureType.INDIVIDUAL,
+		tilingBoundingBox: UNIT_CUBE,
+		physicalBoundingBox: UNIT_CUBE,
+		visualBoundingBox: UNIT_CUBE,
+		isSolid: true,
+		opacity: 1,
+		visualRef: yellowBrikImgRef
+	}, yellowBrikEntityClassId );
+	gdm.tempStoreObject<EntityClass>( {
+		debugLabel: "red bricks",
+		structureType: StructureType.INDIVIDUAL,
+		tilingBoundingBox: UNIT_CUBE,
+		physicalBoundingBox: UNIT_CUBE,
+		visualBoundingBox: UNIT_CUBE,
+		isSolid: true,
+		opacity: 1,
+		visualRef: redBrikImgRef
+	}, redBrikEntityClassId );
+	gdm.tempStoreObject<EntityClass>( {
+		debugLabel: "gray bricks",
+		structureType: StructureType.INDIVIDUAL,
+		tilingBoundingBox: UNIT_CUBE,
+		physicalBoundingBox: UNIT_CUBE,
+		visualBoundingBox: UNIT_CUBE,
+		isSolid: true,
+		opacity: 1,
+		visualRef: grayBrikImgRef
+	}, grayBrikEntityClassId );
 	
 	gdm.tempStoreObject<EntityClass>( {
 		debugLabel: "big bricks",
@@ -868,6 +914,9 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 		/* 16 */ cheapBlueDoorEntityClassId,
 		/* 17 */ cheapYellowDoorEntityClassId,
 		/* 18 */ cheapRedDoorEntityClassId,
+		/* 19 */ yellowBrikEntityClassId,
+		/* 20 */ redBrikEntityClassId,
+		/* 21 */ grayBrikEntityClassId,
 	], gdm, tileEntityPaletteId);
 
 	// do this as second step because we need to reference that tile tree palette by ID
