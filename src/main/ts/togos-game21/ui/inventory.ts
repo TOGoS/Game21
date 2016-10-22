@@ -73,6 +73,10 @@ export class StorageCompartmentContentUI {
 				renderPromise.then( (slice) => {
 					if( this._itemRenderPromises[i] !== renderPromise ) return;
 					itemElement.style.backgroundImage = 'url("'+slice.sheetRef+'")';
+				}, (err) => {
+					if( this._itemRenderPromises[i] !== renderPromise ) return;
+					itemElement.style.backgroundImage = 'red';
+					console.error("Error rendering tile palette item "+i+":", err);
 				});
 			}
 		}

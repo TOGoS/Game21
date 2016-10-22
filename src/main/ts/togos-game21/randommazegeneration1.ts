@@ -256,7 +256,7 @@ function connectLoops( nodes:MazeGraphNode[], count:number ) {
 			const n1 = pick(nodes, 4, (n) => {
 				if( !nodesConnectable(n,n0) ) return 0;
 				// If they can be connected vertically
-				const closeyness:number = nodesConnectable(n0,n1, (dir) => dir == DIR_DOWN ? 1 : 0) ?
+				const closeyness:number = nodesConnectable(n0,n, (dir) => dir == DIR_DOWN ? 1 : 0) ?
 					1 : closeness(n.distanceFromEnd!, n0.distanceFromEnd!);
 				return Math.max(1, (2 - n.neighborIds.length)) * closeyness;
 			});

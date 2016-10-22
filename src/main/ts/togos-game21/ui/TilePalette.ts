@@ -49,11 +49,13 @@ export default class TilePalette {
 					this.imageUrls[index] = url;
 					this.tileElements[index].style.backgroundImage = url ? "url('"+url+"')" : null;
 				}
-			}).catch( (err) => {
+			}, (err) => {
 				console.error(
 					"Failed to render entity for slot "+index+", class = "+tileEntity.entity.classRef+";",
 					err
 				);
+				this.imageUrls[index] = null;
+				this.tileElements[index].style.background = "red";
 			});
 		} else {
 			console.warn("Can't render tiles; no renderer configured on tile palette")

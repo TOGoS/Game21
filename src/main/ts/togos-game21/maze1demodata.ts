@@ -232,22 +232,22 @@ const keyPix = [
 	0,1,1,1,0,1,0,1,
 ]
 const cheapDoorPix = [
-	0,0,0,0,1,1,0,1,1,0,1,1,0,0,0,0,
-	0,0,0,0,1,1,0,1,1,0,1,1,0,0,0,0,
-	0,0,0,0,0,1,1,0,0,1,1,0,0,0,0,0,
-	0,0,0,0,1,1,0,1,1,0,1,1,0,0,0,0,
-	0,0,0,0,1,1,0,1,1,0,1,1,0,0,0,0,
-	0,0,0,0,0,1,1,0,0,1,1,0,0,0,0,0,
-	0,0,0,0,1,1,0,1,1,0,1,1,0,0,0,0,
-	0,0,0,0,1,1,0,1,1,0,1,1,0,0,0,0,
-	0,0,0,0,1,1,0,1,1,0,1,1,0,0,0,0,
-	0,0,0,0,1,1,0,1,1,0,1,1,0,0,0,0,
-	0,0,0,0,0,1,1,0,0,1,1,0,0,0,0,0,
-	0,0,0,0,1,1,0,1,1,0,1,1,0,0,0,0,
-	0,0,0,0,1,1,0,1,1,0,1,1,0,0,0,0,
-	0,0,0,0,0,1,1,0,0,1,1,0,0,0,0,0,
-	0,0,0,0,1,1,0,1,1,0,1,1,0,0,0,0,
-	0,0,0,0,1,1,0,1,1,0,1,1,0,0,0,0,
+	0,1,1,0,1,1,0,1,1,0,
+	0,1,1,0,1,1,0,1,1,0,
+	0,0,1,1,0,0,1,1,0,0,
+	0,1,1,0,1,1,0,1,1,0,
+	0,1,1,0,1,1,0,1,1,0,
+	0,1,1,0,1,1,0,1,1,0,
+	0,0,1,1,0,0,1,1,0,0,
+	0,1,1,0,1,1,0,1,1,0,
+	0,1,1,0,1,1,0,1,1,0,
+	0,1,1,0,1,1,0,1,1,0,
+	0,0,1,1,0,0,1,1,0,0,
+	0,1,1,0,1,1,0,1,1,0,
+	0,1,1,0,1,1,0,1,1,0,
+	0,1,1,0,1,1,0,1,1,0,
+	0,0,1,1,0,0,1,1,0,0,
+	0,1,1,0,1,1,0,1,1,0,
 ]
 
 function bitImgColor(c:number|number[]):number {
@@ -259,8 +259,13 @@ function bitImgColor(c:number|number[]):number {
 	}
 	throw new Error("BitImg color parameter must be a number of array of length 3 or 4");
 }
-function bitImgRef(color0:number|number[],color1:number|number[],pixDat:number[]):string {
-	return "bitimg:color="+bitImgColor(color0)+";color1="+bitImgColor(color1)+","+hexEncodeBits(pixDat);
+function bitImgRef(color0:number|number[],color1:number|number[],pixDat:number[],width:number=undefined,height:number=undefined):string {
+	const mods = [];
+	if( color0 != 0 ) mods.push("color0="+bitImgColor(color0));
+	mods.push("color1="+bitImgColor(color1));
+	if( width != undefined ) mods.push("width="+width);
+	if( height != undefined ) mods.push("height="+height);
+	return "bitimg:"+mods.join(';')+","+hexEncodeBits(pixDat);
 }
 
 const brikImgRef = "bitimg:color0=0;color1="+rgbaToNumber(200,200,180,255)+","+hexEncodeBits(brikPix);
@@ -281,13 +286,13 @@ const ladder1TopImgRef = "bitimg:width=16;height=4;color1="+rgbaToNumber(128,96,
 const latticeColumnImgRef = "bitimg:color1="+rgbaToNumber(192,192,192,255)+","+hexEncodeBits(latticeColumnPix);
 const latticeColumnBgImgRef = "bitimg:color1="+rgbaToNumber(64,64,64,255)+","+hexEncodeBits(latticeColumnPix);
 
-const blueKeyImgRef = bitImgRef(0,[0,0,192],keyPix);
-const yellowKeyImgRef = bitImgRef(0,[192,192,0],keyPix);
-const redKeyImgRef = bitImgRef(0,[192,0,0],keyPix);
+const blueKeyImgRef   = bitImgRef(0,  [0,  0,192],keyPix,8,4);
+const yellowKeyImgRef = bitImgRef(0,[192,192,  0],keyPix,8,4);
+const redKeyImgRef    = bitImgRef(0,[192,  0,  0],keyPix,8,4);
 
-const cheapBlueDoorImgRef = bitImgRef(0,[0,0,192],cheapDoorPix);
-const cheapYellowDoorImgRef = bitImgRef(0,[192,192,0],cheapDoorPix);
-const cheapRedDoorImgRef = bitImgRef(0,[192,0,0],cheapDoorPix);
+const cheapBlueDoorImgRef   = bitImgRef(0,[  0,  0,192],cheapDoorPix,10,16);
+const cheapYellowDoorImgRef = bitImgRef(0,[192,192,  0],cheapDoorPix,10,16);
+const cheapRedDoorImgRef    = bitImgRef(0,[192,  0,  0],cheapDoorPix,10,16);
 
 //// Room data
 
@@ -295,40 +300,40 @@ export const room1Id = 'urn:uuid:9d424151-1abf-45c1-b581-170c6eec5941';
 export const room2Id = 'urn:uuid:9d424151-1abf-45c1-b581-170c6eec5942';
 
 const room1Data = [
-	1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
-	0,0,0,0,0,1,0,1,1,0,0,0,0,4,0,0,
-	1,1,0,0,0,1,0,0,0,0,0,0,0,4,0,1,
-	1,1,1,0,1,1,1,1,1,1,2,0,0,4,0,1,
-	1,1,1,0,1,3,8,8,8,8,0,0,0,4,0,1,
-	1,1,1,0,1,1,1,2,2,2,2,2,0,4,0,1,
-	1,0,0,0,0,0,0,0,5,0,0,0,0,4,0,1,
-	1,0,2,2,2,1,1,2,5,1,1,1,0,4,0,0,
-	1,0,2,1,1,1,1,2,5,1,0,2,0,4,0,0,
-	1,0,0,0,2,2,2,2,5,1,0,2,0,4,0,1,
-	0,0,5,0,0,0,0,0,5,0,0,2,0,4,0,0,
-	1,1,5,1,1,1,1,1,1,1,1,1,0,4,0,1,
-	1,1,5,1,1,0,0,2,2,2,2,1,0,4,0,1,
-	1,0,5,0,0,0,0,0,0,1,0,0,0,4,0,1,
-	1,3,5,3,1,1,0,2,2,2,0,1,0,4,0,1,
-	1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+	0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 4, 0, 0,
+	1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 4, 0, 1,
+	1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 2, 0, 0, 4, 0, 1,
+	1, 0,16, 0, 1, 3, 8, 8, 8, 8, 0, 0, 0, 4, 0, 1,
+	1, 0,16, 0, 1, 1, 1, 2, 2, 2, 2, 2, 0, 4, 0, 1,
+	1, 0,16, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 4, 0, 1,
+	1, 0, 2, 2, 2, 1, 1, 2, 5, 1, 1, 1, 0, 4, 0, 0,
+	1, 0, 2, 1, 1, 1, 1, 2, 5, 1, 0, 2, 0, 4, 0, 0,
+	1, 0, 0, 0, 2, 2, 2, 2, 5, 1, 0, 2, 0, 4, 0, 1,
+	0, 0, 5, 0, 0, 0, 0, 0, 5, 0, 0, 2, 0, 4, 0, 0,
+	1, 1, 5, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 4, 0, 1,
+	1, 1, 5, 1, 1, 0, 0, 2, 2, 2, 2, 1, 0, 4, 0, 1,
+	1, 0, 5, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 4, 0, 1,
+	1, 3, 5, 3, 1, 1, 0, 2, 2, 2, 0, 1, 0, 4, 0, 1,
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 ];
 const room2Data = [
-	1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
-	0,0,5,0,0,0,0,0,9,9,0,9,1,0,1,0,
-	1,0,5,0,0,1,0,0,0,0,0,0,1,0,0,0,
-	1,1,1,0,1,1,1,2,7,0,0,0,1,0,0,1,
-	1,1,1,0,1,1,1,2,7,0,0,0,0,0,1,1,
-	1,1,1,0,8,8,4,8,7,0,0,2,2,2,1,1,
-	1,0,0,0,8,8,4,8,7,0,0,0,0,0,0,0,
-	1,0,2,2,2,1,4,2,7,0,0,6,1,3,3,7,
-	1,0,0,0,0,1,4,2,7,0,0,6,1,1,1,7,
-	1,0,0,0,0,0,4,0,0,0,0,6,1,1,1,1,
-	0,0,5,0,0,0,4,0,0,0,0,6,1,0,0,0,
-	1,2,5,1,1,1,1,1,1,3,3,6,1,0,1,1,
-	1,2,5,1,1,0,0,2,2,2,2,1,1,0,0,1,
-	1,2,5,0,0,0,0,0,0,1,0,0,0,0,0,1,
-	1,2,5,0,2,1,0,2,2,2,0,1,0,0,0,1,
-	1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+	0, 0, 5, 0, 0, 0, 0, 0, 9, 9, 0, 9, 1, 0, 1, 0,
+	1, 0, 5, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0,
+	1, 1, 1, 0, 1, 1, 1, 2, 7, 0, 0, 0, 1, 0, 0, 1,
+	1, 1, 1, 0, 1, 1, 1, 2, 7, 0, 0, 0, 0, 0, 1, 1,
+	1, 1, 1, 0, 8, 8, 4, 8, 7, 0, 0, 2, 2, 2, 1, 1,
+	1, 0, 0, 0, 8, 8, 4, 8, 7, 0, 0, 0, 0, 0, 0, 0,
+	1, 0, 2, 2, 2, 1, 4, 2, 7, 0, 0, 6, 1, 3, 3, 7,
+	1, 0, 0, 0, 0, 1, 4, 2, 7, 0, 0, 6, 1, 1, 1, 7,
+	1, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 6, 1, 1, 1, 1,
+	0, 0, 5, 0, 0, 0, 4, 0, 0, 0, 0, 6, 1, 0, 0, 0,
+	1, 2, 5, 1, 1, 1, 1, 1, 1, 3, 3, 6, 1, 0, 1, 1,
+	1, 2, 5, 1, 1, 0, 0, 2, 2, 2, 2, 1, 1, 0, 0, 1,
+	1, 2, 5, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1,
+	1, 2, 5, 0, 2, 1, 0, 2, 2, 2, 0, 1, 0, 0, 0, 1,
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 ];
 const defaultRoomData = [
 	1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
@@ -419,18 +424,19 @@ export const latticeColumnBgLeftBlockEntityClassId = 'urn:uuid:c145afdd-bc60-4c9
 
 export const playerEntityId      = 'urn:uuid:d42a8340-ec03-482b-ae4c-a1bfdec4ba32';
 export const ballEntityId        = 'urn:uuid:10070a44-2a0f-41a1-bcfb-b9e16a6f1b59';
+export const blueKeyEntityId         = 'urn:uuid:fd1935da-f128-4195-8a13-90fbf59ef3bf';
 export const door3EntityId       = 'urn:uuid:1a8455be-8cce-4721-8ccb-7f5644e30081';
 export const platformEntityId    = 'urn:uuid:27c27635-99ba-4ef3-b3ff-445eb9b132e5';
 const room1TileTreeId     = 'urn:uuid:a11ed6ae-f096-4b30-bd39-2a78d39a1385';
 const room2TileTreeId     = 'urn:uuid:67228411-243c-414c-99d7-960f1151b970';
 
-const redKeyEntityClassId    = 'urn:uuid:f2f4bea7-7a6a-45af-9a70-83c7ce58ba31';
-const yellowKeyEntityClassId = 'urn:uuid:f2f4bea7-7a6a-45af-9a70-83c7ce58ba32';
-const blueKeyEntityClassId   = 'urn:uuid:f2f4bea7-7a6a-45af-9a70-83c7ce58ba33';
+export const blueKeyEntityClassId   = 'urn:uuid:f2f4bea7-7a6a-45af-9a70-83c7ce58ba31';
+export const redKeyEntityClassId    = 'urn:uuid:f2f4bea7-7a6a-45af-9a70-83c7ce58ba32';
+export const yellowKeyEntityClassId = 'urn:uuid:f2f4bea7-7a6a-45af-9a70-83c7ce58ba33';
 
-const cheapRedDoorEntityClassId    = 'urn:uuid:0575864a-e0d0-4fa4-b84a-a724a66dcb61';
-const cheapYellowDoorEntityClassId = 'urn:uuid:0575864a-e0d0-4fa4-b84a-a724a66dcb62';
-const cheapBlueDoorEntityClassId   = 'urn:uuid:0575864a-e0d0-4fa4-b84a-a724a66dcb63';
+export const cheapBlueDoorEntityClassId   = 'urn:uuid:0575864a-e0d0-4fa4-b84a-a724a66dcb61';
+export const cheapRedDoorEntityClassId    = 'urn:uuid:0575864a-e0d0-4fa4-b84a-a724a66dcb62';
+export const cheapYellowDoorEntityClassId = 'urn:uuid:0575864a-e0d0-4fa4-b84a-a724a66dcb63';
 
 /**
  * Returns a promise for the new game data root node URI
@@ -748,7 +754,9 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 
 	const keyColors = ["blue", "yellow", "red"];
 	const keyClassRefs = [blueKeyEntityClassId, yellowKeyEntityClassId, redKeyEntityClassId];
+	const keyVisualRefs = [blueKeyImgRef, yellowKeyImgRef, redKeyImgRef];
 	const cheapDoorClassRefs = [cheapBlueDoorEntityClassId, cheapYellowDoorEntityClassId, cheapRedDoorEntityClassId]
+	const cheapDoorVisualRefs = [cheapBlueDoorImgRef, cheapYellowDoorImgRef, cheapRedDoorImgRef];
 	for( let i=0; i<keyClassRefs.length; ++i ) {
 		gdm.tempStoreObject<EntityClass>( {
 			debugLabel: keyColors[i]+" key",
@@ -757,14 +765,19 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 			physicalBoundingBox: keyBoundingBox,
 			visualBoundingBox: keyBoundingBox,
 			isMaze1AutoPickup: true,
+			isAffectedByGravity: true,
+			isSolid: true,
 			mass: 0.25, // It's a big key
+			visualRef: keyVisualRefs[i],
 		}, keyClassRefs[i])
 		gdm.tempStoreObject<EntityClass>( {
 			debugLabel: "cheap "+keyColors[i]+"-lock door",
 			structureType: StructureType.INDIVIDUAL,
 			tilingBoundingBox: HUNIT_CUBE,
-			physicalBoundingBox: cheapDoorBoundingBox,
-			visualBoundingBox: cheapDoorBoundingBox,
+			physicalBoundingBox: doorSegmentBounds,
+			visualBoundingBox: doorSegmentVizBounds,
+			visualRef: cheapDoorVisualRefs[i],
+			opacity: 0.5,
 		}, cheapDoorClassRefs[i]);
 	}
 	
@@ -831,6 +844,12 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 				entity: {
 					id: playerEntityId,
 					classRef: playerEntityClassId
+				}
+			},
+			[blueKeyEntityId]: {
+				position: makeVector(-3.5, -1.5, 0),
+				entity: {
+					classRef: blueKeyEntityClassId
 				}
 			},
 			[room1TileTreeId]: {
