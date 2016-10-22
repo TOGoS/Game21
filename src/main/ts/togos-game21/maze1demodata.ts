@@ -261,8 +261,8 @@ function bitImgColor(c:number|number[]):number {
 	}
 	throw new Error("BitImg color parameter must be a number of array of length 3 or 4");
 }
-function bitImgRef(color0:number|number[],color1:number|number[],pixDat:number[],width:number=undefined,height:number=undefined):string {
-	const mods = [];
+function bitImgRef(color0:number|number[],color1:number|number[],pixDat:number[],width?:number,height?:number):string {
+	const mods:string[] = [];
 	if( color0 != 0 ) mods.push("color0="+bitImgColor(color0));
 	mods.push("color1="+bitImgColor(color1));
 	if( width != undefined ) mods.push("width="+width);
