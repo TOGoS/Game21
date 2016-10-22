@@ -82,6 +82,12 @@ export default class TilePalette {
 		this.triggerSelectListeners();
 	}
 	
+	public setAllSlots( entities:TileEntity[] ) {
+		for( let i=0; i<this.tileEntities.length; ++i ) {
+			this.setSlot(i, entities[i]);
+		}
+	}
+	
 	protected triggerSelectListeners() {
 		for( let t in this.selectListeners ) {
 			this.selectListeners[t]( this._selectedSlotIndex, this.tileEntities[this._selectedSlotIndex] );
@@ -106,6 +112,10 @@ export default class TilePalette {
 	
 	public set entityRenderer(renderer:((ent:Entity, orientation:Quaternion)=>Promise<string|null>)|undefined) {
 		this._renderer = renderer;
+		this.rerenderAll();
+	}
+	
+	protected rerenderAll() {
 		for( let i=0; i<this.tileEntities.length; ++i ) {
 			this.renderSlot(i);
 		}

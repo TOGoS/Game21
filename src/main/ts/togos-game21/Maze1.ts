@@ -834,6 +834,8 @@ export class MazeGamePhysics {
 		return bounceBox;
 	}
 	
+	protected snapGridSize = 1/8;
+	
 	public updateEntities(interval:number):void {
 		const game = this.game;
 		const gdm = game.gameDataManager;
@@ -843,9 +845,35 @@ export class MazeGamePhysics {
 		const rooms = game.activeRooms;
 		const maxWalkForce = 450; // ~100 pounds of force?
 		
-		const snapGridSize = 1/8;
-		
 		const entitiesToMove:{roomId:string, entityId:string, moveOrder:number}[] = [];
+		const snapGridSize = this.snapGridSize;
+		
+		// Auto pickups!
+		for( let r in this.activeRoomIds ) {
+			let room = rooms[r];
+			for( let re in room.roomEntities ) {
+				const roomEntity = room.roomEntities[re];
+				const entity = roomEntity.entity;
+				if( !entity.desiresMaze1AutoPickups ) continue;
+				const entityClass = gdm.getEntityClass(entity.classRef);
+				
+				const pickupFilter:EntityFilter =
+					(roomEntityId:string, roomEntity:RoomEntity, entity:Entity, _entityClass:EntityClass) => _entityClass.isMaze1AutoPickup;
+				const eBb = entityClass.physicalBoundingBox;
+				const pickupBb = makeAabb(
+					eBb.minX-snapGridSize, eBb.minY-snapGridSize, eBb.minZ-snapGridSize,
+					eBb.maxX+snapGridSize, eBb.maxY+snapGridSize, eBb.maxZ+snapGridSize
+				)
+				
+				const foundPickups = this.game.entitiesAt(r, roomEntity.position, pickupBb, pickupFilter);
+				for( let p in foundPickups ) {
+					const foundPickup = foundPickups[p];
+					delete rooms[foundPickup.roomRef].roomEntities[foundPickup.roomEntityId];
+					if( entity.maze1Inventory == undefined ) entity.maze1Inventory = {};
+					entity.maze1Inventory[foundPickup.roomEntityId] = foundPickup.entity;
+				}
+			}
+		}
 		
 		// Collect impulses
 		// impulses from previous step are also included.
@@ -1544,14 +1572,21 @@ export class MazeSimulator {
 		return this.gameDataManager.flushUpdates();
 	}
 	
-	public locateRoomEntity( id:string ):RoomLocation|undefined {
+	public locateRoomEntity( id:string ):FoundEntity|undefined {
 		for( let r in this.rooms ) {
 			const room = this.rooms[r];
 			for( let re in room.roomEntities ) {
 				if( re == id ) {
+					const roomEntity = room.roomEntities[re];
+					const entity = roomEntity.entity;
+					const entityClass = this.gameDataManager.getEntityClass(entity.classRef);
 					return {
 						roomRef: r,
-						position: room.roomEntities[re].position
+						roomEntityId: id,
+						roomEntity,
+						entityPosition: roomEntity.position,
+						entity,
+						entityClass
 					};
 				}
 			}
@@ -1599,6 +1634,7 @@ export class MazeDemo {
 	protected tickRate = 1/32;
 	protected mode:DemoMode = DemoMode.PLAY;
 	public tilePaletteUi:TilePaletteUI;
+	public maze1InventoryUi:TilePaletteUI;
 	public consoleDialog:ConsoleDialogBox;
 	public logger:Logger;
 	public loadingStatusUpdated:(text:string)=>any = (t)=>{};
@@ -1623,8 +1659,10 @@ export class MazeDemo {
 		}
 		if( this.mode == DemoMode.EDIT ) {
 			this.tilePaletteUi.element.style.display = "";
+			this.maze1InventoryUi.element.style.display = "none";
 		} else {
 			this.tilePaletteUi.element.style.display = "none";
+			this.maze1InventoryUi.element.style.display = "";
 		}
 	}
 	
@@ -1649,8 +1687,9 @@ export class MazeDemo {
 		this.maybePaint();
 		const newViewage:MazeViewage = { visualEntities: [] };
 		
-		const playerLoc = this.simulator.locateRoomEntity(this.playerId);
-
+		const foundPlayer = this.simulator.locateRoomEntity(this.playerId);
+		const playerLoc = foundPlayer ? { roomRef: foundPlayer.roomRef, position: foundPlayer.entityPosition } : undefined;
+		
 		if( playerLoc ) {
 			const rasterWidth = 41;
 			const rasterHeight = 31;
@@ -1687,6 +1726,17 @@ export class MazeDemo {
 			newViewage.opacity = opacityRaster;
 		} else {
 			console.log("Failed to locate player, "+this.playerId);
+		}
+		
+		{
+			const invItems:TileEntity[] = [];
+			if( foundPlayer ) {
+				const inv = foundPlayer.entity.maze1Inventory || {};
+				for( let k in inv ) {
+					invItems.push({orientation: Quaternion.IDENTITY, entity: inv[k]});
+				}
+			}
+			this.maze1InventoryUi.setAllSlots(invItems);
 		}
 		
 		const locationDiv = document.getElementById('camera-location-box');
@@ -2146,15 +2196,18 @@ export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string, loadingSt
 	const tpArea = document.getElementById('tile-palette-area');
 	if( tpArea ) {
 		const tpUi = new TilePaletteUI( 16 );
+		const invUi = new TilePaletteUI(3);
 		tpUi.element.style.display = 'none';
 		demo.tilePaletteUi = tpUi;
+		demo.maze1InventoryUi = invUi;
 		tpUi.on('select', (index:number, te:TileEntity|undefined|null) => {
 			demo.paintEntityClassRef = te ? te.entity.classRef : null;
 		});
+		tpArea.appendChild( invUi.element );
 		tpArea.appendChild( tpUi.element );
 		gameLoaded.then( (saveGame) => {
 			const entityRenderer = new TileEntityRenderer(demo.simulator.gameDataManager);
-			tpUi.entityRenderer = (ent:Entity, orientation:Quaternion):Promise<string|null> => {
+			invUi.entityRenderer = tpUi.entityRenderer = (ent:Entity, orientation:Quaternion):Promise<string|null> => {
 				return entityRenderer.entityIcon(ent, orientation).then( (icon) => icon.sheetRef );
 			};
 			const initialPaletteEntityClassRefs:(string|null)[] = [

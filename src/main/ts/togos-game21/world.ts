@@ -42,20 +42,21 @@ export interface AttachmentZone {
 	maxItemCount? : number; // e.g. hands can hold only one item
 }
 
-const AZTYPE_BAG   = "http://ns.nuke24.net/Game21/AttachmentZoneTypes/Bag"  ; // Can hold a (conceptually) unordered set of items
-const AZTYPE_PANEL = "http://ns.nuke24.net/Game21/AttachmentZoneTypes/Panel"; // A 2D grid of connectors
-const AZTYPE_BOX   = "http://ns.nuke24.net/Game21/AttachmentZoneTypes/Box"  ; // A 3D volume with explicitly-placed contents
-const AZTYPE_HAND  = "http://ns.nuke24.net/Game21/AttachmentZoneTypes/Hand" ; // Can hold a single item of arbitrary size
+export const AZTYPE_BAG   = "http://ns.nuke24.net/Game21/AttachmentZoneTypes/Bag"  ; // Can hold a (conceptually) unordered set of items
+export const AZTYPE_PANEL = "http://ns.nuke24.net/Game21/AttachmentZoneTypes/Panel"; // A 2D grid of connectors
+export const AZTYPE_BOX   = "http://ns.nuke24.net/Game21/AttachmentZoneTypes/Box"  ; // A 3D volume with explicitly-placed contents
+export const AZTYPE_HAND  = "http://ns.nuke24.net/Game21/AttachmentZoneTypes/Hand" ; // Can hold a single item of arbitrary size
 
 export interface PegType {
 	/** partner peg type ref => true, if attachable */
 	partnersTo : KeyedList<boolean>;	
 }
 
-export interface AttachmentPointClass {
+export interface AttachmentZoneClass {
 	/** One of the AZTYPE_* constants */
 	attachmentZoneTypeRef : string;
 	
+	// For panel-type zones
 	pegTypeRef? : string;
 	
 	maxForce? : number; // Maximum force that the attachment can withstand; undefined=infinity
@@ -111,7 +112,8 @@ export interface EntityClass {
 	maxFlyingForce? : number; // Maximum force that can be exerted against the universe so that an entity can maneuver itself in the air
 	climbingSkill? : number; // can climb things with 1-climbingSkill climbability; default = 0
 	normalClimbingSpeed? : number; // Normal maximum speed attained while climbing; default = walking speed
-
+	
+	/** @temporary-shortcut */
 	isMaze1AutoPickup? : boolean;
 	
 	visualRef? : string;
@@ -162,9 +164,14 @@ export interface Entity {
 	 * which may be used by behavior and rendering
 	 */ 
 	state? : KeyedList<any>;
-	internalSystems? : KeyedList<EntityInternalSystem>
+	/** @conceptual */
+	internalSystems? : KeyedList<EntityInternalSystem>;
 	
 	desiredMovementDirection? : Vector3D;
+	/** @temporary-shortcut */
+	desiresMaze1AutoPickups? : boolean;
+	/** @temporary-shortcut */
+	maze1Inventory? : KeyedList<Entity>;
 	
 	attachmentZones? : KeyedList<AttachmentZone>;
 }

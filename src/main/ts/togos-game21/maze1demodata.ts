@@ -4,6 +4,8 @@ import { makeAabb } from './aabbs';
 import {
 	Room,
 	EntityClass,
+	AttachmentZoneClass,
+	AZTYPE_HAND,
 	StructureType,
 	TileTree,
 } from './world';
@@ -480,6 +482,14 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 		visualRef: bigYellowBrikImgRef
 	}, bigYellowBrikEntityClassId );
 	
+	const leftHandAttachmentZoneKey = 'urn:uuid:aed817b0-e381-400e-9797-ce9bff56d76d';
+	const rightHandAttachmentZoneKey = 'urn:uuid:8e39b8de-5f0f-4312-889b-d053bdc22649';
+	const playerHandAttachmentZoneClassRef = 'urn:uuid:9ba873f6-eb7b-4f21-859f-9eba85a724c8';
+	
+	gdm.tempStoreObject<AttachmentZoneClass>( {
+		attachmentZoneTypeRef: AZTYPE_HAND
+	}, playerHandAttachmentZoneClassRef);
+	
 	gdm.tempStoreObject<EntityClass>( {
 		debugLabel: "player",
 		structureType: StructureType.INDIVIDUAL,
@@ -497,6 +507,10 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 		normalClimbingSpeed: 2,
 		climbingSkill: 0.5,
 		maxJumpImpulse: 300,
+		attachmentZoneClasseRefs: {
+			[leftHandAttachmentZoneKey]: playerHandAttachmentZoneClassRef,
+			[rightHandAttachmentZoneKey]: playerHandAttachmentZoneClassRef,
+		},
 	}, playerEntityClassId );
 
 	gdm.tempStoreObject<EntityClass>({
@@ -843,8 +857,9 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 				position: makeVector(-4.5, -2.5, 0),
 				entity: {
 					id: playerEntityId,
-					classRef: playerEntityClassId
-				}
+					classRef: playerEntityClassId,
+					desiresMaze1AutoPickups: true,
+				},
 			},
 			[blueKeyEntityId]: {
 				position: makeVector(-3.5, -1.5, 0),
