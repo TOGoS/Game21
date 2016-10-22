@@ -299,7 +299,7 @@ export class MazeView {
 	
 	public getTileEntityAt( coords:Vector3D, tileSize:number=1 ):TileEntity|undefined {
 		let closestMatchValue = 0;
-		let closestMatch:TileEntity = undefined;
+		let closestMatch:TileEntity|undefined = undefined;
 		const viewItems = this._viewage.visualEntities;
 		for( let i in viewItems ) {
 			const vi = viewItems[i];
