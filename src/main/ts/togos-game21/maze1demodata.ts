@@ -300,9 +300,10 @@ const cheapRedDoorImgRef    = bitImgRef(0,[192,  0,  0],cheapDoorPix,10,16);
 
 export const room1Id = 'urn:uuid:9d424151-1abf-45c1-b581-170c6eec5941';
 export const room2Id = 'urn:uuid:9d424151-1abf-45c1-b581-170c6eec5942';
+export const room3Id = 'urn:uuid:9d424151-1abf-45c1-b581-170c6eec5943';
 
 const room1Data = [
-	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,11, 0, 0,10,
 	0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0,13, 0, 0,12,
 	1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0,13, 0, 0,10,
 	1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 2, 0,13, 0, 0,10,
@@ -317,7 +318,25 @@ const room1Data = [
 	1, 1, 5, 1, 1, 0, 0, 1, 1, 1, 1, 1,11, 0, 0,10,
 	1, 0, 5, 0, 0, 0, 0, 8, 8, 8, 0, 0,13, 0, 0,10,
 	1, 3, 5, 3, 1, 1, 0, 2, 2, 2, 0, 1,11, 0, 0,10,
-	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,11, 0, 0,10,
+];
+const room3Data = [
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,11, 0, 0,10,
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,11, 0, 0,10,
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,11, 0, 0,10,
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,11, 0, 0,10,
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,11, 0, 0,10,
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,11, 0, 0,10,
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,11, 0, 0,10,
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,11, 0, 0,10,
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,11, 0, 0,10,
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,11, 0, 0,10,
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,11, 0, 0,10,
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,11, 0, 0,10,
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,11, 0, 0,10,
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,11, 0, 0,10,
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,11, 0, 0,10,
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,11, 0, 0,10,
 ];
 const room2Data = [
 	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
@@ -430,8 +449,10 @@ export const blueKeyEntityId     = 'urn:uuid:fd1935da-f128-4195-8a13-90fbf59ef3b
 export const yellowKeyEntityId   = 'urn:uuid:fd1935da-f128-4195-8a13-90fbf59ef3b2';
 export const door3EntityId       = 'urn:uuid:1a8455be-8cce-4721-8ccb-7f5644e30081';
 export const platformEntityId    = 'urn:uuid:27c27635-99ba-4ef3-b3ff-445eb9b132e5';
-const room1TileTreeId     = 'urn:uuid:a11ed6ae-f096-4b30-bd39-2a78d39a1385';
-const room2TileTreeId     = 'urn:uuid:67228411-243c-414c-99d7-960f1151b970';
+const room1TileTreeId     = 'urn:uuid:a11ed6ae-f096-4b30-bd39-2a78d39a1381';
+const room2TileTreeId     = 'urn:uuid:a11ed6ae-f096-4b30-bd39-2a78d39a1382';
+const room3TileTreeId     = 'urn:uuid:a11ed6ae-f096-4b30-bd39-2a78d39a1383';
+
 
 export const blueKeyEntityClassId   = 'urn:uuid:f2f4bea7-7a6a-45af-9a70-83c7ce58ba31';
 export const redKeyEntityClassId    = 'urn:uuid:f2f4bea7-7a6a-45af-9a70-83c7ce58ba32';
@@ -906,9 +927,19 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 				bounds: roomBounds,
 				roomRef: room2Id					
 			},
+			"n": {
+				offset: makeVector(0, -16, 0),
+				bounds: roomBounds,
+				roomRef: room3Id,
+			},
+			"2": {
+				offset: makeVector(0, +16, 0),
+				bounds: roomBounds,
+				roomRef: room3Id,
+			},
 		}
 	}, room1Id);
-
+	
 	gdm.tempStoreObject<Room>({
 		bounds: roomBounds,
 		roomEntities: {
@@ -938,6 +969,30 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 			},
 		}
 	}, room2Id);
+	
+	gdm.tempStoreObject<Room>({
+		bounds: roomBounds,
+		roomEntities: {
+			[room3TileTreeId]: {
+				position: makeVector(0,0,0),
+				entity: {
+					classRef: makeTileTreeRef( regularTileEntityPaletteRef, 16, 16, 1, room3Data, gdm, { infiniteMass: true } )
+				}
+			}
+		},
+		neighbors: {
+			"n": {
+				offset: makeVector(0, -16, 0),
+				bounds: roomBounds,
+				roomRef: room1Id,
+			},
+			"s": {
+				offset: makeVector(0, +16, 0),
+				bounds: roomBounds,
+				roomRef: room1Id,
+			},
+		}
+	}, room3Id);
 	
 	return Promise.resolve();
 }
