@@ -856,29 +856,48 @@ export class MazeGamePhysics {
 		const entitiesToMove:{roomId:string, entityId:string, moveOrder:number}[] = [];
 		const snapGridSize = this.snapGridSize;
 		
-		// Auto pickups!
+		// Auto pickups!  And door opens.
 		for( let r in this.activeRoomIds ) {
 			let room = rooms[r];
 			for( let re in room.roomEntities ) {
 				const roomEntity = room.roomEntities[re];
 				const entity = roomEntity.entity;
-				if( !entity.desiresMaze1AutoPickups ) continue;
+				if( !entity.desiresMaze1AutoActivation ) continue;
 				const entityClass = gdm.getEntityClass(entity.classRef);
 				
 				const pickupFilter:EntityFilter =
-					(roomEntityId:string, roomEntity:RoomEntity, entity:Entity, _entityClass:EntityClass) => _entityClass.isMaze1AutoPickup;
+					(roomEntityId:string, roomEntity:RoomEntity, entity:Entity, _entityClass:EntityClass) =>
+						_entityClass.structureType != StructureType.INDIVIDUAL ||
+						_entityClass.isMaze1AutoPickup || _entityClass.cheapMaze1DoorKeyClassRef != undefined;
 				const eBb = entityClass.physicalBoundingBox;
 				const pickupBb = makeAabb(
 					eBb.minX-snapGridSize, eBb.minY-snapGridSize, eBb.minZ-snapGridSize,
 					eBb.maxX+snapGridSize, eBb.maxY+snapGridSize, eBb.maxZ+snapGridSize
 				)
 				
-				const foundPickups = this.game.entitiesAt(r, roomEntity.position, pickupBb, pickupFilter);
-				for( let p in foundPickups ) {
-					const foundPickup = foundPickups[p];
-					delete rooms[foundPickup.roomRef].roomEntities[foundPickup.roomEntityId];
-					if( entity.maze1Inventory == undefined ) entity.maze1Inventory = {};
-					entity.maze1Inventory[foundPickup.roomEntityId] = foundPickup.entity;
+				const foundIois = this.game.entitiesAt(r, roomEntity.position, pickupBb, pickupFilter);
+				for( let p in foundIois ) {
+					const foundIoi = foundIois[p];
+					if( foundIoi.entityClass.isMaze1AutoPickup ) {
+						delete rooms[foundIoi.roomRef].roomEntities[foundIoi.roomEntityId];
+						if( entity.maze1Inventory == undefined ) entity.maze1Inventory = {};
+						entity.maze1Inventory[foundIoi.roomEntityId] = foundIoi.entity;
+					}
+					doKey: if( foundIoi.entityClass.cheapMaze1DoorKeyClassRef ) {
+						console.log("Touched cheap door!");
+						const requiredKeyClass = foundIoi.entityClass.cheapMaze1DoorKeyClassRef;
+						const doorClass = foundIoi.entity.classRef;
+						// Does player have one?
+						if( entity.maze1Inventory ) {
+							for( let k in entity.maze1Inventory ) {
+								if( entity.maze1Inventory[k].classRef == requiredKeyClass ) {
+									console.log("U haev key!");
+									this.game.destroyCheapDoor( foundIoi.roomRef, foundIoi.entityPosition, doorClass );
+									break doKey;
+								}
+							}
+						}
+					}
 				}
 			}
 		}
@@ -1345,11 +1364,41 @@ export class MazeSimulator {
 			if( entityClass.structureType == StructureType.TILE_TREE ) {
 				const posWithinTt = subtractVector(pos, roomEntity.position);
 				if( aabbContainsVector(entityClass.tilingBoundingBox, posWithinTt) ) {
+					// TODO: Make sure this works for trees with depth > 1
 					roomEntity.entity.classRef = rewriteTileTree(
 						roomEntity.position, roomEntity.entity.classRef,
 						(ckPos:Vector3D, ckAabb:AABB, currentTileIndex:number, currentTileEntity:TileEntity|null|undefined) => {
-							if( aabbContainsVector(ckAabb, pos) && aabbWidth(ckAabb) == tileScale ) {
+							if( offsetAabbContainsVector(ckPos, ckAabb, pos) && aabbWidth(ckAabb) == tileScale ) {
 								return newTile;
+							} else {
+								return currentTileIndex;
+							}
+						}, this.gameDataManager
+					);
+				}
+			}
+		}
+	}
+	
+	/** @temporary-shortcut */
+	public destroyCheapDoor( roomId:string, pos:Vector3D, doorEntityClass:string ) {
+		// destroy all nearby doorEntityClass tiles in the same root tiletree
+		const aabbOfDestruction = makeAabb(pos.x-0.5, pos.y-2.5, pos.z-0.5, pos.x+0.5, pos.y+2.5, pos.z+0.5);
+		const room = this.getMutableRoom(roomId);
+		for( let re in room.roomEntities ) {
+			const roomEntity = room.roomEntities[re];
+			const entityClass = this.gameDataManager.getEntityClass(roomEntity.entity.classRef);
+			if( entityClass.structureType == StructureType.TILE_TREE ) {
+				const posWithinTt = subtractVector(pos, roomEntity.position);
+				if( aabbContainsVector(entityClass.tilingBoundingBox, posWithinTt) ) {
+					roomEntity.entity.classRef = rewriteTileTree(
+						roomEntity.position, roomEntity.entity.classRef,
+						(ckPos:Vector3D, ckAabb:AABB, currentTileIndex:number, currentTileEntity:TileEntity|null|undefined) => {
+							if(
+								aabbIntersectsWithOffset(ckPos, ckAabb, ZERO_VECTOR, aabbOfDestruction) &&
+								currentTileEntity && currentTileEntity.entity.classRef == doorEntityClass
+							) {
+								return null;
 							} else {
 								return currentTileIndex;
 							}

@@ -303,20 +303,20 @@ export const room2Id = 'urn:uuid:9d424151-1abf-45c1-b581-170c6eec5942';
 
 const room1Data = [
 	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-	0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 4, 0, 0,
-	1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 4, 0, 1,
-	1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 2, 0, 0, 4, 0, 1,
-	1, 0,16, 0, 1, 3, 8, 8, 8, 8, 0, 0, 0, 4, 0, 1,
-	1, 0,16, 0, 1, 1, 1, 2, 2, 2, 2, 2, 0, 4, 0, 1,
-	1, 0,16, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 4, 0, 1,
-	1, 0, 2, 2, 2, 1, 1, 2, 5, 1, 1, 1, 0, 4, 0, 0,
-	1, 0, 2, 1, 1, 1, 1, 2, 5, 1, 0, 2, 0, 4, 0, 0,
-	1, 0, 0, 0, 2, 2, 2, 2, 5, 1, 0, 2, 0, 4, 0, 1,
-	0, 0, 5, 0, 0, 0, 0, 0, 5, 0, 0, 2, 0, 4, 0, 0,
-	1, 1, 5, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 4, 0, 1,
-	1, 1, 5, 1, 1, 0, 0, 2, 2, 2, 2, 1, 0, 4, 0, 1,
-	1, 0, 5, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 4, 0, 1,
-	1, 3, 5, 3, 1, 1, 0, 2, 2, 2, 0, 1, 0, 4, 0, 1,
+	0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0,13, 0, 0,12,
+	1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0,13, 0, 0,10,
+	1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 2, 0,13, 0, 0,10,
+	1, 0,16, 0, 1, 3, 8, 8, 8, 8, 0, 0,13, 0, 0,10,
+	1, 0,16, 0, 1, 1, 1, 2, 2, 2, 2, 2,11, 0, 0,10,
+	1, 0,16, 0, 0, 0, 0, 0, 5, 0, 0, 0,13, 0, 0,10,
+	1, 0, 2, 2, 2, 1, 1, 2, 5, 1, 1, 1,11, 0, 0,12,
+	1, 0, 2, 1, 1, 1, 1, 2, 5, 1, 0, 2,11, 0, 0,12,
+	1, 0, 0, 0, 2, 2, 2, 2, 5, 1, 0, 2,11, 0, 0,10,
+	0, 0, 5, 0, 0, 0, 0, 0, 5, 0, 0, 2,11, 0, 0,12,
+	1, 1, 5, 1, 1, 1, 1, 1, 1, 1, 1, 1,11, 0, 0,10,
+	1, 1, 5, 1, 1, 0, 0, 1, 1, 1, 1, 1,11, 0, 0,10,
+	1, 0, 5, 0, 0, 0, 0, 8, 8, 8, 0, 0,13, 0, 0,10,
+	1, 3, 5, 3, 1, 1, 0, 2, 2, 2, 0, 1,11, 0, 0,10,
 	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 ];
 const room2Data = [
@@ -426,7 +426,8 @@ export const latticeColumnBgLeftBlockEntityClassId = 'urn:uuid:c145afdd-bc60-4c9
 
 export const playerEntityId      = 'urn:uuid:d42a8340-ec03-482b-ae4c-a1bfdec4ba32';
 export const ballEntityId        = 'urn:uuid:10070a44-2a0f-41a1-bcfb-b9e16a6f1b59';
-export const blueKeyEntityId         = 'urn:uuid:fd1935da-f128-4195-8a13-90fbf59ef3bf';
+export const blueKeyEntityId     = 'urn:uuid:fd1935da-f128-4195-8a13-90fbf59ef3b1';
+export const yellowKeyEntityId   = 'urn:uuid:fd1935da-f128-4195-8a13-90fbf59ef3b2';
 export const door3EntityId       = 'urn:uuid:1a8455be-8cce-4721-8ccb-7f5644e30081';
 export const platformEntityId    = 'urn:uuid:27c27635-99ba-4ef3-b3ff-445eb9b132e5';
 const room1TileTreeId     = 'urn:uuid:a11ed6ae-f096-4b30-bd39-2a78d39a1385';
@@ -792,6 +793,7 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 			visualBoundingBox: doorSegmentVizBounds,
 			visualRef: cheapDoorVisualRefs[i],
 			opacity: 0.5,
+			cheapMaze1DoorKeyClassRef: keyClassRefs[i],
 		}, cheapDoorClassRefs[i]);
 	}
 	
@@ -858,7 +860,7 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 				entity: {
 					id: playerEntityId,
 					classRef: playerEntityClassId,
-					desiresMaze1AutoPickups: true,
+					desiresMaze1AutoActivation: true,
 				},
 			},
 			[blueKeyEntityId]: {
@@ -879,8 +881,14 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 					classRef: ballEntityClassId
 				}
 			},
+			[yellowKeyEntityId]: {
+				position: makeVector(-1.5, -3.5, 0),
+				entity: {
+					classRef: yellowKeyEntityClassId
+				}
+			},
 			[platformEntityId]: {
-				position: makeVector(5.5, 0, 0),
+				position: makeVector(6, 0, 0),
 				entity: {
 					classRef: platform3EntityClassId,
 					desiredMovementDirection: makeVector(0, -1.0, 0),

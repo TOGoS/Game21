@@ -115,6 +115,8 @@ export interface EntityClass {
 	
 	/** @temporary-shortcut */
 	isMaze1AutoPickup? : boolean;
+	/** @temporary-shortcut ; replace with entity internal systems; this indicates the key class that will destroy a cheap door */
+	cheapMaze1DoorKeyClassRef? : string;
 	
 	visualRef? : string;
 	
@@ -168,9 +170,18 @@ export interface Entity {
 	internalSystems? : KeyedList<EntityInternalSystem>;
 	
 	desiredMovementDirection? : Vector3D;
-	/** @temporary-shortcut */
-	desiresMaze1AutoPickups? : boolean;
-	/** @temporary-shortcut */
+	/**
+	 * @temporary-shortcut
+	 * Causes entity to automatically pick up items
+	 * and activate things when touching them.
+	 */
+	desiresMaze1AutoActivation? : boolean;
+	/**
+	 * @temporary-shortcut
+	 * A really simple keyed list of inventory items
+	 * because I don't want to deal with attachment zones
+	 * and the whole inventory UI thing yet.
+	 */
 	maze1Inventory? : KeyedList<Entity>;
 	
 	attachmentZones? : KeyedList<AttachmentZone>;

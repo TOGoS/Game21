@@ -48,6 +48,7 @@ class TileEntityPaletteManager {
 		this._palette = pal;
 		return pal.length-1;
 	}
+	// TODO: Not obvious that this adds new ones when not found; maybe make 'addIfNotFound:boolean=false' parameter.
 	public findTileEntity( te:TileEntity|null ):number {
 		const pal = this.palette;
 		for( let i=0; i<pal.length; ++i ) {
@@ -84,6 +85,7 @@ export function rewriteTileTree(
 	const cellWidth  = aabbWidth( ttBb)/tt.xDivisions;
 	const cellHeight = aabbHeight(ttBb)/tt.yDivisions;
 	const cellDepth  = aabbDepth( ttBb)/tt.zDivisions;
+	setAabb(ttRewriteAabb, -cellWidth/2, -cellHeight/2, -cellDepth/2, +cellWidth/2, +cellHeight/2, +cellDepth/2);
 	const minX = ttPos.x+ttBb.minX, minY = ttPos.y+ttBb.minY, minZ = ttPos.z+ttBb.minZ;
 	const indexes = tt.childEntityIndexes;
 	let newIndexes = indexes;
@@ -92,15 +94,18 @@ export function rewriteTileTree(
 			for( let x=0; x<tt.xDivisions; ++x, ++i ) {
 				let tileIndex = indexes[i];
 				setVector(ttRewritePos, minX+(x+0.5)*cellWidth, minY+(y+0.5)*cellHeight, minZ+(z+0.5)*cellDepth);
+				/*
 				setAabb(ttRewriteAabb,
 					minX+    x*cellWidth, minY+    y*cellHeight, minZ+    z*cellDepth,
 					minX+(x+1)*cellWidth, minY+(y+1)*cellHeight, minZ+(z+1)*cellDepth);
+					*/
 				let newIndex = rewrite(ttRewritePos, ttRewriteAabb, tileIndex, pal[tileIndex]);
 				if( typeof newIndex == 'string' ) {
 					newIndex = tepm.findTileEntity( {entity: {classRef:newIndex}, orientation: Quaternion.IDENTITY} );
 				} else if( typeof newIndex == 'object' ) {
 					newIndex = tepm.findTileEntity( <TileEntity>newIndex );
 				}
+				// TODO: some special value to indicate 'recurse'
 				if( typeof newIndex != 'number' ) {
 					throw new Error('non-number return value from rewrite function not yet supported');
 				}
