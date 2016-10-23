@@ -194,5 +194,5 @@ class MazeGenerator {
 if( typeof require != 'undefined' && typeof module != 'undefined' && require.main === module ) {
 	const generator = new MazeGenerator();
 	const maze = generator.generate();
-	console.log("Generated maze with "+maze.nodes.length+" nodes, "+maze.links.length+" links");
+	console.log(JSON.stringify(maze, null, "\t"));
 }
