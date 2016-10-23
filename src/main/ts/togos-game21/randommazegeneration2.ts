@@ -26,7 +26,7 @@ type KeySet = KeyedList<boolean>;
 interface MazeLinkAttributes {
 	locks : KeySet
 	allowsForwardMovement : boolean;
-	allowsBackwardsMovement : boolean;
+	allowsBackwardMovement : boolean;
 	
 	direction? : number;
 }
@@ -34,7 +34,7 @@ interface MazeLinkAttributes {
 const DEFAULT_LINK_ATTRIBUTES:MazeLinkAttributes = {
 	locks: {},
 	allowsForwardMovement: true,
-	allowsBackwardsMovement: true,
+	allowsBackwardMovement: true,
 }
 
 interface MazeLinkEndpoint {
@@ -87,6 +87,28 @@ function pickOne<T>( coll:T[] ):T {
 	if( coll.length == 0 ) throw new Error("Can't pick from zero-length collection");
 	const idx = Math.floor(Math.random()*coll.length);
 	return coll[idx];
+}
+
+function union<T>( a:KeyedList<T>, b:KeyedList<T> ):KeyedList<T> {
+	let aIsComplete:boolean = true;
+	let bIsComplete:boolean = true;
+	for( let k in a ) if( !b[k] ) bIsComplete = false;
+	if( bIsComplete ) return b;
+	for( let k in b ) if( !a[k] ) aIsComplete = false;
+	if( aIsComplete ) return a;
+	const union:KeyedList<T> = {};
+	for( let k in a ) union[k] = a[k];
+	for( let k in b ) union[k] = b[k];
+	return union;
+}
+
+function isSubset<T>( a:KeyedList<T>, b:KeyedList<T> ):boolean {
+	for( let k in a ) if( !b[k] ) return false;
+	return true;
+}
+
+function isSameSet<T>( a:KeyedList<T>, b:KeyedList<T> ):boolean {
+	return isSubset(a,b) && isSubset(b,a);
 }
 
 class MazeGenerator {
@@ -145,7 +167,7 @@ class MazeGenerator {
 			id: newLinkId,
 			endpoint0: { nodeId: n0.id, linkNumber: n0LinkNumber },
 			endpoint1: { nodeId: n1.id, linkNumber: n1LinkNumber },
-			allowsBackwardsMovement: linkAttrs.allowsBackwardsMovement,
+			allowsBackwardMovement: linkAttrs.allowsBackwardMovement,
 			allowsForwardMovement: linkAttrs.allowsForwardMovement,
 			locks: linkAttrs.locks,
 			direction: linkAttrs.direction,
@@ -191,8 +213,103 @@ class MazeGenerator {
 	}
 }
 
+interface MazePlayer {
+	items : KeyedList<string>;
+	nodeId : number;
+}
+
+interface SolveState {
+	player : MazePlayer;
+	solution : MazeSolution;
+}
+
+type MazeSolution = number[]; // link numbers to follow
+
+class MazeTester {
+	protected solveStates:SolveState[] = [];
+	protected enqueuedSolves:KeyedList<number[]> = {};
+	protected deadEnds:KeyedList<number[]> = {};
+	protected solutions:KeyedList<number[]> = {};
+	
+	public constructor(protected maze:Maze) { }
+	
+	protected enqueueSolveStep(state:SolveState):void {
+		const solnId = state.solution.join(",");
+		if( this.enqueuedSolves[solnId] ) return;
+		this.enqueuedSolves[solnId] = state.solution;
+		this.solveStates.push(state);
+	}
+	
+	protected solveStep(state:SolveState):void {
+		const player = state.player;
+		const soln = state.solution;
+		const solnId = soln.join(",");
+		const node = this.maze.nodes[player.nodeId];
+		if( node.items[ITEMCLASS_END] ) {
+			this.solutions[solnId] = soln;
+		}
+		
+		let newItems = union(player.items, node.items);
+		
+		let deadEnd = true;
+		links: for( let l=0; l<node.linkIds.length; ++l ) {
+			const linkId = node.linkIds[l];
+			const link = this.maze.links[linkId];
+			const isForward = (node.id == link.endpoint0.nodeId && l == link.endpoint0.linkNumber);
+			if( isForward && !link.allowsForwardMovement ) continue links;
+			if( isForward && !link.allowsBackwardMovement ) continue links;
+			for( let lock in link.locks ) {
+				if( newItems[lock] ) continue links;
+			}
+			// We can go this way!
+			this.solveStates.push({
+				player: {
+					nodeId: isForward ? link.endpoint1.nodeId : link.endpoint0.nodeId, 
+					items: newItems,
+				},
+				solution: soln.concat( l ),
+			});
+			deadEnd = false;
+		}
+		
+		if( deadEnd ) {
+			this.deadEnds[solnId] = soln;
+		}
+	}
+	
+	public test():MazeSolution|undefined {
+		this.enqueueSolveStep({
+			player: {
+				nodeId: 0,
+				items: {},
+			},
+			solution: [],
+		});
+		for( let i=0; i<1000 && i<this.solveStates.length; ++i ) {
+			this.solveStep(this.solveStates[i]);
+		}
+		for( let solnId in this.deadEnds ) {
+			console.warn("Found dead-end: "+solnId);
+		}
+		let shortestSolutionLength = Infinity;
+		let shortestSolution:MazeSolution|undefined = undefined;
+		for( let solnId in this.solutions ) {
+			const soln = this.solutions[solnId];
+			if( soln.length < shortestSolutionLength ) {
+				shortestSolution = soln;
+				shortestSolutionLength = soln.length;
+			}
+		}
+		return shortestSolution;
+	}
+}
+
 if( typeof require != 'undefined' && typeof module != 'undefined' && require.main === module ) {
 	const generator = new MazeGenerator();
 	const maze = generator.generate();
 	console.log(JSON.stringify(maze, null, "\t"));
+	///
+	console.log("Solving...");
+	const soln = new MazeTester(maze).test();
+	console.log("Shortest solution: "+soln);
 }
