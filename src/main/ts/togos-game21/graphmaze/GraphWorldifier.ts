@@ -248,6 +248,7 @@ class GraphWorldifier {
 	}
 	
 	protected protoRoomSpanToWorldRooms(span:ProtoRoomSpan):void {
+		let itemsPlaced = false;
 		for( let pr in span.protoRooms ) {
 			const protoRoom = span.protoRooms[pr];
 			// TODO: Make more interesting rooms, maybe with the help of generateSpan
@@ -315,14 +316,38 @@ class GraphWorldifier {
 				tileBmp.fill(doorPos, ceilingHeight, 0, doorPos+1, floorHeight, 1, doorTileIndex);
 				doorPos += 2;
 			}
+			
+			const roomEntities:KeyedList<RoomEntity> = {
+				[newUuidRef()]: {
+					position: ZERO_VECTOR,
+					entity: { classRef: makeTileTreeRef(this.tileEntityPaletteRef, roomWidth, roomHeight, roomDepth, tileBmp.data, this.gdm, {infiniteMass:true}) }
+				}
+			};
+						
+			let itemY = floorHeight - roomHeight/2 - 0.5;
+			if( span.node && !itemsPlaced ) placeItems: for( let k in span.node.items ) {
+				const itemClassId = span.node.items[k];
+				let entityClassRef:string;
+				switch( itemClassId ) {
+				case ITEMCLASS_BLUEKEY  : entityClassRef = dat.blueKeyEntityClassId; break;
+				case ITEMCLASS_YELLOWKEY: entityClassRef = dat.yellowKeyEntityClassId; break;
+				case ITEMCLASS_REDKEY   : entityClassRef = dat.redKeyEntityClassId; break;
+				case ITEMCLASS_START    : continue placeItems;
+				case ITEMCLASS_END      : entityClassRef = dat.triforceEntityClassId; break;
+				default: throw new Error("Unknown entity type "+itemClassId);
+				}
+				
+				roomEntities[newUuidRef()] = {
+					position: {x: -0.5, y: itemY, z:0},
+					entity: { classRef: entityClassRef}
+				}
+				--itemY;
+			}
+			itemsPlaced = true; // If there were any
 			const room:Room = {
 				bounds: roomBounds,
-				roomEntities: {
-					[newUuidRef()]: {
-						position: ZERO_VECTOR,
-						entity: { classRef: makeTileTreeRef(this.tileEntityPaletteRef, roomWidth, roomHeight, roomDepth, tileBmp.data, this.gdm, {infiniteMass:true}) }
-					}
-				}, neighbors
+				roomEntities,
+				neighbors
 			}
 			this.gdm.tempStoreObject<Room>( room, protoRoom.id );
 		}
@@ -414,7 +439,11 @@ if( typeof require != 'undefined' && typeof module != 'undefined' && require.mai
 		const startRoom = gdm.getMutableRoom(startRoomId)
 		startRoom.roomEntities[dat.playerEntityId] = {
 			position: ZERO_VECTOR,
-			entity: { classRef: dat.playerEntityClassId }
+			entity: {
+				id: dat.playerEntityId,
+				classRef: dat.playerEntityClassId,
+				desiresMaze1AutoActivation: true,
+			}
 		}
 		gdm.flushUpdates().then( (rootNodeUri) => {
 			if( gdm.getObjectIfLoaded(startRoomId) == undefined ) {

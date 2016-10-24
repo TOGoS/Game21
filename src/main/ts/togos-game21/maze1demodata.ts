@@ -232,7 +232,7 @@ const keyPix = [
 	1,1,0,1,1,1,1,1,
 	1,1,0,1,1,1,1,1,
 	0,1,1,1,0,1,0,1,
-]
+];
 const cheapDoorPix = [
 	0,1,1,0,1,1,0,1,1,0,
 	0,1,1,0,1,1,0,1,1,0,
@@ -250,6 +250,20 @@ const cheapDoorPix = [
 	0,1,1,0,1,1,0,1,1,0,
 	0,0,1,1,0,0,1,1,0,0,
 	0,1,1,0,1,1,0,1,1,0,
+];
+const triforcePix = [
+	0,0,0,0,0,1,1,0,0,0,0,0,
+	0,0,0,0,0,1,1,0,0,0,0,0,
+	0,0,0,0,1,1,1,1,0,0,0,0,
+	0,0,0,0,1,1,1,1,0,0,0,0,
+	0,0,0,1,1,1,1,1,1,0,0,0,
+	0,0,0,1,1,1,1,1,1,0,0,0,
+	0,0,1,1,0,0,0,0,1,1,0,0,
+	0,0,1,1,0,0,0,0,1,1,0,0,
+	0,1,1,1,1,0,0,1,1,1,1,0,
+	0,1,1,1,1,0,0,1,1,1,1,0,
+	1,1,1,1,1,1,1,1,1,1,1,1,
+	1,1,1,1,1,1,1,1,1,1,1,1,
 ]
 
 function bitImgColor(c:number|number[]):number {
@@ -294,6 +308,7 @@ const latticeColumnBgImgRef = "bitimg:color1="+rgbaToNumber(64,64,64,255)+","+he
 const blueKeyImgRef   = bitImgRef(0,  [0,  0,192],keyPix,8,4);
 const yellowKeyImgRef = bitImgRef(0,[192,192,  0],keyPix,8,4);
 const redKeyImgRef    = bitImgRef(0,[192,  0,  0],keyPix,8,4);
+const triforceImgRef  = bitImgRef(0,[200,200,128],triforcePix,12,12);
 
 const cheapBlueDoorImgRef   = bitImgRef(0,[  0,  0,192],cheapDoorPix,10,16);
 const cheapYellowDoorImgRef = bitImgRef(0,[192,192,  0],cheapDoorPix,10,16);
@@ -463,6 +478,7 @@ const room3TileTreeId     = 'urn:uuid:a11ed6ae-f096-4b30-bd39-2a78d39a1383';
 export const blueKeyEntityClassId   = 'urn:uuid:f2f4bea7-7a6a-45af-9a70-83c7ce58ba31';
 export const redKeyEntityClassId    = 'urn:uuid:f2f4bea7-7a6a-45af-9a70-83c7ce58ba32';
 export const yellowKeyEntityClassId = 'urn:uuid:f2f4bea7-7a6a-45af-9a70-83c7ce58ba33';
+export const triforceEntityClassId  = 'urn:uuid:849d75c9-ab5b-476f-9192-c87601d40de0';
 
 export const cheapBlueDoorEntityClassId   = 'urn:uuid:0575864a-e0d0-4fa4-b84a-a724a66dcb61';
 export const cheapRedDoorEntityClassId    = 'urn:uuid:0575864a-e0d0-4fa4-b84a-a724a66dcb62';
@@ -863,6 +879,19 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 			cheapMaze1DoorKeyClassRef: keyClassRefs[i],
 		}, cheapDoorClassRefs[i]);
 	}
+	const triforceBoundingBox = makeAabb(-8/16, -6/16, -8/16, +8/16, +6/16, +8/16);
+	gdm.tempStoreObject<EntityClass>( {
+		debugLabel: "triforce",
+		structureType: StructureType.INDIVIDUAL,
+		tilingBoundingBox: HUNIT_CUBE,
+		physicalBoundingBox: triforceBoundingBox,
+		visualBoundingBox: triforceBoundingBox,
+		isMaze1AutoPickup: true,
+		isAffectedByGravity: true,
+		isSolid: true,
+		mass: 0.25, // It's an average triforce
+		visualRef: triforceImgRef,
+	}, triforceEntityClassId);
 	
 	const regularTileEntityPaletteRef = makeTileEntityPaletteRef( [
 		null,
@@ -937,6 +966,12 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 				position: makeVector(-3.5, -1.5, 0),
 				entity: {
 					classRef: blueKeyEntityClassId
+				}
+			},
+			['the-triforce']: {
+				position: makeVector(-2.5, -1.5, 0),
+				entity: {
+					classRef: triforceEntityClassId
 				}
 			},
 			[room1TileTreeId]: {
