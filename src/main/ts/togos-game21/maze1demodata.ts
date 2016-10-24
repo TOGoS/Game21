@@ -1054,7 +1054,7 @@ if( typeof require != 'undefined' && typeof module != 'undefined' && require.mai
 	const dataIdent = sha1Urn;
 	const ds:Datastore<Uint8Array> = HTTPHashDatastore.createDefault();
 	const gdm:GameDataManager = new GameDataManager(ds);
-	initData(gdm).then( (rootNodeUri) => {
+	initData(gdm).then( () => gdm.flushUpdates() ).then( (rootNodeUri) => {
 		const saveGame = {
 			gameDataRef: rootNodeUri,
 			rootRoomId: room1Id,
