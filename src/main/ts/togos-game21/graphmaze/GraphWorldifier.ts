@@ -8,6 +8,11 @@ import {
 	MazeLink,
 	MazeLinkEndpoint,
 	KeySet,
+	ITEMCLASS_BLUEKEY,
+	ITEMCLASS_YELLOWKEY,
+	ITEMCLASS_REDKEY,
+	ITEMCLASS_END,
+	ITEMCLASS_START,
 } from '../graphmaze';
 import GameDataManager from '../GameDataManager';
 import {
@@ -66,6 +71,7 @@ interface ProtoRoom {
 interface ProtoRoomSpan {
 	id : string;
 	protoRooms : KeyedList<ProtoRoom>;
+	node? : MazeNode;
 }
 
 interface RoomSpanRequirements {
@@ -147,7 +153,7 @@ class GraphWorldifier {
 		return this._tileEntityPaletteRef;
 	}
 	
-	protected generateNodeSpan(id:string, reqs:RoomSpanRequirements):ProtoRoomSpan {
+	protected generateNodeSpan(id:string, reqs:RoomSpanRequirements, node:MazeNode):ProtoRoomSpan {
 		// Is this where 'generate nice room spans' code might go?
 		// e.g. try generating a cavey room or something
 		const spanProtoRooms:KeyedList<ProtoRoom> = {};
@@ -169,7 +175,7 @@ class GraphWorldifier {
 				protoRoom = newRoom;
 			}
 		}
-		return this.protoRoomSpans[id] = { id, protoRooms:spanProtoRooms };
+		return this.protoRoomSpans[id] = { id, protoRooms:spanProtoRooms, node };
 	}
 	
 	protected calculateNodeSpanRequirements( gn:MazeNode ):RoomSpanRequirements {
@@ -249,26 +255,36 @@ class GraphWorldifier {
 			const roomWidth = 8, roomHeight = 8, roomDepth = 1;
 			const roomBounds:AABB = makeAabb(-roomWidth/2, -roomHeight/2, -roomDepth/2, roomWidth/2, roomHeight/2, roomDepth/2);
 			const tileBmp = new Bitmap(roomWidth,roomHeight,roomDepth);
-			tileBmp.fill(0,0,0,roomWidth,roomHeight,roomDepth,1);
-			tileBmp.fill(2,2,0,roomWidth-2,roomHeight-2,1,0);
+			let wallTileIndex:number = 21;
+			if( span.node ) {
+				if( span.node.items[ITEMCLASS_START] ) wallTileIndex = 14;
+				else if( span.node.items[ITEMCLASS_END] ) wallTileIndex = 1;
+				else if( span.node.requiredKeys[ITEMCLASS_REDKEY] ) wallTileIndex = 20;
+				else if( span.node.requiredKeys[ITEMCLASS_YELLOWKEY] ) wallTileIndex = 19;
+				else if( span.node.requiredKeys[ITEMCLASS_BLUEKEY] ) wallTileIndex = 15;
+			}
+			tileBmp.fill(0,0,0,roomWidth,roomHeight,roomDepth,wallTileIndex);
+			const floorHeight = roomHeight - 2;
+			const ceilingHeight = span.node ? 2 : floorHeight-2;
+			tileBmp.fill(2,ceilingHeight,0,roomWidth-2,floorHeight,1,0);
 			// TODO: Add locked doors, items
 			const neighbors:KeyedList<RoomNeighbor> = {};
 			const LADDER_IDX = 5;
 			for( let i=0; i<4; ++i ) {
 				const protoLink = protoRoom.protoLinks[i];
 				if( protoLink ) {
-					const hallWidth = protoLink.attributes.interSpan ? 4 : 2;
+					const hallWidth = protoLink.attributes.interSpan ? 2 : 4;
 					const cx = roomWidth/2, cy=roomHeight/2;
 					const hhw = hallWidth/2;
 					switch( i ) {
 					case DIR_RIGHT:
-						tileBmp.fill(cx, cy-hhw, 0, roomWidth,  cy+hhw, 1, 0); break;
+						tileBmp.fill(cx, floorHeight-hallWidth, 0, roomWidth,  floorHeight, 1, 0); break;
 					case DIR_LEFT :
-						tileBmp.fill( 0, cy-hhw, 0,        cx,  cy+hhw, 1, 0); break;
+						tileBmp.fill( 0, floorHeight-hallWidth, 0,        cx,  floorHeight, 1, 0); break;
 					case DIR_DOWN :
 						tileBmp.fill(cx-hhw, cy, 0, cx+hhw, roomHeight, 1, 0);
 						if( protoLink.attributes.isBidirectional ) {
-							tileBmp.fill(0, cy+1, 0, roomWidth, cy+2, 1, 2);
+							tileBmp.fill(0, floorHeight, 0, roomWidth, floorHeight+1, 1, 2);
 							tileBmp.fill(cx, cy, 0, cx+1,roomHeight, 1, LADDER_IDX)
 						}
 						break;
@@ -286,6 +302,18 @@ class GraphWorldifier {
 						offset: neighborOffset(roomBounds, i, roomBounds) // Eh
 					}
 				}
+			}
+			let doorPos = 2;
+			for( let k in protoRoom.doors ) {
+				let doorTileIndex:number;
+				switch( k ) {
+				case ITEMCLASS_BLUEKEY: doorTileIndex = 16; break;
+				case ITEMCLASS_YELLOWKEY: doorTileIndex = 17; break;
+				case ITEMCLASS_REDKEY: doorTileIndex = 18; break;
+				default: throw new Error("No door tile index known for "+k);
+				}
+				tileBmp.fill(doorPos, ceilingHeight, 0, doorPos+1, floorHeight, 1, doorTileIndex);
+				doorPos += 2;
 			}
 			const room:Room = {
 				bounds: roomBounds,
@@ -314,7 +342,7 @@ class GraphWorldifier {
 		for( let n in this.maze.nodes ) {
 			const node = this.maze.nodes[n];
 			const spanReqs = this.nodeSpanRequirements[n] = this.calculateNodeSpanRequirements(node);
-			this.generateNodeSpan(nodeSpanId(n), spanReqs);
+			this.generateNodeSpan(nodeSpanId(n), spanReqs, node);
 		}
 		for( let linkId in this.maze.links ) {
 			const link = this.maze.links[linkId];
