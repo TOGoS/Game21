@@ -128,6 +128,9 @@ class Bitmap {
 	}
 }
 
+function nodeSpanId(nodeId:number|string):string { return "node"+nodeId; }
+function linkSpanId(linkId:number|string):string { return "link"+linkId; }
+
 class GraphWorldifier {
 	public constructor( protected gdm:GameDataManager, protected maze:Maze ) { }
 	
@@ -214,7 +217,7 @@ class GraphWorldifier {
 		const newRoom = newProtoRoom();
 		newRoom.doors = locks;
 		protoRooms[newRoom.id] = newRoom;
-		const id = "link"+link.id;
+		const id = linkSpanId(link.id);
 		return this.protoRoomSpans[id] = { id:id, protoRooms };
 	}
 	
@@ -311,7 +314,7 @@ class GraphWorldifier {
 		for( let n in this.maze.nodes ) {
 			const node = this.maze.nodes[n];
 			const spanReqs = this.nodeSpanRequirements[n] = this.calculateNodeSpanRequirements(node);
-			this.generateNodeSpan("node"+n, spanReqs);
+			this.generateNodeSpan(nodeSpanId(n), spanReqs);
 		}
 		for( let linkId in this.maze.links ) {
 			const link = this.maze.links[linkId];
@@ -323,19 +326,19 @@ class GraphWorldifier {
 			let needsOwnRoom = false;
 			for( let k in link.locks ) needsOwnRoom = true;
 			
-			const span0Id = "node"+link.endpoint0.nodeId;
-			const span1Id = "node"+link.endpoint0.nodeId;
+			const span0Id = nodeSpanId(link.endpoint0.nodeId);
+			const span1Id = nodeSpanId(link.endpoint1.nodeId);
 			let span2Id:string, span3Id:string;
 			if( needsOwnRoom ) {
 				const linkSpan = this.generateLinkSpan(link, link.locks);
-				span2Id = span3Id = linkSpan.id; 
+				span2Id = span3Id = linkSpan.id;
 			} else {
 				span2Id = span1Id;
 				span3Id = span0Id; 
 			}
 			
 			this.connectSpans(span0Id, linkDir, span2Id, link.allowsForwardMovement && link.allowsBackwardMovement);
-			if( span2Id != span1Id ) this.connectSpans(span1Id, linkDir, span3Id, link.allowsForwardMovement && link.allowsBackwardMovement);
+			if( span2Id != span1Id ) this.connectSpans(span1Id, oppositeDirection(linkDir), span3Id, link.allowsForwardMovement && link.allowsBackwardMovement);
 		}
 		
 		for( let spanId in this.protoRoomSpans ) {
@@ -343,7 +346,7 @@ class GraphWorldifier {
 			this.protoRoomSpanToWorldRooms(span);
 		}
 		
-		const span0 = this.protoRoomSpans["n0"];
+		const span0 = this.protoRoomSpans[nodeSpanId(0)];
 		for( let r in span0.protoRooms ) {
 			return span0.protoRooms[r].id;
 		}
