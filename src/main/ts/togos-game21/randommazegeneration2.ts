@@ -5,18 +5,23 @@
  * 
  * Procedure:
  * - Create start node
+ * - Dig path -> start area
  * - For each key:
  *   - Pick random node from anywhere in the maze
- *   - Random path to first key -> collection A
+ *   - Random path to key -> collection A
  *   - Create some random branches from nodes in collection A -> collection B
  *   - Create some random branches requiring the placed key
  * - Pick a random node
  * - Random path to exit -> collection C
  * - Random branches from nodes in collection C
+ * - Add link loops between areas requiring the same key or
+ *   one way links to areas requiring fewer keys
  * 
- * Where 'random path' means adding a linear string of nodes.
+ * Where 'dig path' means adding a linear string of nodes.
  * 'Random branch' is the same except making a tree instead of a linear path.
  * 
+ * It's fine to include one-way links in any path so long as the end of the path
+ * comes out somewhere 'before' the one-way link (requiring no more keys)
  */
 
 import KeyedList from './KeyedList';
@@ -55,12 +60,9 @@ interface Maze {
 
 const ITEMCLASS_START = 'start';
 const ITEMCLASS_END = 'end';
-import {
-	keyDoorClassRefs,
-	blueKeyEntityClassId,
-	yellowKeyEntityClassId,
-	redKeyEntityClassId,
-} from './maze1demodata';
+const ITEMCLASS_BLUEKEY = 'redKey';
+const ITEMCLASS_YELLOWKEY = 'yellowKey';
+const ITEMCLASS_REDKEY = 'blueKey';
 
 interface MazeNode {
 	id : number;
@@ -112,12 +114,13 @@ function isSameSet<T>( a:KeyedList<T>, b:KeyedList<T> ):boolean {
 }
 
 class MazeGenerator {
-	protected remainingNodeCount : number = 32;
+	protected targetNodeCount : number = 32;
 	protected nodes : MazeNode[] = [];
 	protected links : MazeLink[] = [];
 	protected nodeCollection : MazeNode[] = [];
 	protected selectedNode : MazeNode|undefined;
 	protected startNode : MazeNode;
+	public requireKeys : string[] = [];
 	
 	public newCollection() {
 		this.nodeCollection = [];
@@ -171,7 +174,7 @@ class MazeGenerator {
 			allowsForwardMovement: linkAttrs.allowsForwardMovement,
 			locks: linkAttrs.locks,
 			direction: linkAttrs.direction,
-		}
+		};
 		this.links.push(link);
 		return link;
 	}
@@ -185,7 +188,7 @@ class MazeGenerator {
 		return n1;
 	}
 	
-	public randomPath(len:number) {
+	public digPath(len:number) {
 		while( len > 0 ) {
 			this.selectedNode = this.dig();
 			--len;
@@ -199,9 +202,27 @@ class MazeGenerator {
 	
 	public generate():Maze {
 		this.createStartNode();
-		this.randomPath(2);
+		this.newCollection();
+		this.dig();
+		const stdPathLen = this.targetNodeCount / this.requireKeys.length;
+		this.digPath(2);
+		const startRegion = this.flushCollection();
+		for( let k in this.requireKeys ) {
+			this.selectRandomNode();
+			this.digPath(2);
+			this.placeItem(this.requireKeys[k]);
+		}
+		this.selectRandomNode(startRegion);
+		for( let k in this.requireKeys ) {
+			const keyClassRef = this.requireKeys[k];
+			this.dig({
+				allowsForwardMovement: true,
+				allowsBackwardMovement: true,
+				locks: { [keyClassRef]: true },
+			});
+			this.digPath(2);
+		}
 		this.placeItem(ITEMCLASS_END);
-		const region = this.flushCollection();
 		return this.maze;
 	}
 	
@@ -213,30 +234,45 @@ class MazeGenerator {
 	}
 }
 
-interface MazePlayer {
+interface MazePlayerState {
 	items : KeyedList<string>;
 	nodeId : number;
 }
 
 interface SolveState {
-	player : MazePlayer;
+	player : MazePlayerState;
 	solution : MazeSolution;
 }
 
 type MazeSolution = number[]; // link numbers to follow
 
+function playerStateId(ps:MazePlayerState):string {
+	const itemStrs:string[] = [];
+	for( let k in ps.items ) itemStrs.push(k); 
+	return '@' + ps.nodeId + "+" + itemStrs.join(',');
+}
+
+interface MazeReplayWatcher {
+	at( s:MazePlayerState ):void;
+	passed( linkNumber:number, link:MazeLink ):void;
+}
+
 class MazeTester {
 	protected solveStates:SolveState[] = [];
-	protected enqueuedSolves:KeyedList<number[]> = {};
+	protected enqueuedPlayerStates:KeyedList<boolean> = {};
 	protected deadEnds:KeyedList<number[]> = {};
 	protected solutions:KeyedList<number[]> = {};
+	protected shortestSolution:MazeSolution|undefined;
 	
 	public constructor(protected maze:Maze) { }
 	
 	protected enqueueSolveStep(state:SolveState):void {
-		const solnId = state.solution.join(",");
-		if( this.enqueuedSolves[solnId] ) return;
-		this.enqueuedSolves[solnId] = state.solution;
+		if( this.shortestSolution && state.solution.length > this.shortestSolution.length ) {
+			return;
+		}
+		const stateId = playerStateId(state.player);
+		if( this.enqueuedPlayerStates[stateId] ) return;
+		this.enqueuedPlayerStates[stateId] = true;
 		this.solveStates.push(state);
 	}
 	
@@ -247,27 +283,32 @@ class MazeTester {
 		const node = this.maze.nodes[player.nodeId];
 		if( node.items[ITEMCLASS_END] ) {
 			this.solutions[solnId] = soln;
+			if( this.shortestSolution == undefined || soln.length < this.shortestSolution.length ) {
+				this.shortestSolution = soln;
+			}
 		}
 		
 		let newItems = union(player.items, node.items);
 		
 		let deadEnd = true;
+		const lOffset = Math.floor(Math.random()*node.linkIds.length);
 		links: for( let l=0; l<node.linkIds.length; ++l ) {
-			const linkId = node.linkIds[l];
+			const linkNumber = (lOffset+l) % node.linkIds.length;
+			const linkId = node.linkIds[linkNumber];
 			const link = this.maze.links[linkId];
-			const isForward = (node.id == link.endpoint0.nodeId && l == link.endpoint0.linkNumber);
+			const isForward = (node.id == link.endpoint0.nodeId && linkNumber == link.endpoint0.linkNumber);
 			if( isForward && !link.allowsForwardMovement ) continue links;
 			if( isForward && !link.allowsBackwardMovement ) continue links;
 			for( let lock in link.locks ) {
-				if( newItems[lock] ) continue links;
+				if( !newItems[lock] ) continue links;
 			}
 			// We can go this way!
-			this.solveStates.push({
+			this.enqueueSolveStep({
 				player: {
 					nodeId: isForward ? link.endpoint1.nodeId : link.endpoint0.nodeId, 
 					items: newItems,
 				},
-				solution: soln.concat( l ),
+				solution: soln.concat( linkNumber ),
 			});
 			deadEnd = false;
 		}
@@ -285,31 +326,60 @@ class MazeTester {
 			},
 			solution: [],
 		});
-		for( let i=0; i<1000 && i<this.solveStates.length; ++i ) {
+		for( let i=0; i<this.solveStates.length; ++i ) {
 			this.solveStep(this.solveStates[i]);
 		}
 		for( let solnId in this.deadEnds ) {
 			console.warn("Found dead-end: "+solnId);
 		}
-		let shortestSolutionLength = Infinity;
-		let shortestSolution:MazeSolution|undefined = undefined;
-		for( let solnId in this.solutions ) {
-			const soln = this.solutions[solnId];
-			if( soln.length < shortestSolutionLength ) {
-				shortestSolution = soln;
-				shortestSolutionLength = soln.length;
-			}
+		return this.shortestSolution;
+	}
+	
+	public replaySolution(soln:MazeSolution, watcher:MazeReplayWatcher):void {
+		let playerState:MazePlayerState = {
+			nodeId: 0,
+			items: {[ITEMCLASS_START]: ITEMCLASS_START},
+		};
+		watcher.at(playerState);
+		for( let i in soln ) {
+			const linkNumber = soln[i];
+			const node = this.maze.nodes[playerState.nodeId];
+			const linkId = node.linkIds[linkNumber];
+			const link = this.maze.links[linkId];
+			watcher.passed(linkNumber, link);
+			const newEndpoint = (link.endpoint0.nodeId == playerState.nodeId && link.endpoint0.linkNumber == linkNumber) ? link.endpoint1 : link.endpoint0;
+			const newNode = this.maze.nodes[newEndpoint.nodeId];
+			playerState = {
+				nodeId: newEndpoint.nodeId,
+				items: union(playerState.items, newNode.items),
+			};
+			watcher.at(playerState);
 		}
-		return shortestSolution;
 	}
 }
 
 if( typeof require != 'undefined' && typeof module != 'undefined' && require.main === module ) {
 	const generator = new MazeGenerator();
+	generator.requireKeys = [ITEMCLASS_BLUEKEY];
 	const maze = generator.generate();
 	console.log(JSON.stringify(maze, null, "\t"));
 	///
 	console.log("Solving...");
-	const soln = new MazeTester(maze).test();
+	const tester = new MazeTester(maze);
+	const soln = tester.test();
 	console.log("Shortest solution: "+soln);
+	if( soln ) tester.replaySolution(soln, {
+		at( ps:MazePlayerState ):void {
+			console.log( playerStateId(ps) );
+		},
+		passed( linkNumber:number, link:MazeLink ):void {
+			const lockStrs:string[] = [];
+			for( let k in link.locks ) lockStrs.push(k);
+			console.log( "Take link "+linkNumber+(lockStrs.length == 0 ? "" : " locked by "+lockStrs.join(',')));
+		}
+	});
+	if( !soln ) {
+		console.error("Maze seems unsolveable!");
+		process.exit(1);
+	}
 }
