@@ -1,5 +1,5 @@
-/// <reference path="../Promise.d.ts"/>
-/// <reference path="../node.d.ts"/>
+/// <reference path="../../Promise.d.ts"/>
+/// <reference path="../../node.d.ts"/>
 
 import {
 	blueKeyEntityClassId,
@@ -10,7 +10,7 @@ import {
 	cheapRedDoorEntityClassId,
 	keyClassRefs,
 	keyDoorClassRefs,
-} from './maze1demodata';
+} from '../maze1demodata';
 
 interface MazeGraphNode {
 	id : number;
@@ -411,26 +411,26 @@ function generateMazeGraph(opts:MazeGenerationOptions):Promise<MazeGraph> {
 	return Promise.resolve(mazeGraph);
 }
 
-import KeyedList from './KeyedList';
-import Vector3D from './Vector3D';
-import AABB from './AABB';
+import KeyedList from '../KeyedList';
+import Vector3D from '../Vector3D';
+import AABB from '../AABB';
 import {
 	makeAabb
-} from './aabbs';
-import GameDataManager from './GameDataManager';
+} from '../aabbs';
+import GameDataManager from '../GameDataManager';
 import {
 	Room, RoomNeighbor
-} from './world';
+} from '../world';
 import {
 	connectRooms,
 	makeTileTreeRef,
 	roomNeighborKey,
-} from './worldutil';
+} from '../worldutil';
 import {
 	newType4Uuid,
 	uuidUrn,
-} from '../tshash/uuids';
-import * as dat from './maze1demodata';
+} from '../../tshash/uuids';
+import * as dat from '../maze1demodata';
 
 function fill(tileIndexes:number[], x0:number, y0:number, x1:number, y1:number, tileIndex:number):void {
 	for( let y=y0; y<y1; ++y ) {
@@ -567,10 +567,10 @@ function mazeToRooms(mg:MazeGraph, gdm:GameDataManager, tileEntityPaletteRef:str
 	return Promise.resolve(mg);
 }
 
-import { sha1Urn } from '../tshash/index';
-import Datastore from './Datastore';
-import HTTPHashDatastore from './HTTPHashDatastore';
-import { SaveGame } from './Maze1';
+import { sha1Urn } from '../../tshash/index';
+import Datastore from '../Datastore';
+import HTTPHashDatastore from '../HTTPHashDatastore';
+import { SaveGame } from '../Maze1';
 
 function strictParseInt(r:string, min:number, max:number, ctx:string) {
 	const v = parseInt(r);
