@@ -85,10 +85,15 @@ function nMostFit<T>( coll:T[], count:number, fitnessFunction:FitnessFunction<T>
 	return sorted.slice(0, count).map( ([n,fit]) => n );
 }
 
-function pickOne<T>( coll:T[] ):T {
+function pickOne<T>( coll:T[], fitnessFunction:FitnessFunction<T>=EVERYTHING_FITS ):T {
 	if( coll.length == 0 ) throw new Error("Can't pick from zero-length collection");
-	const idx = Math.floor(Math.random()*coll.length);
-	return coll[idx];
+	const startIdx = Math.floor(Math.random()*coll.length);
+	for( let i=0; i<coll.length; ++i ) {
+		// TODO: This is biased towards finding the first fitting node after a series of unfit ones
+		const idx = (i+startIdx) % coll.length;
+		if( fitnessFunction(coll[idx]) > 0 ) return coll[idx];
+	}
+	throw new Error("No fit items in collection");
 }
 
 function union<T>( a:KeyedList<T>, b:KeyedList<T> ):KeyedList<T> {
@@ -117,18 +122,23 @@ class MazeGenerator {
 	protected targetNodeCount : number = 32;
 	protected nodes : MazeNode[] = [];
 	protected links : MazeLink[] = [];
-	protected nodeCollection : MazeNode[] = [];
-	protected selectedNode : MazeNode|undefined;
+	protected currentNodeCollection : MazeNode[] = [];
+	protected _selectedNode : MazeNode|undefined;
 	protected startNode : MazeNode;
 	public requireKeys : string[] = [];
 	
+	protected get selectedNode() {
+		if( this._selectedNode == undefined ) throw new Error("No selected node!");
+		return this._selectedNode;
+	}
+	
 	public newCollection() {
-		this.nodeCollection = [];
-		return this.nodeCollection;
+		this.currentNodeCollection = [];
+		return this.currentNodeCollection;
 	}
 	
 	public flushCollection() {
-		const c = this.nodeCollection;
+		const c = this.currentNodeCollection;
 		this.newCollection();
 		return c;
 	}
@@ -141,8 +151,8 @@ class MazeGenerator {
 			items: {}
 		};
 		this.nodes.push(n);
-		this.nodeCollection.push(n);
-		this.selectedNode = n;
+		this.currentNodeCollection.push(n);
+		this._selectedNode = n;
 		return n;
 	}
 	
@@ -150,14 +160,13 @@ class MazeGenerator {
 		const n = this.newNode();
 		n.items[ITEMCLASS_START] = ITEMCLASS_START;
 		this.startNode = n;
-		this.selectedNode = n;
 		return n;
 	}
 	
 	public selectRandomNode(collection:MazeNode[]=this.nodes, fitnessfunction:FitnessFunction<MazeNode>=EVERYTHING_FITS, collectionDescription:string="nodes"):MazeNode {
 		const subCollection = fitnessfunction === EVERYTHING_FITS ? collection : nMostFit(collection,4,fitnessfunction,collectionDescription);
 		if( subCollection.length == 0 ) throw new Error("Collection is empty; can't pick "+collectionDescription) 
-		return this.selectedNode = pickOne(subCollection);
+		return this._selectedNode = pickOne(subCollection);
 	}
 	
 	public linkNodes(n0:MazeNode, n1:MazeNode, linkAttrs:MazeLinkAttributes) {
@@ -184,13 +193,13 @@ class MazeGenerator {
 		if( n0 == undefined ) throw new Error("Can't dig; no currently selected node"); 
 		const n1 = this.newNode();
 		this.linkNodes(n0, n1, linkAttrs);
-		//this.selectedNode = n1;
+		this._selectedNode = n1;
 		return n1;
 	}
 	
 	public digPath(len:number) {
 		while( len > 0 ) {
-			this.selectedNode = this.dig();
+			this.dig();
 			--len;
 		}
 	}
@@ -200,27 +209,65 @@ class MazeGenerator {
 		this.selectedNode.items[classRef] = classRef;
 	}
 	
+	protected pickLoopOutputNode() {
+		const inputKeys:KeySet = this.selectedNode.requiredKeys;
+		return pickOne(this.nodes, (n) => {
+			return isSubset(n.requiredKeys, inputKeys) ? 1 / n.linkIds.length : 0;
+		});
+	}
+	
+	protected digOneWayLoop(length:number, endNode:MazeNode=this.pickLoopOutputNode(), entranceLocks:KeySet={}):void {
+		for( let i=0; i<length; ++i ) {
+			this.dig({
+				allowsForwardMovement: true,
+				allowsBackwardMovement: Math.random() < 0.125,
+				locks: i == 0 ? entranceLocks : {},
+			});
+		}
+		this.linkNodes(this.selectedNode!, endNode, {
+			allowsForwardMovement: true,
+			allowsBackwardMovement: false,
+			locks: {}
+		});
+	}
+	
+	protected digBranches(newNodeCount:number, originNodes:MazeNode[]):void {
+		const totalCollection = originNodes.slice();
+		for( let i=0; i<newNodeCount; ++i ) {
+			this._selectedNode = pickOne(totalCollection);
+			totalCollection.push(this.dig());
+		}
+	}
+	
 	public generate():Maze {
 		this.createStartNode();
 		this.newCollection();
 		this.dig();
-		const stdPathLen = this.targetNodeCount / this.requireKeys.length;
-		this.digPath(2);
+		const stdPathLen = Math.max(1, this.targetNodeCount / 2 / (this.requireKeys.length * 3 + 1));
+		this.digPath(stdPathLen-1);
 		const startRegion = this.flushCollection();
+		this.digBranches(stdPathLen, this.flushCollection());
+		
 		for( let k in this.requireKeys ) {
+			this.newCollection();
 			this.selectRandomNode();
 			this.digPath(2);
 			this.placeItem(this.requireKeys[k]);
+			this.digBranches(stdPathLen, this.currentNodeCollection);
 		}
-		this.selectRandomNode(startRegion);
+		
+		// Make path to end
+		this.selectRandomNode();
 		for( let k in this.requireKeys ) {
+			this.newCollection();
 			const keyClassRef = this.requireKeys[k];
 			this.dig({
 				allowsForwardMovement: true,
 				allowsBackwardMovement: true,
 				locks: { [keyClassRef]: true },
 			});
-			this.digPath(2);
+			this.digPath(stdPathLen-1);
+			this.digBranches(stdPathLen, this.currentNodeCollection);
 		}
 		this.placeItem(ITEMCLASS_END);
 		return this.maze;
