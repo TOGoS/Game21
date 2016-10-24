@@ -199,7 +199,7 @@ class GraphWorldifier {
 			const linkId = gn.linkIds[linkNumber];
 			const link = this.maze.links[linkId];
 			const linkDir:number|undefined = this.linkDirections[linkId];
-			if( !linkDir ) throw new Error("linkDir should have been popualted");
+			if( linkDir == undefined ) throw new Error("linkDir should have been popualted");
 			const isForward = (link.endpoint0.nodeId == gn.id && link.endpoint0.linkNumber == linkNumber);
 			const dir = isForward ? linkDir : oppositeDirection(linkDir);
 			++exitsPerSide[dir];
@@ -310,7 +310,8 @@ class GraphWorldifier {
 		}
 		for( let linkId in this.maze.links ) {
 			const link = this.maze.links[linkId];
-			if( !link.direction ) {
+			const linkDir = this.linkDirections[linkId];
+			if( linkDir == undefined ) {
 				throw new Error("Link "+linkId+" has no direction");
 			}
 			
@@ -328,8 +329,8 @@ class GraphWorldifier {
 				span3Id = span0Id; 
 			}
 			
-			this.connectSpans(span0Id, link.direction, span2Id, link.allowsForwardMovement && link.allowsBackwardMovement);
-			if( span2Id != span1Id ) this.connectSpans(span1Id, link.direction, span3Id, link.allowsForwardMovement && link.allowsBackwardMovement);
+			this.connectSpans(span0Id, linkDir, span2Id, link.allowsForwardMovement && link.allowsBackwardMovement);
+			if( span2Id != span1Id ) this.connectSpans(span1Id, linkDir, span3Id, link.allowsForwardMovement && link.allowsBackwardMovement);
 		}
 		
 		for( let spanId in this.protoRoomSpans ) {
