@@ -76,6 +76,8 @@ export default class GameDataManager {
 	}
 	
 	public putMutableObject<T>( ref:string, obj:T ):void {
+		// Make sure it's not also in the regular cache!
+		delete this.objectCache[ref];
 		this.mutableObjects[ref] = obj;
 	}
 	

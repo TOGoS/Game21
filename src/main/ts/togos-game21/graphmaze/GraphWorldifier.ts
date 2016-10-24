@@ -158,7 +158,6 @@ class GraphWorldifier {
 			while( reqs.exitsPerSide[i] > openSides[i] ) {
 				// We gotta dig in a perpendicular direction.
 				const digDir = ((i+1) + Math.floor(Math.random()*2)*2) % 4;
-				console.log("Not enough exit to span "+id+" in direction "+i+"; digging "+digDir+"ward");
 				const newRoom = newProtoRoom();
 				linkProtoRooms(protoRoom, digDir, newRoom, {
 					isBidirectional: true,
@@ -251,7 +250,7 @@ class GraphWorldifier {
 			const roomBounds:AABB = makeAabb(-roomWidth/2, -roomHeight/2, -roomDepth/2, roomWidth/2, roomHeight/2, roomDepth/2);
 			const tileBmp = new Bitmap(roomWidth,roomHeight,roomDepth);
 			tileBmp.fill(0,0,0,roomWidth,roomHeight,roomDepth,1);
-			tileBmp.fill(2,2,2,roomWidth-2,roomHeight-2,roomDepth-2,1);
+			tileBmp.fill(2,2,0,roomWidth-2,roomHeight-2,1,0);
 			// TODO: Add locked doors, items
 			const neighbors:KeyedList<RoomNeighbor> = {};
 			const LADDER_IDX = 5;
@@ -269,6 +268,7 @@ class GraphWorldifier {
 					case DIR_DOWN :
 						tileBmp.fill(cx-hhw, cy, 0, cx+hhw, roomHeight, 1, 0);
 						if( protoLink.attributes.isBidirectional ) {
+							tileBmp.fill(0, cy+1, 0, roomWidth, cy+2, 1, 2);
 							tileBmp.fill(cx, cy, 0, cx+1,roomHeight, 1, LADDER_IDX)
 						}
 						break;
@@ -296,7 +296,7 @@ class GraphWorldifier {
 					}
 				}, neighbors
 			}
-			this.gdm.storeObject<Room>( room, protoRoom.id );
+			this.gdm.tempStoreObject<Room>( room, protoRoom.id );
 		}
 	}
 	
@@ -389,6 +389,9 @@ if( typeof require != 'undefined' && typeof module != 'undefined' && require.mai
 			entity: { classRef: dat.playerEntityClassId }
 		}
 		gdm.flushUpdates().then( (rootNodeUri) => {
+			if( gdm.getObjectIfLoaded(startRoomId) == undefined ) {
+				throw new Error("Failed to find start room in "+rootNodeUri);
+			}
 			const sg:SaveGame = {
 				gameDataRef: rootNodeUri,
 				playerId: dat.playerEntityId,
@@ -396,7 +399,7 @@ if( typeof require != 'undefined' && typeof module != 'undefined' && require.mai
 			};
 			return gdm.storeObject(sg);
 		}).then( (saveRef) => {
-			console.log("Saved world as "+saveRef);
+			console.log(saveRef);
 		});
 	}).catch( (err) => {
 		console.error("Error! ", err);
