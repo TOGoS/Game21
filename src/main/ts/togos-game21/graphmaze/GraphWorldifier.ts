@@ -147,25 +147,27 @@ class GraphWorldifier {
 	protected generateNodeSpan(id:string, reqs:RoomSpanRequirements):ProtoRoomSpan {
 		// Is this where 'generate nice room spans' code might go?
 		// e.g. try generating a cavey room or something
-		const protoRooms:KeyedList<ProtoRoom> = {};
+		const spanProtoRooms:KeyedList<ProtoRoom> = {};
 		const openSides = [1,1,1,1];
 		let protoRoom = newProtoRoom();
-		protoRooms[protoRoom.id] = protoRoom;
+		spanProtoRooms[protoRoom.id] = protoRoom;
 		for( let i=0; i<reqs.exitsPerSide.length; ++i ) {
-			if( reqs.exitsPerSide[i] > openSides[i] ) {
+			while( reqs.exitsPerSide[i] > openSides[i] ) {
 				// We gotta dig in a perpendicular direction.
 				const digDir = ((i+1) + Math.floor(Math.random()*2)*2) % 4;
+				console.log("Not enough exit to span "+id+" in direction "+i+"; digging "+digDir+"ward");
 				const newRoom = newProtoRoom();
 				linkProtoRooms(protoRoom, digDir, newRoom, {
 					isBidirectional: true,
 					interSpan: false,
 				});
-				protoRoom = newRoom;
+				spanProtoRooms[newRoom.id] = newRoom;
 				++openSides[i];
 				++openSides[oppositeDirection(i)];
+				protoRoom = newRoom;
 			}
 		}
-		return this.protoRoomSpans[id] = { id, protoRooms };
+		return this.protoRoomSpans[id] = { id, protoRooms:spanProtoRooms };
 	}
 	
 	protected calculateNodeSpanRequirements( gn:MazeNode ):RoomSpanRequirements {
@@ -217,11 +219,14 @@ class GraphWorldifier {
 	}
 	
 	protected findRoomWithOpenWall(span:ProtoRoomSpan, direction:number):ProtoRoom {
+		let roomCount = 0;
 		for( let r in span.protoRooms ) {
 			const room = span.protoRooms[r];
 			if( room.protoLinks[direction] == null ) return room;
+			++roomCount;
 		}
-		throw new Error("No open "+direction+" wall in span "+span.id);
+		console.error("Span "+span.id+": "+JSON.stringify(span,null,"\t"));
+		throw new Error("No open "+direction+" wall in span "+span.id+"; size="+roomCount);
 	}
 	
 	protected connectSpans(span0Id:string, dir:number, span1Id:string, isBidirectional:boolean):void {
