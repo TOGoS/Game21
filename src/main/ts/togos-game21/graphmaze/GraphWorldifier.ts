@@ -94,12 +94,18 @@ function pickLinkDirection( usedDirections:number[], link:MazeLink ):number {
 	if( link.allowsForwardMovement && !link.allowsBackwardMovement ) return DIR_DOWN;
 	if( link.allowsBackwardMovement && !link.allowsForwardMovement ) return DIR_UP;
 	
-	let minDir = DIR_RIGHT;
+	let minDirs:number[] = [];
+	let minCount = Infinity;
 	for( let i=0; i<4; ++i ) {
 		if( hasLocks && (i == DIR_UP || i == DIR_DOWN) ) continue;
-		if( usedDirections[i] < usedDirections[minDir] ) minDir = i;
+		if( usedDirections[i] == minCount ) {
+			minDirs.push(i);
+		} else if( usedDirections[i] < minCount ) {
+			minDirs = [i];
+			minCount = usedDirections[i];
+		}
 	}
-	return minDir;
+	return minDirs[randInt(0,minDirs.length-1)];
 }
 
 function newProtoRoom():ProtoRoom {
@@ -144,6 +150,10 @@ class Bitmap {
 function randInt(min:number, max:number) {
 	const m = Math.floor(max-min)+1;
 	return min + Math.floor( m * Math.random() );
+}
+
+function rot2<T>( t:T[] ) {
+	return [t[2],t[3],t[0],t[1]];
 }
 
 function nodeSpanId(nodeId:number|string):string { return "node"+nodeId; }
@@ -210,9 +220,12 @@ class GraphWorldifier {
 			const linkDir:number|undefined = this.linkDirections[linkId];
 			if( linkDir == undefined ) {
 				const isForward = (link.endpoint0.nodeId == gn.id && link.endpoint0.linkNumber == linkNumber);
-				const dir = pickLinkDirection(linkCounts, link);
-				++linkCounts[dir];
-				this.linkDirections[linkId] = isForward ? dir : oppositeDirection(dir);
+				
+				const linkCounts2 = isForward ? linkCounts : rot2(linkCounts);
+				const linkDir = pickLinkDirection(linkCounts2, link);
+				this.linkDirections[linkId] = linkDir;
+				
+				++linkCounts[isForward ? linkDir : oppositeDirection(linkDir)];
 			}
 		}
 		
@@ -391,6 +404,7 @@ class GraphWorldifier {
 			const protoRoomSpan = this.generateProtoRoomSpan(spanReqs, node);
 			this.protoRoomSpans[id] = protoRoomSpan;
 		}
+		
 		for( let linkId in this.maze.links ) {
 			const link = this.maze.links[linkId];
 			const linkDir = this.linkDirections[linkId];
