@@ -133,6 +133,11 @@ class Bitmap {
 	}
 }
 
+function randInt(min:number, max:number) {
+	const m = Math.floor(max-min)+1;
+	return min + Math.floor( m * Math.random() );
+}
+
 function nodeSpanId(nodeId:number|string):string { return "node"+nodeId; }
 function linkSpanId(linkId:number|string):string { return "link"+linkId; }
 
@@ -262,39 +267,52 @@ class GraphWorldifier {
 				else if( span.node.requiredKeys[ITEMCLASS_YELLOWKEY] ) wallTileIndex = 19;
 				else if( span.node.requiredKeys[ITEMCLASS_BLUEKEY] ) wallTileIndex = 15;
 			}
-			tileBmp.fill(0,0,0,roomWidth,roomHeight,roomDepth,wallTileIndex);
 			const floorHeight = roomHeight - 2;
-			const ceilingHeight = span.node ? 2 : floorHeight-2;
-			tileBmp.fill(2,ceilingHeight,0,roomWidth-2,floorHeight,1,0);
-			// TODO: Add locked doors, items
+			const ceilingHeight = span.node ? randInt(1,floorHeight-2) : floorHeight-2;
 			const neighbors:KeyedList<RoomNeighbor> = {};
 			const LADDER_IDX = 5;
+			
+			const cx = roomWidth/2;
+			
+			const rightProtoLink = protoRoom.protoLinks[DIR_RIGHT];
+			const leftProtoLink = protoRoom.protoLinks[DIR_LEFT];
+			const topProtoLink = protoRoom.protoLinks[DIR_UP];
+			const bottomProtoLink = protoRoom.protoLinks[DIR_DOWN];
+			
+			const platformTileIndex = 2;
+
+			tileBmp.fill(0,0,0,roomWidth,roomHeight,roomDepth,wallTileIndex);
+			tileBmp.fill(2,ceilingHeight,0,roomWidth-2,floorHeight,1,0);
+			
+			if( rightProtoLink ) {
+				const hallWidth = rightProtoLink.attributes.interSpan ? 2 : 4;
+				tileBmp.fill(cx, floorHeight-hallWidth, 0, roomWidth,  floorHeight, 1, 0);
+			}
+			if( leftProtoLink ) {
+				const hallWidth = leftProtoLink.attributes.interSpan ? 2 : 4;
+				tileBmp.fill( 0, floorHeight-hallWidth, 0,        cx,  floorHeight, 1, 0);
+			}
+			if( topProtoLink ) {
+				const hallWidth = topProtoLink.attributes.interSpan ? 2 : 4;
+				const hhw = hallWidth/2;
+				tileBmp.fill(cx-hhw,  0, 0, cx+hhw,floorHeight,1, 0);
+				if( topProtoLink.attributes.isBidirectional ) {
+					tileBmp.fill(cx, 0, 0, cx+1, floorHeight-1, 1, LADDER_IDX)
+				}
+			}
+			if( bottomProtoLink ) {
+				const hallWidth = bottomProtoLink.attributes.interSpan ? 2 : 4;
+				const hhw = hallWidth/2;
+				tileBmp.fill(cx-hhw, floorHeight, 0, cx+hhw, roomHeight, 1, 0);
+				if( bottomProtoLink.attributes.isBidirectional ) {
+					tileBmp.fill(0, floorHeight, 0, roomWidth, floorHeight+1, 1, platformTileIndex);
+					tileBmp.fill(cx, floorHeight-1, 0, cx+1,roomHeight, 1, LADDER_IDX)
+				}
+			}
+			
 			for( let i=0; i<4; ++i ) {
 				const protoLink = protoRoom.protoLinks[i];
 				if( protoLink ) {
-					const hallWidth = protoLink.attributes.interSpan ? 2 : 4;
-					const cx = roomWidth/2, cy=roomHeight/2;
-					const hhw = hallWidth/2;
-					switch( i ) {
-					case DIR_RIGHT:
-						tileBmp.fill(cx, floorHeight-hallWidth, 0, roomWidth,  floorHeight, 1, 0); break;
-					case DIR_LEFT :
-						tileBmp.fill( 0, floorHeight-hallWidth, 0,        cx,  floorHeight, 1, 0); break;
-					case DIR_DOWN :
-						tileBmp.fill(cx-hhw, cy, 0, cx+hhw, roomHeight, 1, 0);
-						if( protoLink.attributes.isBidirectional ) {
-							tileBmp.fill(0, floorHeight, 0, roomWidth, floorHeight+1, 1, 2);
-							tileBmp.fill(cx, cy, 0, cx+1,roomHeight, 1, LADDER_IDX)
-						}
-						break;
-					case DIR_UP   :
-						tileBmp.fill(cx-hhw,  0, 0, cx+hhw,         cy, 1, 0);
-						if( protoLink.attributes.isBidirectional ) {
-							tileBmp.fill(cx, 0, 0, cx+1, cy, 1, LADDER_IDX)
-						}
-						break;
-					}
-					
 					neighbors["n"+i] = {
 						bounds: roomBounds,
 						roomRef: protoLink.neighborRef,
@@ -302,6 +320,7 @@ class GraphWorldifier {
 					}
 				}
 			}
+			
 			let doorPos = 2;
 			for( let k in protoRoom.doors ) {
 				let doorTileIndex:number;
@@ -440,7 +459,7 @@ if( typeof require != 'undefined' && typeof module != 'undefined' && require.mai
 		const startRoomId = worldifier.run();
 		const startRoom = gdm.getMutableRoom(startRoomId)
 		startRoom.roomEntities[dat.playerEntityId] = {
-			position: ZERO_VECTOR,
+			position: {x:0,y:0.5,z:0},
 			entity: {
 				id: dat.playerEntityId,
 				classRef: dat.playerEntityClassId,
