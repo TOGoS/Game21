@@ -281,6 +281,17 @@ ul.tile-palette li.selected {
 	background: purple;
 	color: white;
 }
+
+#win-dialog {
+	display: flex;
+	flex-direction: column;
+	justify-content: space-around;
+	background: black;
+}
+#win-message {
+	font-size: 36px;
+	text-align: center;
+}
 /* ]]> */</style>
 
 <div id="loading-status-box">Loading JavaScript...</div>
@@ -359,7 +370,11 @@ ul.tile-palette li.selected {
   </div>
 </div>
 
-<div id="inventory-dialog">
+<div id="inventory-dialog" style="display:none">
+</div>
+
+<div id="win-dialog" class="dialog-box big-dialog-box" style="display:none">
+<p id="win-message"></p>
 </div>
 
 <?php require_game21_js_libs($inlineResources, array('togos-game21/Maze1')); ?>

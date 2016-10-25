@@ -66,7 +66,7 @@ function pickOne<T>( coll:T[], fitnessFunction:FitnessFunction<T>=EVERYTHING_FIT
 }
 
 export default class MazeGenerator {
-	protected targetNodeCount : number = 32;
+	public targetNodeCount : number = 32;
 	protected nodes : MazeNode[] = [];
 	protected links : MazeLink[] = [];
 	protected currentNodeCollection : MazeNode[] = [];

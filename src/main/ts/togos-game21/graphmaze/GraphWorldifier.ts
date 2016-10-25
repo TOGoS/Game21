@@ -159,7 +159,7 @@ function rot2<T>( t:T[] ) {
 function nodeSpanId(nodeId:number|string):string { return "node"+nodeId; }
 function linkSpanId(linkId:number|string):string { return "link"+linkId; }
 
-class GraphWorldifier {
+export default class GraphWorldifier {
 	public constructor( protected gdm:GameDataManager, protected maze:Maze ) { }
 	
 	protected linkDirections:KeyedList<number> = {};
@@ -450,6 +450,27 @@ import Datastore from '../Datastore';
 import HTTPHashDatastore from '../HTTPHashDatastore';
 import { SaveGame } from '../Maze1';
 
+export function mazeToWorld(maze:Maze, gdm:GameDataManager):Promise<{ gdm:GameDataManager, playerId:string, startRoomRef:string }> {
+	return dat.initData(gdm).then(() => gdm.fetchTranslation( dat.tileEntityPaletteId )).then( (tepRef) => {
+		const worldifier:GraphWorldifier = new GraphWorldifier(gdm, maze);
+		worldifier.tileEntityPaletteRef = tepRef;
+		return worldifier;
+	}).then( (worldifier) => {
+		const startRoomRef = worldifier.run();
+		const startRoom = gdm.getMutableRoom(startRoomRef)
+		startRoom.roomEntities[dat.playerEntityId] = {
+			position: {x:0,y:0.5,z:0},
+			entity: {
+				id: dat.playerEntityId,
+				classRef: dat.playerEntityClassId,
+				desiresMaze1AutoActivation: true,
+			}
+		}
+		
+		return { gdm, playerId:dat.playerEntityId, startRoomRef };
+	})
+}
+
 if( typeof require != 'undefined' && typeof module != 'undefined' && require.main === module ) {
 	const readStream = ( s:NodeJS.ReadableStream ):Promise<string[]> => {
 		return new Promise( (resolve,reject) => {
@@ -463,34 +484,19 @@ if( typeof require != 'undefined' && typeof module != 'undefined' && require.mai
 	
 	const dataIdent = sha1Urn;
 	const ds:Datastore<Uint8Array> = HTTPHashDatastore.createDefault();
-	const gdm:GameDataManager = new GameDataManager(ds);
+	const gdm = new GameDataManager(ds);
 	readStream(process.stdin).then( (parts) => {
 		const maze:Maze = JSON.parse(parts.join(""));
-		
-		return dat.initData(gdm).then(() => gdm.fetchTranslation( dat.tileEntityPaletteId )).then( (tepRef) => {
-			const worldifier:GraphWorldifier = new GraphWorldifier(gdm, maze);
-			worldifier.tileEntityPaletteRef = tepRef;
-			return worldifier;
-		});
-	}).then( (worldifier) => {
-		const startRoomId = worldifier.run();
-		const startRoom = gdm.getMutableRoom(startRoomId)
-		startRoom.roomEntities[dat.playerEntityId] = {
-			position: {x:0,y:0.5,z:0},
-			entity: {
-				id: dat.playerEntityId,
-				classRef: dat.playerEntityClassId,
-				desiresMaze1AutoActivation: true,
-			}
-		}
+		return mazeToWorld(maze,gdm);
+	}).then( ({gdm, playerId, startRoomRef}) => {
 		gdm.flushUpdates().then( (rootNodeUri) => {
-			if( gdm.getObjectIfLoaded(startRoomId) == undefined ) {
+			if( gdm.getObjectIfLoaded(startRoomRef) == undefined ) {
 				throw new Error("Failed to find start room in "+rootNodeUri);
 			}
 			const sg:SaveGame = {
 				gameDataRef: rootNodeUri,
 				playerId: dat.playerEntityId,
-				rootRoomId: startRoomId,
+				rootRoomId: startRoomRef,
 			};
 			return gdm.storeObject(sg);
 		}).then( (saveRef) => {

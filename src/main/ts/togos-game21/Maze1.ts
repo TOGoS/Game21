@@ -55,6 +55,14 @@ import {
 } from './ui/inventory';
 
 import {
+	ITEMCLASS_BLUEKEY,
+	ITEMCLASS_YELLOWKEY,
+	ITEMCLASS_REDKEY,
+} from './graphmaze';
+import GraphMazeGenerator from './graphmaze/GraphMazeGenerator2';
+import GraphWorldifier, { mazeToWorld } from './graphmaze/GraphWorldifier';
+
+import {
 	EntityPath,
 	EntityCommandData,
 	SimulationAction,
@@ -1693,6 +1701,9 @@ export class MazeDemo {
 	public tilePaletteUi:TilePaletteUI;
 	public maze1InventoryUi:TilePaletteUI;
 	public consoleDialog:ConsoleDialogBox;
+	public winDialog:WinDialogBox;
+	protected foundTriforceCount:number = 0;
+	protected gotTriforceThisLevel:boolean = false;
 	public logger:Logger;
 	public loadingStatusUpdated:(text:string)=>any = (t)=>{};
 	
@@ -1791,6 +1802,11 @@ export class MazeDemo {
 				const inv = foundPlayer.entity.maze1Inventory || {};
 				for( let k in inv ) {
 					invItems.push({orientation: Quaternion.IDENTITY, entity: inv[k]});
+					if( inv[k].classRef == dat.triforceEntityClassId && !this.gotTriforceThisLevel ) {
+						// omg a triforce
+						++this.foundTriforceCount;
+						this.popUpWinDialog("You have found "+this.foundTriforceCount+" triforces!");
+					}
 				}
 			}
 			this.maze1InventoryUi.setAllSlots(invItems);
@@ -1905,6 +1921,20 @@ export class MazeDemo {
 			const gdm = new GameDataManager(this.datastore, save.gameDataRef);
 			return this.loadGame2(gdm, save.playerId, save.rootRoomId, saveRef );
 		});
+	}
+	
+	public generateNewLevel() {
+		const generator = new GraphMazeGenerator();
+		if( this.foundTriforceCount > 2 ) generator.requireKeys.push(ITEMCLASS_BLUEKEY);
+		if( this.foundTriforceCount > 6 ) generator.requireKeys.push(ITEMCLASS_BLUEKEY);
+		if( this.foundTriforceCount > 12 ) generator.requireKeys.push(ITEMCLASS_REDKEY);
+		generator.targetNodeCount = 8 + this.foundTriforceCount;
+		const maze = generator.generate();
+		const gdm = new GameDataManager(this.datastore);
+		mazeToWorld(maze, gdm).then( ({gdm, playerId, startRoomRef}) => {
+			this.winDialog.setVisible(false);
+			this.loadGame2( gdm, playerId, startRoomRef, "generated" );
+		})
 	}
 	
 	public inspect(ref:string):Promise<any> {
@@ -2058,6 +2088,9 @@ export class MazeDemo {
 				// do nothing!
 			} else {
 				doCommand: switch( tokens[0].text ) {
+				case 'generate-new-level':
+					this.generateNewLevel();
+					break;
 				case 'export-cached-data': case 'ecd':
 					this.exportCachedData();
 					break;
@@ -2132,6 +2165,11 @@ export class MazeDemo {
 		this.consoleDialog.inputElement.setSelectionRange(initialText.length,initialText.length);
 		this.consoleDialog.inputElement.focus();
 	}
+	
+	public popUpWinDialog(text:string) {
+		this.winDialog.message = text;
+		this.winDialog.setVisible(true);
+	}
 }
 
 export interface SaveGame {
@@ -2145,6 +2183,17 @@ class DialogBox {
 	
 	public setVisible(viz:boolean) {
 		this.element.style.display = viz ? "" : "none";
+	}
+}
+
+class WinDialogBox extends DialogBox {
+	public messageElement:HTMLElement|undefined|null;
+	
+	public set message(text:string) {
+		const e = this.messageElement;
+		if( !e ) return;
+		while( e.firstChild ) e.removeChild(e.firstChild);
+		e.appendChild(document.createTextNode(text));
 	}
 }
 
@@ -2411,6 +2460,17 @@ export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string, loadingSt
 			if( closeHelpButton ) closeHelpButton.onclick = () => helpDialog.setVisible(false);
 			butta.appendChild(helpButton);
 		}
+	}
+	
+	const winDialogElem = document.getElementById('win-dialog');
+	if( winDialogElem ) {
+		const winDialog:WinDialogBox = <WinDialogBox>new DialogBox(winDialogElem);
+		winDialog.messageElement = document.getElementById('win-message');
+		demo.winDialog = winDialog;
+		const nextLevelButton = document.createElement('button');
+		nextLevelButton.appendChild(document.createTextNode('Next level!'));
+		nextLevelButton.onclick = () => demo.generateNewLevel();
+		winDialogElem.appendChild(nextLevelButton);
 	}
 	
 	const consoleDialogElem = document.getElementById('console-dialog');
