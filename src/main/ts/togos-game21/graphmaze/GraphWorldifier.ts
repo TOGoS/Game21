@@ -86,9 +86,17 @@ function oppositeDirection( dir:number ):number {
 	return (dir+2)%4;
 }
 
-function pickLinkDirection( usedDirections:number[] ):number {
-	let minDir = 0;
+/** Pick a direction for the a link! */
+function pickLinkDirection( usedDirections:number[], link:MazeLink ):number {
+	let hasLocks = false;
+	for( let lock in link.locks ) hasLocks = true;
+	
+	if( link.allowsForwardMovement && !link.allowsBackwardMovement ) return DIR_DOWN;
+	if( link.allowsBackwardMovement && !link.allowsForwardMovement ) return DIR_UP;
+	
+	let minDir = DIR_RIGHT;
 	for( let i=0; i<4; ++i ) {
+		if( hasLocks && (i == DIR_UP || i == DIR_DOWN) ) continue;
 		if( usedDirections[i] < usedDirections[minDir] ) minDir = i;
 	}
 	return minDir;
@@ -201,9 +209,9 @@ class GraphWorldifier {
 			const link = this.maze.links[linkId];
 			const linkDir:number|undefined = this.linkDirections[linkId];
 			if( linkDir == undefined ) {
-				const dir = pickLinkDirection(linkCounts);
-				++linkCounts[dir];
 				const isForward = (link.endpoint0.nodeId == gn.id && link.endpoint0.linkNumber == linkNumber);
+				const dir = pickLinkDirection(linkCounts, link);
+				++linkCounts[dir];
 				this.linkDirections[linkId] = isForward ? dir : oppositeDirection(dir);
 			}
 		}
@@ -280,6 +288,9 @@ class GraphWorldifier {
 			const bottomProtoLink = protoRoom.protoLinks[DIR_DOWN];
 			
 			const platformTileIndex = 2;
+			
+			let hasDoors = false;
+			for( let k in protoRoom.doors ) hasDoors = true;
 
 			tileBmp.fill(0,0,0,roomWidth,roomHeight,roomDepth,wallTileIndex);
 			tileBmp.fill(2,ceilingHeight,0,roomWidth-2,floorHeight,1,0);
@@ -293,6 +304,7 @@ class GraphWorldifier {
 				tileBmp.fill( 0, floorHeight-hallWidth, 0,        cx,  floorHeight, 1, 0);
 			}
 			if( topProtoLink ) {
+				if( hasDoors ) throw new Error("Lock room has vertical link!");
 				const hallWidth = topProtoLink.attributes.interSpan ? 2 : 4;
 				const hhw = hallWidth/2;
 				tileBmp.fill(cx-hhw,  0, 0, cx+hhw,floorHeight,1, 0);
@@ -301,6 +313,7 @@ class GraphWorldifier {
 				}
 			}
 			if( bottomProtoLink ) {
+				if( hasDoors ) throw new Error("Lock room has vertical link!");
 				const hallWidth = bottomProtoLink.attributes.interSpan ? 2 : 4;
 				const hhw = hallWidth/2;
 				tileBmp.fill(cx-hhw, floorHeight, 0, cx+hhw, roomHeight, 1, 0);
@@ -371,16 +384,6 @@ class GraphWorldifier {
 	}
 	
 	public run() {
-		for( let linkId in this.maze.links ) {
-			const link = this.maze.links[linkId];
-			if( !link.allowsForwardMovement && !link.allowsBackwardMovement ) {
-				// Some kind of window?
-			} else if( !link.allowsBackwardMovement ) {
-				this.linkDirections[linkId] = DIR_DOWN;
-			} else if( !link.allowsForwardMovement ) {
-				this.linkDirections[linkId] = DIR_UP;
-			}
-		}
 		for( let n in this.maze.nodes ) {
 			const node = this.maze.nodes[n];
 			const spanReqs = this.nodeSpanRequirements[n] = this.calculateNodeSpanRequirements(node);
