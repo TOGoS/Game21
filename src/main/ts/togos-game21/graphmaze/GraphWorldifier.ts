@@ -69,7 +69,6 @@ interface ProtoRoom {
  * as far as content generation goes.
  */
 interface ProtoRoomSpan {
-	id : string;
 	protoRooms : KeyedList<ProtoRoom>;
 	node? : MazeNode;
 }
@@ -153,7 +152,7 @@ class GraphWorldifier {
 		return this._tileEntityPaletteRef;
 	}
 	
-	protected generateNodeSpan(id:string, reqs:RoomSpanRequirements, node:MazeNode):ProtoRoomSpan {
+	protected generateProtoRoomSpan(reqs:RoomSpanRequirements, node:MazeNode):ProtoRoomSpan {
 		// Is this where 'generate nice room spans' code might go?
 		// e.g. try generating a cavey room or something
 		const spanProtoRooms:KeyedList<ProtoRoom> = {};
@@ -175,7 +174,7 @@ class GraphWorldifier {
 				protoRoom = newRoom;
 			}
 		}
-		return this.protoRoomSpans[id] = { id, protoRooms:spanProtoRooms, node };
+		return { protoRooms:spanProtoRooms, node };
 	}
 	
 	protected calculateNodeSpanRequirements( gn:MazeNode ):RoomSpanRequirements {
@@ -222,27 +221,26 @@ class GraphWorldifier {
 		const newRoom = newProtoRoom();
 		newRoom.doors = locks;
 		protoRooms[newRoom.id] = newRoom;
-		const id = linkSpanId(link.id);
-		return this.protoRoomSpans[id] = { id:id, protoRooms };
+		return { protoRooms };
 	}
 	
-	protected findRoomWithOpenWall(span:ProtoRoomSpan, direction:number):ProtoRoom {
+	protected findRoomWithOpenWall(span:ProtoRoomSpan, direction:number, spanId:string):ProtoRoom {
 		let roomCount = 0;
 		for( let r in span.protoRooms ) {
 			const room = span.protoRooms[r];
 			if( room.protoLinks[direction] == null ) return room;
 			++roomCount;
 		}
-		console.error("Span "+span.id+": "+JSON.stringify(span,null,"\t"));
-		throw new Error("No open "+direction+" wall in span "+span.id+"; size="+roomCount);
+		console.error("Span "+spanId+": "+JSON.stringify(span,null,"\t"));
+		throw new Error("No open "+direction+" wall in span "+spanId+"; size="+roomCount);
 	}
 	
 	protected connectSpans(span0Id:string, dir:number, span1Id:string, isBidirectional:boolean):void {
 		const span0 = this.protoRoomSpans[span0Id];
 		const span1 = this.protoRoomSpans[span1Id];
 		const rid = oppositeDirection(dir);
-		const room0 = this.findRoomWithOpenWall(span0, dir);
-		const room1 = this.findRoomWithOpenWall(span1, rid);
+		const room0 = this.findRoomWithOpenWall(span0, dir, span0Id);
+		const room1 = this.findRoomWithOpenWall(span1, rid, span1Id);
 		const linkAttributes = { isBidirectional, interSpan: true }
 		linkProtoRooms( room0, dir, room1, linkAttributes );
 	}
@@ -367,7 +365,9 @@ class GraphWorldifier {
 		for( let n in this.maze.nodes ) {
 			const node = this.maze.nodes[n];
 			const spanReqs = this.nodeSpanRequirements[n] = this.calculateNodeSpanRequirements(node);
-			this.generateNodeSpan(nodeSpanId(n), spanReqs, node);
+			const id = nodeSpanId(n);
+			const protoRoomSpan = this.generateProtoRoomSpan(spanReqs, node);
+			this.protoRoomSpans[id] = protoRoomSpan;
 		}
 		for( let linkId in this.maze.links ) {
 			const link = this.maze.links[linkId];
@@ -384,7 +384,9 @@ class GraphWorldifier {
 			let span2Id:string, span3Id:string;
 			if( needsOwnRoom ) {
 				const linkSpan = this.generateLinkSpan(link, link.locks);
-				span2Id = span3Id = linkSpan.id;
+				const spanId = linkSpanId(link.id);
+				this.protoRoomSpans[spanId] = linkSpan;
+				span2Id = span3Id = spanId;
 			} else {
 				span2Id = span1Id;
 				span3Id = span0Id; 
