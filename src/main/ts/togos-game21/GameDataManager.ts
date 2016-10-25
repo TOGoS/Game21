@@ -54,7 +54,12 @@ export default class GameDataManager {
 	
 	public fetchTranslation( name:string ):Promise<string> {
 		if( this.tempNameMap[name] ) return Promise.resolve(this.tempNameMap[name]);
-		return this.objectMapManager.fetchValue(name);
+		return this.objectMapManager.fetchValue(name).then( (hardRef:string|undefined) => {
+			if( hardRef == undefined ) {
+				return Promise.reject("No mapping found for "+name);
+			}
+			return hardRef;
+		})
 	}
 	
 	public getObjectIfLoaded<T>( ref:string, initiateFetch:boolean=false ):T|undefined {
@@ -121,16 +126,12 @@ export default class GameDataManager {
 				return <T>v;
 			});
 		} else {
-			return this.fetching[ref] = this.objectMapManager.fetchValue(ref).then( (realRef:string) => {
-				if( realRef == null ) {
-					return Promise.reject("No mapping for "+ref+" in "+this.objectMapManager.rootNodeUri);
-				} else {
-					return this.fetchObject(realRef).then( (v:any) => {
-						this.cache(ref, v);
-						delete this.fetching[ref];
-						return <T>v;
-					});
-				}
+			return this.fetching[ref] = this.fetchTranslation(ref).then( (realRef:string) => {
+				return this.fetchObject(realRef).then( (v:any) => {
+					this.cache(ref, v);
+					delete this.fetching[ref];
+					return <T>v;
+				});
 			});
 		}
 	}
