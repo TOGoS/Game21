@@ -1933,9 +1933,14 @@ export class MazeDemo {
 			if( level > 6 ) generator.requireKeys.push(ITEMCLASS_YELLOWKEY);
 			if( level > 12 ) generator.requireKeys.push(ITEMCLASS_REDKEY);
 			generator.targetNodeCount = 8 + level;
+			generator.complectificationFactor = 1/4 + Math.random()*Math.random()/2 + (1/3) * (level/50);
 			
 			if( !this.winDialog ) throw new Error('NO SNW DL')
-			const generationMessage = "Generating new level requiring "+generator.requireKeys.length+" keys of size "+generator.targetNodeCount+(attempts > 0 ? " (attempt "+attempts+")" : "")+"...";
+			const generationMessage = "Generating new level "+
+				"requiring "+generator.requireKeys.length+" keys, "+
+				"complectification factor: "+generator.complectificationFactor.toPrecision(2)+", "+
+				"target node count: "+generator.targetNodeCount+
+				(attempts > 0 ? " (attempt "+attempts+")" : "")+"...";
 			this.logger.log(generationMessage);
 			if( this.winDialog ) this.winDialog.message = generationMessage;
 			if( this.winDialog && this.winDialog.nextLevelButton ) this.winDialog.nextLevelButton.disabled = true;

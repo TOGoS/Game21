@@ -99,6 +99,7 @@ export default class MazeGenerator {
 	protected _selectedNode : MazeNode|undefined;
 	protected startNode : MazeNode;
 	public requireKeys : string[] = [];
+	public complectificationFactor:number = 1/2;
 	
 	protected get selectedNode() {
 		if( this._selectedNode == undefined ) throw new Error("No selected node!");
@@ -290,18 +291,35 @@ export default class MazeGenerator {
 	public generate2():Maze {
 		this.init("generate2");
 		let stageStartNode = this.createStartNode();
-		const stages:{require:KeySet, provide:string}[] = [
+		const stages:{require:KeySet, provide:string}[] = [];
+		/*
+		[]
 			{require: {}, provide:ITEMCLASS_BLUEKEY},
 			{require: {[ITEMCLASS_BLUEKEY]:true}, provide:ITEMCLASS_YELLOWKEY},
 			{require: {[ITEMCLASS_YELLOWKEY]:true}, provide:ITEMCLASS_REDKEY},
 			{require: {[ITEMCLASS_BLUEKEY]:true,[ITEMCLASS_YELLOWKEY]:true,[ITEMCLASS_REDKEY]:true}, provide:ITEMCLASS_END},
 		]
-		const budsPerStage = 4;
-		const complictificationsPerStage = 4;
+		*/
+		let stageReqs:KeySet = {};
+		let allKeys:KeySet = {};
+		for( let r in this.requireKeys ) {
+			const keyClass = this.requireKeys[r];
+			allKeys[keyClass] = true;
+			stages.push({require:stageReqs, provide:keyClass});
+			// Usually require that key for the next stage, but not always
+			if( Math.random() < 0.75 ) stageReqs = {[keyClass]:true};
+		}
+		stages.push({require:allKeys, provide:ITEMCLASS_END});
+		
+		const newNodesPerStage = (this.targetNodeCount-1) / stages.length;
+		const budsPerStage = Math.ceil(newNodesPerStage/2);
+		const pathsPerStage = newNodesPerStage-budsPerStage;
+		const maxComplictificationsPerStage = Math.ceil(pathsPerStage*this.complectificationFactor);
 		for( let s in stages ) {
 			const stage = stages[s];
 			
 			const stageStart = this.nodes.length;
+			const stageEndTarget = stageStart + newNodesPerStage;
 			const stageBuds:MazeNode[] = [];
 			for( let i=0; i<budsPerStage; ++i ) {
 				const n = this._selectedNode = bestFit(this.nodes, (n:MazeNode) => Math.random() + 1/(1+n.linkIds.length), "bud node");
@@ -313,7 +331,10 @@ export default class MazeGenerator {
 			}
 			
 			let complectificationCount = 0;
-			complectifications: while( complectificationCount < complictificationsPerStage ) {
+			complectifications: while(
+				this.nodes.length < stageEndTarget &&
+				complectificationCount < maxComplictificationsPerStage
+			) {
 				const node = this.randomNode(this.nodes.slice(stageStart));
 				if( node.linkIds.length < 3 ) {
 					++complectificationCount;
@@ -343,21 +364,22 @@ export default class MazeGenerator {
 						continue complectifications;
 					}
 					
-					// TODO: Dig one-way loops sometimes
-					
-					this.dig({
-						allowsForwardMovement: true,
-						allowsBackwardMovement: true,
-						locks: difference(stage.require, node.requiredKeys),
-					});
+					const pathLen = Math.min(stageEndTarget-this.nodes.length,randInt(1,3));
+					this.digSomeKindOfPath(pathLen, difference(stage.require, node.requiredKeys));
 				}
 			}
 			
 			this.calculateNodeDistances(stageStartNode);
-			const stageEndNode = this._selectedNode = bestFit(this.nodes, (n:MazeNode) => Math.random() + n.distanceValue + n.id*4/this.nodes.length);
-			console.log("Stage "+s+"; "+(this.nodes.length-stageStart)+" nodes; end node ID = "+stageEndNode.id+", distance = "+stageEndNode.distanceValue);
-			this.dig();
+			const stagePreEndNode = this._selectedNode = bestFit(this.nodes, (n:MazeNode) => Math.random() + n.distanceValue + n.id*4/this.nodes.length);
+			console.log("Stage "+s+"; "+(this.nodes.length-stageStart)+" nodes; end node ID = "+stagePreEndNode.id+", distance = "+stagePreEndNode.distanceValue);
+			const stageEndNode = this.dig({
+				allowsForwardMovement: true,
+				allowsBackwardMovement: true,
+				locks: difference(stage.require, stagePreEndNode.requiredKeys)
+			});
 			this.placeItem(stage.provide);
+			
+			// set up for next stage...
 			stageStartNode = stageEndNode;
 		}
 		return this.maze;

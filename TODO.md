@@ -31,6 +31,7 @@ GraphWorldifier:
   - multiple horizontally-connected nodes may be generated as a single cave room
   - tunnel/ladder/bridge through to enforce passability
 - wave function collapse-generated rooms
+- food, monsters (maybe just bouncy lightbulbs)
 
 - submit to contest by 30th
 

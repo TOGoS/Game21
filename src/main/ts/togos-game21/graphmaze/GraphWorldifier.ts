@@ -427,7 +427,10 @@ export default class GraphWorldifier {
 			
 			const roomEntities:KeyedList<RoomEntity> = {}
 			
-			const itemX = -1.5;
+			const itemX = !protoRoom.protoLinks[DIR_DOWN] ? 0.5 :
+				!protoRoom.protoLinks[DIR_LEFT] ? -1.5 :
+				!protoRoom.protoLinks[DIR_RIGHT] ? +1.5 :
+				-0.5;
 			let itemY = floorHeight - roomHeight/2 - 1.5;
 			if( span.node && !itemsPlaced ) placeItems: for( let k in span.node.items ) {
 				const itemClassId = span.node.items[k];
