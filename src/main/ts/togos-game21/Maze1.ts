@@ -2357,8 +2357,10 @@ export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string, loadingSt
 	let gameLoaded:Promise<any>;
 	const levelRe = /^level(\d+)$/;
 	let levelReMatch:RegExpExecArray|null;
-	if( saveGameRef == 'demo' || saveGameRef == undefined ) {
+	if( saveGameRef == 'demo' ) {
 		gameLoaded = dat.initData(tempGdm).then( () => demo.loadGame2( tempGdm, dat.playerEntityId, dat.room1Id, "demo maze" ));
+	} else if( saveGameRef == '' || saveGameRef == undefined ) {
+		gameLoaded = Promise.resolve().then( () => demo.generateAndLoadNewLevel(0));
 	} else if( (levelReMatch = levelRe.exec(saveGameRef)) ) {
 		// generateAndLoadNewLevel depends on some UI elements being set up, so defer it...
 		const levelNumber = parseInt(levelReMatch[1]);
