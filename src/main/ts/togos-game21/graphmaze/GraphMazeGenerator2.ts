@@ -271,6 +271,14 @@ export default class MazeGenerator {
 		}
 	}
 	
+	protected init(generatorName:string) {
+		this.nodes = [];
+		this.links = [];
+		this.generatorName = generatorName;
+		this.currentNodeCollection = [];
+		this._selectedNode = undefined;
+	}
+	
 	/**
 	 * For each stage:
 	 * generate a bunch of maze
@@ -280,7 +288,7 @@ export default class MazeGenerator {
 	 * place item
 	 */
 	public generate2():Maze {
-		this.generatorName = "generate2";
+		this.init("generate2");
 		let stageStartNode = this.createStartNode();
 		const stages:{require:KeySet, provide:string}[] = [
 			{require: {}, provide:ITEMCLASS_BLUEKEY},
@@ -356,7 +364,7 @@ export default class MazeGenerator {
 	}
 	
 	public generate1():Maze {
-		this.generatorName = "generate1";
+		this.init("generate1");
 		this.createStartNode();
 		
 		this.newCollection();
