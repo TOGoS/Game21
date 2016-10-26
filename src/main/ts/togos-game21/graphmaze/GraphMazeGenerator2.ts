@@ -45,6 +45,11 @@ type FitnessFunction<T> = (x:T)=>number;
 
 const EVERYTHING_FITS:FitnessFunction<any> = (x)=>1;
 
+function isEmpty<T>(t:KeyedList<T>):boolean {
+	for( let i in t ) return false;
+	return true;
+}
+
 function nMostFit<T>( coll:T[], count:number, fitnessFunction:FitnessFunction<T>, collectionDescription:string="items", minFitness:number=0, minCount:number=1 ):T[] {
 	type WithFitness<T> = [T,number];
 	const withFitness = coll.map( (n):WithFitness<T> => [n,fitnessFunction(n)] ); 
@@ -170,10 +175,11 @@ export default class MazeGenerator {
 	
 	protected digOneWayLoop(length:number, endNode:MazeNode=this.pickLoopOutputNode(), entranceLocks:KeySet={}):void {
 		for( let i=0; i<length; ++i ) {
+			const linkLocks = i == 0 ? entranceLocks : {};
 			this.dig({
 				allowsForwardMovement: true,
-				allowsBackwardMovement: Math.random() < 0.125,
-				locks: i == 0 ? entranceLocks : {},
+				allowsBackwardMovement: !isEmpty(linkLocks) || Math.random() < 0.125,
+				locks: linkLocks,
 			});
 		}
 		this.linkNodes(this.selectedNode!, endNode, {
