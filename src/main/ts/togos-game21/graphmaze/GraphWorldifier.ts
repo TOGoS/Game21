@@ -96,15 +96,25 @@ function pickLinkDirection( usedDirections:number[], link:MazeLink ):number {
 	
 	let minDirs:number[] = [];
 	let minCount = Infinity;
-	for( let i=0; i<4; ++i ) {
-		if( hasLocks && (i == DIR_UP || i == DIR_DOWN) ) continue;
-		if( usedDirections[i] == minCount ) {
-			minDirs.push(i);
-		} else if( usedDirections[i] < minCount ) {
-			minDirs = [i];
-			minCount = usedDirections[i];
+	for( let d=0; d<4; ++d ) {
+		if( hasLocks && (d == DIR_UP || d == DIR_DOWN) ) continue;
+		if( usedDirections[d] == minCount ) {
+			minDirs.push(d);
+		} else if( usedDirections[d] < minCount ) {
+			minDirs = [d];
+			minCount = usedDirections[d];
 		}
 	}
+	const horizontalDirs = [];
+	for( let i in minDirs ) {
+		const d = minDirs[i];
+		switch( d ) {
+		case DIR_LEFT: horizontalDirs.push(d); break;
+		case DIR_RIGHT: horizontalDirs.push(d); break;
+		}
+	}
+	// Prefer horizontal links!
+	if( horizontalDirs.length > 0 ) minDirs = horizontalDirs;
 	return minDirs[randInt(0,minDirs.length-1)];
 }
 
