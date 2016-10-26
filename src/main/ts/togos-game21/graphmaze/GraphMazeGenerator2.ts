@@ -75,6 +75,21 @@ function pickOne<T>( coll:T[], fitnessFunction:FitnessFunction<T>=EVERYTHING_FIT
 	throw new Error("No fit items in collection");
 }
 
+function bestFit<T>( coll:T[], fitnessFunction:FitnessFunction<T>, resultDescription:string="item" ):T {
+	let bestFitness:number = 0;
+	let bestFit:T|undefined = undefined;
+	for( let i in coll ) {
+		const item:T = coll[i];
+		const fitness = fitnessFunction(item);
+		if( fitness > bestFitness ) {
+			bestFitness = fitness;
+			bestFit = item;
+		}
+	}
+	if( bestFit == undefined ) throw new Error("Can't pick "+resultDescription+"; no items had fitness > 0!");
+	return bestFit;
+}
+
 export default class MazeGenerator {
 	protected generatorName : string = "xxx";
 	public targetNodeCount : number = 32;
@@ -259,6 +274,8 @@ export default class MazeGenerator {
 	/**
 	 * For each stage:
 	 * generate a bunch of maze
+	 * - dig new nodes, locked with stage requirements
+	 * - randomly dig/branch/loop
 	 * pick node farthest from start of stage
 	 * place item
 	 */
@@ -271,23 +288,36 @@ export default class MazeGenerator {
 			{require: {[ITEMCLASS_YELLOWKEY]:true}, provide:ITEMCLASS_REDKEY},
 			{require: {[ITEMCLASS_BLUEKEY]:true,[ITEMCLASS_YELLOWKEY]:true,[ITEMCLASS_REDKEY]:true}, provide:ITEMCLASS_END},
 		]
+		const budsPerStage = 4;
+		const complictificationsPerStage = 4;
 		for( let s in stages ) {
-			//const stageStart = this.nodes.length;
 			const stage = stages[s];
-			let digs = 0;
-			branch: for( let i=0; i<this.nodes.length && digs < 4; ++i ) {
-				const node = this.nodes[i];
-				if( this.nodes[i].linkIds.length < 3 ) {
-					++digs;
+			
+			const stageStart = this.nodes.length;
+			const stageBuds:MazeNode[] = [];
+			for( let i=0; i<budsPerStage; ++i ) {
+				const n = this._selectedNode = bestFit(this.nodes, (n:MazeNode) => Math.random() + 1/(1+n.linkIds.length), "bud node");
+				stageBuds.push(this.dig({
+					allowsForwardMovement: true,
+					allowsBackwardMovement: true,
+					locks: difference(stage.require, n.requiredKeys),
+				}));
+			}
+			
+			let complectificationCount = 0;
+			complectifications: while( complectificationCount < complictificationsPerStage ) {
+				const node = this.randomNode(this.nodes.slice(stageStart));
+				if( node.linkIds.length < 3 ) {
+					++complectificationCount;
 					this._selectedNode = node;
 					const v = Math.random();
 					
 					if( v < 0.5 && this.nodes.length > 4 ) {
 						let rando:MazeNode;
 						try {
-							rando = this.randomNode( this.nodes, (n:MazeNode) => 1/n.linkIds.length );
+							rando = this.randomNode( this.nodes, (n:MazeNode) => 1/(1+n.linkIds.length) );
 						} catch( err) {
-							continue branch;
+							continue complectifications;
 						}
 						if( Math.random() < 0.5 ) {
 							this.linkNodes(node, rando, {
@@ -302,20 +332,22 @@ export default class MazeGenerator {
 								locks: {},
 							});
 						}
-						continue branch;
+						continue complectifications;
 					}
+					
+					// TODO: Dig one-way loops sometimes
 					
 					this.dig({
 						allowsForwardMovement: true,
 						allowsBackwardMovement: true,
 						locks: difference(stage.require, node.requiredKeys),
-					})
+					});
 				}
 			}
 			
 			this.calculateNodeDistances(stageStartNode);
-			const stageEndNode = this.randomNode(this.nodes, (n:MazeNode) => 1+n.distanceValue);
-			this._selectedNode = stageEndNode;
+			const stageEndNode = this._selectedNode = bestFit(this.nodes, (n:MazeNode) => Math.random() + n.distanceValue + n.id*4/this.nodes.length);
+			console.log("Stage "+s+"; "+(this.nodes.length-stageStart)+" nodes; end node ID = "+stageEndNode.id+", distance = "+stageEndNode.distanceValue);
 			this.dig();
 			this.placeItem(stage.provide);
 			stageStartNode = stageEndNode;

@@ -20,8 +20,14 @@
 ## Misc to-do items
 
 Random maze generation:
-- keys, locked doors
-  - maybe cheat on implementation; don't need to simulate everything 
+* keys, locked doors
+  - maybe cheat on implementation; don't need to simulate everything
+- generate2:
+  - hardness/size setting
+  - mandatory loops
+- colored blocks to mark where doors were
+- blocks platforms under items
+- more decorations
 - cave rooms;
   - stalactites/stalagmites
   - multiple horizontally-connected nodes may be generated as a single cave room
