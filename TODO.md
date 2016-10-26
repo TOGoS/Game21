@@ -23,8 +23,8 @@ GraphMazeGenerator2:
 * keys, locked doors
   - maybe cheat on implementation; don't need to simulate everything
 GraphWorldifier:
-- hardness/size setting
-- mandatory loops
+* hardness/size setting
+* mandatory loops
 - more decorations
 - cave rooms;
   - stalactites/stalagmites
