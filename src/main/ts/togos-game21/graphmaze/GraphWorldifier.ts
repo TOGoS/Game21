@@ -176,12 +176,17 @@ function nodeSpanId(nodeId:number|string):string { return "node"+nodeId; }
 function linkSpanId(linkId:number|string):string { return "link"+linkId; }
 
 export default class GraphWorldifier {
-	public constructor( protected gdm:GameDataManager, protected maze:Maze ) { }
+	public constructor( protected _gdm:GameDataManager, protected _maze:Maze ) { }
 	
 	protected linkDirections:KeyedList<number> = {};
 	protected nodeSpanRequirements:KeyedList<RoomSpanRequirements> = {};
 	protected protoRoomSpans:KeyedList<ProtoRoomSpan> = {};
 	protected _tileEntityPaletteRef:string|undefined;
+	
+	public gardenChance = 0.125;
+	
+	public get gameDataManager() { return this._gdm; }
+	public get maze() { return this._maze; }
 	
 	public set tileEntityPaletteRef(t:string) {
 		this._tileEntityPaletteRef = t;
@@ -229,7 +234,7 @@ export default class GraphWorldifier {
 		// Count number of links that must point each direction
 		for( let linkNumber=0; linkNumber<gn.linkIds.length; ++linkNumber ) {
 			const linkId = gn.linkIds[linkNumber];
-			const link = this.maze.links[linkId];
+			const link = this._maze.links[linkId];
 			const linkDir:number|undefined = this.linkDirections[linkId]; 
 			if( linkDir ) {
 				const isForward = (link.endpoint0.nodeId == gn.id && link.endpoint0.linkNumber == linkNumber);
@@ -240,7 +245,7 @@ export default class GraphWorldifier {
 		// Pick directions for any undecided links
 		for( let linkNumber=0; linkNumber<gn.linkIds.length; ++linkNumber ) {
 			const linkId = gn.linkIds[linkNumber];
-			const link = this.maze.links[linkId];
+			const link = this._maze.links[linkId];
 			const linkDir:number|undefined = this.linkDirections[linkId];
 			if( linkDir == undefined ) {
 				const isForward = (link.endpoint0.nodeId == gn.id && link.endpoint0.linkNumber == linkNumber);
@@ -256,7 +261,7 @@ export default class GraphWorldifier {
 		const exitsPerSide = [0,0,0,0];
 		for( let linkNumber=0; linkNumber<gn.linkIds.length; ++linkNumber ) {
 			const linkId = gn.linkIds[linkNumber];
-			const link = this.maze.links[linkId];
+			const link = this._maze.links[linkId];
 			const linkDir:number|undefined = this.linkDirections[linkId];
 			if( linkDir == undefined ) throw new Error("linkDir should have been popualted");
 			const isForward = (link.endpoint0.nodeId == gn.id && link.endpoint0.linkNumber == linkNumber);
@@ -326,8 +331,8 @@ export default class GraphWorldifier {
 			const roomBounds:AABB = makeAabb(-roomWidth/2, -roomHeight/2, -roomDepth/2, roomWidth/2, roomHeight/2, roomDepth/2);
 			const tileBmp = new Bitmap(roomWidth,roomHeight,roomDepth);
 			const wallTileIndex = this.primaryWallTileIndex(span.node);
-			const floorHeight = roomHeight - 2;
-			const ceilingHeight = span.node ? randInt(1,floorHeight-2) : floorHeight-2;
+			const primaryFloorHeight = roomHeight - 3;
+			let ceilingHeight = span.node ? randInt(1,primaryFloorHeight-2) : primaryFloorHeight-2;
 			const neighbors:KeyedList<RoomNeighbor> = {};
 			const LADDER_IDX = 5;
 			
@@ -338,29 +343,62 @@ export default class GraphWorldifier {
 			const topProtoLink = protoRoom.protoLinks[DIR_UP];
 			const bottomProtoLink = protoRoom.protoLinks[DIR_DOWN];
 			
+			if( bottomProtoLink && !bottomProtoLink.attributes.isBidirectional ) {
+				// Make sure they have room to jump over
+				ceilingHeight = Math.min(primaryFloorHeight-3, ceilingHeight);
+			}
+			
 			const platformTileIndex = 2;
 			
 			let hasDoors = false;
 			for( let k in protoRoom.doors ) hasDoors = true;
 
 			tileBmp.fill(0,0,0,roomWidth,roomHeight,roomDepth,wallTileIndex);
-			tileBmp.fill(2,ceilingHeight,0,roomWidth-2,floorHeight,1,0);
+			tileBmp.fill(2,ceilingHeight,0,roomWidth-2,primaryFloorHeight,1,0);
 			
 			if( rightProtoLink ) {
 				const hallWidth = rightProtoLink.attributes.interSpan ? 2 : 4;
-				tileBmp.fill(cx, floorHeight-hallWidth, 0, roomWidth,  floorHeight, 1, 0);
+				tileBmp.fill(cx, primaryFloorHeight-hallWidth, 0, roomWidth,  primaryFloorHeight, 1, 0);
 			}
 			if( leftProtoLink ) {
 				const hallWidth = leftProtoLink.attributes.interSpan ? 2 : 4;
-				tileBmp.fill( 0, floorHeight-hallWidth, 0,        cx,  floorHeight, 1, 0);
+				tileBmp.fill( 0, primaryFloorHeight-hallWidth, 0,        cx,  primaryFloorHeight, 1, 0);
 			}
+			
+			const groundHeights:number[] = [];
+			for( let i=0; i<roomWidth; ++i ) groundHeights[i] = primaryFloorHeight;
+			
+			if( Math.random() < this.gardenChance ) {
+				// Garden!
+				tileBmp.fill( 1,primaryFloorHeight,0, roomWidth-1,roomHeight,1, 0 );
+				//tileBmp.fill( 1,floorHeight+1,0, roomWidth-1,floorHeight+2,1, 29 ); // rocks!
+				const hilliness = Math.random();
+				let groundHeight = primaryFloorHeight+Math.random()*(primaryFloorHeight+roomHeight-1);
+				for(let x=1; x<roomWidth-1; ++x ) {
+					groundHeight += (Math.random()-0.5)*2*hilliness;
+					const minGroundHeight = (x < 3 || x >= roomWidth-3) ? primaryFloorHeight-1 : ceilingHeight+1;
+					if( groundHeight < minGroundHeight ) groundHeight = minGroundHeight;
+					if( groundHeight > roomHeight-1 ) groundHeight = roomHeight-1;
+					const groundHeightAbs = Math.round(groundHeight);
+					groundHeights[x] = groundHeightAbs;
+					tileBmp.fill(x,groundHeightAbs,0, x+1,roomHeight,1, 29);
+					if( Math.random() < 0.5 ) {
+						let plantTileIndex:number;
+						if( Math.random() < 0.125 ) plantTileIndex = 14; // brown brick
+						else plantTileIndex = [25,25,3][Math.floor(Math.random()*Math.random()*3)];
+						tileBmp.fill(x,groundHeightAbs-1,0, x+1,groundHeightAbs,1, plantTileIndex);
+					}
+				}
+			}
+			
 			if( topProtoLink ) {
 				if( hasDoors ) throw new Error("Lock room has vertical link!");
 				const hallWidth = topProtoLink.attributes.interSpan ? 2 : 4;
 				const hhw = hallWidth/2;
-				tileBmp.fill(cx-hhw,  0, 0, cx+hhw,floorHeight,1, 0);
+				tileBmp.fill(cx-hhw,  0, 0, cx+hhw,primaryFloorHeight,1, 0);
 				if( topProtoLink.attributes.isBidirectional ) {
-					tileBmp.fill(cx, 0, 0, cx+1, floorHeight-1, 1, LADDER_IDX)
+					const ladderX = cx;
+					tileBmp.fill(ladderX,0,0, ladderX+1,groundHeights[ladderX]-1,1, LADDER_IDX);
 				}
 			}
 			if( bottomProtoLink ) {
@@ -369,13 +407,14 @@ export default class GraphWorldifier {
 				const hhw = hallWidth/2;
 				if( bottomProtoLink.attributes.isBidirectional ) {
 					if( Math.random() < 0.5 ) {
-						tileBmp.fill(cx-1, floorHeight, 0, cx+2, floorHeight+1, 1, platformTileIndex);
+						tileBmp.fill(cx-1, primaryFloorHeight, 0, cx+2, primaryFloorHeight+1, 1, platformTileIndex);
 					} else {
-						tileBmp.fill(0, floorHeight, 0, roomWidth, floorHeight+1, 1, platformTileIndex);
+						tileBmp.fill(0, primaryFloorHeight, 0, roomWidth, primaryFloorHeight+1, 1, platformTileIndex);
 					}
-					tileBmp.fill(cx, floorHeight-1, 0, cx+1,roomHeight, 1, LADDER_IDX)
+					const ladderX = cx;
+					tileBmp.fill(ladderX,primaryFloorHeight-1,0, ladderX+1,roomHeight,1, LADDER_IDX)
 				} else {
-					tileBmp.fill(cx-hhw, floorHeight, 0, cx+hhw, roomHeight, 1, 0);
+					tileBmp.fill(cx-hhw, primaryFloorHeight, 0, cx+hhw, roomHeight, 1, 0);
 				}
 			}
 			
@@ -397,7 +436,7 @@ export default class GraphWorldifier {
 				let doorPos = 2;
 				let lastDoorPos = 2;
 				tileBmp.fill(0,0,0, doorPos,ceilingHeight,1, leftWallTileIndex);
-				tileBmp.fill(0,floorHeight,0, doorPos,roomHeight,1, leftWallTileIndex);
+				tileBmp.fill(0,primaryFloorHeight,0, doorPos,roomHeight,1, leftWallTileIndex);
 				for( let k in protoRoom.doors ) {
 					let doorTileIndex:number;
 					let doorFrameTileIndex:number;
@@ -417,12 +456,12 @@ export default class GraphWorldifier {
 					default: throw new Error("No door tile index known for "+k);
 					}
 					tileBmp.fill(doorPos,0,0, doorPos+1,roomHeight,1, doorFrameTileIndex);
-					tileBmp.fill(doorPos,ceilingHeight, 0, doorPos+1, floorHeight, 1, doorTileIndex);
+					tileBmp.fill(doorPos,ceilingHeight, 0, doorPos+1, primaryFloorHeight, 1, doorTileIndex);
 					lastDoorPos = doorPos;
 					doorPos += 2;
 				}
 				tileBmp.fill(lastDoorPos+1,0,0, roomWidth,ceilingHeight,1, rightWallTileIndex);
-				tileBmp.fill(lastDoorPos+1,floorHeight,0, roomWidth,roomHeight,1, rightWallTileIndex);
+				tileBmp.fill(lastDoorPos+1,primaryFloorHeight,0, roomWidth,roomHeight,1, rightWallTileIndex);
 			}
 			
 			const roomEntities:KeyedList<RoomEntity> = {}
@@ -431,7 +470,7 @@ export default class GraphWorldifier {
 				!protoRoom.protoLinks[DIR_LEFT] ? -1.5 :
 				!protoRoom.protoLinks[DIR_RIGHT] ? +1.5 :
 				-0.5;
-			let itemY = floorHeight - roomHeight/2 - 1.5;
+			let itemY = groundHeights[Math.floor(itemX+roomHeight/2)] - roomHeight/2 - 1.5;
 			if( span.node && !itemsPlaced ) placeItems: for( let k in span.node.items ) {
 				const itemClassId = span.node.items[k];
 				let entityClassRef:string;
@@ -447,7 +486,7 @@ export default class GraphWorldifier {
 				const tileX = roomWidth/2+Math.floor(itemX);
 				const tileY = roomHeight/2+Math.floor(itemY);
 				if( !itemsPlaced ) {
-					tileBmp.fill(tileX,floorHeight-1,0, tileX+1,floorHeight,1, platformTileIndex);
+					tileBmp.fill(tileX,tileY+1,0, tileX+1,tileY+2,1, platformTileIndex);
 				}
 				
 				tileBmp.fill(tileX,tileY,0, tileX+1,tileY+1,1, 0);
@@ -461,28 +500,28 @@ export default class GraphWorldifier {
 			
 			roomEntities[newUuidRef()] = {
 				position: ZERO_VECTOR,
-				entity: { classRef: makeTileTreeRef(this.tileEntityPaletteRef, roomWidth, roomHeight, roomDepth, tileBmp.data, this.gdm, {infiniteMass:true}) }
+				entity: { classRef: makeTileTreeRef(this.tileEntityPaletteRef, roomWidth, roomHeight, roomDepth, tileBmp.data, this._gdm, {infiniteMass:true}) }
 			};
 			const room:Room = {
 				bounds: roomBounds,
 				roomEntities,
 				neighbors
 			}
-			this.gdm.tempStoreObject<Room>( room, protoRoom.id );
+			this._gdm.tempStoreObject<Room>( room, protoRoom.id );
 		}
 	}
 	
 	public run() {
-		for( let n in this.maze.nodes ) {
-			const node = this.maze.nodes[n];
+		for( let n in this._maze.nodes ) {
+			const node = this._maze.nodes[n];
 			const spanReqs = this.nodeSpanRequirements[n] = this.calculateNodeSpanRequirements(node);
 			const id = nodeSpanId(n);
 			const protoRoomSpan = this.generateProtoRoomSpan(id, spanReqs, node);
 			this.protoRoomSpans[id] = protoRoomSpan;
 		}
 		
-		for( let linkId in this.maze.links ) {
-			const link = this.maze.links[linkId];
+		for( let linkId in this._maze.links ) {
+			const link = this._maze.links[linkId];
 			const linkDir = this.linkDirections[linkId];
 			if( linkDir == undefined ) {
 				throw new Error("Link "+linkId+" has no direction");
@@ -526,9 +565,9 @@ import Datastore from '../Datastore';
 import HTTPHashDatastore from '../HTTPHashDatastore';
 import { SaveGame } from '../Maze1';
 
-export function mazeToWorld(maze:Maze, gdm:GameDataManager):Promise<{ gdm:GameDataManager, playerId:string, startRoomRef:string }> {
+export function mazeToWorld(worldifier:GraphWorldifier):Promise<{ gdm:GameDataManager, playerId:string, startRoomRef:string }> {
+	const gdm = worldifier.gameDataManager;
 	return dat.initData(gdm).then(() => gdm.fetchTranslation( dat.tileEntityPaletteId )).then( (tepRef) => {
-		const worldifier:GraphWorldifier = new GraphWorldifier(gdm, maze);
 		worldifier.tileEntityPaletteRef = tepRef;
 		return worldifier;
 	}).then( (worldifier) => {
@@ -563,7 +602,8 @@ if( typeof require != 'undefined' && typeof module != 'undefined' && require.mai
 	const gdm = new GameDataManager(ds);
 	readStream(process.stdin).then( (parts) => {
 		const maze:Maze = JSON.parse(parts.join(""));
-		return mazeToWorld(maze,gdm);
+		const worldifier = new GraphWorldifier(gdm, maze);
+		return mazeToWorld(worldifier);
 	}).then( ({gdm, playerId, startRoomRef}) => {
 		gdm.flushUpdates().then( (rootNodeUri) => {
 			if( gdm.getObjectIfLoaded(startRoomRef) == undefined ) {

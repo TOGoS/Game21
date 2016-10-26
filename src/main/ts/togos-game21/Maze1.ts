@@ -1950,8 +1950,10 @@ export class MazeDemo {
 				const maze = generator.generate();
 				this.logger.log("Generated maze graph with "+maze.nodes.length+" nodes, "+maze.links.length+" links");
 				const gdm = new GameDataManager(this.datastore);
-				return {maze,gdm};
-			}).then( ({maze,gdm}) => mazeToWorld(maze, gdm) ).then( ({gdm, playerId, startRoomRef}) => {
+				const worldifier = new GraphWorldifier(gdm, maze);
+				worldifier.gardenChance = Math.random()*Math.random()
+				return worldifier;
+			}).then( (worldifier) => mazeToWorld(worldifier) ).then( ({gdm, playerId, startRoomRef}) => {
 				this.winDialog.setVisible(false);
 				if( this.winDialog && this.winDialog.nextLevelButton ) this.winDialog.nextLevelButton.disabled = false;
 				this.logger.log("Loading generated maze...");

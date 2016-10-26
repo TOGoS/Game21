@@ -35,6 +35,24 @@ function rgbaToNumber( r:number, g:number, b:number, a:number ):number {
 
 //// Images
 
+const rox1Pix = [
+	0,0,1,1,1,0,0,0,0,0,0,1,1,1,1,0,
+	0,1,1,1,1,1,1,0,0,0,1,0,1,1,1,1,
+	0,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,
+	0,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,
+	0,1,1,1,1,1,1,1,0,0,0,1,1,1,1,0,
+	0,0,1,1,1,0,0,0,1,1,0,0,0,0,0,0,
+	1,0,0,0,0,0,1,1,1,1,1,0,1,1,1,1,
+	1,1,1,1,1,0,0,1,1,1,0,1,1,1,1,1,
+	1,1,1,1,1,0,0,0,0,0,0,1,1,1,1,1,
+	1,1,1,0,1,0,1,1,1,1,0,0,1,1,1,1,
+	1,1,1,0,0,1,1,1,1,1,0,0,0,0,0,0,
+	0,0,0,0,1,1,1,1,0,0,0,0,0,1,1,1,
+	1,1,0,0,1,1,1,0,1,1,1,0,1,1,1,1,
+	1,1,1,0,0,0,0,1,1,1,1,0,1,1,1,1,
+	1,1,1,0,0,1,1,1,1,1,1,0,0,1,1,1,
+	1,1,0,0,0,0,1,1,1,1,0,0,0,0,0,0,
+];
 const brikPix = [
 	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 	1,1,1,0,0,1,1,1,1,1,1,0,0,1,1,1,
@@ -125,6 +143,24 @@ const vines1Pix = [
 	0,1,0,0,1,0,1,0,1,0,0,0,1,0,0,0,
 	0,0,1,0,0,0,0,1,0,0,0,1,0,0,0,0,
 ];
+const roots1Pix = [
+	0,1,0,0,0,1,0,0,0,0,0,1,1,0,0,0,
+	0,1,0,0,0,1,1,0,0,1,1,0,1,0,0,0,
+	0,0,1,0,0,0,1,0,1,0,0,0,1,1,0,0,
+	0,0,1,0,0,0,1,0,1,0,0,1,0,1,0,0,
+	0,0,1,0,0,0,1,1,0,1,0,1,0,0,1,0,
+	0,1,0,0,0,1,0,1,0,0,0,1,0,0,0,1,
+	1,0,1,1,0,1,0,1,0,0,1,0,1,0,0,1,
+	1,0,1,0,1,0,0,1,0,0,0,0,0,0,1,0,
+	0,0,0,0,1,0,0,1,1,0,0,0,0,0,1,0,
+	0,0,0,1,1,1,0,0,1,1,0,0,0,1,0,0,
+	0,0,1,1,0,1,0,1,0,1,1,0,1,0,1,0,
+	0,1,1,0,0,1,0,1,0,0,1,0,1,0,1,0,
+	0,1,0,1,0,1,1,1,0,0,1,1,0,0,1,0,
+	1,1,0,0,0,0,1,0,1,0,0,1,0,1,0,1,
+	1,0,1,0,0,1,1,0,0,0,0,1,0,1,0,0,
+	1,0,0,1,0,1,0,0,0,0,1,1,0,0,0,0,
+]
 const ladder1FrontPix = [
 	0,0,1,1,0,0,0,0,0,0,0,0,1,1,0,0,
 	0,0,1,1,0,0,0,0,0,0,0,0,1,1,0,0,
@@ -289,6 +325,7 @@ const wallBlue = [128,128,220];
 const wallRed = [220,128,128];
 const wallYellow = [220,220,128];
 
+const tanRox1ImgRef = bitImgRef(black,[180,160,140],rox1Pix);
 const brikImgRef = "bitimg:color0=0;color1="+rgbaToNumber(200,200,180,255)+","+hexEncodeBits(brikPix);
 const brownBrikImgRef = "bitimg:color0=0;color1="+rgbaToNumber(200,180,128,255)+","+hexEncodeBits(brikPix);
 const grayBrikImgRef = "bitimg:color0=0;color1="+rgbaToNumber(128,128,128,255)+","+hexEncodeBits(brikPix);
@@ -300,8 +337,12 @@ const bigBlueBrikImgRef   = bitImgRef(black,wallBlue,bigBrikPix);
 const bigYellowBrikImgRef = bitImgRef(black,wallYellow,bigBrikPix);
 const bigRedBrikImgRef    = bitImgRef(black,wallRed,bigBrikPix);
 const playerImgRef = "bitimg:color0=0;color1="+rgbaToNumber(224,224,96,255)+","+hexEncodeBits(playerPix);
-const plant1ImgRef = "bitimg:color0=0;color1="+rgbaToNumber(64,192,64,255)+","+hexEncodeBits(plant1Pix);
-const vines1ImgRef = "bitimg:color0=0;color1="+rgbaToNumber(64,192,64,255)+","+hexEncodeBits(vines1Pix);
+const plant1ImgRef         = bitImgRef(0,[64,192,64],plant1Pix);
+const browningPlant1ImgRef = bitImgRef(0,[64,112,64],plant1Pix);
+const brownPlant1ImgRef    = bitImgRef(0,[80, 72,48],plant1Pix);
+const vines1ImgRef = bitImgRef(0,[64,192,64],vines1Pix);
+const browningVines1ImgRef = bitImgRef(0,[64,128,64],vines1Pix);
+const roots1ImgRef = bitImgRef(0,[96,80,64],roots1Pix);
 const ballImgRef = "bitimg:color0=0;color1="+rgbaToNumber(128,48,48,255)+","+hexEncodeBits(ballPix);
 const doorFrameImgRef = "bitimg:color1="+rgbaToNumber(64,64,64,255)+","+hexEncodeBits(doorFramePix);
 const doorSegmentImgRef = 'bitimg:width=10;height=16;color1='+rgbaToNumber(240,240,230,255)+","+hexEncodeBits(doorSegmentPix);
@@ -449,7 +490,9 @@ export const door3EntityClassId  = 'urn:uuid:13a4aa97-7b26-49ee-b282-fc53eccdf9c
 export const platformSegmentEntityClassId = 'urn:uuid:819f8257-bcad-4d2f-a64e-0a855ad9dd6e';
 export const platform3EntityClassId = 'urn:uuid:585927b9-b225-49d7-a49a-dff0445a1f78';
 export const tileEntityPaletteId = 'urn:uuid:50c19be4-7ab9-4dda-a52f-cf4cfe2562ac';
+
 export const playerEntityClassId = 'urn:uuid:416bfc18-7412-489f-a45e-6ff4c6a4e08b';
+export const tanRox1EntityClassId    = 'urn:uuid:4513ae98-0f43-4099-a532-6522adc6b6f1';
 export const brikEntityClassId       = 'urn:uuid:7164c409-9d00-4d75-8fc6-4f30a5755f77';
 export const brownBrikEntityClassId  = 'urn:uuid:7164c409-9d00-4d75-8fc6-4f30a5755f78';
 export const blueBrikEntityClassId   = 'urn:uuid:7164c409-9d00-4d75-8fc6-4f30a5755f79';
@@ -460,8 +503,12 @@ export const bigBrikEntityClassId       = 'urn:uuid:de6fbe4f-a475-46fe-8613-1900
 export const bigBlueBrikEntityClassId   = 'urn:uuid:6764a015-767e-4403-b565-4fbe94851f0d';
 export const bigYellowBrikEntityClassId = 'urn:uuid:6764a015-767e-4403-b565-4fbe94851f0e';
 export const bigRedBrikEntityClassId    = 'urn:uuid:6764a015-767e-4403-b565-4fbe94851f0f';
-export const plant1EntityClassId = 'urn:uuid:159aa4e5-016a-473d-9be7-5ba492fa899b';
-export const vines1EntityClassId = 'urn:uuid:4ee24c8f-7309-462e-b219-ed60505bdb52';
+export const plant1EntityClassId         = 'urn:uuid:159aa4e5-016a-473d-9be7-5ba492fa899b';
+export const browningPlant1EntityClassId = 'urn:uuid:159aa4e5-016a-473d-9be7-5ba492fa899c';
+export const brownPlant1EntityClassId    = 'urn:uuid:159aa4e5-016a-473d-9be7-5ba492fa899d';
+export const vines1EntityClassId         = 'urn:uuid:4ee24c8f-7309-462e-b219-ed60505bdb52';
+export const browningVines1EntityClassId = 'urn:uuid:4ee24c8f-7309-462e-b219-ed60505bdb53';
+export const roots1EntityClassId         = 'urn:uuid:123da2f5-252a-408d-9031-98a7f6639acc';
 export const backLadderEntityClassId = 'urn:uuid:80cad088-4875-4fc4-892e-34c3035035cc';
 export const doorFrameEntityClassId = 'urn:uuid:fde59aa4-d580-456b-b173-2b65f837fcb0';
 
@@ -534,6 +581,17 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 		climbability: 1/16,
 		visualRef: doorFrameImgRef
 	}, doorFramePieceEntityId );
+	
+	gdm.tempStoreObject<EntityClass>( {
+		debugLabel: "rocks",
+		structureType: StructureType.INDIVIDUAL,
+		tilingBoundingBox:   UNIT_CUBE,
+		physicalBoundingBox: UNIT_CUBE,
+		visualBoundingBox:   UNIT_CUBE,
+		isSolid: true,
+		opacity: 1,
+		visualRef: tanRox1ImgRef
+	}, tanRox1EntityClassId );
 	
 	gdm.tempStoreObject<EntityClass>( {
 		debugLabel: "big blue bricks",
@@ -764,6 +822,56 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 		opacity: 0.25,
 		visualRef: plant1ImgRef
 	}, plant1EntityClassId );
+	gdm.tempStoreObject<EntityClass>( {
+		debugLabel: "browning plant",
+		structureType: StructureType.INDIVIDUAL,
+		tilingBoundingBox: UNIT_CUBE,
+		physicalBoundingBox: UNIT_CUBE,
+		visualBoundingBox: UNIT_CUBE,
+		isSolid: false,
+		opacity: 0.25,
+		visualRef: browningPlant1ImgRef
+	}, browningPlant1EntityClassId );
+	gdm.tempStoreObject<EntityClass>( {
+		debugLabel: "plant",
+		structureType: StructureType.INDIVIDUAL,
+		tilingBoundingBox: UNIT_CUBE,
+		physicalBoundingBox: UNIT_CUBE,
+		visualBoundingBox: UNIT_CUBE,
+		isSolid: false,
+		opacity: 0.125,
+		visualRef: brownPlant1ImgRef
+	}, brownPlant1EntityClassId );
+	gdm.tempStoreObject<EntityClass>( {
+		debugLabel: "vines",
+		structureType: StructureType.INDIVIDUAL,
+		tilingBoundingBox: UNIT_CUBE,
+		physicalBoundingBox: UNIT_CUBE,
+		visualBoundingBox: UNIT_CUBE,
+		isSolid: false,
+		opacity: 3/4,
+		visualRef: vines1ImgRef
+	}, vines1EntityClassId );
+	gdm.tempStoreObject<EntityClass>( {
+		debugLabel: "browning vines",
+		structureType: StructureType.INDIVIDUAL,
+		tilingBoundingBox: UNIT_CUBE,
+		physicalBoundingBox: UNIT_CUBE,
+		visualBoundingBox: UNIT_CUBE,
+		isSolid: false,
+		opacity: 3/4,
+		visualRef: browningVines1ImgRef
+	}, browningVines1EntityClassId );
+	gdm.tempStoreObject<EntityClass>( {
+		debugLabel: "roots",
+		structureType: StructureType.INDIVIDUAL,
+		tilingBoundingBox: UNIT_CUBE,
+		physicalBoundingBox: UNIT_CUBE,
+		visualBoundingBox: UNIT_CUBE,
+		isSolid: false,
+		opacity: 1/2,
+		visualRef: roots1ImgRef
+	}, roots1EntityClassId );
 	
 	gdm.tempStoreObject<TileTree>( {
 		debugLabel: "door frame",
@@ -790,17 +898,6 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 		isSolid: true,
 		visualRef: ladder1FrontImgRef,
 	}, backLadderEntityClassId );
-
-	gdm.tempStoreObject<EntityClass>( {
-		debugLabel: "vines",
-		structureType: StructureType.INDIVIDUAL,
-		tilingBoundingBox: UNIT_CUBE,
-		physicalBoundingBox: UNIT_CUBE,
-		visualBoundingBox: UNIT_CUBE,
-		isSolid: false,
-		opacity: 3/4,
-		visualRef: vines1ImgRef
-	}, vines1EntityClassId );
 
 	gdm.tempStoreObject<EntityClass>( {
 		debugLabel: "small lattice column",
@@ -978,8 +1075,13 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 		/* 22 */ bigBlueBrikEntityClassId,
 		/* 23 */ bigYellowBrikEntityClassId,
 		/* 24 */ bigRedBrikEntityClassId,
+		/* 25 */ browningPlant1EntityClassId,
+		/* 26 */ brownPlant1EntityClassId,
+		/* 27 */ browningVines1EntityClassId,
+		/* 28 */ roots1EntityClassId,
+		/* 29 */ tanRox1EntityClassId,
 	], gdm, tileEntityPaletteId);
-
+	
 	// do this as second step because we need to reference that tile tree palette by ID
 	const roomBounds = makeAabb(-8, -8, -0.5, 8, 8, 0.5);
 	
