@@ -94,6 +94,11 @@ function pickLinkDirection( usedDirections:number[], link:MazeLink ):number {
 	if( link.allowsForwardMovement && !link.allowsBackwardMovement ) return DIR_DOWN;
 	if( link.allowsBackwardMovement && !link.allowsForwardMovement ) return DIR_UP;
 	
+	// Sometimes pick one at random.
+	if( !hasLocks && Math.random() < 0.25 ) {
+		return randInt(0,3);
+	}
+	
 	let minDirs:number[] = [];
 	let minCount = Infinity;
 	for( let d=0; d<4; ++d ) {
@@ -105,16 +110,16 @@ function pickLinkDirection( usedDirections:number[], link:MazeLink ):number {
 			minCount = usedDirections[d];
 		}
 	}
-	const horizontalDirs = [];
+	const horizontalDirs:number[] = [];
+	const verticalDirs:number[] = [];
 	for( let i in minDirs ) {
 		const d = minDirs[i];
 		switch( d ) {
-		case DIR_LEFT: horizontalDirs.push(d); break;
-		case DIR_RIGHT: horizontalDirs.push(d); break;
+		case DIR_LEFT:	case DIR_RIGHT: horizontalDirs.push(d); break;
+		default: verticalDirs.push(d); break;
 		}
 	}
-	// Prefer horizontal links!
-	if( horizontalDirs.length > 0 ) minDirs = horizontalDirs;
+	minDirs = ( horizontalDirs.length >= verticalDirs.length ) ? horizontalDirs : verticalDirs;
 	return minDirs[randInt(0,minDirs.length-1)];
 }
 
@@ -195,7 +200,8 @@ export default class GraphWorldifier {
 		for( let i=0; i<reqs.exitsPerSide.length; ++i ) {
 			while( reqs.exitsPerSide[i] > openSides[i] ) {
 				// We gotta dig in a perpendicular direction.
-				const digDir = ((i+1) + Math.floor(Math.random()*2)*2) % 4;
+				let digDir = ((i+1) + randInt(0,1)*2) % 4;
+				if( protoRoom.protoLinks[digDir] ) digDir = (digDir + 2) % 4;
 				const newRoom = newProtoRoom();
 				linkProtoRooms(protoRoom, digDir, newRoom, {
 					isBidirectional: true,
@@ -339,10 +345,15 @@ export default class GraphWorldifier {
 				if( hasDoors ) throw new Error("Lock room has vertical link!");
 				const hallWidth = bottomProtoLink.attributes.interSpan ? 2 : 4;
 				const hhw = hallWidth/2;
-				tileBmp.fill(cx-hhw, floorHeight, 0, cx+hhw, roomHeight, 1, 0);
 				if( bottomProtoLink.attributes.isBidirectional ) {
-					tileBmp.fill(0, floorHeight, 0, roomWidth, floorHeight+1, 1, platformTileIndex);
+					if( Math.random() < 0.5 ) {
+						tileBmp.fill(cx-1, floorHeight, 0, cx+2, floorHeight+1, 1, platformTileIndex);
+					} else {
+						tileBmp.fill(0, floorHeight, 0, roomWidth, floorHeight+1, 1, platformTileIndex);
+					}
 					tileBmp.fill(cx, floorHeight-1, 0, cx+1,roomHeight, 1, LADDER_IDX)
+				} else {
+					tileBmp.fill(cx-hhw, floorHeight, 0, cx+hhw, roomHeight, 1, 0);
 				}
 			}
 			

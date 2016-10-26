@@ -178,7 +178,7 @@ export default class MazeGenerator {
 			const linkLocks = i == 0 ? entranceLocks : {};
 			this.dig({
 				allowsForwardMovement: true,
-				allowsBackwardMovement: !isEmpty(linkLocks) || Math.random() < 0.125,
+				allowsBackwardMovement: !isEmpty(linkLocks) || Math.random() < 0.75,
 				locks: linkLocks,
 			});
 		}
