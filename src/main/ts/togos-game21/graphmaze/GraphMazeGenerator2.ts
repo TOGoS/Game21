@@ -122,16 +122,13 @@ export default class MazeGenerator {
 	}
 	
 	public randomNode(collection:MazeNode[]=this.nodes, fitnessfunction:FitnessFunction<MazeNode>=EVERYTHING_FITS, resultDescription:string="node") {
-		const subCollection = fitnessfunction === EVERYTHING_FITS ? collection : nMostFit(collection,collection.length/4,fitnessfunction,resultDescription);
+		const subCollection = fitnessfunction === EVERYTHING_FITS ? collection : nMostFit(collection, Math.max(2,collection.length/4),fitnessfunction,resultDescription);
 		if( subCollection.length == 0 ) throw new Error("Collection is empty; can't pick "+resultDescription);
 		return pickOne(subCollection, EVERYTHING_FITS, resultDescription);
 	}
 	
 	public selectRandomNode(collection:MazeNode[]=this.nodes, fitnessfunction:FitnessFunction<MazeNode>=EVERYTHING_FITS, resultDescription:string="node"):MazeNode {
-		this._selectedNode = this.randomNode(collection, fitnessfunction, resultDescription);
-		const subCollection = fitnessfunction === EVERYTHING_FITS ? collection : nMostFit(collection,4,fitnessfunction,resultDescription);
-		if( subCollection.length == 0 ) throw new Error("Collection is empty; can't pick "+resultDescription);
-		return this._selectedNode = pickOne(subCollection, EVERYTHING_FITS, resultDescription);
+		return this._selectedNode = this.randomNode(collection, fitnessfunction, resultDescription);
 	}
 	
 	public linkNodes(n0:MazeNode, n1:MazeNode, linkAttrs:MazeLinkAttributes) {
