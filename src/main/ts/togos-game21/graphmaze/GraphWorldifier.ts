@@ -430,12 +430,6 @@ export default class GraphWorldifier {
 			const itemX = -1.5;
 			let itemY = floorHeight - roomHeight/2 - 1.5;
 			if( span.node && !itemsPlaced ) placeItems: for( let k in span.node.items ) {
-				const tileX = roomWidth/2+Math.floor(itemX);
-				const tileY = roomHeight/2+Math.floor(itemY);
-				if( !itemsPlaced ) {
-					tileBmp.fill(tileX,floorHeight-1,0, tileX+1,floorHeight,1, platformTileIndex);
-				}
-				
 				const itemClassId = span.node.items[k];
 				let entityClassRef:string;
 				switch( itemClassId ) {
@@ -445,6 +439,12 @@ export default class GraphWorldifier {
 				case ITEMCLASS_START    : continue placeItems;
 				case ITEMCLASS_END      : entityClassRef = dat.triforceEntityClassId; break;
 				default: throw new Error("Unknown entity type "+itemClassId);
+				}
+				
+				const tileX = roomWidth/2+Math.floor(itemX);
+				const tileY = roomHeight/2+Math.floor(itemY);
+				if( !itemsPlaced ) {
+					tileBmp.fill(tileX,floorHeight-1,0, tileX+1,floorHeight,1, platformTileIndex);
 				}
 				
 				tileBmp.fill(tileX,tileY,0, tileX+1,tileY+1,1, 0);
