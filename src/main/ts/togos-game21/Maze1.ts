@@ -2358,7 +2358,7 @@ export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string, loadingSt
 	const tpArea = document.getElementById('tile-palette-area');
 	if( tpArea ) {
 		const tpUi = new TilePaletteUI( 16 );
-		const invUi = new TilePaletteUI(3);
+		const invUi = new TilePaletteUI(4);
 		tpUi.element.style.display = 'none';
 		demo.tilePaletteUi = tpUi;
 		demo.maze1InventoryUi = invUi;
