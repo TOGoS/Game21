@@ -44,6 +44,11 @@ $configProperties = [
 		'defaultValue' => null,
 		'affects' => 'pageGeneration',
 	],
+	'allowEditing' => [
+		'valueType' => 'boolean',
+		'defaultValue' => true,
+		'affects' => 'pageGeneration',
+	],
 ];
 
 $config = config_from_env($configProperties, $config);
@@ -90,7 +95,7 @@ ul {
 }
 .maze-canvas {
 	background: black;
-	border: 1px solid #333344;
+	border: none;
 	width: 320px;
 	height: 240px;
 	box-sizing: content-box;
@@ -314,7 +319,9 @@ ul.tile-palette li.selected {
 </div>
 
 <div id="tile-palette-area"></div>
+<?php if($allowEditing): ?>
 <div id="button-area" class="button-bar"></div>
+<?php endif; ?>
 </div>
 
 <div id="console-dialog" class="dialog-box big-dialog-box" style="display:none">
@@ -414,14 +421,15 @@ ul.tile-palette li.selected {
 			}
 		?>;
 		
-		updateLoadingStatus("Starting demo...");
+		updateLoadingStatus("Starting...");
 		
 		var demo = _Maze1.startDemo(document.getElementById('maze-canvas'), <?php ejsv($saveGameRef); ?>, updateLoadingStatus, cacheStrings);
+		demo.allowEditing = <?php ejsv($allowEditing); ?>;
 		window.maze1Demo = demo;
 		window.addEventListener('keydown', demo.keyDown.bind(demo));
 		window.addEventListener('keyup', demo.keyUp.bind(demo));
 		
-		const fogColor = 'rgba(58,58,64,1)';
+		const fogColor = 'rgba(38,38,44,1)';
 		demo.view.occlusionFillStyle = fogColor;
 		document.getElementById('maze-area').style.background = fogColor;
 	});

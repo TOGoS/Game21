@@ -1693,6 +1693,7 @@ export class MazeDemo {
 	public canvas:HTMLCanvasElement;
 	public view : MazeView;
 	public playerId : string;
+	public allowEditing : boolean = true;
 	protected tickTimerId? : number;
 	protected tickRate = 1/32;
 	protected mode:DemoMode = DemoMode.PLAY;
@@ -1853,7 +1854,7 @@ export class MazeDemo {
 		}
 	}
 	public keyDown(keyEvent:KeyboardEvent):void {
-		if( keyEvent.keyCode == 9 ) {
+		if( keyEvent.keyCode == 9 && this.allowEditing ) {
 			this.switchToNextMode();
 			keyEvent.preventDefault();
 			return;
