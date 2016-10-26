@@ -1924,7 +1924,7 @@ export class MazeDemo {
 		});
 	}
 	
-	public generateAndLoadNewLevel(level:number) {
+	public generateAndLoadNewLevel(level:number):Promise<void> {
 		let attempts = 0;
 		let generateMaze:()=>Promise<void> = () => Promise.resolve(); // stupid ts compiler blah
 		generateMaze = () => {
@@ -1935,7 +1935,6 @@ export class MazeDemo {
 			generator.targetNodeCount = 8 + level;
 			generator.complectificationFactor = 1/4 + Math.random()*Math.random()/2 + (1/3) * (level/50);
 			
-			if( !this.winDialog ) throw new Error('NO SNW DL')
 			const generationMessage = "Generating new level "+
 				"requiring "+generator.requireKeys.length+" keys, "+
 				"complectification factor: "+generator.complectificationFactor.toPrecision(2)+", "+
@@ -2355,8 +2354,18 @@ export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string, loadingSt
 	demo.importCacheStrings(cacheStrings);
 	
 	const tempGdm = new GameDataManager(ds);
-	const gameLoaded:Promise<MazeSimulator> = saveGameRef ? demo.loadGame(saveGameRef) :
-		dat.initData(tempGdm).then( () => demo.loadGame2( tempGdm, dat.playerEntityId, dat.room1Id, "generated maze" ) );
+	let gameLoaded:Promise<any>;
+	const levelRe = /^level(\d+)$/;
+	let levelReMatch:RegExpExecArray|null;
+	if( saveGameRef == 'demo' || saveGameRef == undefined ) {
+		gameLoaded = dat.initData(tempGdm).then( () => demo.loadGame2( tempGdm, dat.playerEntityId, dat.room1Id, "demo maze" ));
+	} else if( (levelReMatch = levelRe.exec(saveGameRef)) ) {
+		// generateAndLoadNewLevel depends on some UI elements being set up, so defer it...
+		const levelNumber = parseInt(levelReMatch[1]);
+		gameLoaded = Promise.resolve().then( () => demo.generateAndLoadNewLevel(levelNumber));
+	} else {
+		gameLoaded = demo.loadGame(saveGameRef);
+	}
 	
 	canv.addEventListener('mousedown', demo.handleMouseEvent.bind(demo));
 	canv.addEventListener('mouseup'  , demo.handleMouseEvent.bind(demo));
@@ -2374,7 +2383,7 @@ export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string, loadingSt
 		});
 		tpArea.appendChild( invUi.element );
 		tpArea.appendChild( tpUi.element );
-		gameLoaded.then( (saveGame) => {
+		gameLoaded.then( () => {
 			const entityRenderer = new TileEntityRenderer(demo.simulator.gameDataManager);
 			invUi.entityRenderer = tpUi.entityRenderer = (ent:Entity, orientation:Quaternion):Promise<string|null> => {
 				return entityRenderer.entityIcon(ent, orientation).then( (icon) => icon.sheetRef );

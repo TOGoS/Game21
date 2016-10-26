@@ -385,7 +385,7 @@ export default class GraphWorldifier {
 					if( Math.random() < 0.5 ) {
 						let plantTileIndex:number;
 						if( Math.random() < 0.125 ) plantTileIndex = 14; // brown brick
-						else plantTileIndex = [25,25,3][Math.floor(Math.random()*Math.random()*3)];
+						else plantTileIndex = [26,25,3][Math.floor(Math.random()*Math.random()*3)];
 						tileBmp.fill(x,groundHeightAbs-1,0, x+1,groundHeightAbs,1, plantTileIndex);
 					}
 				}
@@ -568,6 +568,7 @@ import { SaveGame } from '../Maze1';
 export function mazeToWorld(worldifier:GraphWorldifier):Promise<{ gdm:GameDataManager, playerId:string, startRoomRef:string }> {
 	const gdm = worldifier.gameDataManager;
 	return dat.initData(gdm).then(() => gdm.fetchTranslation( dat.tileEntityPaletteId )).then( (tepRef) => {
+		//const worldifier:GraphWorldifier = new GraphWorldifier(gdm, maze);
 		worldifier.tileEntityPaletteRef = tepRef;
 		return worldifier;
 	}).then( (worldifier) => {
