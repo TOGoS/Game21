@@ -892,14 +892,12 @@ export class MazeGamePhysics {
 						entity.maze1Inventory[foundIoi.roomEntityId] = foundIoi.entity;
 					}
 					doKey: if( foundIoi.entityClass.cheapMaze1DoorKeyClassRef ) {
-						console.log("Touched cheap door!");
 						const requiredKeyClass = foundIoi.entityClass.cheapMaze1DoorKeyClassRef;
 						const doorClass = foundIoi.entity.classRef;
 						// Does player have one?
 						if( entity.maze1Inventory ) {
 							for( let k in entity.maze1Inventory ) {
 								if( entity.maze1Inventory[k].classRef == requiredKeyClass ) {
-									console.log("U haev key!");
 									this.game.destroyCheapDoor( foundIoi.roomRef, foundIoi.entityPosition, doorClass );
 									break doKey;
 								}
@@ -1703,7 +1701,7 @@ export class MazeDemo {
 	public consoleDialog:ConsoleDialogBox;
 	public winDialog:WinDialogBox;
 	protected foundTriforceCount:number = 0;
-	protected gotTriforceThisLevel:boolean = false;
+	protected foundTriforceThisLevel:boolean = false;
 	public logger:Logger;
 	public loadingStatusUpdated:(text:string)=>any = (t)=>{};
 	
@@ -1802,10 +1800,11 @@ export class MazeDemo {
 				const inv = foundPlayer.entity.maze1Inventory || {};
 				for( let k in inv ) {
 					invItems.push({orientation: Quaternion.IDENTITY, entity: inv[k]});
-					if( inv[k].classRef == dat.triforceEntityClassId && !this.gotTriforceThisLevel ) {
+					if( inv[k].classRef == dat.triforceEntityClassId && !this.foundTriforceThisLevel ) {
 						// omg a triforce
 						++this.foundTriforceCount;
 						this.popUpWinDialog("You have found "+this.foundTriforceCount+" triforces!");
+						this.foundTriforceThisLevel = true;
 					}
 				}
 			}
@@ -1905,6 +1904,7 @@ export class MazeDemo {
 		loadPromise.then( (game) => {
 			console.log("Loaded "+saveRef);
 			this.loadingStatusUpdated("");
+			this.foundTriforceThisLevel = false;
 		}).catch( (err) => {
 			this.logger.log("Error loading "+saveRef, err);
 			this.loadingStatusUpdated("Error loading!");
@@ -1923,18 +1923,45 @@ export class MazeDemo {
 		});
 	}
 	
-	public generateNewLevel() {
+	public generateAndLoadNewLevel() {
 		const generator = new GraphMazeGenerator();
 		if( this.foundTriforceCount > 2 ) generator.requireKeys.push(ITEMCLASS_BLUEKEY);
-		if( this.foundTriforceCount > 6 ) generator.requireKeys.push(ITEMCLASS_BLUEKEY);
+		if( this.foundTriforceCount > 6 ) generator.requireKeys.push(ITEMCLASS_YELLOWKEY);
 		if( this.foundTriforceCount > 12 ) generator.requireKeys.push(ITEMCLASS_REDKEY);
 		generator.targetNodeCount = 8 + this.foundTriforceCount;
-		const maze = generator.generate();
-		const gdm = new GameDataManager(this.datastore);
-		mazeToWorld(maze, gdm).then( ({gdm, playerId, startRoomRef}) => {
-			this.winDialog.setVisible(false);
-			this.loadGame2( gdm, playerId, startRoomRef, "generated" );
-		})
+		
+		let attempts = 0;
+		let generateMaze:()=>Promise<void> = () => Promise.resolve(); // stupid ts compiler blah
+		generateMaze = () => {
+			if( !this.winDialog ) throw new Error('NO SNW DL')
+			const generationMessage = "Generating new level requiring "+generator.requireKeys.length+" keys of size "+generator.targetNodeCount+(attempts > 0 ? " (attempt "+attempts+")" : "")+"...";
+			this.logger.log(generationMessage);
+			if( this.winDialog ) this.winDialog.message = generationMessage;
+			if( this.winDialog && this.winDialog.nextLevelButton ) this.winDialog.nextLevelButton.disabled = true;
+			++attempts;
+			return new Promise( (res,rej) => setTimeout(res,50) ).then( () => {
+				const maze = generator.generate();
+				const gdm = new GameDataManager(this.datastore);
+				return {maze,gdm};
+			}).then( ({maze,gdm}) => mazeToWorld(maze, gdm) ).then( ({gdm, playerId, startRoomRef}) => {
+				this.winDialog.setVisible(false);
+				if( this.winDialog && this.winDialog.nextLevelButton ) this.winDialog.nextLevelButton.disabled = false;
+				this.logger.log("Loading generated maze...");
+				this.loadGame2( gdm, playerId, startRoomRef, "generated" );
+			}, (err) => {
+				if( attempts < 50 ) {
+					this.logger.warn("Maze generation failed; trying agin (attempt #"+attempts+"): ", err);
+					return generateMaze();
+				} else {
+					const errorMessage = "Maze generation failed 50 times!  I guess my generator sucks!";
+					this.logger.error(errorMessage);
+					if( this.winDialog ) this.winDialog.message = errorMessage;
+					if( this.winDialog && this.winDialog.nextLevelButton ) this.winDialog.nextLevelButton.disabled = false;
+					return Promise.reject(err);
+				}
+			});
+		}
+		return generateMaze();
 	}
 	
 	public inspect(ref:string):Promise<any> {
@@ -2088,8 +2115,8 @@ export class MazeDemo {
 				// do nothing!
 			} else {
 				doCommand: switch( tokens[0].text ) {
-				case 'generate-new-level':
-					this.generateNewLevel();
+				case 'generate-new-level': case 'next-level':
+					this.generateAndLoadNewLevel();
 					break;
 				case 'export-cached-data': case 'ecd':
 					this.exportCachedData();
@@ -2167,8 +2194,13 @@ export class MazeDemo {
 	}
 	
 	public popUpWinDialog(text:string) {
-		this.winDialog.message = text;
-		this.winDialog.setVisible(true);
+		if( this.winDialog ) {
+			this.logger.log(text);
+			this.winDialog.message = text;
+			this.winDialog.setVisible(true);
+		} else {
+			this.logger.log(text+"\nBut there's no win dialog.  Type '/next-level' to go to the next level");
+		}
 	}
 }
 
@@ -2187,13 +2219,22 @@ class DialogBox {
 }
 
 class WinDialogBox extends DialogBox {
-	public messageElement:HTMLElement|undefined|null;
+	public messageAreaElement:HTMLElement|undefined|null;
+	public nextLevelButton:HTMLButtonElement|undefined|null;
 	
 	public set message(text:string) {
-		const e = this.messageElement;
-		if( !e ) return;
-		while( e.firstChild ) e.removeChild(e.firstChild);
-		e.appendChild(document.createTextNode(text));
+		const e = this.messageAreaElement;
+		if( e ) {
+			while( e.firstChild ) e.removeChild(e.firstChild);
+			const p = document.createElement('p');
+			p.appendChild(document.createTextNode(text));
+			e.appendChild(p);
+		}
+	}
+	
+	public setVisible(viz:boolean) {
+		super.setVisible(viz);
+		if( viz && this.nextLevelButton ) this.nextLevelButton.focus();
 	}
 }
 
@@ -2464,13 +2505,16 @@ export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string, loadingSt
 	
 	const winDialogElem = document.getElementById('win-dialog');
 	if( winDialogElem ) {
-		const winDialog:WinDialogBox = <WinDialogBox>new DialogBox(winDialogElem);
-		winDialog.messageElement = document.getElementById('win-message');
+		const winDialog:WinDialogBox = new WinDialogBox(winDialogElem);
+		winDialog.messageAreaElement = document.getElementById('win-dialog-message-area');
 		demo.winDialog = winDialog;
-		const nextLevelButton = document.createElement('button');
-		nextLevelButton.appendChild(document.createTextNode('Next level!'));
-		nextLevelButton.onclick = () => demo.generateNewLevel();
-		winDialogElem.appendChild(nextLevelButton);
+		const winButtonArea = document.getElementById('win-dialog-button-area');
+		if( winButtonArea ) {
+			const nextLevelButton = winDialog.nextLevelButton = document.createElement('button');
+			nextLevelButton.appendChild(document.createTextNode('Next level!'));
+			nextLevelButton.onclick = () => demo.generateAndLoadNewLevel();
+			winButtonArea.appendChild(nextLevelButton);
+		}
 	}
 	
 	const consoleDialogElem = document.getElementById('console-dialog');
