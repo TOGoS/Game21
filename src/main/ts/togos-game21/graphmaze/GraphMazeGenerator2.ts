@@ -317,7 +317,7 @@ export default class MazeGenerator {
 			}
 			
 			this.calculateNodeDistances(stageStartNode);
-			const stageEndNode = this.randomNode(this.nodes, (n:MazeNode) => n.distanceValue);
+			const stageEndNode = this.randomNode(this.nodes, (n:MazeNode) => 1+n.distanceValue);
 			this._selectedNode = stageEndNode;
 			this.dig();
 			this.placeItem(stage.provide);
