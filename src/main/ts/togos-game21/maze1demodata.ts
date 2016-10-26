@@ -284,6 +284,11 @@ function bitImgRef(color0:number|number[],color1:number|number[],pixDat:number[]
 	return "bitimg:"+mods.join(';')+","+hexEncodeBits(pixDat);
 }
 
+const black = [0,0,0];
+const wallBlue = [128,128,220];
+const wallRed = [220,128,128];
+const wallYellow = [220,220,128];
+
 const brikImgRef = "bitimg:color0=0;color1="+rgbaToNumber(200,200,180,255)+","+hexEncodeBits(brikPix);
 const brownBrikImgRef = "bitimg:color0=0;color1="+rgbaToNumber(200,180,128,255)+","+hexEncodeBits(brikPix);
 const grayBrikImgRef = "bitimg:color0=0;color1="+rgbaToNumber(128,128,128,255)+","+hexEncodeBits(brikPix);
@@ -291,7 +296,9 @@ const blueBrikImgRef = "bitimg:color0=0;color1="+rgbaToNumber(128,128,220,255)+"
 const yellowBrikImgRef = "bitimg:color0=0;color1="+rgbaToNumber(220,220,128,255)+","+hexEncodeBits(brikPix);
 const redBrikImgRef = "bitimg:color0=0;color1="+rgbaToNumber(220,128,128,255)+","+hexEncodeBits(brikPix);
 const bigBrikImgRef = "bitimg:color0=0;color1="+rgbaToNumber(220,220,200,255)+","+hexEncodeBits(bigBrikPix);
-const bigYellowBrikImgRef = "bitimg:color0=0;color1="+rgbaToNumber(220,220,128,255)+","+hexEncodeBits(bigBrikPix);
+const bigBlueBrikImgRef   = bitImgRef(black,wallBlue,bigBrikPix);
+const bigYellowBrikImgRef = bitImgRef(black,wallYellow,bigBrikPix);
+const bigRedBrikImgRef    = bitImgRef(black,wallRed,bigBrikPix);
 const playerImgRef = "bitimg:color0=0;color1="+rgbaToNumber(224,224,96,255)+","+hexEncodeBits(playerPix);
 const plant1ImgRef = "bitimg:color0=0;color1="+rgbaToNumber(64,192,64,255)+","+hexEncodeBits(plant1Pix);
 const vines1ImgRef = "bitimg:color0=0;color1="+rgbaToNumber(64,192,64,255)+","+hexEncodeBits(vines1Pix);
@@ -449,12 +456,14 @@ export const blueBrikEntityClassId   = 'urn:uuid:7164c409-9d00-4d75-8fc6-4f30a57
 export const yellowBrikEntityClassId = 'urn:uuid:7164c409-9d00-4d75-8fc6-4f30a5755f7a';
 export const redBrikEntityClassId    = 'urn:uuid:7164c409-9d00-4d75-8fc6-4f30a5755f7b';
 export const grayBrikEntityClassId   = 'urn:uuid:7164c409-9d00-4d75-8fc6-4f30a5755f7c';
-export const bigBrikEntityClassId = 'urn:uuid:de6fbe4f-a475-46fe-8613-1900d6a5d36c';
+export const bigBrikEntityClassId       = 'urn:uuid:de6fbe4f-a475-46fe-8613-1900d6a5d36c';
+export const bigBlueBrikEntityClassId   = 'urn:uuid:6764a015-767e-4403-b565-4fbe94851f0d';
+export const bigYellowBrikEntityClassId = 'urn:uuid:6764a015-767e-4403-b565-4fbe94851f0e';
+export const bigRedBrikEntityClassId    = 'urn:uuid:6764a015-767e-4403-b565-4fbe94851f0f';
 export const plant1EntityClassId = 'urn:uuid:159aa4e5-016a-473d-9be7-5ba492fa899b';
 export const vines1EntityClassId = 'urn:uuid:4ee24c8f-7309-462e-b219-ed60505bdb52';
 export const backLadderEntityClassId = 'urn:uuid:80cad088-4875-4fc4-892e-34c3035035cc';
 export const doorFrameEntityClassId = 'urn:uuid:fde59aa4-d580-456b-b173-2b65f837fcb0';
-export const bigYellowBrikEntityClassId = 'urn:uuid:6764a015-767e-4403-b565-4fbe94851f0e';
 
 export const latticeColumnEntityClassId = 'urn:uuid:601fb61a-df00-49bf-8189-877497cf492f';
 export const latticeColumnRightBlockEntityClassId = 'urn:uuid:02056297-7242-4ff2-af15-69055671e5c5';
@@ -527,6 +536,16 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 	}, doorFramePieceEntityId );
 	
 	gdm.tempStoreObject<EntityClass>( {
+		debugLabel: "big blue bricks",
+		structureType: StructureType.INDIVIDUAL,
+		tilingBoundingBox:   UNIT_CUBE,
+		physicalBoundingBox: UNIT_CUBE,
+		visualBoundingBox:   UNIT_CUBE,
+		isSolid: true,
+		opacity: 1,
+		visualRef: bigBlueBrikImgRef
+	}, bigBlueBrikEntityClassId );
+	gdm.tempStoreObject<EntityClass>( {
 		debugLabel: "big yellow bricks",
 		structureType: StructureType.INDIVIDUAL,
 		tilingBoundingBox:   UNIT_CUBE,
@@ -536,6 +555,16 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 		opacity: 1,
 		visualRef: bigYellowBrikImgRef
 	}, bigYellowBrikEntityClassId );
+	gdm.tempStoreObject<EntityClass>( {
+		debugLabel: "big red bricks",
+		structureType: StructureType.INDIVIDUAL,
+		tilingBoundingBox:   UNIT_CUBE,
+		physicalBoundingBox: UNIT_CUBE,
+		visualBoundingBox:   UNIT_CUBE,
+		isSolid: true,
+		opacity: 1,
+		visualRef: bigRedBrikImgRef
+	}, bigRedBrikEntityClassId );
 	
 	const leftHandAttachmentZoneKey = 'urn:uuid:aed817b0-e381-400e-9797-ce9bff56d76d';
 	const rightHandAttachmentZoneKey = 'urn:uuid:8e39b8de-5f0f-4312-889b-d053bdc22649';
@@ -946,6 +975,9 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 		/* 19 */ yellowBrikEntityClassId,
 		/* 20 */ redBrikEntityClassId,
 		/* 21 */ grayBrikEntityClassId,
+		/* 22 */ bigBlueBrikEntityClassId,
+		/* 23 */ bigYellowBrikEntityClassId,
+		/* 24 */ bigRedBrikEntityClassId,
 	], gdm, tileEntityPaletteId);
 
 	// do this as second step because we need to reference that tile tree palette by ID

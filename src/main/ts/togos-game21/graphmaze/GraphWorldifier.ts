@@ -60,6 +60,7 @@ interface ProtoRoomLink {
 
 interface ProtoRoom {
 	id : string;
+	protoRoomSpanRef : string;
 	protoLinks : (ProtoRoomLink|undefined)[];
 	doors : KeySet;
 }
@@ -123,8 +124,8 @@ function pickLinkDirection( usedDirections:number[], link:MazeLink ):number {
 	return minDirs[randInt(0,minDirs.length-1)];
 }
 
-function newProtoRoom():ProtoRoom {
-	return { id: newUuidRef(), protoLinks: [undefined,undefined,undefined,undefined], doors: {} };
+function newProtoRoom(spanId:string):ProtoRoom {
+	return { id: newUuidRef(), protoRoomSpanRef:spanId, protoLinks: [undefined,undefined,undefined,undefined], doors: {} };
 }
 function linkProtoRooms(pr0:ProtoRoom, dir:number, pr1:ProtoRoom, linkAttributes:ProtoLinkAttributes ) {
 	if( pr0.protoLinks[dir] ) throw new Error("Can't connect "+pr0.id+" "+dir+"-wise to "+pr1.id+"; link already exists");
@@ -190,19 +191,26 @@ export default class GraphWorldifier {
 		return this._tileEntityPaletteRef;
 	}
 	
-	protected generateProtoRoomSpan(reqs:RoomSpanRequirements, node:MazeNode):ProtoRoomSpan {
+	protected protoRooms:KeyedList<ProtoRoom> = {}
+	protected newProtoRoom(spanId:string) {
+		const pr = newProtoRoom(spanId);
+		this.protoRooms[pr.id] = pr;
+		return pr;
+	}
+	
+	protected generateProtoRoomSpan(spanId:string, reqs:RoomSpanRequirements, node:MazeNode):ProtoRoomSpan {
 		// Is this where 'generate nice room spans' code might go?
 		// e.g. try generating a cavey room or something
 		const spanProtoRooms:KeyedList<ProtoRoom> = {};
 		const openSides = [1,1,1,1];
-		let protoRoom = newProtoRoom();
+		let protoRoom = this.newProtoRoom(spanId);
 		spanProtoRooms[protoRoom.id] = protoRoom;
 		for( let i=0; i<reqs.exitsPerSide.length; ++i ) {
 			while( reqs.exitsPerSide[i] > openSides[i] ) {
 				// We gotta dig in a perpendicular direction.
 				let digDir = ((i+1) + randInt(0,1)*2) % 4;
 				if( protoRoom.protoLinks[digDir] ) digDir = (digDir + 2) % 4;
-				const newRoom = newProtoRoom();
+				const newRoom = this.newProtoRoom(spanId);
 				linkProtoRooms(protoRoom, digDir, newRoom, {
 					isBidirectional: true,
 					interSpan: false,
@@ -258,9 +266,9 @@ export default class GraphWorldifier {
 		return { exitsPerSide };
 	}
 	
-	protected generateLinkSpan(link:MazeLink, locks:KeySet):ProtoRoomSpan {
+	protected generateLinkSpan(spanId:string, link:MazeLink, locks:KeySet):ProtoRoomSpan {
 		const protoRooms:KeyedList<ProtoRoom> = {};
-		const newRoom = newProtoRoom();
+		const newRoom = this.newProtoRoom(spanId);
 		newRoom.doors = locks;
 		protoRooms[newRoom.id] = newRoom;
 		return { protoRooms };
@@ -287,6 +295,27 @@ export default class GraphWorldifier {
 		linkProtoRooms( room0, dir, room1, linkAttributes );
 	}
 	
+	protected primaryWallTileIndex(node:MazeNode|undefined):number {
+		if( node ) {
+			if( node.items[ITEMCLASS_START] ) return 14;
+			else if( node.items[ITEMCLASS_END] ) return 1;
+			else if( node.requiredKeys[ITEMCLASS_REDKEY] ) return 20;
+			else if( node.requiredKeys[ITEMCLASS_YELLOWKEY] ) return 19;
+			else if( node.requiredKeys[ITEMCLASS_BLUEKEY] ) return 15;
+		}
+		return 21;
+	}
+	
+	protected protoLinkedWallTileIndex(link:ProtoRoomLink|undefined) {
+		if( !link ) return 21;
+		
+		const protoRoom = this.protoRooms[link.neighborRef];
+		if( !protoRoom ) return 21;
+		const span = this.protoRoomSpans[protoRoom.protoRoomSpanRef];
+		if( !span || !span.node ) return 21;
+		return this.primaryWallTileIndex(span.node);
+	}
+	
 	protected protoRoomSpanToWorldRooms(span:ProtoRoomSpan):void {
 		let itemsPlaced = false;
 		for( let pr in span.protoRooms ) {
@@ -296,14 +325,7 @@ export default class GraphWorldifier {
 			const roomWidth = 8, roomHeight = 8, roomDepth = 1;
 			const roomBounds:AABB = makeAabb(-roomWidth/2, -roomHeight/2, -roomDepth/2, roomWidth/2, roomHeight/2, roomDepth/2);
 			const tileBmp = new Bitmap(roomWidth,roomHeight,roomDepth);
-			let wallTileIndex:number = 21;
-			if( span.node ) {
-				if( span.node.items[ITEMCLASS_START] ) wallTileIndex = 14;
-				else if( span.node.items[ITEMCLASS_END] ) wallTileIndex = 1;
-				else if( span.node.requiredKeys[ITEMCLASS_REDKEY] ) wallTileIndex = 20;
-				else if( span.node.requiredKeys[ITEMCLASS_YELLOWKEY] ) wallTileIndex = 19;
-				else if( span.node.requiredKeys[ITEMCLASS_BLUEKEY] ) wallTileIndex = 15;
-			}
+			const wallTileIndex = this.primaryWallTileIndex(span.node);
 			const floorHeight = roomHeight - 2;
 			const ceilingHeight = span.node ? randInt(1,floorHeight-2) : floorHeight-2;
 			const neighbors:KeyedList<RoomNeighbor> = {};
@@ -368,28 +390,52 @@ export default class GraphWorldifier {
 				}
 			}
 			
-			let doorPos = 2;
-			for( let k in protoRoom.doors ) {
-				let doorTileIndex:number;
-				switch( k ) {
-				case ITEMCLASS_BLUEKEY: doorTileIndex = 16; break;
-				case ITEMCLASS_YELLOWKEY: doorTileIndex = 17; break;
-				case ITEMCLASS_REDKEY: doorTileIndex = 18; break;
-				default: throw new Error("No door tile index known for "+k);
+			if( hasDoors ) {
+				const leftWallTileIndex = this.protoLinkedWallTileIndex(protoRoom.protoLinks[DIR_LEFT]);
+				const rightWallTileIndex = this.protoLinkedWallTileIndex(protoRoom.protoLinks[DIR_RIGHT]);
+				
+				let doorPos = 2;
+				let lastDoorPos = 2;
+				tileBmp.fill(0,0,0, doorPos,ceilingHeight,1, leftWallTileIndex);
+				tileBmp.fill(0,floorHeight,0, doorPos,roomHeight,1, leftWallTileIndex);
+				for( let k in protoRoom.doors ) {
+					let doorTileIndex:number;
+					let doorFrameTileIndex:number;
+					switch( k ) {
+					case ITEMCLASS_BLUEKEY:
+						doorTileIndex = 16;
+						doorFrameTileIndex = 22;
+						break;
+					case ITEMCLASS_YELLOWKEY:
+						doorTileIndex = 17;
+						doorFrameTileIndex = 23;
+						break;
+					case ITEMCLASS_REDKEY:
+						doorTileIndex = 18;
+						doorFrameTileIndex = 24;
+						break;
+					default: throw new Error("No door tile index known for "+k);
+					}
+					tileBmp.fill(doorPos,0,0, doorPos+1,roomHeight,1, doorFrameTileIndex);
+					tileBmp.fill(doorPos,ceilingHeight, 0, doorPos+1, floorHeight, 1, doorTileIndex);
+					lastDoorPos = doorPos;
+					doorPos += 2;
 				}
-				tileBmp.fill(doorPos, ceilingHeight, 0, doorPos+1, floorHeight, 1, doorTileIndex);
-				doorPos += 2;
+				tileBmp.fill(lastDoorPos+1,0,0, roomWidth,ceilingHeight,1, rightWallTileIndex);
+				tileBmp.fill(lastDoorPos+1,floorHeight,0, roomWidth,roomHeight,1, rightWallTileIndex);
 			}
 			
-			const roomEntities:KeyedList<RoomEntity> = {
-				[newUuidRef()]: {
-					position: ZERO_VECTOR,
-					entity: { classRef: makeTileTreeRef(this.tileEntityPaletteRef, roomWidth, roomHeight, roomDepth, tileBmp.data, this.gdm, {infiniteMass:true}) }
-				}
-			};
-						
-			let itemY = floorHeight - roomHeight/2 - 0.5;
+			const roomEntities:KeyedList<RoomEntity> = {}
+			
+			const itemX = -1.5;
+			let itemY = floorHeight - roomHeight/2 - 1.5;
 			if( span.node && !itemsPlaced ) placeItems: for( let k in span.node.items ) {
+				const tileX = roomWidth/2+Math.floor(itemX);
+				const tileY = roomHeight/2+Math.floor(itemY);
+				if( !itemsPlaced ) {
+					tileBmp.fill(tileX,floorHeight-1,0, tileX+1,floorHeight,1, platformTileIndex);
+				}
+				
 				const itemClassId = span.node.items[k];
 				let entityClassRef:string;
 				switch( itemClassId ) {
@@ -401,13 +447,19 @@ export default class GraphWorldifier {
 				default: throw new Error("Unknown entity type "+itemClassId);
 				}
 				
+				tileBmp.fill(tileX,tileY,0, tileX+1,tileY+1,1, 0);
 				roomEntities[newUuidRef()] = {
-					position: {x: -0.5, y: itemY, z:0},
+					position: {x: itemX, y: itemY, z:0},
 					entity: { classRef: entityClassRef}
 				}
 				--itemY;
+				itemsPlaced = true;
 			}
-			itemsPlaced = true; // If there were any
+			
+			roomEntities[newUuidRef()] = {
+				position: ZERO_VECTOR,
+				entity: { classRef: makeTileTreeRef(this.tileEntityPaletteRef, roomWidth, roomHeight, roomDepth, tileBmp.data, this.gdm, {infiniteMass:true}) }
+			};
 			const room:Room = {
 				bounds: roomBounds,
 				roomEntities,
@@ -422,7 +474,7 @@ export default class GraphWorldifier {
 			const node = this.maze.nodes[n];
 			const spanReqs = this.nodeSpanRequirements[n] = this.calculateNodeSpanRequirements(node);
 			const id = nodeSpanId(n);
-			const protoRoomSpan = this.generateProtoRoomSpan(spanReqs, node);
+			const protoRoomSpan = this.generateProtoRoomSpan(id, spanReqs, node);
 			this.protoRoomSpans[id] = protoRoomSpan;
 		}
 		
@@ -440,8 +492,8 @@ export default class GraphWorldifier {
 			const span1Id = nodeSpanId(link.endpoint1.nodeId);
 			let span2Id:string, span3Id:string;
 			if( needsOwnRoom ) {
-				const linkSpan = this.generateLinkSpan(link, link.locks);
 				const spanId = linkSpanId(link.id);
+				const linkSpan = this.generateLinkSpan(spanId, link, link.locks);
 				this.protoRoomSpans[spanId] = linkSpan;
 				span2Id = span3Id = spanId;
 			} else {

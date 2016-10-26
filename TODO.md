@@ -19,20 +19,19 @@
 
 ## Misc to-do items
 
-Random maze generation:
+GraphMazeGenerator2:
 * keys, locked doors
   - maybe cheat on implementation; don't need to simulate everything
-- generate2:
-  - hardness/size setting
-  - mandatory loops
-- colored blocks to mark where doors were
-- blocks platforms under items
+GraphWorldifier:
+- hardness/size setting
+- mandatory loops
 - more decorations
 - cave rooms;
   - stalactites/stalagmites
   - multiple horizontally-connected nodes may be generated as a single cave room
   - tunnel/ladder/bridge through to enforce passability
 - wave function collapse-generated rooms
+
 - submit to contest by 30th
 
 Maze1:
@@ -224,3 +223,5 @@ Random maze generation:
 * generate maze graph
 * translate graph nodes to rooms
 * print out solution (left, right, down, etc)
+* colored blocks to mark where doors were
+* blocks platforms under items
