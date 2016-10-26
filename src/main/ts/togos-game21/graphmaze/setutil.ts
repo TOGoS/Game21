@@ -21,3 +21,16 @@ export function isSubset<T>( a:KeyedList<T>, b:KeyedList<T> ):boolean {
 export function isSameSet<T>( a:KeyedList<T>, b:KeyedList<T> ):boolean {
 	return isSubset(a,b) && isSubset(b,a);
 }
+
+export function difference<T>( a:KeyedList<T>, b:KeyedList<T> ):KeyedList<T> {
+	const diff:KeyedList<T> = {};
+	for( let k in a ) if( !b[k] ) diff[k] = a[k];
+	return diff;
+}
+
+export function symmetricDifference<T>( a:KeyedList<T>, b:KeyedList<T> ):KeyedList<T> {
+	const diff:KeyedList<T> = {};
+	for( let k in a ) if( !b[k] ) diff[k] = a[k];
+	for( let k in b ) if( !a[k] ) diff[k] = b[k];
+	return diff;
+}

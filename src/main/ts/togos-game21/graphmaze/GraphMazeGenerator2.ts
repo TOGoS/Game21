@@ -25,7 +25,7 @@
  */
 
 import KeyedList from '../KeyedList';
-import { union, isSubset } from './setutil';
+import { union, isSubset, difference, symmetricDifference } from './setutil';
 import {
 	MazeNode,
 	MazeLink,
@@ -44,6 +44,11 @@ type MazeNodeCollection = Node[];
 type FitnessFunction<T> = (x:T)=>number;
 
 const EVERYTHING_FITS:FitnessFunction<any> = (x)=>1;
+
+function randInt(min:number, max:number) {
+	const m = Math.floor(max-min)+1;
+	return min + Math.floor( m * Math.random() );
+}
 
 function isEmpty<T>(t:KeyedList<T>):boolean {
 	for( let i in t ) return false;
@@ -71,6 +76,7 @@ function pickOne<T>( coll:T[], fitnessFunction:FitnessFunction<T>=EVERYTHING_FIT
 }
 
 export default class MazeGenerator {
+	protected generatorName : string = "xxx";
 	public targetNodeCount : number = 32;
 	protected nodes : MazeNode[] = [];
 	protected links : MazeLink[] = [];
@@ -115,7 +121,14 @@ export default class MazeGenerator {
 		return n;
 	}
 	
+	public randomNode(collection:MazeNode[]=this.nodes, fitnessfunction:FitnessFunction<MazeNode>=EVERYTHING_FITS, resultDescription:string="node") {
+		const subCollection = fitnessfunction === EVERYTHING_FITS ? collection : nMostFit(collection,collection.length/4,fitnessfunction,resultDescription);
+		if( subCollection.length == 0 ) throw new Error("Collection is empty; can't pick "+resultDescription);
+		return pickOne(subCollection, EVERYTHING_FITS, resultDescription);
+	}
+	
 	public selectRandomNode(collection:MazeNode[]=this.nodes, fitnessfunction:FitnessFunction<MazeNode>=EVERYTHING_FITS, resultDescription:string="node"):MazeNode {
+		this._selectedNode = this.randomNode(collection, fitnessfunction, resultDescription);
 		const subCollection = fitnessfunction === EVERYTHING_FITS ? collection : nMostFit(collection,4,fitnessfunction,resultDescription);
 		if( subCollection.length == 0 ) throw new Error("Collection is empty; can't pick "+resultDescription);
 		return this._selectedNode = pickOne(subCollection, EVERYTHING_FITS, resultDescription);
@@ -216,7 +229,105 @@ export default class MazeGenerator {
 		}
 	}
 	
-	public generate():Maze {
+	protected accessibleNeighbors(node:MazeNode) {
+		const others:MazeNode[] = [];
+		links: for( let l=0; l<node.linkIds.length; ++l ) {
+			const link = this.links[node.linkIds[l]];
+			const isForward = (link.endpoint0.nodeId == node.id && link.endpoint0.linkNumber == l);
+			if( (isForward && !link.allowsForwardMovement) || (!isForward && !link.allowsBackwardMovement) ) continue links;
+			const otherEndpoint = isForward ? link.endpoint1 : link.endpoint0;
+			const otherNodeId = otherEndpoint.nodeId;
+			others.push(this.nodes[otherNodeId]); 
+		}
+		return others;
+	}
+	
+	public calculateNodeDistances(startNode:MazeNode) {
+		for( let i=0; i<this.nodes.length; ++i ) this.nodes[i].distanceValue = undefined;
+		startNode.distanceValue = 0;
+		const q = [startNode];
+		for( let i=0; i<q.length; ++i ) {
+			const curNode = q[i];
+			const neighbors = this.accessibleNeighbors(curNode);
+			for( let n in neighbors ) {
+				const neighb = neighbors[n];
+				if( neighb.distanceValue == undefined || neighb.distanceValue > curNode.distanceValue ) {
+					neighb.distanceValue = curNode.distanceValue+1;
+					q.push(neighb);
+				}
+			}
+		}
+	}
+	
+	/**
+	 * For each stage:
+	 * generate a bunch of maze
+	 * pick node farthest from start of stage
+	 * place item
+	 */
+	public generate2():Maze {
+		this.generatorName = "generate2";
+		let stageStartNode = this.createStartNode();
+		const stages:{require:KeySet, provide:string}[] = [
+			{require: {}, provide:ITEMCLASS_BLUEKEY},
+			{require: {[ITEMCLASS_BLUEKEY]:true}, provide:ITEMCLASS_YELLOWKEY},
+			{require: {[ITEMCLASS_YELLOWKEY]:true}, provide:ITEMCLASS_REDKEY},
+			{require: {[ITEMCLASS_BLUEKEY]:true,[ITEMCLASS_YELLOWKEY]:true,[ITEMCLASS_REDKEY]:true}, provide:ITEMCLASS_END},
+		]
+		for( let s in stages ) {
+			//const stageStart = this.nodes.length;
+			const stage = stages[s];
+			let digs = 0;
+			branch: for( let i=0; i<this.nodes.length && digs < 4; ++i ) {
+				const node = this.nodes[i];
+				if( this.nodes[i].linkIds.length < 3 ) {
+					++digs;
+					this._selectedNode = node;
+					const v = Math.random();
+					
+					if( v < 0.5 && this.nodes.length > 4 ) {
+						let rando:MazeNode;
+						try {
+							rando = this.randomNode( this.nodes, (n:MazeNode) => 1/n.linkIds.length );
+						} catch( err) {
+							continue branch;
+						}
+						if( Math.random() < 0.5 ) {
+							this.linkNodes(node, rando, {
+								allowsForwardMovement: true,
+								allowsBackwardMovement: true,
+								locks: symmetricDifference(node.requiredKeys, rando.requiredKeys),
+							});
+						} else {
+							this.linkNodes(node, rando, {
+								allowsForwardMovement: true,
+								allowsBackwardMovement: false,
+								locks: {},
+							});
+						}
+						continue branch;
+					}
+					
+					this.dig({
+						allowsForwardMovement: true,
+						allowsBackwardMovement: true,
+						locks: difference(stage.require, node.requiredKeys),
+					})
+				}
+			}
+			
+			this.calculateNodeDistances(stageStartNode);
+			const stageEndNode = this.randomNode(this.nodes, (n:MazeNode) => n.distanceValue);
+			this._selectedNode = stageEndNode;
+			this.dig();
+			this.placeItem(stage.provide);
+			stageStartNode = stageEndNode;
+		}
+		return this.maze;
+	}
+	
+	public generate1():Maze {
+		this.generatorName = "generate1";
 		this.createStartNode();
 		
 		this.newCollection();
@@ -247,10 +358,13 @@ export default class MazeGenerator {
 		return this.maze;
 	}
 	
+	public generate():Maze { return this.generate2(); }
+	
 	public get maze():Maze {
 		return {
 			nodes: this.nodes,
 			links: this.links,
+			generatorName: this.generatorName,
 		};
 	}
 }

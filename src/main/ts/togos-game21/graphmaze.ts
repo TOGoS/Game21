@@ -38,9 +38,11 @@ export interface MazeNode {
 	linkIds : number[];
 	requiredKeys : KeySet;
 	items : KeyedList<string>;
+	distanceValue? : number;
 }
 
 export interface Maze {
 	nodes : MazeNode[];
 	links : MazeLink[];
+	generatorName? : string;
 }
