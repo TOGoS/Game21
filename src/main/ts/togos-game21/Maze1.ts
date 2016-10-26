@@ -1700,7 +1700,8 @@ export class MazeDemo {
 	public maze1InventoryUi:TilePaletteUI;
 	public consoleDialog:ConsoleDialogBox;
 	public winDialog:WinDialogBox;
-	protected foundTriforceCount:number = 0;
+	public foundTriforceCount:number = 0;
+	public currentLevelNumber:number = 0;
 	protected foundTriforceThisLevel:boolean = false;
 	public logger:Logger;
 	public loadingStatusUpdated:(text:string)=>any = (t)=>{};
@@ -1923,24 +1924,26 @@ export class MazeDemo {
 		});
 	}
 	
-	public generateAndLoadNewLevel() {
-		const generator = new GraphMazeGenerator();
-		if( this.foundTriforceCount > 2 ) generator.requireKeys.push(ITEMCLASS_BLUEKEY);
-		if( this.foundTriforceCount > 6 ) generator.requireKeys.push(ITEMCLASS_YELLOWKEY);
-		if( this.foundTriforceCount > 12 ) generator.requireKeys.push(ITEMCLASS_REDKEY);
-		generator.targetNodeCount = 8 + this.foundTriforceCount;
-		
+	public generateAndLoadNewLevel(level:number) {
 		let attempts = 0;
 		let generateMaze:()=>Promise<void> = () => Promise.resolve(); // stupid ts compiler blah
 		generateMaze = () => {
+			const generator = new GraphMazeGenerator();
+			if( level > 2 ) generator.requireKeys.push(ITEMCLASS_BLUEKEY);
+			if( level > 6 ) generator.requireKeys.push(ITEMCLASS_YELLOWKEY);
+			if( level > 12 ) generator.requireKeys.push(ITEMCLASS_REDKEY);
+			generator.targetNodeCount = 8 + level;
+			
 			if( !this.winDialog ) throw new Error('NO SNW DL')
 			const generationMessage = "Generating new level requiring "+generator.requireKeys.length+" keys of size "+generator.targetNodeCount+(attempts > 0 ? " (attempt "+attempts+")" : "")+"...";
 			this.logger.log(generationMessage);
 			if( this.winDialog ) this.winDialog.message = generationMessage;
 			if( this.winDialog && this.winDialog.nextLevelButton ) this.winDialog.nextLevelButton.disabled = true;
 			++attempts;
+				
 			return new Promise( (res,rej) => setTimeout(res,50) ).then( () => {
 				const maze = generator.generate();
+				this.logger.log("Generated maze graph with "+maze.nodes.length+" nodes, "+maze.links.length+" links");
 				const gdm = new GameDataManager(this.datastore);
 				return {maze,gdm};
 			}).then( ({maze,gdm}) => mazeToWorld(maze, gdm) ).then( ({gdm, playerId, startRoomRef}) => {
@@ -1959,7 +1962,9 @@ export class MazeDemo {
 					if( this.winDialog && this.winDialog.nextLevelButton ) this.winDialog.nextLevelButton.disabled = false;
 					return Promise.reject(err);
 				}
-			});
+			}).then( () => {
+				this.currentLevelNumber = level;
+			})
 		}
 		return generateMaze();
 	}
@@ -2115,8 +2120,18 @@ export class MazeDemo {
 				// do nothing!
 			} else {
 				doCommand: switch( tokens[0].text ) {
-				case 'generate-new-level': case 'next-level':
-					this.generateAndLoadNewLevel();
+				case 'next-level':
+					this.generateAndLoadNewLevel(this.currentLevelNumber+1);
+					break;
+				case 'level':
+					{
+						if( tokens.length != 2 ) {
+							this.logger.error("/level takes single argument: <level number>");
+							//e.g. urn:sha1:53GHW7DMQF472PTXLWKKE25BKUJXOTXZ#
+							break doCommand;
+						}
+						this.generateAndLoadNewLevel(parseInt(tokens[1].text));
+					};
 					break;
 				case 'export-cached-data': case 'ecd':
 					this.exportCachedData();
@@ -2512,7 +2527,7 @@ export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string, loadingSt
 		if( winButtonArea ) {
 			const nextLevelButton = winDialog.nextLevelButton = document.createElement('button');
 			nextLevelButton.appendChild(document.createTextNode('Next level!'));
-			nextLevelButton.onclick = () => demo.generateAndLoadNewLevel();
+			nextLevelButton.onclick = () => demo.generateAndLoadNewLevel(demo.currentLevelNumber+1);
 			winButtonArea.appendChild(nextLevelButton);
 		}
 	}
