@@ -57,6 +57,7 @@ interface ProtoLinkAttributes {
 interface ProtoRoomLink {
 	neighborRef : string;
 	attributes : ProtoLinkAttributes;
+	position : Vector3D;
 }
 
 interface ProtoRoom {
@@ -64,7 +65,6 @@ interface ProtoRoom {
 	bounds : AABB;
 	protoRoomSpanRef : string;
 	protoLinks : (ProtoRoomLink|undefined)[];
-	linkPositions : Vector3D[];
 	doors : KeySet;
 }
 
@@ -132,23 +132,34 @@ function newProtoRoom(spanId:string, bounds:AABB):ProtoRoom {
 		id: newUuidRef(),
 		protoRoomSpanRef:spanId,
 		bounds: bounds,
-		// Default positions.  Override at will.
-		linkPositions: [
-			{x: bounds.maxX, y:0, z:0},
-			{x: 0, y:bounds.maxY, z:0},
-			{x: bounds.minX, y:0, z:0},
-			{x: 0, y:bounds.minY, z:0},
-		],
 		protoLinks: [undefined,undefined,undefined,undefined],
 		doors: {}
 	};
 }
-function linkProtoRooms(pr0:ProtoRoom, dir:number, pr1:ProtoRoom, linkAttributes:ProtoLinkAttributes ) {
+function linkProtoRooms(pr0:ProtoRoom, pp0:Vector3D, dir:number, pr1:ProtoRoom, pp1:Vector3D, linkAttributes:ProtoLinkAttributes ) {
 	if( pr0.protoLinks[dir] ) throw new Error("Can't connect "+pr0.id+" "+dir+"-wise to "+pr1.id+"; link already exists");
 	const rid = oppositeDirection(dir);
 	if( pr1.protoLinks[rid] ) throw new Error("Can't connect "+pr1.id+" "+rid+"-wise to "+pr0.id+"; link already exists");
-	pr0.protoLinks[dir] = {neighborRef:pr1.id, attributes:linkAttributes};
-	pr1.protoLinks[rid] = {neighborRef:pr0.id, attributes:linkAttributes}
+	pr0.protoLinks[dir] = {neighborRef:pr1.id, attributes:linkAttributes, position:pp0};
+	pr1.protoLinks[rid] = {neighborRef:pr0.id, attributes:linkAttributes, position:pp1}
+}
+
+function linkProtoRoomsDefaultly(pr0:ProtoRoom, dir:number, pr1:ProtoRoom, linkAttributes:ProtoLinkAttributes ) {
+	const y0 = pr0.bounds.maxY-3;
+	const defaultLinkPositions0 = [
+		{x:pr0.bounds.maxX, y:y0, z:0},
+		{x:0, y:pr0.bounds.maxY, z:0},
+		{x:pr0.bounds.minX, y:y0, z:0},
+		{x:0, y:pr0.bounds.minY, z:0},
+	];
+	const y1 = pr1.bounds.maxY-3;
+	const defaultLinkPositions1 = [
+		{x:pr1.bounds.minX, y:y1, z:0},
+		{x:0, y:pr1.bounds.minY, z:0},
+		{x:pr1.bounds.maxX, y:y1, z:0},
+		{x:0, y:pr1.bounds.maxY, z:0},
+	];
+	linkProtoRooms(pr0, defaultLinkPositions0[dir], dir, pr1, defaultLinkPositions1[dir], linkAttributes);
 }
 
 function neighborOffset( bounds:AABB, dir:number, nBounds:AABB ):Vector3D {
@@ -262,7 +273,7 @@ export default class GraphWorldifier {
 		
 		const spanProtoRooms:KeyedList<ProtoRoom> = {};
 		const openSides = [1,1,1,1];
-		const roomBounds = makeAabb(-4,-4,-0.5, +4,+4,+0.5);//makeAabb(randInt(-4,-6),randInt(-4,-6),-0.5, randInt(4,6),randInt(4,6),+0.5);
+		const roomBounds = makeAabb(randInt(-4,-6),randInt(-4,-6),-0.5, randInt(4,6),randInt(4,6),+0.5);
 		let protoRoom = this.newProtoRoom(spanId, roomBounds);
 		spanProtoRooms[protoRoom.id] = protoRoom;
 		for( let i=0; i<reqs.exitsPerSide.length; ++i ) {
@@ -271,7 +282,7 @@ export default class GraphWorldifier {
 				let digDir = ((i+1) + randInt(0,1)*2) % 4;
 				if( protoRoom.protoLinks[digDir] ) digDir = (digDir + 2) % 4;
 				const newRoom = this.newProtoRoom(spanId, roomBounds);
-				linkProtoRooms(protoRoom, digDir, newRoom, {
+				linkProtoRoomsDefaultly(protoRoom, digDir, newRoom, {
 					isBidirectional: true,
 					interSpan: false,
 				});
@@ -352,7 +363,7 @@ export default class GraphWorldifier {
 		const room0 = this.findRoomWithOpenWall(span0, dir, span0Id);
 		const room1 = this.findRoomWithOpenWall(span1, rid, span1Id);
 		const linkAttributes = { isBidirectional, interSpan: true }
-		linkProtoRooms( room0, dir, room1, linkAttributes );
+		linkProtoRoomsDefaultly( room0, dir, room1, linkAttributes );
 	}
 	
 	protected primaryWallTileIndex(node:MazeNode|undefined):number {
@@ -387,11 +398,12 @@ export default class GraphWorldifier {
 			const roomBounds = protoRoom.bounds;
 			const tileBmp = new Bitmap(roomBounds);
 			const wallTileIndex = this.primaryWallTileIndex(span.node);
-			const primaryFloorHeight = roomBounds.maxX - 3;
+			const primaryFloorHeight = roomBounds.maxY - 3;
 			let ceilingHeight = span.node ? randInt(roomBounds.minX+1,primaryFloorHeight-2) : primaryFloorHeight-2;
 			const neighbors:KeyedList<RoomNeighbor> = {};
 			const LADDER_IDX = 5;
 			
+			// Center-ish of the room
 			const cx = roomBounds.minX+Math.floor((roomBounds.maxX-roomBounds.minX)/2);
 			
 			const rightProtoLink = protoRoom.protoLinks[DIR_RIGHT];
@@ -450,42 +462,41 @@ export default class GraphWorldifier {
 			
 			if( topProtoLink ) {
 				if( hasDoors ) throw new Error("Lock room has vertical link!");
+				const linkX = topProtoLink.position.x;
 				const hallWidth = topProtoLink.attributes.interSpan ? 2 : 4;
 				const hhw = hallWidth/2;
-				tileBmp.fill(cx-hhw,roomBounds.minY, z0, cx+hhw,primaryFloorHeight,z1, 0);
+				tileBmp.fill(linkX-hhw,roomBounds.minY, z0, linkX+hhw,primaryFloorHeight,z1, 0);
 				if( topProtoLink.attributes.isBidirectional ) {
-					const ladderX = cx;
-					tileBmp.fill(ladderX,roomBounds.minY,z0, ladderX+1,groundHeights[ladderX-roomBounds.minX]-1,z1, LADDER_IDX);
+					tileBmp.fill(linkX,roomBounds.minY,z0, linkX+1,groundHeights[linkX-roomBounds.minX]-1,z1, LADDER_IDX);
 				}
 			}
 			if( bottomProtoLink ) {
 				if( hasDoors ) throw new Error("Lock room has vertical link!");
+				const linkX = bottomProtoLink.position.x;
 				const hallWidth = bottomProtoLink.attributes.interSpan ? 2 : 4;
 				const hhw = hallWidth/2;
 				if( bottomProtoLink.attributes.isBidirectional ) {
 					if( Math.random() < 0.5 ) {
-						tileBmp.fill(cx-1, primaryFloorHeight, z0, cx+2, primaryFloorHeight+1, z1, platformTileIndex);
+						tileBmp.fill(linkX-1, primaryFloorHeight, z0, linkX+2, primaryFloorHeight+1, z1, platformTileIndex);
 					} else {
 						tileBmp.fill(roomBounds.minX, primaryFloorHeight, z0, roomBounds.maxX, primaryFloorHeight+1, z1, platformTileIndex);
 					}
-					const ladderX = cx;
+					const ladderX = linkX;
 					tileBmp.fill(ladderX,primaryFloorHeight-1,z0, ladderX+1,roomBounds.maxY,z1, LADDER_IDX)
 				} else {
-					tileBmp.fill(cx-hhw, primaryFloorHeight, z0, cx+hhw, roomBounds.maxY, z1, 0);
+					tileBmp.fill(linkX-hhw, primaryFloorHeight, z0, linkX+hhw, roomBounds.maxY, z1, 0);
 				}
 			}
 			
 			for( let i=0; i<4; ++i ) {
 				const protoLink = protoRoom.protoLinks[i];
 				if( protoLink ) {
-					const linkPosition = protoRoom.linkPositions[i];
 					const neighborProtoRoom = this.protoRooms[protoLink.neighborRef];
-					const neighborLinkPosition = neighborProtoRoom.linkPositions[(i+2)%4];
-					console.log("Neighbor position: ", subtractVector(linkPosition, neighborLinkPosition));
+					const neighborLinkPosition = neighborProtoRoom.protoLinks[(i+2)%4].position;
 					neighbors["n"+i] = {
 						bounds: roomBounds,
 						roomRef: protoLink.neighborRef,
-						offset: subtractVector(linkPosition, neighborLinkPosition)
+						offset: subtractVector(protoLink.position, neighborLinkPosition)
 					}
 				}
 			}
