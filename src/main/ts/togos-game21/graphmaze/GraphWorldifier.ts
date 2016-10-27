@@ -68,7 +68,6 @@ interface ProtoRoom {
 	protoLinks : (ProtoRoomLink|undefined)[];
 	doors : KeySet;
 	
-	styleId?:string;
 	floorHeights?:number[];
 	ceilingHeights?:number[];
 }
@@ -81,6 +80,7 @@ interface ProtoRoomSpan {
 	id : string;
 	protoRooms : KeyedList<ProtoRoom>;
 	node? : MazeNode;
+	isCavey? : boolean;
 }
 
 interface RoomSpanRequirements {
@@ -260,6 +260,7 @@ export default class GraphWorldifier {
 	
 	public gardenChance = 0.125;
 	public caveChance = 0.5;
+	public baseRootiness = 1;
 	
 	public get gameDataManager() { return this._gdm; }
 	public get maze() { return this._maze; }
@@ -340,7 +341,11 @@ export default class GraphWorldifier {
 		const spanId = newUuidRef();
 		const spanProtoRooms:KeyedList<ProtoRoom> = {};
 		const openSides = [1,1,1,1];
-		const roomBounds = makeAabb(randInt(-4,-6),randInt(-4,-6),-0.5, randInt(4,6),randInt(4,6),+0.5);
+		let maxRex = Math.max(reqs.exitsPerSide[DIR_UP], reqs.exitsPerSide[DIR_DOWN]);
+		const isSpecialNode = node.items[ITEMCLASS_START] || node.items[ITEMCLASS_END];
+		const isCavey = !isSpecialNode && Math.random() < this.caveChance * maxRex;
+		const roomBounds = isCavey ? makeAabb(randInt(-4,-6),randInt(-4,-6),-0.5, randInt(4,6),randInt(4,6),+0.5) :
+			makeAabb(-4,-4,-0.5,4,4,0.5);
 		let protoRoom = this.newProtoRoom(spanId, roomBounds);
 		spanProtoRooms[protoRoom.id] = protoRoom;
 		for( let i=0; i<reqs.exitsPerSide.length; ++i ) {
@@ -359,7 +364,7 @@ export default class GraphWorldifier {
 				protoRoom = newRoom;
 			}
 		}
-		return { id: spanId, protoRooms: spanProtoRooms };
+		return { id: spanId, protoRooms: spanProtoRooms, isCavey: isCavey };
 	}
 	
 	protected generateProtoRoomSpan(reqs:RoomSpanRequirements, node:MazeNode):ProtoRoomSpan {
@@ -450,15 +455,19 @@ export default class GraphWorldifier {
 			//const roomWidth = 8, roomHeight = 8, roomDepth = 1;
 			//const roomBounds:AABB = makeAabb(-roomWidth/2, -roomHeight/2, -roomDepth/2, roomWidth/2, roomHeight/2, roomDepth/2);
 			const roomBounds = protoRoom.bounds;
-			const roomWidth = roomBounds.maxX-roomBounds.minX;
+			const roomWidth  = roomBounds.maxX-roomBounds.minX;
+			const roomHeight = roomBounds.maxY-roomBounds.minY;
 			const tileBmp = new Bitmap(roomBounds);
-			const wallTileIndex = this.primaryWallTileIndex(span.node);
 			const primaryFloorHeight = roomBounds.maxY - 3;
 			let ceilingHeight = span.node ? randInt(roomBounds.minX+1,primaryFloorHeight-2) : primaryFloorHeight-2;
 			const neighbors:KeyedList<RoomNeighbor> = {};
 			const ladderTileIndex = 5;
 			const rockTileIndex = 29;
-
+			const platformTileIndex = 2;
+			const rootTileIndex = 28;
+			const browningVinesTileIndex = 27;
+			const wallTileIndex = span.isCavey ? rockTileIndex : this.primaryWallTileIndex(span.node);
+			
 			const rightProtoLink = protoRoom.protoLinks[DIR_RIGHT];
 			const leftProtoLink = protoRoom.protoLinks[DIR_LEFT];
 			const topProtoLink = protoRoom.protoLinks[DIR_UP];
@@ -469,64 +478,74 @@ export default class GraphWorldifier {
 				ceilingHeight = Math.min(primaryFloorHeight-3, ceilingHeight);
 			}
 			
-			const platformTileIndex = 2;
-			
 			let hasDoors = false;
 			for( let k in protoRoom.doors ) hasDoors = true;
+			
+			const x0 = roomBounds.minX, x1 = roomBounds.maxX;
+			const y0 = roomBounds.minY, y1 = roomBounds.maxY;
+			const z0 = roomBounds.minZ, z1 = roomBounds.maxZ;
+			const isCavey = span.isCavey;
+			const hasGarden = Math.random() < this.gardenChance;
+			const rootiness =
+				isCavey ? Math.random() * 2 * this.baseRootiness :
+				hasGarden && Math.random() < 0.5 ? this.baseRootiness * Math.random()-0.5 : 0;
+			const wallThickness = isCavey ? 1 : 2;
+			const leftWallX  = x0+wallThickness;
+			const rightWallX = x1-wallThickness;
+			const ceilingY = y0+1;
 			
 			let floorHeights:number[]|undefined = protoRoom.floorHeights;
 			if( floorHeights == undefined ) {
 				floorHeights = [];
 				for( let i=0; i<tileBmp.width; ++i ) floorHeights[i] = primaryFloorHeight;
 			}
+			let ceilingHeights:number[]|undefined = protoRoom.ceilingHeights;
+			if( ceilingHeights == undefined ) {
+				ceilingHeights = [];
+				for( let i=0; i<tileBmp.width; ++i ) ceilingHeights[i] = ceilingY;
+			}
+			
 			const rightFloorHeight = Math.round(floorHeights[floorHeights.length-1]);
 			const leftFloorHeight = Math.round(floorHeights[0]);
 			
-			const z0 = roomBounds.minZ, z1 = roomBounds.maxZ;
-			let hasGarden, fancyLadders;
-			let leftWallX, rightWallX;
-			if( protoRoom.styleId == 'cave' ) {
-				console.log("Cave room! ", floorHeights);
-				tileBmp.fill(roomBounds.minX  ,roomBounds.minY,z0, roomBounds.maxX  ,   roomBounds.maxY,z1, rockTileIndex);
-				let ceilingHeights:number[] = protoRoom.ceilingHeights;
-				if( ceilingHeights == undefined ) throw new Error("Cave doesn't have ceiling heights arg!");
-				for( let i=0; i<floorHeights.length; ++i ) {
-					const x = roomBounds.minX+i;
-					const floorHeight = Math.round(floorHeights[i]);
-					tileBmp.fill(x,Math.round(ceilingHeights[i]),z0, x+1,floorHeight,z0, 0);
-					// todo add vines, etc
-					
-					let minNeighboringFloorHeight = floorHeights[i];
-					if( i>0 ) minNeighboringFloorHeight = Math.min(floorHeights[i-1], minNeighboringFloorHeight);
-					if( i<roomWidth-1 ) minNeighboringFloorHeight = Math.min(floorHeights[i+1], minNeighboringFloorHeight);
-					minNeighboringFloorHeight = Math.round(minNeighboringFloorHeight);
-					const needLadder = floorHeight-minNeighboringFloorHeight > 2;
-					tileBmp.fill(x,minNeighboringFloorHeight-1,z0, x+1,floorHeight,z1, needLadder?ladderTileIndex:0);
+			// Start with empty space:
+			tileBmp.fill(x0,y0,z0, x1,y1,z1, 0);
+			// Add cool stuff:
+			if( isCavey ) {
+				let caveCeilingHeight = ceilingY+Math.random()*(primaryFloorHeight-ceilingY);
+				for( let x=leftWallX; x<rightWallX; ++x ) {
+					const i = x-x0;
+					ceilingHeights[i] = Math.max(ceilingHeights[i], Math.round(caveCeilingHeight));
+					tileBmp.fill(x,y0,z0, x+1,caveCeilingHeight,z1, rockTileIndex);
+					caveCeilingHeight += Math.random()*2 - 1;
 				}
-				if( protoRoom.protoLinks[DIR_RIGHT] == undefined ) {
-					tileBmp.fill(roomBounds.maxX-1,roomBounds.minY,z0, roomBounds.maxX,roomBounds.maxY,z1, wallTileIndex);
-				}
-				if( protoRoom.protoLinks[DIR_LEFT] == undefined ) {
-					tileBmp.fill(roomBounds.minX,roomBounds.minY,z0, roomBounds.minX+1,roomBounds.maxY,z1, wallTileIndex);
-				}
-				if( protoRoom.protoLinks[DIR_DOWN] == undefined ) {
-					tileBmp.fill(roomBounds.minX,roomBounds.maxY-1,z0, roomBounds.maxX,roomBounds.maxY,z1, wallTileIndex);
-				}
-				if( protoRoom.protoLinks[DIR_UP] == undefined ) {
-					tileBmp.fill(roomBounds.minX,roomBounds.minY,z0, roomBounds.maxX,roomBounds.minY+1,z1, wallTileIndex);
-				}
-				hasGarden = false;
-				leftWallX  = roomBounds.minX+1;
-				rightWallX = roomBounds.maxX-1;
-				fancyLadders = false;
-			} else {
-				leftWallX  = roomBounds.minX+2;
-				rightWallX = roomBounds.maxX-2;
-				tileBmp.fill(roomBounds.minX  ,roomBounds.minY,z0, roomBounds.maxX  ,   roomBounds.maxY,z1, wallTileIndex);
-				tileBmp.fill(leftWallX,  ceilingHeight,z0, rightWallX,primaryFloorHeight,z1, 0);
-				hasGarden = Math.random() < this.gardenChance;
-				fancyLadders = true;
 			}
+
+			// Add walls:
+			tileBmp.fill(x0,y0,z0, x1,ceilingY,z1, wallTileIndex);
+			tileBmp.fill(x0,y0,z0, leftWallX,y1,z1, wallTileIndex);
+			tileBmp.fill(rightWallX,y0,z0, x1,y1,z1, wallTileIndex);
+			
+			// Make sure there's some path through the middle
+			tileBmp.fill(leftWallX,primaryFloorHeight-2,z0, rightWallX,primaryFloorHeight,z1, 0);
+			
+			if( rootiness > 0 ) {
+				let rootBaseLength = 2*rootiness*Math.random();
+				const hasVines = Math.random() < 1/8;
+				for( let x=leftWallX; x<rightWallX; ++x ) {
+					const i = x-x0;
+					//rootBaseLength += Math.random()-0.5;
+					const rootLength = rootBaseLength * (Math.random()+0.5);
+					const rootEndY = Math.round(ceilingHeights[i]+rootLength);
+					tileBmp.fill(x,ceilingHeights[i],z0, x+1,rootEndY,z1,
+						hasVines && Math.random() < 1/8 ? browningVinesTileIndex : rootTileIndex);
+				}
+			}
+			
+			// Floor
+			tileBmp.fill(x0,primaryFloorHeight,z0, x1,y1,z1, wallTileIndex);			
+
+			let fancyLadders = true;
 			
 			if( rightProtoLink ) {
 				const hallWidth = rightProtoLink.attributes.interSpan ? 2 : 4;
@@ -564,17 +583,18 @@ export default class GraphWorldifier {
 				if( hasDoors ) throw new Error("Lock room has vertical link!");
 				const linkX = topProtoLink.position.x;
 				if( fancyLadders ) {
-					const hallWidth = topProtoLink.attributes.interSpan ? 2 : 4;
-					const hhw = hallWidth/2;
-					tileBmp.fill(linkX-hhw,roomBounds.minY, z0, linkX+hhw,primaryFloorHeight,z1, 0);
 					if( topProtoLink.attributes.isBidirectional ) {
-						tileBmp.fill(linkX,roomBounds.minY,z0, linkX+1,floorHeights[linkX-roomBounds.minX]-1,z1, ladderTileIndex);
+						tileBmp.fill(linkX,y0,z0, linkX+1,floorHeights[linkX-x0]-1,z1, ladderTileIndex);
+					} else {
+						const hallWidth = topProtoLink.attributes.interSpan ? 2 : 4;
+						const hhw = hallWidth/2;
+						tileBmp.fill(linkX-hhw,y0,z0, linkX+hhw,primaryFloorHeight,z1, 0);
 					}
 				} else {
 					if( topProtoLink.attributes.isBidirectional ) {
-						tileBmp.fill(linkX,roomBounds.minY,z0, linkX+1,Math.floor(floorHeights[linkX])-1,z1, ladderTileIndex);
+						tileBmp.fill(linkX,y0,z0, linkX+1,Math.floor(floorHeights[linkX-x0])-1,z1, ladderTileIndex);
 					} else {
-						tileBmp.fill(linkX,roomBounds.minY,z0, linkX+1,Math.floor(floorHeights[linkX])-1,z1, 0);
+						tileBmp.fill(linkX,y0,z0, linkX+1,Math.floor(floorHeights[linkX-x0])-1,z1, 0);
 					}
 				}
 			}
@@ -582,24 +602,24 @@ export default class GraphWorldifier {
 				if( hasDoors ) throw new Error("Lock room has vertical link!");
 				const linkX = bottomProtoLink.position.x;
 				if( fancyLadders ) {
-					const hallWidth = bottomProtoLink.attributes.interSpan ? 2 : 4;
-					const hhw = hallWidth/2;
 					if( bottomProtoLink.attributes.isBidirectional ) {
 						if( Math.random() < 0.5 ) {
-							tileBmp.fill(linkX-1, primaryFloorHeight, z0, linkX+2, primaryFloorHeight+1, z1, platformTileIndex);
+							tileBmp.fill(linkX-1,primaryFloorHeight,z0, linkX+2,primaryFloorHeight+1,1, platformTileIndex);
 						} else {
-							tileBmp.fill(roomBounds.minX, primaryFloorHeight, z0, roomBounds.maxX, primaryFloorHeight+1, z1, platformTileIndex);
+							tileBmp.fill(x0,primaryFloorHeight,z0, x1,primaryFloorHeight+1,z1, platformTileIndex);
 						}
 						const ladderX = linkX;
-						tileBmp.fill(ladderX,primaryFloorHeight-1,z0, ladderX+1,roomBounds.maxY,z1, ladderTileIndex)
+						tileBmp.fill(ladderX,primaryFloorHeight-1,z0, ladderX+1,y1,z1, ladderTileIndex)
 					} else {
-						tileBmp.fill(linkX-hhw, primaryFloorHeight, z0, linkX+hhw, roomBounds.maxY, z1, 0);
+						const hallWidth = bottomProtoLink.attributes.interSpan ? 2 : 4;
+						const hhw = hallWidth/2;
+						tileBmp.fill(linkX-hhw,primaryFloorHeight,z0, linkX+hhw,y1,z1, 0);
 					}
 				} else {
 					if( bottomProtoLink.attributes.isBidirectional ) {
-						tileBmp.fill(linkX,Math.floor(floorHeights[linkX])-1,z0, linkX+1,roomBounds.maxY,z1, ladderTileIndex);
+						tileBmp.fill(linkX,Math.floor(floorHeights[linkX-x0])-1,z0, linkX+1,y1,z1, ladderTileIndex);
 					} else {
-						tileBmp.fill(linkX,Math.floor(floorHeights[linkX]),z0, linkX+1,roomBounds.maxY,z1, 0);
+						tileBmp.fill(linkX,Math.floor(floorHeights[linkX-x0]),z0, linkX+1,y1,z1, 0);
 					}
 				}
 			}
@@ -691,6 +711,11 @@ export default class GraphWorldifier {
 				itemsPlaced = true;
 			}
 			
+			if( span.node && span.node.id == 0 ) {
+				// Player might get placed in here.
+				tileBmp.fill(1,0,z0, 2,floorHeights[0-x0],z1, 0);
+			}
+						
 			roomEntities[newUuidRef()] = {
 				position: ZERO_VECTOR,
 				entity: { classRef: makeTileTreeRef(this.tileEntityPaletteRef, tileBmp.width, tileBmp.height, tileBmp.depth, tileBmp.data, this._gdm, {
@@ -771,7 +796,7 @@ export function mazeToWorld(worldifier:GraphWorldifier):Promise<{ gdm:GameDataMa
 		const startRoomRef = worldifier.run();
 		const startRoom = gdm.getMutableRoom(startRoomRef)
 		startRoom.roomEntities[dat.playerEntityId] = {
-			position: {x:0,y:0.5,z:0},
+			position: {x:1.5,y:0.5,z:0},
 			entity: {
 				id: dat.playerEntityId,
 				classRef: dat.playerEntityClassId,
