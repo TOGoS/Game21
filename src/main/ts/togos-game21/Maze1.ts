@@ -2154,6 +2154,22 @@ export class MazeDemo {
 						this.loadGame(tokens[1].text);
 					}
 					break;
+				case 'set-tile-palette-slot':
+					{
+						let slotIndex:number = this.tilePaletteUi.selectedSlotIndex;
+						let classRef:string;
+						if( tokens.length == 3 ) {
+							slotIndex = parseInt(tokens[1].text)|0;
+							classRef = tokens[2].text;
+						} else if( tokens.length == 2 ) {
+							classRef = tokens[1].text;
+						} else {
+							this.logger.error("set-tile-palette-slot takes 1 or 2 arguments: [<slot number>] <entity class ref>");
+							break;
+						}
+						this.tilePaletteUi.setSlot(slotIndex, classRef);
+					}
+					break;
 				case 'default-room-size':
 					{
 						if( tokens[1] ) {
