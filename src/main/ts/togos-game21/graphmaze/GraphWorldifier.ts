@@ -87,6 +87,8 @@ interface RoomSpanRequirements {
 	exitsPerSide : number[];
 }
 
+type ThemeID = "normal"|"cavey";
+
 const DIR_RIGHT = 0;
 const DIR_DOWN  = 1;
 const DIR_LEFT  = 2;
@@ -209,7 +211,6 @@ class Bitmap {
 		assertInteger(this._width , "bitmap width");
 		assertInteger(this._height, "bitmap height");
 		assertInteger(this._depth , "bitmap depth");
-		console.log("Make one ", this._width*this._height*this._depth, this._width, this._height, this._depth);
 		this._data = new Array<number>(this._width*this._height*this._depth);
 	}
 	
@@ -249,6 +250,11 @@ function randInt(min:number, max:number) {
 
 function rot2<T>( t:T[] ) {
 	return [t[2],t[3],t[0],t[1]];
+}
+
+function pickOne<T>( t:T[] ):T {
+	if( t.length == 0 ) throw new Error("Can't pick from zero-length list!")
+	return t[Math.floor(Math.random()*t.length)];
 }
 
 export default class GraphWorldifier {
@@ -341,9 +347,9 @@ export default class GraphWorldifier {
 		const spanId = newUuidRef();
 		const spanProtoRooms:KeyedList<ProtoRoom> = {};
 		const openSides = [1,1,1,1];
-		let maxRex = Math.max(reqs.exitsPerSide[DIR_UP], reqs.exitsPerSide[DIR_DOWN]);
+		//let maxRex = Math.max(reqs.exitsPerSide[DIR_UP], reqs.exitsPerSide[DIR_DOWN]);
 		const isSpecialNode = node.items[ITEMCLASS_START] || node.items[ITEMCLASS_END];
-		const isCavey = !isSpecialNode && Math.random() < this.caveChance * maxRex;
+		const isCavey = !isSpecialNode && this.nodeThemes[node.id] == "cavey";
 		const roomBounds = isCavey ? makeAabb(randInt(-4,-6),randInt(-4,-6),-0.5, randInt(4,6),randInt(4,6),+0.5) :
 			makeAabb(-4,-4,-0.5,4,4,0.5);
 		let protoRoom = this.newProtoRoom(spanId, roomBounds);
@@ -429,6 +435,7 @@ export default class GraphWorldifier {
 		if( node ) {
 			if( node.items[ITEMCLASS_START] ) return 14;
 			else if( node.items[ITEMCLASS_END] ) return 1;
+			else if( this.nodeThemes[node.id] == "cavey" ) return 29;
 			else if( node.requiredKeys[ITEMCLASS_REDKEY] ) return 20;
 			else if( node.requiredKeys[ITEMCLASS_YELLOWKEY] ) return 19;
 			else if( node.requiredKeys[ITEMCLASS_BLUEKEY] ) return 15;
@@ -466,7 +473,7 @@ export default class GraphWorldifier {
 			const platformTileIndex = 2;
 			const rootTileIndex = 28;
 			const browningVinesTileIndex = 27;
-			const wallTileIndex = span.isCavey ? rockTileIndex : this.primaryWallTileIndex(span.node);
+			const wallTileIndex = this.primaryWallTileIndex(span.node);
 			
 			const rightProtoLink = protoRoom.protoLinks[DIR_RIGHT];
 			const leftProtoLink = protoRoom.protoLinks[DIR_LEFT];
@@ -485,7 +492,7 @@ export default class GraphWorldifier {
 			const y0 = roomBounds.minY, y1 = roomBounds.maxY;
 			const z0 = roomBounds.minZ, z1 = roomBounds.maxZ;
 			const isCavey = span.isCavey;
-			const hasGarden = Math.random() < this.gardenChance;
+			const hasGarden = Math.random() < (isCavey ? 0.75 : this.gardenChance);
 			const rootiness =
 				isCavey ? Math.random() * 2 * this.baseRootiness :
 				hasGarden && Math.random() < 0.5 ? this.baseRootiness * Math.random()-0.5 : 0;
@@ -731,7 +738,47 @@ export default class GraphWorldifier {
 		}
 	}
 	
+	protected nodeThemes:KeyedList<ThemeID> = {};
+	
+	protected figureNodeThemes() {
+		if( this.maze.nodes.length == 0 ) return;
+		//const themes = ["normal","cavey"];
+		const pickCount = Math.max(2, Math.ceil(this.maze.nodes.length / 10));
+		const pickedThemes:KeyedList<number> = {};
+		const spreads:number[] = [];
+		for( let i=0; i<pickCount; ++i ) {
+			const node = pickOne(this.maze.nodes);
+			const shouldBeCave = Math.random() < this.caveChance * node.linkIds.length / 4;
+			const theme:ThemeID = shouldBeCave ? "cavey" : "normal";
+			this.nodeThemes[node.id] = theme;
+			pickedThemes[theme] = (pickedThemes[theme] || 0) + 1;
+			spreads.push(node.id);
+		}
+		const pickedThemeDebugs:string[] = [];
+		for( let t in pickedThemes ) {
+			pickedThemeDebugs.push(pickedThemes[t]+" "+t+" areas");
+		}
+		console.log(pickedThemeDebugs.join(", "));
+		
+		for( let i=0; i<spreads.length; ++i ) {
+			const nodeId = spreads[i];
+			const node = this.maze.nodes[nodeId];
+			const theme = this.nodeThemes[nodeId];
+			for( let linkNumber=0; linkNumber<node.linkIds.length; ++linkNumber ) {
+				const link = this.maze.links[node.linkIds[linkNumber]];
+				const isForward = link.endpoint0.nodeId == nodeId && link.endpoint0.linkNumber == linkNumber;
+				const otherEnd = isForward ? link.endpoint1 : link.endpoint0;
+				if( this.nodeThemes[otherEnd.nodeId] == null ) {
+					this.nodeThemes[otherEnd.nodeId] = theme;
+					spreads.push(otherEnd.nodeId);
+				}
+			}
+		}
+	}
+	
 	public run() {
+		this.figureNodeThemes();
+		
 		let startNodeId = '0';
 		const nodeProtoRoomSpans:KeyedList<ProtoRoomSpan> = {}
 		for( let n in this._maze.nodes ) {
