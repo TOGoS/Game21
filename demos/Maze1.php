@@ -149,6 +149,7 @@ ul.tile-palette li.selected {
 
 .dialog-box {
 	position: fixed;
+	z-index: 1;
 	
 	border: 1px solid #666;
 	padding: 0;
