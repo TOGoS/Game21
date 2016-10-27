@@ -81,9 +81,9 @@ export function eachSubEntityIntersectingBb<T>(
 		const halfZd = zd/2, halfXd = xd/2, halfYd = yd/2;
 		
 		// Tile tree corners, adjusted by pos:
-		const x0 = pos.x - ttWidth /2, x1 = pos.x + ttWidth /2;
-		const y0 = pos.y - ttHeight/2, y1 = pos.y + ttHeight/2;
-		const z0 = pos.z - ttDepth /2, z1 = pos.z + ttDepth /2;
+		const x0 = pos.x + ttBb.minX, x1 = pos.x + ttBb.maxX;
+		const y0 = pos.y + ttBb.minY, y1 = pos.y + ttBb.maxY;
+		const z0 = pos.z + ttBb.minZ, z1 = pos.z + ttBb.maxZ;
 		const bbMinX = bbPos.x+bb.minX, bbMaxX = bbPos.x+bb.maxX;
 		const bbMinY = bbPos.y+bb.minY, bbMaxY = bbPos.y+bb.maxY;
 		const bbMinZ = bbPos.z+bb.minZ, bbMaxZ = bbPos.z+bb.maxZ;
@@ -170,7 +170,7 @@ export function makeTileTreeNode( palette:any, w:number, h:number, d:number, ind
 		totalMass += tileClass.mass == null ? Infinity : tileClass.mass;
 	}
 	
-	const tilingBoundingBox = makeAabb(-tileW*w/2, -tileH*h/2, -tileD*d/2, +tileW*w/2, +tileH*h/2, +tileD*d/2);
+	const tilingBoundingBox = deepFreeze(opts.boundingBox ? opts.boundingBox : makeAabb(-tileW*w/2, -tileH*h/2, -tileD*d/2, +tileW*w/2, +tileH*h/2, +tileD*d/2));
 	
 	return deepFreeze({
 		visualBoundingBox: tilingBoundingBox, // TODO: potentially different!
@@ -194,6 +194,7 @@ export function makeTileTreeNode( palette:any, w:number, h:number, d:number, ind
 export interface MakeTileTreeOptions {
 	/** If set, make the tile tree mass = infinity, even if child nodes are not */
 	infiniteMass? : boolean;
+	boundingBox? : AABB;
 }
 
 export function makeTileTreeRef( palette:any, w:number, h:number, d:number, indexes:any, gdm:GameDataManager, opts:MakeTileTreeOptions={}, alias?:string ):string {

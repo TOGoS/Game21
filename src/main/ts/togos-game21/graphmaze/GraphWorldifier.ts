@@ -392,7 +392,7 @@ export default class GraphWorldifier {
 			const neighbors:KeyedList<RoomNeighbor> = {};
 			const LADDER_IDX = 5;
 			
-			const cx = 0;
+			const cx = roomBounds.minX+Math.floor((roomBounds.maxX-roomBounds.minX)/2);
 			
 			const rightProtoLink = protoRoom.protoLinks[DIR_RIGHT];
 			const leftProtoLink = protoRoom.protoLinks[DIR_LEFT];
@@ -553,7 +553,7 @@ export default class GraphWorldifier {
 				tileBmp.fill(tileX,tileY,z0, tileX+1,tileY+1,z1, 0);
 				roomEntities[newUuidRef()] = {
 					position: {x: itemX, y: itemY, z:0},
-					entity: { classRef: entityClassRef}
+					entity: { classRef: entityClassRef }
 				}
 				--itemY;
 				itemsPlaced = true;
@@ -561,7 +561,9 @@ export default class GraphWorldifier {
 			
 			roomEntities[newUuidRef()] = {
 				position: ZERO_VECTOR,
-				entity: { classRef: makeTileTreeRef(this.tileEntityPaletteRef, tileBmp.width, tileBmp.height, tileBmp.depth, tileBmp.data, this._gdm, {infiniteMass:true}) }
+				entity: { classRef: makeTileTreeRef(this.tileEntityPaletteRef, tileBmp.width, tileBmp.height, tileBmp.depth, tileBmp.data, this._gdm, {
+					infiniteMass: true, boundingBox: roomBounds
+				}) }
 			};
 			const room:Room = {
 				bounds: roomBounds,
