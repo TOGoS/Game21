@@ -267,6 +267,7 @@ export default class GraphWorldifier {
 	public gardenChance = 0.125;
 	public caveChance = 0.5;
 	public baseRootiness = 1;
+	public themeAreaSize = 7;
 	
 	public get gameDataManager() { return this._gdm; }
 	public get maze() { return this._maze; }
@@ -743,7 +744,7 @@ export default class GraphWorldifier {
 	protected figureNodeThemes() {
 		if( this.maze.nodes.length == 0 ) return;
 		//const themes = ["normal","cavey"];
-		const pickCount = Math.max(2, Math.ceil(this.maze.nodes.length / 10));
+		const pickCount = Math.max(2, Math.ceil(this.maze.nodes.length / this.themeAreaSize));
 		const pickedThemes:KeyedList<number> = {};
 		const spreads:number[] = [];
 		for( let i=0; i<pickCount; ++i ) {

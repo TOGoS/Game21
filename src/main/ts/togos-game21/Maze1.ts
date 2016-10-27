@@ -1953,7 +1953,8 @@ export class MazeDemo {
 				const worldifier = new GraphWorldifier(gdm, maze);
 				worldifier.gardenChance = Math.random()*Math.random();
 				worldifier.caveChance = Math.min(1, level/10) * Math.random()
-				worldifier.baseRootiness = Math.min(1, level/10) * Math.random()*Math.random()*2;
+				worldifier.baseRootiness = Math.min(1, level/10) * Math.random()*Math.random()*3;
+				worldifier.themeAreaSize = 4 + Math.random() * 8;
 				return worldifier;
 			}).then( (worldifier) => mazeToWorld(worldifier) ).then( ({gdm, playerId, startRoomRef}) => {
 				this.winDialog.setVisible(false);
