@@ -26,11 +26,8 @@ GraphWorldifier:
 * hardness/size setting
 * mandatory loops
 * more decorations
-- Fix: player can occasionally start stuck in a wall
-- cave rooms;
-  - stalactites/stalagmites
-  - multiple horizontally-connected nodes may be generated as a single cave room
-  - tunnel/ladder/bridge through to enforce passability
+* Fix: player can occasionally start stuck in a wall
+* cave rooms;
 - wave function collapse-generated rooms
 - food, monsters (maybe just bouncy lightbulbs)
 

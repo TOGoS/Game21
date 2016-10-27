@@ -32,10 +32,15 @@ clean: sortaclean
 demos/Maze1.html: demos/Maze1.php $(shell find . -name '*.php') target/game21libs.amd.es5.js
 	php demos/Maze1.php saveGameRef="`tail -n 1 mazes.lst`" --inline-resources > "$@"
 demos/RandomMazes.html: demos/Maze1.php $(shell find . -name '*.php') target/game21libs.amd.es5.js
-	php demos/Maze1.php allowEditing=false --inline-resources > "$@"
+	php demos/Maze1.php tabToEditMode=false --inline-resources > "$@"
 
 demos/%.html: demos/%.php $(shell find . -name '*.php') target/game21libs.amd.es5.js
 	cd demos && php "../$<" --inline-resources >"../$@"
+
+target/Game21RandomMazes-%.zip: demos/RandomMazes.html
+	zip -r "$@" RANDO-README.md src Makefile package.json \
+		demos/lib.php demos/Maze1.php demos/RandomMazes.html \
+		mazes.lst bin/pruneamd fakerequire.js
 
 %.urn: % Makefile
 	ccouch3 id "$<" >"$@"

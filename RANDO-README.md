@@ -33,4 +33,11 @@ Other console commands:
   - ```/edit-mode``` - go into editor mode.
   - ```/play-mode``` - go back into play mode.
   - ```/save``` - save the current state of the game.
-  - ```/load <save game URI>```.
+  - ```/load <save game URI>``` - note that the save game URI
+    requires quotes because of the trailing '#',
+    e.g. ```/load "urn:sha1:VLHTMPIMN2QQVNXZPH2XZXU7WH7ZEJ4M#"```
+
+In the editor, click to place blocks and control+click
+to copy blocks into your block palette.
+
+There is currently no way to place keys or triforces.

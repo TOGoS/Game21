@@ -44,7 +44,7 @@ $configProperties = [
 		'defaultValue' => null,
 		'affects' => 'pageGeneration',
 	],
-	'allowEditing' => [
+	'tabToEditMode' => [
 		'valueType' => 'boolean',
 		'defaultValue' => true,
 		'affects' => 'pageGeneration',
@@ -321,7 +321,7 @@ ul.tile-palette li.selected {
 </div>
 
 <div id="tile-palette-area"></div>
-<?php if($allowEditing): ?>
+<?php if($tabToEditMode): ?>
 <div id="button-area" class="button-bar"></div>
 <?php endif; ?>
 </div>
@@ -426,7 +426,7 @@ ul.tile-palette li.selected {
 		updateLoadingStatus("Starting...");
 		
 		var demo = _Maze1.startDemo(document.getElementById('maze-canvas'), <?php ejsv($saveGameRef); ?>, updateLoadingStatus, cacheStrings);
-		demo.allowEditing = <?php ejsv($allowEditing); ?>;
+		demo.tabToEditMode = <?php ejsv($tabToEditMode); ?>;
 		window.maze1Demo = demo;
 		window.addEventListener('keydown', demo.keyDown.bind(demo));
 		window.addEventListener('keyup', demo.keyUp.bind(demo));

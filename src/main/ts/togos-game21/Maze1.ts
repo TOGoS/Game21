@@ -1264,8 +1264,11 @@ export class MazeSimulator {
 			return Promise.all(lProms).then( () => room );
 		});
 	}
-
+	
+	public rootRoomId:string|undefined; // Most recently fullyLoadRooms ref.
+	
 	public fullyLoadRooms( rootRoomId:string ):Promise<KeyedList<Room>> {
+		this.rootRoomId = rootRoomId;
 		return this.fullyLoadRooms2(rootRoomId).then( () => {
 			this.roomLoadPromises = {};
 			return this.rooms;
@@ -1693,14 +1696,15 @@ export class MazeDemo {
 	public canvas:HTMLCanvasElement;
 	public view : MazeView;
 	public playerId : string;
-	public allowEditing : boolean = true;
+	public tabToEditMode : boolean = true;
 	protected tickTimerId? : number;
 	protected tickRate = 1/32;
-	protected mode:DemoMode = DemoMode.PLAY;
+	protected _demoMode:DemoMode = DemoMode.PLAY;
 	public tilePaletteUi:TilePaletteUI;
 	public maze1InventoryUi:TilePaletteUI;
 	public consoleDialog:ConsoleDialogBox;
 	public winDialog:WinDialogBox;
+	public saveButton:HTMLButtonElement;
 	public foundTriforceCount:number = 0;
 	public currentLevelNumber:number = 0;
 	protected foundTriforceThisLevel:boolean = false;
@@ -1720,18 +1724,19 @@ export class MazeDemo {
 		}
 	}
 	
-	public switchToNextMode() {
-		this.mode++;
-		if( this.mode > 1 ) {
-			this.mode = 0;
-		}
-		if( this.mode == DemoMode.EDIT ) {
+	public set demoMode(mode:number) {
+		if( mode == this._demoMode ) return;
+		this._demoMode = mode % 2;
+		if( this._demoMode == DemoMode.EDIT ) {
 			this.tilePaletteUi.element.style.display = "";
 			this.maze1InventoryUi.element.style.display = "none";
 		} else {
 			this.tilePaletteUi.element.style.display = "none";
 			this.maze1InventoryUi.element.style.display = "";
 		}
+	}
+	public switchToNextMode() {
+		this.demoMode += 1;
 	}
 	
 	public startSimulation() {
@@ -1770,7 +1775,7 @@ export class MazeDemo {
 			const rasterOriginY = Math.floor(rasterHeight/rasterResolution/2) + playerLoc.position.y - Math.floor(playerLoc.position.y);
 			const visibilityRaster   = new ShadeRaster(rasterWidth, rasterHeight, rasterResolution, rasterOriginX, rasterOriginY);
 			let opacityRaster:ShadeRaster|undefined;
-			const seeAll = this.mode == DemoMode.EDIT;
+			const seeAll = this._demoMode == DemoMode.EDIT;
 
 			const visibilityDistanceInRasterPixels = rasterResolution*distance;
 			opacityRaster = new ShadeRaster(rasterWidth, rasterHeight, rasterResolution, rasterOriginX, rasterOriginY);
@@ -1854,7 +1859,7 @@ export class MazeDemo {
 		}
 	}
 	public keyDown(keyEvent:KeyboardEvent):void {
-		if( keyEvent.keyCode == 9 && this.allowEditing ) {
+		if( keyEvent.keyCode == 9 && this.tabToEditMode ) {
 			this.switchToNextMode();
 			keyEvent.preventDefault();
 			return;
@@ -1878,12 +1883,52 @@ export class MazeDemo {
 	}
 	public saveGame():Promise<string> {
 		return this.simulator.flushUpdates().then( (gameDataRef) => {
+			const rrf = this.simulator.rootRoomId;
+			if( rrf == null ) return Promise.reject(new Error("Can't save; no root room specified!"));
 			const saveGame:SaveGame = {
 				gameDataRef: gameDataRef,
-				rootRoomId: dat.room1Id,
+				rootRoomId: rrf,
 				playerId: this.playerId
 			};
 			return storeObject<SaveGame>(saveGame, this.datastore);
+		});
+	}
+	public saveGame2(note:string):void {
+		if(this.saveButton) this.saveButton.disabled = true;
+		this.saveGame().then( (saveRef) => {
+			const saveMeta = {
+				note,
+				date: new Date().toISOString(),
+				saveRef: saveRef,
+			};
+			
+			this.logger.log("Serialized as "+saveRef+"; uploading...");
+			
+			http.request(
+				'POST', 'http://game21-data.nuke24.net/saves',
+				{'content-type':'application/json'},
+				encodeObject(saveMeta)
+			).then( (res) => {
+				if( res.statusCode != 200 ) {
+					this.logger.error("Failed to save to website;", res.content);
+				} else {
+					this.logger.log("Saved "+saveRef+" to website");
+				}
+			});
+			
+			if( window.localStorage ) {
+				const savesJson = window.localStorage.getItem("game21-local-saves");
+				const saves:{note:string,date:string,saveRef:string}[] = savesJson ? JSON.parse(savesJson) : [];
+				saves.push(saveMeta);
+				window.localStorage.setItem("game21-local-saves", JSON.stringify(saves, null, "\t"));
+			}
+			
+			// TODO: catch any rejects here and return them
+			
+			if(this.saveButton) this.saveButton.disabled = false;
+		}).catch( (err) => {
+			if(this.saveButton) this.saveButton.disabled = false;
+			this.logger.error("Error saving!", err);
 		});
 	}
 	
@@ -2019,7 +2064,7 @@ export class MazeDemo {
 	protected paintCoordinates:Vector3D|undefined;
 	
 	protected maybePaint() {
-		if( this.mode != DemoMode.EDIT ) return;
+		if( this._demoMode != DemoMode.EDIT ) return;
 		const coords = this.paintCoordinates;
 		if( coords ) {
 			this.enqueueMessage(
@@ -2146,6 +2191,22 @@ export class MazeDemo {
 					break;
 				case 'export-cached-data': case 'ecd':
 					this.exportCachedData();
+					break;
+				case 'edit-mode':
+					this.demoMode = DemoMode.EDIT;
+					break;
+				case 'play-mode':
+					this.demoMode = DemoMode.PLAY;
+					break;
+				case 'save':
+					{
+						if( tokens.length == 2) {
+							this.saveGame2(tokens[1].text);
+							this.logger.log("Saving...");
+						} else {
+							this.logger.error("/save requires a single argument, e.g. /save \"a good save!\"");
+						}
+					}
 					break;
 				case 'load':
 					{
@@ -2468,38 +2529,13 @@ export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string, loadingSt
 		
 		butta.appendChild(udGroup);
 		
-		const saveButton = document.createElement("button");
+		const saveButton = demo.saveButton = document.createElement("button");
 		saveButton.appendChild(document.createTextNode("Save"));
 		saveButton.onclick = () => {
 			const saveNote = window.prompt("Note");
 			if( saveNote == null || saveNote.length == 0 ) return;
 			saveButton.disabled = true;
-			demo.saveGame().then( (saveRef) => {
-				const saveMeta = {
-					note: saveNote,
-					date: new Date().toISOString(),
-					saveRef: saveRef,
-				};
-				http.request(
-					'POST', 'http://game21-data.nuke24.net/saves',
-					{'content-type':'application/json'},
-					encodeObject(saveMeta)
-				).then( (res) => {
-					if( res.statusCode != 200 ) {
-						demo.logger.error("Failed to save to website;", res.content);
-					} else {
-						demo.logger.log("Saved "+saveRef+" to website");
-					}
-				});
-				demo.logger.log("Saved as "+saveRef);
-				if( window.localStorage ) {
-					const savesJson = window.localStorage.getItem("game21-local-saves");
-					const saves:{note:string,date:string,saveRef:string}[] = savesJson ? JSON.parse(savesJson) : [];
-					saves.push(saveMeta);
-					window.localStorage.setItem("game21-local-saves", JSON.stringify(saves, null, "\t"));
-				}
-				saveButton.disabled = false;
-			});
+			demo.saveGame2(saveNote);
 		};
 		
 		butta.appendChild(saveButton);
