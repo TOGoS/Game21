@@ -25,7 +25,7 @@ GraphMazeGenerator2:
 GraphWorldifier:
 * hardness/size setting
 * mandatory loops
-- more decorations
+* more decorations
 - cave rooms;
   - stalactites/stalagmites
   - multiple horizontally-connected nodes may be generated as a single cave room

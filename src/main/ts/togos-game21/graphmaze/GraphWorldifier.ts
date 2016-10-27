@@ -23,6 +23,7 @@ import {
 import AABB from '../AABB';
 import { makeAabb } from '../aabbs';
 import Vector3D from '../Vector3D';
+import { subtractVector } from '../vector3dmath'
 import { ZERO_VECTOR } from '../vector3ds';
 import {
 	Room,
@@ -60,8 +61,10 @@ interface ProtoRoomLink {
 
 interface ProtoRoom {
 	id : string;
+	bounds : AABB;
 	protoRoomSpanRef : string;
 	protoLinks : (ProtoRoomLink|undefined)[];
+	linkPositions : Vector3D[];
 	doors : KeySet;
 }
 
@@ -124,8 +127,21 @@ function pickLinkDirection( usedDirections:number[], link:MazeLink ):number {
 	return minDirs[randInt(0,minDirs.length-1)];
 }
 
-function newProtoRoom(spanId:string):ProtoRoom {
-	return { id: newUuidRef(), protoRoomSpanRef:spanId, protoLinks: [undefined,undefined,undefined,undefined], doors: {} };
+function newProtoRoom(spanId:string, bounds:AABB):ProtoRoom {
+	return {
+		id: newUuidRef(),
+		protoRoomSpanRef:spanId,
+		bounds: bounds,
+		// Default positions.  Override at will.
+		linkPositions: [
+			{x: bounds.maxX, y:0, z:0},
+			{x: 0, y:bounds.maxY, z:0},
+			{x: bounds.minX, y:0, z:0},
+			{x: 0, y:bounds.minY, z:0},
+		],
+		protoLinks: [undefined,undefined,undefined,undefined],
+		doors: {}
+	};
 }
 function linkProtoRooms(pr0:ProtoRoom, dir:number, pr1:ProtoRoom, linkAttributes:ProtoLinkAttributes ) {
 	if( pr0.protoLinks[dir] ) throw new Error("Can't connect "+pr0.id+" "+dir+"-wise to "+pr1.id+"; link already exists");
@@ -145,18 +161,55 @@ function neighborOffset( bounds:AABB, dir:number, nBounds:AABB ):Vector3D {
 	}
 }
 
+function assertInteger(n:number, ctx:string) {
+	if( n != Math.floor(n) ) throw new Error(ctx+" is not an integer!: "+n);
+}
+
 class Bitmap {
-	public data:number[];
-	public constructor(protected width:number, protected height:number, protected depth:number) {
-		this.data = new Array<number>(width*height*depth);
+	protected _data:number[];
+	protected _offsetX:number;
+	protected _offsetY:number;
+	protected _offsetZ:number;
+	protected _width:number;
+	protected _height:number;
+	protected _depth:number;
+	public constructor(protected bounds:AABB) {
+		this._offsetX = bounds.minX;
+		this._offsetY = bounds.minY;
+		this._offsetZ = bounds.minZ;
+		this._width  = bounds.maxX-bounds.minX;
+		this._height = bounds.maxY-bounds.minY;
+		this._depth  = bounds.maxZ-bounds.minZ;
+		assertInteger(this._width , "bitmap width");
+		assertInteger(this._height, "bitmap height");
+		assertInteger(this._depth , "bitmap depth");
+		console.log("Make one ", this._width*this._height*this._depth, this._width, this._height, this._depth);
+		this._data = new Array<number>(this._width*this._height*this._depth);
 	}
 	
+	public get width() { return this._width; }
+	public get height() { return this._height; }
+	public get depth() { return this._depth; }
+	public get data() { return this._data; }
+	
 	public fill(x0:number, y0:number, z0:number, x1:number, y1:number, z1:number, v:number) {
+		if( x0 < this._offsetX ) throw new Error("x0 out of bounds! "+x0+" < "+this._offsetX);
+		if( y0 < this._offsetY ) throw new Error("y0 out of bounds! "+y0+" < "+this._offsetY);
+		if( z0 < this._offsetZ ) throw new Error("z0 out of bounds! "+z0+" < "+this._offsetZ);
+		const maxX = this._offsetX+this._width;
+		const maxY = this._offsetY+this._height;
+		const maxZ = this._offsetZ+this._depth;
+		if( x1 > maxX ) throw new Error("x1 out of bounds! "+x1+" > "+maxX);
+		if( y1 > maxY ) throw new Error("y1 out of bounds! "+y1+" > "+maxY);
+		if( z1 > maxZ ) throw new Error("z1 out of bounds! "+z1+" > "+maxZ);
+		
+		x0 -= this._offsetX; y0 -= this._offsetY; z0 -= this._offsetZ;
+		x1 -= this._offsetX; y1 -= this._offsetY; z1 -= this._offsetZ;
 		for( let z=z0; z<z1; ++z ) {
 			for( let y=y0; y<y1; ++y ) {
 				for( let x=x0; x<x1; ++x ) {
-					const i = x + y*(this.width) + z*(this.width*this.height);
-					this.data[i] = v;
+					const i = x + y*(this._width) + z*(this._width*this._height);
+					this._data[i] = v;
 				}
 			}
 		}
@@ -197,8 +250,8 @@ export default class GraphWorldifier {
 	}
 	
 	protected protoRooms:KeyedList<ProtoRoom> = {}
-	protected newProtoRoom(spanId:string) {
-		const pr = newProtoRoom(spanId);
+	protected newProtoRoom(spanId:string, bounds:AABB) {
+		const pr = newProtoRoom(spanId, bounds);
 		this.protoRooms[pr.id] = pr;
 		return pr;
 	}
@@ -206,16 +259,18 @@ export default class GraphWorldifier {
 	protected generateProtoRoomSpan(spanId:string, reqs:RoomSpanRequirements, node:MazeNode):ProtoRoomSpan {
 		// Is this where 'generate nice room spans' code might go?
 		// e.g. try generating a cavey room or something
+		
 		const spanProtoRooms:KeyedList<ProtoRoom> = {};
 		const openSides = [1,1,1,1];
-		let protoRoom = this.newProtoRoom(spanId);
+		const roomBounds = makeAabb(-4,-4,-0.5, +4,+4,+0.5);//makeAabb(randInt(-4,-6),randInt(-4,-6),-0.5, randInt(4,6),randInt(4,6),+0.5);
+		let protoRoom = this.newProtoRoom(spanId, roomBounds);
 		spanProtoRooms[protoRoom.id] = protoRoom;
 		for( let i=0; i<reqs.exitsPerSide.length; ++i ) {
 			while( reqs.exitsPerSide[i] > openSides[i] ) {
 				// We gotta dig in a perpendicular direction.
 				let digDir = ((i+1) + randInt(0,1)*2) % 4;
 				if( protoRoom.protoLinks[digDir] ) digDir = (digDir + 2) % 4;
-				const newRoom = this.newProtoRoom(spanId);
+				const newRoom = this.newProtoRoom(spanId, roomBounds);
 				linkProtoRooms(protoRoom, digDir, newRoom, {
 					isBidirectional: true,
 					interSpan: false,
@@ -273,7 +328,7 @@ export default class GraphWorldifier {
 	
 	protected generateLinkSpan(spanId:string, link:MazeLink, locks:KeySet):ProtoRoomSpan {
 		const protoRooms:KeyedList<ProtoRoom> = {};
-		const newRoom = this.newProtoRoom(spanId);
+		const newRoom = this.newProtoRoom(spanId, makeAabb(-4,-4,-0.5,+4,+4,+0.5));
 		newRoom.doors = locks;
 		protoRooms[newRoom.id] = newRoom;
 		return { protoRooms };
@@ -327,16 +382,17 @@ export default class GraphWorldifier {
 			const protoRoom = span.protoRooms[pr];
 			// TODO: Make more interesting rooms, maybe with the help of generateSpan
 			// have it figure general size and shape so we know how to place neighbors ahead of time
-			const roomWidth = 8, roomHeight = 8, roomDepth = 1;
-			const roomBounds:AABB = makeAabb(-roomWidth/2, -roomHeight/2, -roomDepth/2, roomWidth/2, roomHeight/2, roomDepth/2);
-			const tileBmp = new Bitmap(roomWidth,roomHeight,roomDepth);
+			//const roomWidth = 8, roomHeight = 8, roomDepth = 1;
+			//const roomBounds:AABB = makeAabb(-roomWidth/2, -roomHeight/2, -roomDepth/2, roomWidth/2, roomHeight/2, roomDepth/2);
+			const roomBounds = protoRoom.bounds;
+			const tileBmp = new Bitmap(roomBounds);
 			const wallTileIndex = this.primaryWallTileIndex(span.node);
-			const primaryFloorHeight = roomHeight - 3;
-			let ceilingHeight = span.node ? randInt(1,primaryFloorHeight-2) : primaryFloorHeight-2;
+			const primaryFloorHeight = roomBounds.maxX - 3;
+			let ceilingHeight = span.node ? randInt(roomBounds.minX+1,primaryFloorHeight-2) : primaryFloorHeight-2;
 			const neighbors:KeyedList<RoomNeighbor> = {};
 			const LADDER_IDX = 5;
 			
-			const cx = roomWidth/2;
+			const cx = 0;
 			
 			const rightProtoLink = protoRoom.protoLinks[DIR_RIGHT];
 			const leftProtoLink = protoRoom.protoLinks[DIR_LEFT];
@@ -352,41 +408,42 @@ export default class GraphWorldifier {
 			
 			let hasDoors = false;
 			for( let k in protoRoom.doors ) hasDoors = true;
-
-			tileBmp.fill(0,0,0,roomWidth,roomHeight,roomDepth,wallTileIndex);
-			tileBmp.fill(2,ceilingHeight,0,roomWidth-2,primaryFloorHeight,1,0);
+			
+			const z0 = roomBounds.minZ, z1 = roomBounds.maxZ;
+			tileBmp.fill(roomBounds.minX  ,roomBounds.minY,z0, roomBounds.maxX  ,   roomBounds.maxY,z1, wallTileIndex);
+			tileBmp.fill(roomBounds.minX+2,  ceilingHeight,z0, roomBounds.maxX-2,primaryFloorHeight,z1, 0);
 			
 			if( rightProtoLink ) {
 				const hallWidth = rightProtoLink.attributes.interSpan ? 2 : 4;
-				tileBmp.fill(cx, primaryFloorHeight-hallWidth, 0, roomWidth,  primaryFloorHeight, 1, 0);
+				tileBmp.fill(cx, primaryFloorHeight-hallWidth,z0, roomBounds.maxX,primaryFloorHeight,z1, 0);
 			}
 			if( leftProtoLink ) {
 				const hallWidth = leftProtoLink.attributes.interSpan ? 2 : 4;
-				tileBmp.fill( 0, primaryFloorHeight-hallWidth, 0,        cx,  primaryFloorHeight, 1, 0);
+				tileBmp.fill(roomBounds.minX, primaryFloorHeight-hallWidth,z0, cx,primaryFloorHeight,z1, 0);
 			}
 			
 			const groundHeights:number[] = [];
-			for( let i=0; i<roomWidth; ++i ) groundHeights[i] = primaryFloorHeight;
+			for( let i=0; i<tileBmp.width; ++i ) groundHeights[i] = primaryFloorHeight;
 			
 			if( Math.random() < this.gardenChance ) {
 				// Garden!
-				tileBmp.fill( 1,primaryFloorHeight,0, roomWidth-1,roomHeight,1, 0 );
+				tileBmp.fill( roomBounds.minX+1,primaryFloorHeight,z0, roomBounds.maxX-1,roomBounds.maxY,z1, 0 );
 				//tileBmp.fill( 1,floorHeight+1,0, roomWidth-1,floorHeight+2,1, 29 ); // rocks!
 				const hilliness = Math.random();
-				let groundHeight = primaryFloorHeight+Math.random()*(primaryFloorHeight+roomHeight-1);
-				for(let x=1; x<roomWidth-1; ++x ) {
+				let groundHeight = primaryFloorHeight+Math.random()*(primaryFloorHeight+roomBounds.maxY-1);
+				for(let x=roomBounds.minX+1; x<roomBounds.maxX-1; ++x ) {
 					groundHeight += (Math.random()-0.5)*2*hilliness;
-					const minGroundHeight = (x < 3 || x >= roomWidth-3) ? primaryFloorHeight-1 : ceilingHeight+1;
+					const minGroundHeight = (x < roomBounds.minX+3 || x >= roomBounds.maxX-3) ? primaryFloorHeight-1 : ceilingHeight+1;
 					if( groundHeight < minGroundHeight ) groundHeight = minGroundHeight;
-					if( groundHeight > roomHeight-1 ) groundHeight = roomHeight-1;
+					if( groundHeight > roomBounds.maxY-1 ) groundHeight = roomBounds.maxY-1;
 					const groundHeightAbs = Math.round(groundHeight);
-					groundHeights[x] = groundHeightAbs;
-					tileBmp.fill(x,groundHeightAbs,0, x+1,roomHeight,1, 29);
+					groundHeights[x-roomBounds.minX] = groundHeightAbs;
+					tileBmp.fill(x,groundHeightAbs,z0, x+1,roomBounds.maxY,z1, 29);
 					if( Math.random() < 0.5 ) {
 						let plantTileIndex:number;
 						if( Math.random() < 0.125 ) plantTileIndex = 14; // brown brick
 						else plantTileIndex = [26,25,3][Math.floor(Math.random()*Math.random()*3)];
-						tileBmp.fill(x,groundHeightAbs-1,0, x+1,groundHeightAbs,1, plantTileIndex);
+						tileBmp.fill(x,groundHeightAbs-1,z0, x+1,groundHeightAbs,z1, plantTileIndex);
 					}
 				}
 			}
@@ -395,10 +452,10 @@ export default class GraphWorldifier {
 				if( hasDoors ) throw new Error("Lock room has vertical link!");
 				const hallWidth = topProtoLink.attributes.interSpan ? 2 : 4;
 				const hhw = hallWidth/2;
-				tileBmp.fill(cx-hhw,  0, 0, cx+hhw,primaryFloorHeight,1, 0);
+				tileBmp.fill(cx-hhw,roomBounds.minY, z0, cx+hhw,primaryFloorHeight,z1, 0);
 				if( topProtoLink.attributes.isBidirectional ) {
 					const ladderX = cx;
-					tileBmp.fill(ladderX,0,0, ladderX+1,groundHeights[ladderX]-1,1, LADDER_IDX);
+					tileBmp.fill(ladderX,roomBounds.minY,z0, ladderX+1,groundHeights[ladderX-roomBounds.minX]-1,z1, LADDER_IDX);
 				}
 			}
 			if( bottomProtoLink ) {
@@ -407,24 +464,28 @@ export default class GraphWorldifier {
 				const hhw = hallWidth/2;
 				if( bottomProtoLink.attributes.isBidirectional ) {
 					if( Math.random() < 0.5 ) {
-						tileBmp.fill(cx-1, primaryFloorHeight, 0, cx+2, primaryFloorHeight+1, 1, platformTileIndex);
+						tileBmp.fill(cx-1, primaryFloorHeight, z0, cx+2, primaryFloorHeight+1, z1, platformTileIndex);
 					} else {
-						tileBmp.fill(0, primaryFloorHeight, 0, roomWidth, primaryFloorHeight+1, 1, platformTileIndex);
+						tileBmp.fill(roomBounds.minX, primaryFloorHeight, z0, roomBounds.maxX, primaryFloorHeight+1, z1, platformTileIndex);
 					}
 					const ladderX = cx;
-					tileBmp.fill(ladderX,primaryFloorHeight-1,0, ladderX+1,roomHeight,1, LADDER_IDX)
+					tileBmp.fill(ladderX,primaryFloorHeight-1,z0, ladderX+1,roomBounds.maxY,z1, LADDER_IDX)
 				} else {
-					tileBmp.fill(cx-hhw, primaryFloorHeight, 0, cx+hhw, roomHeight, 1, 0);
+					tileBmp.fill(cx-hhw, primaryFloorHeight, z0, cx+hhw, roomBounds.maxY, z1, 0);
 				}
 			}
 			
 			for( let i=0; i<4; ++i ) {
 				const protoLink = protoRoom.protoLinks[i];
 				if( protoLink ) {
+					const linkPosition = protoRoom.linkPositions[i];
+					const neighborProtoRoom = this.protoRooms[protoLink.neighborRef];
+					const neighborLinkPosition = neighborProtoRoom.linkPositions[(i+2)%4];
+					console.log("Neighbor position: ", subtractVector(linkPosition, neighborLinkPosition));
 					neighbors["n"+i] = {
 						bounds: roomBounds,
 						roomRef: protoLink.neighborRef,
-						offset: neighborOffset(roomBounds, i, roomBounds) // Eh
+						offset: subtractVector(linkPosition, neighborLinkPosition)
 					}
 				}
 			}
@@ -433,10 +494,10 @@ export default class GraphWorldifier {
 				const leftWallTileIndex = this.protoLinkedWallTileIndex(protoRoom.protoLinks[DIR_LEFT]);
 				const rightWallTileIndex = this.protoLinkedWallTileIndex(protoRoom.protoLinks[DIR_RIGHT]);
 				
-				let doorPos = 2;
-				let lastDoorPos = 2;
-				tileBmp.fill(0,0,0, doorPos,ceilingHeight,1, leftWallTileIndex);
-				tileBmp.fill(0,primaryFloorHeight,0, doorPos,roomHeight,1, leftWallTileIndex);
+				let doorPos = roomBounds.minX+2;
+				let lastDoorPos = doorPos;
+				tileBmp.fill(roomBounds.minX,roomBounds.minY,z0, doorPos,ceilingHeight,z1, leftWallTileIndex);
+				tileBmp.fill(roomBounds.minX,primaryFloorHeight,z0, doorPos,roomBounds.maxY,z1, leftWallTileIndex);
 				for( let k in protoRoom.doors ) {
 					let doorTileIndex:number;
 					let doorFrameTileIndex:number;
@@ -455,13 +516,13 @@ export default class GraphWorldifier {
 						break;
 					default: throw new Error("No door tile index known for "+k);
 					}
-					tileBmp.fill(doorPos,0,0, doorPos+1,roomHeight,1, doorFrameTileIndex);
-					tileBmp.fill(doorPos,ceilingHeight, 0, doorPos+1, primaryFloorHeight, 1, doorTileIndex);
+					tileBmp.fill(doorPos,roomBounds.minY,z0, doorPos+1,roomBounds.maxY,z1, doorFrameTileIndex);
+					tileBmp.fill(doorPos,ceilingHeight,z0, doorPos+1, primaryFloorHeight,z1, doorTileIndex);
 					lastDoorPos = doorPos;
 					doorPos += 2;
 				}
-				tileBmp.fill(lastDoorPos+1,0,0, roomWidth,ceilingHeight,1, rightWallTileIndex);
-				tileBmp.fill(lastDoorPos+1,primaryFloorHeight,0, roomWidth,roomHeight,1, rightWallTileIndex);
+				tileBmp.fill(lastDoorPos+1,roomBounds.minX,z0, roomBounds.maxX,ceilingHeight,z1, rightWallTileIndex);
+				tileBmp.fill(lastDoorPos+1,primaryFloorHeight,z0, roomBounds.maxX,roomBounds.maxY,z1, rightWallTileIndex);
 			}
 			
 			const roomEntities:KeyedList<RoomEntity> = {}
@@ -470,7 +531,7 @@ export default class GraphWorldifier {
 				!protoRoom.protoLinks[DIR_LEFT] ? -1.5 :
 				!protoRoom.protoLinks[DIR_RIGHT] ? +1.5 :
 				-0.5;
-			let itemY = groundHeights[Math.floor(itemX+roomHeight/2)] - roomHeight/2 - 1.5;
+			let itemY = groundHeights[Math.floor(itemX-roomBounds.minX)] - 1.5;
 			if( span.node && !itemsPlaced ) placeItems: for( let k in span.node.items ) {
 				const itemClassId = span.node.items[k];
 				let entityClassRef:string;
@@ -483,13 +544,13 @@ export default class GraphWorldifier {
 				default: throw new Error("Unknown entity type "+itemClassId);
 				}
 				
-				const tileX = roomWidth/2+Math.floor(itemX);
-				const tileY = roomHeight/2+Math.floor(itemY);
+				const tileX = Math.floor(itemX);
+				const tileY = Math.floor(itemY);
 				if( !itemsPlaced ) {
-					tileBmp.fill(tileX,tileY+1,0, tileX+1,tileY+2,1, platformTileIndex);
+					tileBmp.fill(tileX,tileY+1,z0, tileX+1,tileY+2,z1, platformTileIndex);
 				}
 				
-				tileBmp.fill(tileX,tileY,0, tileX+1,tileY+1,1, 0);
+				tileBmp.fill(tileX,tileY,z0, tileX+1,tileY+1,z1, 0);
 				roomEntities[newUuidRef()] = {
 					position: {x: itemX, y: itemY, z:0},
 					entity: { classRef: entityClassRef}
@@ -500,7 +561,7 @@ export default class GraphWorldifier {
 			
 			roomEntities[newUuidRef()] = {
 				position: ZERO_VECTOR,
-				entity: { classRef: makeTileTreeRef(this.tileEntityPaletteRef, roomWidth, roomHeight, roomDepth, tileBmp.data, this._gdm, {infiniteMass:true}) }
+				entity: { classRef: makeTileTreeRef(this.tileEntityPaletteRef, tileBmp.width, tileBmp.height, tileBmp.depth, tileBmp.data, this._gdm, {infiniteMass:true}) }
 			};
 			const room:Room = {
 				bounds: roomBounds,
