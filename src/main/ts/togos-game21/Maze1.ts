@@ -2132,12 +2132,13 @@ export class MazeDemo {
 					break;
 				case 'level':
 					{
-						if( tokens.length != 2 ) {
-							this.logger.error("/level takes single argument: <level number>");
-							//e.g. urn:sha1:53GHW7DMQF472PTXLWKKE25BKUJXOTXZ#
-							break doCommand;
+						if( tokens.length == 1 ) {
+							this.logger.log("Current level: "+this.currentLevelNumber)
+						} else if( tokens.length == 2 ) {
+							this.generateAndLoadNewLevel(parseInt(tokens[1].text));
+						} else {
+							this.logger.error("/level takes zero or one argument: /level [<level number>]");
 						}
-						this.generateAndLoadNewLevel(parseInt(tokens[1].text));
 					};
 					break;
 				case 'export-cached-data': case 'ecd':
