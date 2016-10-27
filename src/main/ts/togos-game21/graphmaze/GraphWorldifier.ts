@@ -569,7 +569,7 @@ export default class GraphWorldifier {
 			let hasDoors = false;
 			for( let k in protoRoom.doors ) hasDoors = true;
 			
-			let floorHeights:number[] = protoRoom.floorHeights;
+			let floorHeights:number[]|undefined = protoRoom.floorHeights;
 			if( floorHeights == undefined ) {
 				floorHeights = [];
 				for( let i=0; i<tileBmp.width; ++i ) floorHeights[i] = primaryFloorHeight;
@@ -703,7 +703,9 @@ export default class GraphWorldifier {
 				const protoLink = protoRoom.protoLinks[i];
 				if( protoLink ) {
 					const neighborProtoRoom = this.protoRooms[protoLink.neighborRef];
-					const neighborLinkPosition = neighborProtoRoom.protoLinks[(i+2)%4].position;
+					const neighborLink = neighborProtoRoom.protoLinks[(i+2)%4];
+					if( !neighborLink ) throw new Error("Complementary link missing!!");
+					const neighborLinkPosition = neighborLink.position;
 					neighbors["n"+i] = {
 						bounds: roomBounds,
 						roomRef: protoLink.neighborRef,
