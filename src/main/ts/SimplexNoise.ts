@@ -43,8 +43,7 @@ class SimplexNoise {
 	protected perm:Uint8Array;
 	protected permMod12:Uint8Array;
 	
-	constructor(protected random:()=>number) {
-		if (!random) random = Math.random;
+	constructor(protected random:()=>number=Math.random) {
 		this.p = new Uint8Array(256);
 		this.perm = new Uint8Array(512);
 		this.permMod12 = new Uint8Array(512);
