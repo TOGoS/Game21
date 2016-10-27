@@ -161,6 +161,7 @@ ul.tile-palette li.selected {
 	flex-grow: 1;
 	display: flex;
 	flex-direction: column;
+	overflow: auto;
 }
 .help-box-content {
 	background: rgba(0,0,0,0.75);
