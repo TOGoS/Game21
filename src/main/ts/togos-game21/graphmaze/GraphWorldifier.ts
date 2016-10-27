@@ -73,6 +73,7 @@ interface ProtoRoom {
  * as far as content generation goes.
  */
 interface ProtoRoomSpan {
+	id : string;
 	protoRooms : KeyedList<ProtoRoom>;
 	node? : MazeNode;
 }
@@ -236,9 +237,6 @@ function rot2<T>( t:T[] ) {
 	return [t[2],t[3],t[0],t[1]];
 }
 
-function nodeSpanId(nodeId:number|string):string { return "node"+nodeId; }
-function linkSpanId(linkId:number|string):string { return "link"+linkId; }
-
 export default class GraphWorldifier {
 	public constructor( protected _gdm:GameDataManager, protected _maze:Maze ) { }
 	
@@ -267,10 +265,12 @@ export default class GraphWorldifier {
 		return pr;
 	}
 	
-	protected generateProtoRoomSpan(spanId:string, reqs:RoomSpanRequirements, node:MazeNode):ProtoRoomSpan {
+	protected spareProtoRoomSpans:ProtoRoomSpan[] = [];
+	
+	protected generateProtoRoomSpan(reqs:RoomSpanRequirements, node:MazeNode):ProtoRoomSpan {
 		// Is this where 'generate nice room spans' code might go?
 		// e.g. try generating a cavey room or something
-		
+		const spanId = newUuidRef();
 		const spanProtoRooms:KeyedList<ProtoRoom> = {};
 		const openSides = [1,1,1,1];
 		const roomBounds = makeAabb(randInt(-4,-6),randInt(-4,-6),-0.5, randInt(4,6),randInt(4,6),+0.5);
@@ -292,7 +292,7 @@ export default class GraphWorldifier {
 				protoRoom = newRoom;
 			}
 		}
-		return { protoRooms:spanProtoRooms, node };
+		return { id: spanId, protoRooms: spanProtoRooms, node };
 	}
 	
 	protected calculateNodeSpanRequirements( gn:MazeNode ):RoomSpanRequirements {
@@ -337,12 +337,13 @@ export default class GraphWorldifier {
 		return { exitsPerSide };
 	}
 	
-	protected generateLinkSpan(spanId:string, link:MazeLink, locks:KeySet):ProtoRoomSpan {
+	protected generateLinkSpan(link:MazeLink, locks:KeySet):ProtoRoomSpan {
+		const spanId = newUuidRef();
 		const protoRooms:KeyedList<ProtoRoom> = {};
 		const newRoom = this.newProtoRoom(spanId, makeAabb(-4,-4,-0.5,+4,+4,+0.5));
 		newRoom.doors = locks;
 		protoRooms[newRoom.id] = newRoom;
-		return { protoRooms };
+		return { id: spanId, protoRooms };
 	}
 	
 	protected findRoomWithOpenWall(span:ProtoRoomSpan, direction:number, spanId:string):ProtoRoom {
@@ -586,12 +587,15 @@ export default class GraphWorldifier {
 	}
 	
 	public run() {
+		let startNodeId = '0';
+		const nodeProtoRoomSpans:KeyedList<ProtoRoomSpan> = {}
 		for( let n in this._maze.nodes ) {
 			const node = this._maze.nodes[n];
 			const spanReqs = this.nodeSpanRequirements[n] = this.calculateNodeSpanRequirements(node);
-			const id = nodeSpanId(n);
-			const protoRoomSpan = this.generateProtoRoomSpan(id, spanReqs, node);
-			this.protoRoomSpans[id] = protoRoomSpan;
+			const protoRoomSpan = this.generateProtoRoomSpan(spanReqs, node);
+			this.protoRoomSpans[protoRoomSpan.id] = protoRoomSpan;
+			nodeProtoRoomSpans[n] = protoRoomSpan;
+			if( node.items[ITEMCLASS_START] ) startNodeId = n;
 		}
 		
 		for( let linkId in this._maze.links ) {
@@ -604,14 +608,13 @@ export default class GraphWorldifier {
 			let needsOwnRoom = false;
 			for( let k in link.locks ) needsOwnRoom = true;
 			
-			const span0Id = nodeSpanId(link.endpoint0.nodeId);
-			const span1Id = nodeSpanId(link.endpoint1.nodeId);
+			const span0Id = nodeProtoRoomSpans[link.endpoint0.nodeId].id;
+			const span1Id = nodeProtoRoomSpans[link.endpoint1.nodeId].id;
 			let span2Id:string, span3Id:string;
 			if( needsOwnRoom ) {
-				const spanId = linkSpanId(link.id);
-				const linkSpan = this.generateLinkSpan(spanId, link, link.locks);
-				this.protoRoomSpans[spanId] = linkSpan;
-				span2Id = span3Id = spanId;
+				const linkSpan = this.generateLinkSpan(link, link.locks);
+				this.protoRoomSpans[linkSpan.id] = linkSpan;
+				span2Id = span3Id = linkSpan.id;
 			} else {
 				span2Id = span1Id;
 				span3Id = span0Id; 
@@ -626,7 +629,7 @@ export default class GraphWorldifier {
 			this.protoRoomSpanToWorldRooms(span);
 		}
 		
-		const span0 = this.protoRoomSpans[nodeSpanId(0)];
+		const span0 = nodeProtoRoomSpans[startNodeId];
 		for( let r in span0.protoRooms ) {
 			return span0.protoRooms[r].id;
 		}
