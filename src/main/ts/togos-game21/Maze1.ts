@@ -2244,6 +2244,7 @@ export class MazeDemo {
 			const tokens:Token[] = []
 			const tokenizer = new Tokenizer( (token:Token):void => {
 				if( token.type == TokenType.END_OF_FILE ) return;
+				if( token.type == TokenType.COMMENT ) return;
 				tokens.push(token)
 			} );
 			tokenizer.sourceLocation = {fileUri:"console-input", lineNumber: this.commandHistory.length+1, columnNumber: 1};
