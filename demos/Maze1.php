@@ -180,7 +180,7 @@ ul.tile-palette li.selected {
 
 .dialog-box {
 	position: fixed;
-	z-index: 1;
+	z-index: 2;
 	
 	border: 1px solid #666;
 	padding: 0;
@@ -318,6 +318,7 @@ ul.tile-palette li.selected {
 
 #loading-status-box {
 	position: fixed;
+	z-index: 1;
 	top: 0;
 	left: 0;
 	display: inline-block;
