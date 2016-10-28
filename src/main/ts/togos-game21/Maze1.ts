@@ -1741,6 +1741,16 @@ export class MazeDemo {
 		}
 	}
 	
+	protected logLoadingStatus(stat:string, isError:boolean=false, err?:Error) {
+		this.loadingStatusUpdated(stat);
+		if( isError ) this.logger.error(stat, err);
+		else this.logger.log(stat);
+	}
+	
+	protected set loadingStatus(stat:string) {
+		this.loadingStatusUpdated(stat);
+	}
+	
 	public set demoMode(mode:number) {
 		if( mode == this._demoMode ) return;
 		this._demoMode = mode % 2;
@@ -2001,7 +2011,7 @@ export class MazeDemo {
 	
 	public loadGame2(gdm:GameDataManager, playerId:string, rootRoomId:string, gameDescription:string):Promise<MazeSimulator> {
 		this.stopSimulation();
-		this.loadingStatusUpdated("Loading game from "+gameDescription+"...");
+		this.logLoadingStatus("Loading "+gameDescription+"...");
 		this.context = {
 			gameDataManager: gdm,
 			entityImageManager: new EntityImageManager(gdm)
@@ -2016,12 +2026,12 @@ export class MazeDemo {
 		});
 		
 		loadPromise.then( (game) => {
-			console.log("Loaded "+gameDescription);
-			this.loadingStatusUpdated("");
+			this.logger.log("Loaded "+gameDescription);
+			this.loadingStatus = "";
 			this.foundTriforceThisLevel = false;
 		}).catch( (err) => {
-			this.logger.log("Error loading "+gameDescription, err);
-			this.loadingStatusUpdated("Error loading!");
+			this.logger.error("Error loading "+gameDescription, err);
+			this.loadingStatus = "Error loading!";
 		});
 		
 		return loadPromise;
@@ -2029,14 +2039,14 @@ export class MazeDemo {
 	
 	public loadGame(saveRef:string):Promise<MazeSimulator> {
 		this.stopSimulation();
-		this.loadingStatusUpdated("Loading save "+saveRef+"...");
-		if( saveRef.substr(saveRef.length-1) != '#' ) {
-			saveRef += "#";
-		}
+		if( saveRef.substr(saveRef.length-1) != '#' ) saveRef += "#";
+		this.logLoadingStatus("Loading save "+saveRef+"...");
 		return fetchObject(saveRef, this.datastore, true).then( (save:SaveGame) => {
 			if( !save.gameDataRef ) return Promise.reject(new Error("Oh no, save data all messed up? "+JSON.stringify(save)));
 			const gdm = new GameDataManager(this.datastore, save.gameDataRef);
 			return this.loadGame2(gdm, save.playerId, save.rootRoomId, saveRef );
+		}, (err) => {
+			this.logLoadingStatus("Error loading save "+saveRef+"!", true, err);
 		});
 	}
 	
@@ -2057,6 +2067,7 @@ export class MazeDemo {
 				"target node count: "+generator.targetNodeCount+
 				(attempts > 0 ? " (attempt "+attempts+")" : "")+"...";
 			this.logger.log(generationMessage);
+			this.loadingStatus = "Generating level "+level+"...";
 			if( this.winDialog ) this.winDialog.message = generationMessage;
 			if( this.winDialog && this.winDialog.nextLevelButton ) this.winDialog.nextLevelButton.disabled = true;
 			++attempts;
@@ -2073,8 +2084,7 @@ export class MazeDemo {
 				return worldifier;
 			}).then( (worldifier) => mazeToWorld(worldifier) ).then( ({gdm, playerId, startRoomRef}) => {
 				this.hideDialog(this.winDialog);
-				this.logger.log("Loading generated maze...");
-				return this.loadGame2( gdm, playerId, startRoomRef, "generated" );
+				return this.loadGame2( gdm, playerId, startRoomRef, "generated maze" );
 			}, (err) => {
 				if( attempts < 50 ) {
 					this.logger.warn("Maze generation failed; trying agin (attempt #"+attempts+"): ", err);
@@ -2083,6 +2093,7 @@ export class MazeDemo {
 					const errorMessage = "Maze generation failed 50 times!  I guess my generator sucks!";
 					this.logger.error(errorMessage);
 					if( this.winDialog ) this.winDialog.message = errorMessage;
+					this.loadingStatus = "Error generating maze!";
 					return Promise.reject(err);
 				}
 			}).then( () => {
