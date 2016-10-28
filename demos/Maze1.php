@@ -355,8 +355,8 @@ ul.tile-palette li.selected {
 
 <?php if($asPlogEntry == '21'): ?>
 <p>Justus encouraged me to enter
-<a href="https://www.it-talents.de/foerderung/code-competition/code-competition-10-2016">this random dungeon generator</a>
-competition, so here's my entry.</p>
+<a href="https://www.it-talents.de/foerderung/code-competition/code-competition-10-2016">this
+random dungeon generator competition</a>, so here's my entry.</p>
 <?php endif; ?>
 <?php if($includeFakeContent): ?>
 <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod
