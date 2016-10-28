@@ -1907,11 +1907,10 @@ export class MazeDemo {
 			keyEvent.preventDefault();
 		}
 	}
-	public gameKeyUp(keyEvent:KeyboardEvent):void {
+	public globalKeyUp(keyEvent:KeyboardEvent):void {
 		if( this.keyActions[keyEvent.keyCode] ) {
 			delete this.keysDown[keyEvent.keyCode];
 			this.keysUpdated();
-			keyEvent.preventDefault();
 		}
 	}
 	
@@ -2704,14 +2703,15 @@ export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string, loadingSt
 	const gameInterfaceElem = demo.gameInterfaceElem = document.getElementById('game-interface');
 	if( gameInterfaceElem ) {
 		gameInterfaceElem.addEventListener('keydown', demo.gameKeyDown.bind(demo), true);
-		gameInterfaceElem.addEventListener('keyup', demo.gameKeyUp.bind(demo), true);
+		//gameInterfaceElem.addEventListener('keyup', demo.gameKeyUp.bind(demo), true);
 		gameInterfaceElem.focus();
 	} else {
 		console.warn("No game interface element!  Binding key listeners to window");
 		window.addEventListener('keydown', demo.gameKeyDown.bind(demo));
-		window.addEventListener('keyup', demo.gameKeyUp.bind(demo));
+		//window.addEventListener('keyup', demo.gameKeyUp.bind(demo));
 	}
 	window.addEventListener('keydown', demo.globalKeyDown.bind(demo));
+	window.addEventListener('keyup', demo.globalKeyUp.bind(demo));
 	
 	const winDialogElem = document.getElementById('win-dialog');
 	if( winDialogElem ) {
