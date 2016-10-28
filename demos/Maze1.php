@@ -84,7 +84,7 @@ thumnail-image-url: http://picture-files.nuke24.net/uri-res/raw/urn:bitprint:YWN
 <body>
 <?php endif; ?>
 
-<style scroped>/* <![CDATA[ */
+<style scoped>/* <![CDATA[ */
 html, body {
 	background: black;
 	margin: 0;
