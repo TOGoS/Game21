@@ -73,7 +73,7 @@ extract($config, EXTR_SKIP|EXTR_REFS);
 <?php if($asPlogEntry == '21'): ?>
 date: 2016-10-27
 subject: Random mazes
-thumnail-image-url: http://picture-files.nuke24.net/uri-res/raw/urn:bitprint:YWNEXCEUE3SMXYA7EAI4CSUNPBEZXW62.KSFA52RQC46ZVQDXX4IPUIBHTZKDIG3D5O4UNKY/RandomCave.png
+thumbnail-image-url: http://picture-files.nuke24.net/uri-res/raw/urn:bitprint:YWNEXCEUE3SMXYA7EAI4CSUNPBEZXW62.KSFA52RQC46ZVQDXX4IPUIBHTZKDIG3D5O4UNKY/RandomCave.png
 <?php else: ?>
 <!DOCTYPE html>
 <html>
