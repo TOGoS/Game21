@@ -2016,6 +2016,9 @@ export class MazeDemo {
 	public loadGame(saveRef:string):Promise<MazeSimulator> {
 		this.stopSimulation();
 		this.loadingStatusUpdated("Loading save "+saveRef+"...");
+		if( saveRef.substr(saveRef.length-1) != '#' ) {
+			saveRef += "#";
+		}
 		return fetchObject(saveRef, this.datastore, true).then( (save:SaveGame) => {
 			if( !save.gameDataRef ) return Promise.reject(new Error("Oh no, save data all messed up? "+JSON.stringify(save)));
 			const gdm = new GameDataManager(this.datastore, save.gameDataRef);
