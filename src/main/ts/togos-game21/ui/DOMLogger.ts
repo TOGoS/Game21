@@ -18,7 +18,7 @@ export default class DOMLogger implements Logger {
 		this.outputElement = outputElem;
 		this.document = outputElem.ownerDocument;
 	}
-
+	
 	protected append( elem:HTMLElement ) {
 		var wasAtBottom = this.outputElement.scrollTop == (this.outputElement.scrollHeight - this.outputElement.clientHeight);
 		this.outputElement.appendChild(elem);
@@ -53,6 +53,7 @@ export default class DOMLogger implements Logger {
 			for( let e in fragElems ) {
 				eventElement.appendChild(fragElems[e]);
 			}
+			first = false;
 		}
 		this.append(eventElement);
 	}
