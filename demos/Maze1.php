@@ -184,7 +184,7 @@ ul.tile-palette li.selected {
 	
 	border: 1px solid #666;
 	padding: 0;
-
+	
 	display: flex;
 	flex-direction: column
 }
@@ -225,6 +225,12 @@ ul.tile-palette li.selected {
 	left: 10vw;
 	height: 80vh;
 	width: 80vw;
+}
+.fit-dialog-box {
+	top: 20vh;
+	left: 20vh;
+	right: 25vw;
+	left: 25vw;
 }
 
 .dialog-text-area {
@@ -321,8 +327,6 @@ ul.tile-palette li.selected {
 }
 
 #win-dialog {
-	display: flex;
-	flex-direction: column;
 	background: black;
 }
 .win-dialog-message-area {
@@ -336,10 +340,15 @@ ul.tile-palette li.selected {
 	margin: 8px 16px;
 }
 .win-dialog-button-area {
-	display: table-row;
+	display: flex;
 	flex-basis: content;
 	flex-grow: 0;
-	padding: 8px;
+	flex-direction: row;
+	justify-content: space-around;
+}
+.win-dialog-button-area button {
+	margin: 8px;
+	font-size: 24px;
 }
 /* ]]> */</style>
 
@@ -442,9 +451,9 @@ non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
 <div id="inventory-dialog" style="display:none">
 </div>
 
-<div id="win-dialog" class="dialog-box big-dialog-box" style="display:none">
+<div id="win-dialog" class="dialog-box fit-dialog-box" style="display:none">
 <div id="win-dialog-message-area" class="win-dialog-message-area"></div>
-<div id="win-dialog-button-area"></div>
+<div id="win-dialog-button-area" class="win-dialog-button-area"></div>
 </div>
 
 <?php if($includeFakeContent): ?>
