@@ -63,3 +63,10 @@ export function shortcutThen<T,U>( p:Thenable<T>, onResolve: (v:T)=>U|Thenable<U
 export function vopToPromise<T>( p:Thenable<T>|void, v:T ):Thenable<T> {
     return p != null ? <Thenable<T>>p : resolvedPromise(v);
 }
+
+export function finalmente<T>( p:Promise<T>, finalStuff:()=>void ):Promise<T> {
+	return p.then(
+		(v) => { finalStuff(); return v; },
+		(err) => { finalStuff(); return Promise.reject(err); }
+	);
+}

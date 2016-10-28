@@ -32,7 +32,12 @@ clean: sortaclean
 demos/Maze1.html: demos/Maze1.php $(shell find . -name '*.php') target/game21libs.amd.es5.js
 	php demos/Maze1.php saveGameRef="`tail -n 1 mazes.lst`" --inline-resources > "$@"
 demos/RandomMazes.html: demos/Maze1.php $(shell find . -name '*.php') target/game21libs.amd.es5.js
-	php demos/Maze1.php tabToEditMode=false --inline-resources > "$@"
+	php demos/Maze1.php tabSwitchesMode=false --inline-resources > "$@"
+demos/RandomMazesDoc.html: demos/Maze1.php $(shell find . -name '*.php') target/game21libs.amd.es5.js
+	php demos/Maze1.php tabSwitchesMode=false includeFakeContent=true --inline-resources > "$@"
+plog/entries/21: demos/Maze1.php $(shell find . -name '*.php') target/game21libs.amd.es5.js
+	mkdir -p plog/entries/
+	php demos/Maze1.php asPlogEntry=21 > "$@"
 
 demos/%.html: demos/%.php $(shell find . -name '*.php') target/game21libs.amd.es5.js
 	cd demos && php "../$<" --inline-resources >"../$@"

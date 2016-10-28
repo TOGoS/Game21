@@ -5,6 +5,7 @@ import MemoryDatastore from './MemoryDatastore';
 import CachingDatastore from './CachingDatastore';
 import BrowserStorageDatastore from './BrowserStorageDatastore';
 import MultiDatastore from './MultiDatastore';
+import { finalmente } from './promises';
 
 import { deepFreeze, thaw, deepThaw, isDeepFrozen } from './DeepFreezer';
 import GameDataManager from './GameDataManager';
@@ -78,6 +79,15 @@ import {
 } from './simulationmessaging';
 
 const UI_ENTIY_PATH = [ROOMID_EXTERNAL, "demo UI"];
+
+// KeyEvent isn't always available, boo.
+const KEY_ESC = 27;
+const KEY_UP = 38;
+const KEY_DOWN = 40;
+const KEY_ENTER = 13;
+const KEY_TAB = 9;
+const KEY_SLASH = 191;
+const KEY_BACKTICK = 192;
 
 function entityMessageDataPath(emd:EntityCommandData):string {
 	return ""+emd[0];
@@ -1696,14 +1706,19 @@ export class MazeDemo {
 	public canvas:HTMLCanvasElement;
 	public view : MazeView;
 	public playerId : string;
-	public tabToEditMode : boolean = true;
+	public tabSwitchesMode : boolean = true;
 	protected tickTimerId? : number;
 	protected tickRate = 1/32;
 	protected _demoMode:DemoMode = DemoMode.PLAY;
+	
+	public gameInterfaceElem : HTMLElement|undefined|null;
 	public tilePaletteUi:TilePaletteUI;
 	public maze1InventoryUi:TilePaletteUI;
 	public consoleDialog:ConsoleDialogBox;
 	public winDialog:WinDialogBox;
+	public loadDialog:DialogBox;
+	public helpDialog:DialogBox;
+	
 	public saveButton:HTMLButtonElement;
 	public foundTriforceCount:number = 0;
 	public currentLevelNumber:number = 0;
@@ -1834,19 +1849,44 @@ export class MazeDemo {
 		this.view.viewage = newViewage;
 	}
 	
+	// TODO: Make the key codes key_ constants
+	// TODO: use keyActions for the other things, too.
+	protected keyActions:KeyedList<string[]> = {
+		// Keypad keys:
+		33: ['right','up'],
+		34: ['right','down'],
+		35: ['left','down'],
+		36: ['left','up'],
+		
+		// Arrows?
+		37: ['left'],
+		38: ['up'],
+		39: ['right'],
+		40: ['down'],
+		
+		// WASD
+		87: ['up'],
+		65: ['left'],
+		83: ['down'],
+		68: ['right'],
+	};
+	
 	protected keysDown:KeyedList<boolean> = {};
 	protected keysUpdated() {
 		let up=false,down=false,left=false,right=false;
 		
-		const rightKeys = [33,34,39,68];
-		const leftKeys  = [35,36,37,65];
-		const upKeys    = [33,36,38,87];
-		const downKeys  = [34,35,40,83];
+		const actions:KeyedList<boolean> = {};
+		for( let k in this.keysDown ) {
+			const acts = this.keyActions[k];
+			if( acts ) for( let a in acts ) {
+				actions[acts[a]] = true;
+			}
+		}
 		
-		for( let k in rightKeys ) if( this.keysDown[rightKeys[k]] ) right = true;
-		for( let k in leftKeys  ) if( this.keysDown[leftKeys[k]]  ) left  = true;
-		for( let k in upKeys    ) if( this.keysDown[upKeys[k]]    ) up    = true;
-		for( let k in downKeys  ) if( this.keysDown[downKeys[k]]  ) down  = true;
+		if( actions['right'] ) right = true;
+		if( actions['left']  ) left  = true;
+		if( actions['up']    ) up    = true;
+		if( actions['down']  ) down  = true;
 		
 		if( left && right ) left = right = false;
 		if( up && down ) up = down = false;
@@ -1858,29 +1898,43 @@ export class MazeDemo {
 			this.enqueueMessage([ROOMID_FINDENTITY, this.playerId], ["/desiredmovementdirection", moveX, moveY, 0]);
 		}
 	}
-	public keyDown(keyEvent:KeyboardEvent):void {
-		if( keyEvent.keyCode == 9 && this.tabToEditMode ) {
-			this.switchToNextMode();
+	
+	// When keys are pressed in the main game interface
+	public gameKeyDown(keyEvent:KeyboardEvent):void {
+		if( this.keyActions[keyEvent.keyCode] ) {
+			this.keysDown[keyEvent.keyCode] = true;
+			this.keysUpdated();
 			keyEvent.preventDefault();
-			return;
 		}
-		if( keyEvent.keyCode == 191 ) {
+	}
+	public gameKeyUp(keyEvent:KeyboardEvent):void {
+		if( this.keyActions[keyEvent.keyCode] ) {
+			delete this.keysDown[keyEvent.keyCode];
+			this.keysUpdated();
+			keyEvent.preventDefault();
+		}
+	}
+	
+	// Keys pressed anywhere
+	public globalKeyDown(keyEvent:KeyboardEvent):void {
+		switch( keyEvent.keyCode ) {
+		case KEY_TAB:
+			if( this.tabSwitchesMode ) {
+				this.switchToNextMode();
+				keyEvent.preventDefault();
+				return;
+			}; break;
+		case KEY_SLASH:
 			this.popUpConsole("/");
 			keyEvent.preventDefault();
 			return;
-		}
-		if( keyEvent.keyCode == 192 ) {
+		case KEY_BACKTICK:
 			this.popUpConsole("");
 			keyEvent.preventDefault();
 			return;
 		}
-		this.keysDown[keyEvent.keyCode] = true;
-		this.keysUpdated();
 	}
-	public keyUp(keyEvent:KeyboardEvent):void {
-		delete this.keysDown[keyEvent.keyCode];
-		this.keysUpdated();
-	}
+	
 	public saveGame():Promise<string> {
 		return this.simulator.flushUpdates().then( (gameDataRef) => {
 			const rrf = this.simulator.rootRoomId;
@@ -1991,7 +2045,7 @@ export class MazeDemo {
 			if( this.winDialog && this.winDialog.nextLevelButton ) this.winDialog.nextLevelButton.disabled = true;
 			++attempts;
 				
-			return new Promise( (res,rej) => setTimeout(res,50) ).then( () => {
+			const p = new Promise( (res,rej) => setTimeout(res,50) ).then( () => {
 				const maze = generator.generate();
 				this.logger.log("Generated maze graph with "+maze.nodes.length+" nodes, "+maze.links.length+" links");
 				const gdm = new GameDataManager(this.datastore);
@@ -2002,10 +2056,9 @@ export class MazeDemo {
 				worldifier.themeAreaSize = 4 + Math.random() * 8;
 				return worldifier;
 			}).then( (worldifier) => mazeToWorld(worldifier) ).then( ({gdm, playerId, startRoomRef}) => {
-				this.winDialog.setVisible(false);
-				if( this.winDialog && this.winDialog.nextLevelButton ) this.winDialog.nextLevelButton.disabled = false;
+				this.hideDialog(this.winDialog);
 				this.logger.log("Loading generated maze...");
-				this.loadGame2( gdm, playerId, startRoomRef, "generated" );
+				return this.loadGame2( gdm, playerId, startRoomRef, "generated" );
 			}, (err) => {
 				if( attempts < 50 ) {
 					this.logger.warn("Maze generation failed; trying agin (attempt #"+attempts+"): ", err);
@@ -2014,14 +2067,41 @@ export class MazeDemo {
 					const errorMessage = "Maze generation failed 50 times!  I guess my generator sucks!";
 					this.logger.error(errorMessage);
 					if( this.winDialog ) this.winDialog.message = errorMessage;
-					if( this.winDialog && this.winDialog.nextLevelButton ) this.winDialog.nextLevelButton.disabled = false;
 					return Promise.reject(err);
 				}
 			}).then( () => {
 				this.currentLevelNumber = level;
-			})
+			});
+			return finalmente(p, () => {
+				if( this.winDialog && this.winDialog.nextLevelButton ) this.winDialog.nextLevelButton.disabled = false;
+			});
 		}
 		return generateMaze();
+	}
+	
+	public hideDialog(d:DialogBox|undefined) {
+		hideDialogBox(d);
+		this.refocus();
+	}
+	
+	/** Refocus game interface if dialog boxes are closed */
+	public refocus() {
+		if( dialogBoxIsVisible(this.winDialog) ) return;
+		if( dialogBoxIsVisible(this.consoleDialog) ) return;
+		if( dialogBoxIsVisible(this.helpDialog) ) return;
+		if( dialogBoxIsVisible(this.loadDialog) ) return;
+		this.focusGameInterface();
+	}
+	
+	/*
+	 * Close any dialog boxes and focus the game interface.
+	 */
+	public focusGameInterface() {
+		hideDialogBox( this.winDialog );
+		hideDialogBox( this.consoleDialog );
+		hideDialogBox( this.helpDialog );
+		hideDialogBox( this.loadDialog );
+		if( this.gameInterfaceElem ) this.gameInterfaceElem.focus();
 	}
 	
 	public inspect(ref:string):Promise<any> {
@@ -2208,6 +2288,19 @@ export class MazeDemo {
 						}
 					}
 					break;
+				case 'show-console':
+					this.popUpConsole("");
+					break;
+				case 'hide-console':
+					this.hideDialog(this.consoleDialog);
+					break;
+				case 'echo':
+					{
+						const texts:string[] = [];
+						for( let i=1; i<tokens.length; ++i ) texts.push(tokens[i].text);
+						this.logger.log.apply(this.logger, texts );
+					}
+					break;
 				case 'load':
 					{
 						if( tokens.length != 2 ) {
@@ -2316,9 +2409,24 @@ export interface SaveGame {
 class DialogBox {
 	public constructor( public element:HTMLElement ) { }
 	
+	public get isVisible() {
+		return this.element.style.display != 'none';
+	}
+	
+	/**
+	 * Always use demo.hideDialog so that focus can be put back on game interface!
+	 * when no dialogs are visible!
+	 */
 	public setVisible(viz:boolean) {
 		this.element.style.display = viz ? "" : "none";
 	}
+}
+
+function dialogBoxIsVisible(db:DialogBox|undefined) {
+	return db != undefined && db.isVisible;
+}
+function hideDialogBox(db:DialogBox|undefined) {
+	if( db ) db.setVisible(false);
 }
 
 class WinDialogBox extends DialogBox {
@@ -2542,7 +2650,7 @@ export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string, loadingSt
 		
 		const loadDialogElem = document.getElementById('load-dialog');
 		if( loadDialogElem ) {
-			const loadDialog = new DialogBox(loadDialogElem);
+			const loadDialog = demo.loadDialog = new DialogBox(loadDialogElem);
 			const loadButton = document.createElement("button");
 			loadButton.appendChild(document.createTextNode("Load..."));
 			loadButton.onclick = () => {
@@ -2559,7 +2667,7 @@ export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string, loadingSt
 						const loadItem = document.createElement('li');
 						loadItem.appendChild(document.createTextNode(save.note+" - "+save.date));
 						loadItem.onclick = () => {
-							loadDialog.setVisible(false);
+							demo.hideDialog(loadDialog);
 							loadButton.disabled = false;
 							demo.loadGame(save.saveRef);
 						}
@@ -2583,57 +2691,88 @@ export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string, loadingSt
 		
 		const helpDialogElement = document.getElementById('help-dialog');
 		if( helpDialogElement ) {
-			const helpDialog = new DialogBox(helpDialogElement);
+			const helpDialog = demo.helpDialog = new DialogBox(helpDialogElement);
 			const helpButton = document.createElement('button');
 			helpButton.appendChild(document.createTextNode("Help!"));
 			helpButton.onclick = () => helpDialog.setVisible(true);
 			const closeHelpButton = document.getElementById('help-close-button');
-			if( closeHelpButton ) closeHelpButton.onclick = () => helpDialog.setVisible(false);
+			if( closeHelpButton ) closeHelpButton.onclick = () => demo.hideDialog(helpDialog);
 			butta.appendChild(helpButton);
 		}
 	}
 	
+	const gameInterfaceElem = demo.gameInterfaceElem = document.getElementById('game-interface');
+	if( gameInterfaceElem ) {
+		gameInterfaceElem.addEventListener('keydown', demo.gameKeyDown.bind(demo), true);
+		gameInterfaceElem.addEventListener('keyup', demo.gameKeyUp.bind(demo), true);
+		gameInterfaceElem.focus();
+	} else {
+		console.warn("No game interface element!  Binding key listeners to window");
+		window.addEventListener('keydown', demo.gameKeyDown.bind(demo));
+		window.addEventListener('keyup', demo.gameKeyUp.bind(demo));
+	}
+	window.addEventListener('keydown', demo.globalKeyDown.bind(demo));
+	
 	const winDialogElem = document.getElementById('win-dialog');
 	if( winDialogElem ) {
-		const winDialog:WinDialogBox = new WinDialogBox(winDialogElem);
+		const winDialog:WinDialogBox = demo.winDialog = new WinDialogBox(winDialogElem);
 		winDialog.messageAreaElement = document.getElementById('win-dialog-message-area');
-		demo.winDialog = winDialog;
 		const winButtonArea = document.getElementById('win-dialog-button-area');
+		
+		const dismissWinDialog = () => {
+			demo.generateAndLoadNewLevel(demo.currentLevelNumber+1);
+		}
+		
 		if( winButtonArea ) {
 			const nextLevelButton = winDialog.nextLevelButton = document.createElement('button');
 			nextLevelButton.appendChild(document.createTextNode('Next level!'));
-			nextLevelButton.onclick = () => demo.generateAndLoadNewLevel(demo.currentLevelNumber+1);
+			nextLevelButton.onclick = dismissWinDialog;
 			winButtonArea.appendChild(nextLevelButton);
 		}
+		
+		winDialogElem.addEventListener('keydown', (keyEvent:KeyboardEvent) => {
+			if( keyEvent.keyCode == KEY_ESC || keyEvent.keyCode == KEY_ENTER ) {
+				dismissWinDialog();
+				keyEvent.preventDefault();
+				keyEvent.stopPropagation();
+			}
+		});
 	}
 	
 	const consoleDialogElem = document.getElementById('console-dialog');
 	if( consoleDialogElem ) {
-		const consoleDialog = <ConsoleDialogBox>new DialogBox(consoleDialogElem);
+		const consoleDialog = demo.consoleDialog = <ConsoleDialogBox>new DialogBox(consoleDialogElem);
 		consoleDialog.inputElement = <HTMLInputElement>document.getElementById('console-input');
-		consoleDialog.inputElement.onkeydown = (keyEvent:KeyboardEvent) => {
-			if( keyEvent.keyCode == 38 ) {
+		consoleDialog.inputElement.addEventListener('keydown', (keyEvent:KeyboardEvent) => {
+			if( keyEvent.keyCode == KEY_UP ) {
 				demo.moveThroughCommandHistory(-1);
-			} else if( keyEvent.keyCode == 40 ) {
+				keyEvent.preventDefault();
+				keyEvent.stopPropagation();
+			} else if( keyEvent.keyCode == KEY_DOWN ) {
 				demo.moveThroughCommandHistory(+1);
+				keyEvent.preventDefault();
+				keyEvent.stopPropagation();
 			//} else if( keyEvent.keyCode == 36 ) {
 			//	demo.goToCommandHistoryBeginning();
 			//} else if( keyEvent.keyCode == 35 ) {
 			//	demo.goToCommandHistoryEnd();
-			} else if( keyEvent.keyCode == 13 ) {
+			} else if( keyEvent.keyCode == KEY_ENTER ) {
 				demo.submitConsoleCommand.bind(demo)();
+				keyEvent.preventDefault();
+				keyEvent.stopPropagation();
 			}
-		};
+		});
 		
 		const consoleCloseButton = document.getElementById('console-close-button')
-		if( consoleCloseButton ) consoleCloseButton.onclick = () => consoleDialog.setVisible(false);
+		if( consoleCloseButton ) consoleCloseButton.onclick = () => demo.hideDialog(consoleDialog);
 		consoleDialogElem.addEventListener('keydown', (keyEvent:KeyboardEvent) => {
-			if( keyEvent.keyCode == 27 ) {
-				consoleDialog.setVisible(false);
+			if( keyEvent.keyCode == KEY_ESC ) {
+				demo.hideDialog(consoleDialog);
 			}
 			// Prevent any keys from propagating to the window and messing up our game
-			keyEvent.stopPropagation()
+			keyEvent.stopPropagation();
 		}, false);
+		// Why did I need this?
 		consoleDialogElem.addEventListener('keyup', (keyEvent:KeyboardEvent) => keyEvent.preventDefault());
 		
 		// Stand firm for what you believe in, until and unless experience proves you wrong.
@@ -2641,7 +2780,6 @@ export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string, loadingSt
 		// The truth and a lie are not sort of the same thing.
 		// And there is no aspect, no facet, no moment of life that can't be improved with pizza.
 		
-		demo.consoleDialog = consoleDialog;
 		const loggers:Logger[] = [console];
 		const htmlConsoleElement = document.getElementById('console-output');
 		if( htmlConsoleElement ) {

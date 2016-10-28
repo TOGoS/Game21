@@ -19,9 +19,14 @@ if( isset($argv) ) for( $i=1; $i<count($argv); ++$i ) {
 require_once __DIR__.'/lib.php';
 
 $configProperties = [
+	'asPlogEntry' => [
+		'valueType' => 'string',
+		'defaultValue' => '',
+		'affects' => 'pageGeneration',
+	],
 	'inlineResources' => [
 		'valueType' => 'boolean',
-		'defaultValue' => false,
+		'defaultValue' => function($config) { return !empty($config['asPlogEntry']); },
 		'affects' => 'pageGeneration',
 	],
 	'width' => [
@@ -44,9 +49,19 @@ $configProperties = [
 		'defaultValue' => null,
 		'affects' => 'pageGeneration',
 	],
-	'tabToEditMode' => [
+	'tabSwitchesMode' => [
 		'valueType' => 'boolean',
-		'defaultValue' => true,
+		'defaultValue' => function($config) { return $config['asPlogEntry'] != '21'; },
+		'affects' => 'pageGeneration',
+	],
+	'includeFakeContent' => [
+		'valueType' => 'boolean',
+		'defaultValue' => false,
+		'affects' => 'pageGeneration',
+	],
+	'fillScreen' => [
+		'valueType' => 'boolean',
+		'defaultValue' => function($config) { return !$config['includeFakeContent'] && !$config['asPlogEntry']; },
 		'affects' => 'pageGeneration',
 	],
 ];
@@ -55,6 +70,11 @@ $config = config_from_env($configProperties, $config);
 extract($config, EXTR_SKIP|EXTR_REFS);
 
 ?>
+<?php if($asPlogEntry == '21'): ?>
+date: 2016-10-27
+subject: Random mazes
+thumnail-image-url: http://picture-files.nuke24.net/uri-res/raw/urn:bitprint:YWNEXCEUE3SMXYA7EAI4CSUNPBEZXW62.KSFA52RQC46ZVQDXX4IPUIBHTZKDIG3D5O4UNKY/RandomCave.png
+<?php else: ?>
 <!DOCTYPE html>
 <html>
 <head>
@@ -62,6 +82,7 @@ extract($config, EXTR_SKIP|EXTR_REFS);
 <title><?php eht($pageTitle); ?></title>
 </head>
 <body>
+<?php endif; ?>
 
 <style scroped>/* <![CDATA[ */
 html, body {
@@ -83,9 +104,19 @@ ul {
 .game-interface {
 	display: flex;
 	width: 100%;
+<?php if($fillScreen): ?>
 	height: 100vh;
+<?php endif; ?>
 	flex-direction: column;
 	justify-content: space-around;
+	background: black;
+	border-top: 2px solid darkgray;
+	border-bottom: 2px solid darkgray;
+	margin: 8px 0 8px 0;
+}
+.game-interface:focus {
+	border-top: 2px solid lightgray;
+	border-bottom: 2px solid lightgray;
 }
 .maze-area {
 	width: 100%;
@@ -314,17 +345,35 @@ ul.tile-palette li.selected {
 
 <div id="loading-status-box">Loading JavaScript...</div>
 
-<div class="game-interface">
+<?php if($asPlogEntry == '21'): ?>
+<p>Justus encouraged me to enter
+<a href="https://www.it-talents.de/foerderung/code-competition/code-competition-10-2016">this random dungeon generator</a>
+competition, so here's my entry.</p>
+<?php endif; ?>
+<?php if($includeFakeContent): ?>
+<p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod
+tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam,
+quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo
+consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse
+cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat
+non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
+<?php endif; ?>
+
+<div class="game-interface" id="game-interface" tabindex="0">
 <div class="maze-area" id="maze-area" style="position:relative">
 <div id="camera-location-box" style="position:absolute; top:0; left:0;"></div>
 <canvas class="maze-canvas" id="maze-canvas" width="<?php eht($width); ?>" height="<?php eht($height); ?>"/>
 </div>
 
 <div id="tile-palette-area"></div>
-<?php if($tabToEditMode): ?>
+<?php if($tabSwitchesMode): ?>
 <div id="button-area" class="button-bar"></div>
 <?php endif; ?>
 </div>
+
+<?php if($asPlogEntry == '21'): ?>
+<p>Hit "/" to open the console.  "/level <i>n</i>" to warp to level <i>n</i> ('<i>n</i>' standing for some integer).</p>
+<?php endif; ?>
 
 <div id="console-dialog" class="dialog-box big-dialog-box" style="display:none">
   <div class="dialog-box-header">
@@ -398,6 +447,43 @@ ul.tile-palette li.selected {
 <div id="win-dialog-button-area"></div>
 </div>
 
+<?php if($includeFakeContent): ?>
+<p>But I must explain to you how all this mistaken idea of denouncing pleasure
+and praising pain was born and I will give you a complete account of the
+system, and expound the actual teachings of the great explorer of the truth,
+the master-builder of human happiness.
+No one rejects, dislikes, or avoids pleasure itself, because it is pleasure,
+but because those who do not know how to pursue pleasure rationally
+encounter consequences that are extremely painful.
+Nor again is there anyone who loves or pursues
+or desires to obtain pain of itself, because it is pain,
+but because occasionally circumstances occur in which toil and pain
+can procure him some great pleasure.
+To take a trivial example,
+which of us ever undertakes laborious physical exercise,
+except to obtain some advantage from it?
+But who has any right to find fault
+with a man who chooses to enjoy a pleasure that has no annoying consequences,
+or one who avoids a pain that produces no resultant pleasure?</p>
+
+<p>On the other hand, we denounce with righteous indignation and dislike men
+who are so beguiled and demoralized by the charms of pleasure of the moment,
+so blinded by desire, that they cannot foresee the pain and trouble that are
+bound to ensue; and equal blame belongs to those who fail in their duty
+through weakness of will, which is the same as saying through shrinking from
+toil and pain. These cases are perfectly simple and easy to distinguish.
+In a free hour, when our power of choice is untrammelled and when nothing
+prevents our being able to do what we like best,
+every pleasure is to be welcomed and every pain avoided.
+But in certain circumstances and owing to the claims of duty
+or the obligations of business it will frequently occur
+that pleasures have to be repudiated and annoyances accepted.
+The wise man therefore always holds in these matters
+to this principle of selection:
+he rejects pleasures to secure other greater pleasures,
+or else he endures pains to avoid worse pains.
+<?php endif; ?>
+
 <?php require_game21_js_libs($inlineResources, array('togos-game21/Maze1')); ?>
 <script type="text/javascript">//<![CDATA[
 	function updateLoadingStatus(text) {
@@ -426,16 +512,16 @@ ul.tile-palette li.selected {
 		updateLoadingStatus("Starting...");
 		
 		var demo = _Maze1.startDemo(document.getElementById('maze-canvas'), <?php ejsv($saveGameRef); ?>, updateLoadingStatus, cacheStrings);
-		demo.tabToEditMode = <?php ejsv($tabToEditMode); ?>;
+		demo.tabSwitchesMode = <?php ejsv($tabSwitchesMode); ?>;
 		window.maze1Demo = demo;
-		window.addEventListener('keydown', demo.keyDown.bind(demo));
-		window.addEventListener('keyup', demo.keyUp.bind(demo));
 		
 		const fogColor = 'rgba(38,38,44,1)';
 		demo.view.occlusionFillStyle = fogColor;
 		document.getElementById('maze-area').style.background = fogColor;
 	});
 //]]></script>
+<?php if(!$asPlogEntry): ?>
 
 </body>
 </html>
+<?php endif; ?>
