@@ -1,11 +1,18 @@
 ## Demos
 
 * Simple maze world with discrete (though possibly in small unit, like 1/8m) movement
-- Maze with editor and 'hey hey you win' point
+* Maze with editor and 'hey hey you win' point
   * GDM to skip re-saving data that it fetched from the datastore in the first place
   * Show something on screen indicating loading/saving's going on
   * Load demo data from packfile to avoid a million GETs
-  - Hey hey you win item - touch it and it pops up a "You win" box and plays a sound
+  * Hey hey you win item - touch it and it pops up a "You win" box
+* Random maze (entry 21)
+  - submit to contest by Oct 30th
+- Random maze bonus stuff
+  - Update loading status while generating
+  - sound effects
+  - extra items scattered around (apples, sandwiches, trophies)
+  - monsters (maybe just bouncy lightbulbs)
 - Maze with keys and switches
   - Ability to place non-block entities
 - Packet truck
@@ -19,11 +26,9 @@
 
 ## Misc to-do items
 
-Random maze:
+Different random maze generation:
 - wave function collapse-generated rooms
-- food, monsters (maybe just bouncy lightbulbs)
-
-- submit to contest by 30th
+- big old simplex noise caves
 
 Maze1:
 - Talk command, show talked messages
