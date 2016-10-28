@@ -35,7 +35,9 @@ Other console commands:
   - ```/save``` - save the current state of the game.
   - ```/load <save game URI>``` - note that the save game URI
     requires quotes because of the trailing '#',
-    e.g. ```/load "urn:sha1:VLHTMPIMN2QQVNXZPH2XZXU7WH7ZEJ4M#"```
+    e.g. ```/load "urn:sha1:VLHTMPIMN2QQVNXZPH2XZXU7WH7ZEJ4M#"```.
+    If you leave the quotes off, ```#``` inidcates start of line comment.
+    But the ```load``` command will guess what you meant.
 
 In the editor, click to place blocks and control+click
 to copy blocks into your block palette.
