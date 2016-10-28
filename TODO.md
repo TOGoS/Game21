@@ -22,7 +22,7 @@
 UI fixes for maze generator:
 * Bind key listeners to game interface element instead of window
 * Escape or enter should close 'you win!' window
-- Win dialog should be less big; buttons should be larger and centered
+* Win dialog should be less big; buttons should be larger and centered
 - Guess to add '#' on the end of save game refs that are missing it.
 
 GraphMazeGenerator2:

@@ -226,9 +226,8 @@ ul.tile-palette li.selected {
 	height: 80vh;
 	width: 80vw;
 }
-.fit-dialog-box {
+#win-dialog {
 	top: 20vh;
-	left: 20vh;
 	right: 25vw;
 	left: 25vw;
 }
@@ -451,7 +450,7 @@ non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
 <div id="inventory-dialog" style="display:none">
 </div>
 
-<div id="win-dialog" class="dialog-box fit-dialog-box" style="display:none">
+<div id="win-dialog" class="dialog-box" style="display:none">
 <div id="win-dialog-message-area" class="win-dialog-message-area"></div>
 <div id="win-dialog-button-area" class="win-dialog-button-area"></div>
 </div>
