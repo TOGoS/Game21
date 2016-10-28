@@ -213,6 +213,7 @@ Maze1:
 * Escape or enter should close 'you win!' window
 * Win dialog should be less big; buttons should be larger and centered
 * Guess to add '#' on the end of save game refs that are missing it.
+* Number keys to select tile palette.
 Random maze generation:
 * 8x8 rooms
 * generate maze graph

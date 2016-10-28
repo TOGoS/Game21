@@ -88,6 +88,8 @@ const KEY_ENTER = 13;
 const KEY_TAB = 9;
 const KEY_SLASH = 191;
 const KEY_BACKTICK = 192;
+const KEY_0 = 48;
+const KEY_9 = 57;
 
 function entityMessageDataPath(emd:EntityCommandData):string {
 	return ""+emd[0];
@@ -1904,6 +1906,18 @@ export class MazeDemo {
 		if( this.keyActions[keyEvent.keyCode] ) {
 			this.keysDown[keyEvent.keyCode] = true;
 			this.keysUpdated();
+			keyEvent.preventDefault();
+		}
+		if( keyEvent.keyCode >= KEY_0 && keyEvent.keyCode <= KEY_9 ) {
+			const selectedIndex = keyEvent.keyCode - KEY_0;
+			switch( this._demoMode ) {
+			case DemoMode.EDIT:
+				if( this.tilePaletteUi ) this.tilePaletteUi.selectSlot(selectedIndex);
+				break;
+			case DemoMode.PLAY:
+				if( this.maze1InventoryUi ) this.maze1InventoryUi.selectSlot(selectedIndex);
+				break;
+			}
 			keyEvent.preventDefault();
 		}
 	}
