@@ -19,21 +19,7 @@
 
 ## Misc to-do items
 
-UI fixes for maze generator:
-* Bind key listeners to game interface element instead of window
-* Escape or enter should close 'you win!' window
-* Win dialog should be less big; buttons should be larger and centered
-- Guess to add '#' on the end of save game refs that are missing it.
-
-GraphMazeGenerator2:
-* keys, locked doors
-  - maybe cheat on implementation; don't need to simulate everything
-GraphWorldifier:
-* hardness/size setting
-* mandatory loops
-* more decorations
-* Fix: player can occasionally start stuck in a wall
-* cave rooms;
+Random maze:
 - wave function collapse-generated rooms
 - food, monsters (maybe just bouncy lightbulbs)
 
@@ -223,6 +209,10 @@ Maze1:
 * Save savegames to server
 * requestAnimationFrame to render scene
 * Generate some kind of packfile (JSON of URN => data as string)
+* Bind key listeners to game interface element instead of window
+* Escape or enter should close 'you win!' window
+* Win dialog should be less big; buttons should be larger and centered
+* Guess to add '#' on the end of save game refs that are missing it.
 Random maze generation:
 * 8x8 rooms
 * generate maze graph
@@ -230,3 +220,9 @@ Random maze generation:
 * print out solution (left, right, down, etc)
 * colored blocks to mark where doors were
 * blocks platforms under items
+* keys, locked doors (cheated on implementation)
+* hardness/size setting
+* mandatory loops
+* more decorations
+* Fix: player can occasionally start stuck in a wall
+* cave rooms;
