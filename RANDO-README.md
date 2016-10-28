@@ -20,7 +20,7 @@ You control a yellow dude who can jump around a maze.
 
 Your goal is to find the triforce,
 at which point you'll be taken to the next level.
-As you progress through levels they will be more comples
+As you progress through levels they will be more complex
 and require more keys.
 
 If you want to warp to a harder level, open the console
@@ -39,7 +39,8 @@ Other console commands:
     If you leave the quotes off, ```#``` inidcates start of line comment.
     But the ```load``` command will guess what you meant.
 
-In the editor, click to place blocks and control+click
+When in edit mode, click to place blocks and control+click
 to copy blocks into your block palette.
+You can click different block palette entries to select them.
 
 There is currently no way to place keys or triforces.
