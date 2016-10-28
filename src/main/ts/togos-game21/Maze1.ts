@@ -1985,9 +1985,9 @@ export class MazeDemo {
 		});
 	}
 	
-	public loadGame2(gdm:GameDataManager, playerId:string, rootRoomId:string, saveRef:string):Promise<MazeSimulator> {
+	public loadGame2(gdm:GameDataManager, playerId:string, rootRoomId:string, gameDescription:string):Promise<MazeSimulator> {
 		this.stopSimulation();
-		this.loadingStatusUpdated("Loading game from save "+saveRef+"...");
+		this.loadingStatusUpdated("Loading game from "+gameDescription+"...");
 		this.context = {
 			gameDataManager: gdm,
 			entityImageManager: new EntityImageManager(gdm)
@@ -2002,11 +2002,11 @@ export class MazeDemo {
 		});
 		
 		loadPromise.then( (game) => {
-			console.log("Loaded "+saveRef);
+			console.log("Loaded "+gameDescription);
 			this.loadingStatusUpdated("");
 			this.foundTriforceThisLevel = false;
 		}).catch( (err) => {
-			this.logger.log("Error loading "+saveRef, err);
+			this.logger.log("Error loading "+gameDescription, err);
 			this.loadingStatusUpdated("Error loading!");
 		});
 		
