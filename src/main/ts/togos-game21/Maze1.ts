@@ -746,7 +746,26 @@ export class MazeGamePhysics {
 		if( aRat != 0 ) this.induceVelocityChange(eARoomId, entityAId, entityA, scaleVector(relativeDv, -aRat));
 		if( bRat != 0 ) this.induceVelocityChange(eBRoomId, entityBId, entityB, scaleVector(relativeDv, +bRat));
 	}
-
+	
+	public drainEnergy( entity:Entity, drain:number ):number {
+		if( entity.storedEnergy == undefined ) return drain;
+		//if( entity.storedEnergy == 0 ) return 0;
+		drain = Math.min(entity.storedEnergy, drain);
+		entity.storedEnergy -= drain;
+		return drain;
+	}
+	
+	public attemptInducedImpulse(
+		eARoomId:string, entityAId:string, entityA:RoomEntity, eBRoomId:string, entityBId:string, entityB:RoomEntity, impulse:Vector3D
+	):boolean {
+		const requiredEnergy = vectorLength(impulse); // TODO: I don't think that's right.
+		const availableEnergy = this.drainEnergy( entityA.entity, requiredEnergy );
+		// TODO: Calculate actual impulse from available energy
+		const adjustedImpulse = normalizeVector(impulse, availableEnergy);
+		this.registerImpulse( eARoomId, entityAId, entityA, eBRoomId, entityBId, entityB, adjustedImpulse );
+		return true;
+	}	
+	
 	protected applyCollisions() {
 		for( let collEntityAId in this.collisions ) {
 			for( let collEntityBId in this.collisions[collEntityAId] ) {
@@ -1004,7 +1023,7 @@ export class MazeGamePhysics {
 							entityClass.mass, gdm.getEntityClass(mostClimbable.roomEntity.entity.classRef).mass,
 							maxClimbSpeed, interval*maxClimbForce, -1
 						);
-						this.registerImpulse(
+						this.attemptInducedImpulse(
 							r, re, roomEntity, mostClimbable.roomRef,
 							mostClimbable.roomEntityId, mostClimbable.roomEntity, climbImpulse);
 					}
@@ -1026,14 +1045,14 @@ export class MazeGamePhysics {
 					// Attempt to change to target velocity in single tick
 					const walkForce = clampAbs( -attemptDdvx*entityClass.mass/interval, maxWalkForce );
 					const walkImpulse = {x:walkForce*interval, y:0, z:0};
-					this.registerImpulse(
+					this.attemptInducedImpulse(
 						r, re, roomEntity,
 						floorCollision.roomRef, floorCollision.roomEntityId, floorCollision.roomEntity,
 						walkImpulse);
 					
 					if( dmd.y < 0 && entityClass.maxJumpImpulse ) {
 						const jumpImpulse:Vector3D = {x:0, y:entityClass.maxJumpImpulse, z:0};
-						this.registerImpulse(
+						this.attemptInducedImpulse(
 							r, re, roomEntity,
 							floorCollision.roomRef, floorCollision.roomEntityId, floorCollision.roomEntity, jumpImpulse);
 					}
@@ -1689,6 +1708,10 @@ enum DemoMode {
 	EDIT = 1
 }
 
+interface ScalarIndicator {
+	value : number|undefined;
+}
+
 interface ConsoleDialogBox extends DialogBox {
 	inputElement:HTMLInputElement;
 }
@@ -1716,10 +1739,11 @@ export class MazeDemo {
 	public gameInterfaceElem : HTMLElement|undefined|null;
 	public tilePaletteUi:TilePaletteUI;
 	public maze1InventoryUi:TilePaletteUI;
-	public consoleDialog:ConsoleDialogBox;
-	public winDialog:WinDialogBox;
-	public loadDialog:DialogBox;
-	public helpDialog:DialogBox;
+	public consoleDialog?:ConsoleDialogBox;
+	public winDialog?:WinDialogBox;
+	public loadDialog?:DialogBox;
+	public helpDialog?:DialogBox;
+	public energyIndicator?:ScalarIndicator;
 	
 	public saveButton:HTMLButtonElement;
 	public foundTriforceCount:number = 0;
@@ -1784,6 +1808,8 @@ export class MazeDemo {
 	}
 
 	public updateView() {
+		// TODO: Have player entity send messages to the UI
+		// instead of mucking around in game state
 		this.maybePaint();
 		const newViewage:MazeViewage = { visualEntities: [] };
 		
@@ -1841,6 +1867,9 @@ export class MazeDemo {
 						this.foundTriforceThisLevel = true;
 					}
 				}
+				if( this.energyIndicator ) this.energyIndicator.value = foundPlayer.entity.storedEnergy;
+			} else {
+				if( this.energyIndicator ) this.energyIndicator.value = 0;
 			}
 			this.maze1InventoryUi.setAllSlots(invItems);
 		}
@@ -2225,7 +2254,7 @@ export class MazeDemo {
 	
 	public goToCommandHistory(index:number) {
 		if(index == this.commandHistoryIndex) return;
-		
+		if(!this.consoleDialog) return; 
 		const input = this.consoleDialog.inputElement;
 
 		if( this.commandHistoryIndex == this.commandHistory.length ) {
@@ -2257,6 +2286,7 @@ export class MazeDemo {
 	
 	public submitConsoleCommand(cmd?:string) {
 		if( cmd == null ) {
+			if( !this.consoleDialog ) return;
 			cmd = this.consoleDialog.inputElement.value;
 			this.consoleDialog.inputElement.value = "";
 			this.addToCommandHistory(cmd);
@@ -2410,6 +2440,7 @@ export class MazeDemo {
 	}
 	
 	public popUpConsole(initialText:string) {
+		if( !this.consoleDialog ) return;
 		this.goToCommandHistoryEnd();
 		this.consoleDialog.inputElement.value = initialText;
 		this.consoleDialog.setVisible(true);
@@ -2854,6 +2885,20 @@ export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string, loadingSt
 		]
 		inventoryDialogElement.appendChild(ui.element);
 		*/
+	}
+	
+	const energyBarElement = document.getElementById('energy-bar');
+	const energyCounterElement = document.getElementById('energy-counter');
+	const energyCounterTextNode:Node|undefined = energyCounterElement && energyCounterElement.firstChild.nodeType == Node.TEXT_NODE ?
+		energyCounterElement.firstChild : undefined;
+	if( energyBarElement ) {
+		demo.energyIndicator = {
+			set value(v:number|undefined) {
+				if( energyBarElement ) energyBarElement.style.width = (v == undefined ? 0 : v * 400 / 100000)+'px';
+				if( energyCounterTextNode ) energyCounterTextNode.nodeValue = (v == undefined ? "--" : Math.round(v).toFixed(0));
+			}
+		}
+		demo.energyIndicator.value = undefined;
 	}
 	
 	return demo;

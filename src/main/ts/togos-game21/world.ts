@@ -185,6 +185,7 @@ export interface Entity {
 	maze1Inventory? : KeyedList<Entity>;
 	
 	attachmentZones? : KeyedList<AttachmentZone>;
+	storedEnergy? : number;
 }
 
 /**

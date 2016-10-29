@@ -268,6 +268,12 @@ ul.tile-palette li.selected {
 	font-family: monospace;
 }
 
+#energy-bar {
+	overflow: visible;
+	white-space: nowrap;
+	background: rgba(255,0,0,0.5);
+}
+
 #inventory-dialog {
 	position: fixed;
 	top: 10vh;
@@ -371,6 +377,7 @@ non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
 <div class="game-interface" id="game-interface" tabindex="0">
 <div class="maze-area" id="maze-area" style="position:relative">
 <div id="camera-location-box" style="position:absolute; top:0; left:0;"></div>
+<div id="energy-bar" style="position:absolute; top:0; left:0; width:12px;">Energy: <span id="energy-counter">567</span></div>
 <canvas class="maze-canvas" id="maze-canvas" width="<?php eht($width); ?>" height="<?php eht($height); ?>"/>
 </div>
 

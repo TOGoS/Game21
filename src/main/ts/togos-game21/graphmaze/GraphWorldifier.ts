@@ -849,6 +849,7 @@ export function mazeToWorld(worldifier:GraphWorldifier):Promise<{ gdm:GameDataMa
 				id: dat.playerEntityId,
 				classRef: dat.playerEntityClassId,
 				desiresMaze1AutoActivation: true,
+				storedEnergy: 100000 // Not meant to be realistic for now
 			}
 		}
 		
