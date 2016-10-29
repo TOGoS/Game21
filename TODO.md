@@ -29,7 +29,8 @@
 * Friction
 * Control+click is broken!!  plz fix.  maybe on master branch
 - Berries on bushes
-- Dead player should drop any items
+* Dead player should drop any items
+- sound effects
 
 Different random maze generation:
 - wave function collapse-generated rooms

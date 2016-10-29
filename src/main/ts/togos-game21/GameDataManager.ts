@@ -75,7 +75,7 @@ export default class GameDataManager {
 	}
 	
 	public getObject<T>( ref:string ):T {
-		const v = this.getObjectIfLoaded<T>(ref, false);
+		const v = this.getObjectIfLoaded<T>(ref, true);
 		if( v == null ) throw new Error(ref+" not loaded");
 		return v;
 	}
@@ -333,12 +333,19 @@ export default class GameDataManager {
 		});
 	}
 	
+	protected _fullyCacheEntity( entity:Entity, itemPromises:Promise<any>[] ):void  {
+		itemPromises.push(this.fullyCacheEntityClass(entity.classRef));
+		for( let ii in entity.maze1Inventory ) {
+			this._fullyCacheEntity(entity.maze1Inventory[ii], itemPromises);
+		}
+	}
+	
 	public fullyCacheRoom( roomId:string ):Promise<Room> {
 		return this.fetchObject<Room>( roomId ).then( (room:Room) => {
-			const itemPromises:Promise<EntityClass>[] = [];
+			const itemPromises:Promise<any>[] = [];
 			for( let re in room.roomEntities ) {
 				const roomEntity = room.roomEntities[re];
-				itemPromises.push(this.fullyCacheEntityClass(roomEntity.entity.classRef));
+				this._fullyCacheEntity(roomEntity.entity, itemPromises);
 			}
 			return Promise.all(itemPromises).then( () => room );
 		});

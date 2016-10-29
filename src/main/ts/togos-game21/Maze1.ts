@@ -586,7 +586,13 @@ interface RoomEntityUpdate {
 	velocityPosition? : Vector3D;
 }
 
-type EntityFilter = (roomEntityId:string, roomEntity:RoomEntity, entity:Entity, entityClass:EntityClass)=>boolean; 
+/*
+ * Return values:
+ *   true = yes, include this!
+ *   false = I do not care about this at all!
+ *   undefined = I don't care about this specific thing, but I may care about things contained in it
+ */
+type EntityFilter = (roomEntityId:string, roomEntity:RoomEntity, entity:Entity, entityClass:EntityClass)=>boolean|undefined; 
 
 interface FoundEntity {
 	roomRef : string;
@@ -929,7 +935,7 @@ export class MazeGamePhysics {
 				const entity = roomEntity.entity;
 				
 				if( entity.classRef == dat.playerEntityClassId && entity.storedEnergy < 1 ) {
-					entity.classRef = dat.deadPlayerEntityClassId;
+					this.game.killRoomEntity(r, re);
 				}
 				
 				if( !entity.desiresMaze1AutoActivation ) continue;
@@ -937,7 +943,7 @@ export class MazeGamePhysics {
 				
 				const pickupFilter:EntityFilter =
 					(roomEntityId:string, roomEntity:RoomEntity, entity:Entity, _entityClass:EntityClass) =>
-						_entityClass.structureType != StructureType.INDIVIDUAL ||
+						_entityClass.structureType != StructureType.INDIVIDUAL ? undefined :
 						_entityClass.isMaze1AutoPickup || _entityClass.cheapMaze1DoorKeyClassRef != undefined;
 				const eBb = entityClass.physicalBoundingBox;
 				const pickupBb = makeAabb(
@@ -1383,10 +1389,12 @@ export class MazeSimulator {
 		into:FoundEntity[]
 	):void {
 		const proto = this.gameDataManager.getEntityClass( entity.classRef );
-		if( !filter(roomEntityId, roomEntity, entity, proto) ) return;
+		const filtered = filter(roomEntityId, roomEntity, entity, proto)
+		if( filtered === false ) return;
 		if( !aabbIntersectsWithOffset(entityPos, proto.physicalBoundingBox, checkPos, checkBb) ) return;
 		
 		if( proto.structureType == StructureType.INDIVIDUAL ) {
+			if( !filtered ) return;
 			into.push( {
 				roomRef: roomRef,
 				roomEntityId: roomEntityId,
@@ -1395,11 +1403,11 @@ export class MazeSimulator {
 				entity: entity,
 				entityClass: proto,
 			} );
-		} else {
-			eachSubEntityIntersectingBb( entity, entityPos, checkPos, checkBb, this.gameDataManager, (subEnt, subEntPos, ori) => {
-				this.entitiesAt3( roomRef, roomEntityId, roomEntity, subEntPos, subEnt, checkPos, checkBb, filter, into );
-			}, this, entityPositionBuffer);
-		};
+		}
+		
+		eachSubEntityIntersectingBb( entity, entityPos, checkPos, checkBb, this.gameDataManager, (subEnt, subEntPos, ori) => {
+			this.entitiesAt3( roomRef, roomEntityId, roomEntity, subEntPos, subEnt, checkPos, checkBb, filter, into );
+		}, this, entityPositionBuffer);
 	}
 	
 	protected entitiesAt2( roomPos:Vector3D, roomRef:string, checkPos:Vector3D, checkBb:AABB, filter:EntityFilter, into:FoundEntity[] ):void {
@@ -1691,6 +1699,66 @@ export class MazeSimulator {
 		for( let i=0; i<count && this.hasPendingMessageUpdates; ++i ) {
 			this.doMessageUpdate();
 		}
+	}
+	
+	protected findEmptySpaceNear(bb:AABB, roomId:string, position:Vector3D):RoomLocation {
+		let distance = 0;
+		const filter:EntityFilter = (roomEntityId:string, roomEntity:RoomEntity, entity:Entity, entityClass:EntityClass) => {
+			if( entityClass.structureType == StructureType.INDIVIDUAL ) {
+				return entityClass.isSolid;
+			}
+			return undefined;
+		};
+		for( let attempts=0; attempts<1000; ++attempts ) {
+			const placePos = {
+				x:position.x + Math.random()*distance*2-1,
+				y:position.y + Math.random()*distance*2-1,
+				z:position.z
+			};
+			if( this.entitiesAt(roomId, placePos, bb, filter).length == 0 ) {
+				return this.fixLocation({
+					roomRef: roomId,
+					position: placePos
+				})
+			}
+			distance += 1/16;
+		}
+		throw new Error("Failed to find empty space!");
+	}
+	
+	protected placeItemSomewhereNear(entity:Entity, roomId:string, position:Vector3D) {
+		const entityClass = this.gameDataManager.getEntityClass(entity.classRef);
+		const physBb = entityClass.physicalBoundingBox;
+		if( entityClass.structureType != StructureType.INDIVIDUAL ) {
+			throw new Error('placeItemSomewhereNear not meant to handle '+entityClass.structureType+'-structure-typed things');
+		}
+		const loc = this.findEmptySpaceNear(physBb, roomId, position);
+		const room = this.activeRooms[loc.roomRef];
+		room.roomEntities[entity.id || newUuidRef()] = {
+			position: loc.position,
+			entity: entity
+		}
+	}
+	
+	public killRoomEntity(roomRef:string, entityRef:string) {
+		const room = this.activeRooms[roomRef];
+		const roomEntity = room.roomEntities[entityRef];
+		if( roomEntity == undefined ) {
+			console.warn("Can't kill entity "+roomRef+"/"+entityRef+" because that room entity's not found");
+			return;
+		}
+		const entity = roomEntity.entity;
+		for( let i in entity.maze1Inventory ) {
+			try {
+				this.placeItemSomewhereNear(entity.maze1Inventory[i], roomRef, roomEntity.position);
+			} catch( err ) {
+				console.warn("Uh oh, inventory item "+i+" was lost!");
+			}
+		}
+		entity.maze1Inventory = {};
+		entity.classRef = dat.deadPlayerEntityClassId;
+		delete entity.desiredMovementDirection;
+		delete entity.desiresMaze1AutoActivation; // Otherwise skeleton will steal your dropped keys! 
 	}
 	
 	public update(interval:number=1/16) {
@@ -2151,7 +2219,7 @@ export class MazeDemo {
 					playerPlaced = true;
 				}
 				if( re != newPlayerId && roomEntity.entity.classRef == dat.playerEntityClassId ) {
-					roomEntity.entity.classRef = dat.deadPlayerEntityClassId;
+					this.simulator.killRoomEntity(r, re);
 				}
 			}
 		}
@@ -2904,7 +2972,7 @@ export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string, loadingSt
 		
 		if( restartButtonArea ) {
 			const restartLevelButton = restartDialog.dismissButton = document.createElement('button');
-			restartLevelButton.appendChild(document.createTextNode('Restart level'));
+			restartLevelButton.appendChild(document.createTextNode('Respawn'));
 			restartLevelButton.onclick = dismissRestartDialog;
 			restartButtonArea.appendChild(restartLevelButton);
 		}

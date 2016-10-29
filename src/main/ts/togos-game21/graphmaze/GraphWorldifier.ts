@@ -569,7 +569,7 @@ export default class GraphWorldifier {
 				let groundHeight = primaryFloorHeight+Math.random()*(primaryFloorHeight+roomBounds.maxY-1);
 				for(let x=roomBounds.minX+1; x<roomBounds.maxX-1; ++x ) {
 					groundHeight += (Math.random()-0.5)*2*hilliness;
-					const minGroundHeight = (x < roomBounds.minX+3 || x >= roomBounds.maxX-3) ? primaryFloorHeight-1 : ceilingHeight+1;
+					const minGroundHeight = (x < leftWallX+1 || x > rightWallX-1) ? primaryFloorHeight-1 : ceilingHeight+1;
 					if( groundHeight < minGroundHeight ) groundHeight = minGroundHeight;
 					if( groundHeight > roomBounds.maxY-1 ) groundHeight = roomBounds.maxY-1;
 					const groundHeightAbs = Math.round(groundHeight);
@@ -789,10 +789,12 @@ export default class GraphWorldifier {
 	protected nodeFoods:KeyedList<boolean> = {};
 	
 	protected figureFoodLocations() {
-		const fitNodes = nMostFit( this.maze.nodes, Math.ceil(this.maze.nodes.length / 10), (n:MazeNode) => {
+		const fitNodes = nMostFit( this.maze.nodes, Math.ceil(this.maze.nodes.length / (4 + 12/this.maze.nodes.length)  ), (n:MazeNode) => {
 			let itemCount = 0;
 			for( let i in n.items ) ++itemCount;
-			return 8/(1+n.linkIds.length+itemCount) + Math.random()/2;
+			let lockCount = 0;
+			for( let k in n.requiredKeys ) ++lockCount;
+			return 8/(1+n.linkIds.length+itemCount+lockCount/3) + Math.random()/2;
 		});
 		for( let i=0; i<fitNodes.length; ++i ) {
 			this.nodeFoods[fitNodes[i].id] = true;
