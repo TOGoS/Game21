@@ -2407,6 +2407,7 @@ export class MazeDemo {
 		}
 	}
 	
+	protected mouse1PreviouslyDown:boolean = true;
 	public handleMouseEvent(evt:MouseEvent):void {
 		if( evt.buttons == 1 ) {
 			const cpCoords = this.eventToCanvasPixelCoordinates(evt);
@@ -2422,9 +2423,8 @@ export class MazeDemo {
 				}
 				break;
 			case DemoMode.PLAY:
-				{
+				if( !this.mouse1PreviouslyDown ) {
 					const itemKey = this.maze1InventoryUi.selectedItemKey;
-					console.log("Throw "+itemKey+"!", coords);
 					if( itemKey ) this.enqueueMessage(
 						[ROOMID_FINDENTITY, this.playerId],
 						["/throwinventoryitem", this.maze1InventoryUi.selectedItemKey, coords.x, coords.y, coords.z]
@@ -2432,8 +2432,10 @@ export class MazeDemo {
 				}
 				break;
 			}
+			this.mouse1PreviouslyDown = true;
 		} else {
 			this.paintCoordinates = undefined;
+			this.mouse1PreviouslyDown = false;
 		}
 	}
 	
