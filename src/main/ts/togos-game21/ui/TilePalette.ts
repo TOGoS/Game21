@@ -68,7 +68,8 @@ export default class TilePalette {
 		}
 	}
 	
-	public setSlot( index:number, _entity:TileEntity|string|null ) {
+	public setSlot( index:number, _entity:TileEntity|string|null|undefined ) {
+		if( _entity === null ) _entity = undefined;
 		if( typeof _entity == 'string' ) {
 			_entity = {
 				entity: { classRef: _entity },
@@ -77,7 +78,7 @@ export default class TilePalette {
 		}
 		const tileEntity = _entity;
 		if( tileEntity == null ) {
-			this.tileEntities[index] = null;
+			this.tileEntities[index] = undefined;
 			this.renderSlot(index);
 			this.imageUrlPromises[index] = undefined;
 		} else if( JSON.stringify(tileEntity) != JSON.stringify(this.tileEntities[index]) ) {
@@ -96,7 +97,7 @@ export default class TilePalette {
 	
 	protected triggerSelectListeners() {
 		for( let t in this.selectListeners ) {
-			this.selectListeners[t]( this._selectedSlotIndex, this.tileEntities[this._selectedSlotIndex] );
+			this.selectListeners[t]( this._selectedSlotIndex, this.tileEntities[this._selectedSlotIndex]||null );
 		}
 	}
 	

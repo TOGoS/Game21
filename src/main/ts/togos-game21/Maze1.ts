@@ -1623,6 +1623,10 @@ export class MazeSimulator {
 				return;
 			}
 			const itemRef = md[1];
+			if( roomEntity.entity.maze1Inventory == undefined ) {
+				console.warn("No inventory at all; can't throw item'");
+				return;
+			}
 			const item = roomEntity.entity.maze1Inventory ? roomEntity.entity.maze1Inventory[itemRef] : undefined;
 			if( item == undefined ) {
 				console.warn("No item "+itemRef+" seems to exist in inventory:", roomEntity.entity.maze1Inventory);
@@ -2900,7 +2904,7 @@ export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string, loadingSt
 	demo.loadingStatusUpdated = loadingStatusUpdated;
 	demo.importCacheStrings(cacheStrings);
 	
-	const gameLoaded = demo.loadGame(saveGameRef);
+	const gameLoaded = demo.loadGame(saveGameRef || "level0");
 	
 	canv.addEventListener('mousedown', demo.handleMouseEvent.bind(demo));
 	canv.addEventListener('mouseup'  , demo.handleMouseEvent.bind(demo));
