@@ -283,12 +283,28 @@ const applePix = [
 	0,0,0,0,0,1,0,0,
 	0,0,0,0,1,0,0,0,
 	0,1,1,1,0,1,1,0,
-	1,1,1,1,1,1,1,0,
-	1,1,1,1,1,0,1,0,
-	1,1,1,1,1,0,1,0,
+	1,1,1,1,1,1,1,1,
+	1,1,1,1,1,0,1,1,
+	1,1,1,1,1,0,1,1,
 	0,1,1,1,0,1,1,0,
 	0,0,1,0,1,1,0,0,
 ];
+const stick1Pix = [
+	0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,1,
+	0,0,0,0,0,0,1,0,
+	0,0,0,0,0,1,0,0,
+	0,0,1,1,1,0,0,0,
+	1,1,0,0,0,1,1,1,
+];
+const stick2Pix = [
+	0,0,0,0,0,0,0,0,
+	0,0,0,1,0,0,0,0,
+	0,0,0,1,0,0,0,0,
+	0,1,0,0,1,1,0,0,
+	0,0,1,1,0,0,1,0,
+	1,1,0,0,0,0,0,1,
+]
 const cheapDoorPix = [
 	0,1,1,0,1,1,0,1,1,0,
 	0,1,1,0,1,1,0,1,1,0,
@@ -356,8 +372,6 @@ const bigBrikImgRef = "bitimg:color0=0;color1="+rgbaToNumber(220,220,200,255)+",
 const bigBlueBrikImgRef   = bitImgRef(black,wallBlue,bigBrikPix);
 const bigYellowBrikImgRef = bitImgRef(black,wallYellow,bigBrikPix);
 const bigRedBrikImgRef    = bitImgRef(black,wallRed,bigBrikPix);
-const playerImgRef        = bitImgRef(0,[224,224,96],playerPix);
-const deadPlayerImgRef    = bitImgRef(0,[112,96,48],deadPlayerPix,16,8);
 const plant1ImgRef         = bitImgRef(0,[64,192,64],plant1Pix);
 const browningPlant1ImgRef = bitImgRef(0,[64,112,64],plant1Pix);
 const brownPlant1ImgRef    = bitImgRef(0,[80, 72,48],plant1Pix);
@@ -374,11 +388,16 @@ const ladder1TopImgRef = "bitimg:width=16;height=4;color1="+rgbaToNumber(128,96,
 const latticeColumnImgRef = "bitimg:color1="+rgbaToNumber(192,192,192,255)+","+hexEncodeBits(latticeColumnPix);
 const latticeColumnBgImgRef = "bitimg:color1="+rgbaToNumber(64,64,64,255)+","+hexEncodeBits(latticeColumnPix);
 
+const playerImgRef        = bitImgRef(0,[224,224,96],playerPix);
+const deadPlayerImgRef    = bitImgRef(0,[112,96,48],deadPlayerPix,16,8);
+
 const blueKeyImgRef   = bitImgRef(0,  [0,  0,192],keyPix,8,4);
 const yellowKeyImgRef = bitImgRef(0,[192,192,  0],keyPix,8,4);
 const redKeyImgRef    = bitImgRef(0,[192,  0,  0],keyPix,8,4);
 const triforceImgRef  = bitImgRef(0,[200,200,128],triforcePix,12,12);
-const appleImgRef     = bitImgRef(0,[128,64,32],applePix);
+const appleImgRef     = bitImgRef(0,[160,64,32],applePix);
+const stick1ImgRef    = bitImgRef(0,[112,96,72],stick1Pix,8,6);
+const stick2ImgRef    = bitImgRef(0,[112,96,72],stick2Pix,8,6);
 
 const cheapBlueDoorImgRef   = bitImgRef(0,[  0,  0,192],cheapDoorPix,10,16);
 const cheapYellowDoorImgRef = bitImgRef(0,[192,192,  0],cheapDoorPix,10,16);
@@ -562,6 +581,8 @@ export const redKeyEntityClassId    = 'urn:uuid:f2f4bea7-7a6a-45af-9a70-83c7ce58
 export const yellowKeyEntityClassId = 'urn:uuid:f2f4bea7-7a6a-45af-9a70-83c7ce58ba33';
 export const triforceEntityClassId  = 'urn:uuid:849d75c9-ab5b-476f-9192-c87601d40de0';
 export const appleEntityClassId     = 'urn:uuid:6048f9b8-f5bf-414a-b439-3f812e1ad31a';
+export const stick1EntityClassId    = 'urn:uuid:4f3fd5b7-b51e-4ae7-9673-febed16050c1';
+export const stick2EntityClassId    = 'urn:uuid:4f3fd5b7-b51e-4ae7-9673-febed16050c2';
 
 export const cheapBlueDoorEntityClassId   = 'urn:uuid:0575864a-e0d0-4fa4-b84a-a724a66dcb61';
 export const cheapRedDoorEntityClassId    = 'urn:uuid:0575864a-e0d0-4fa4-b84a-a724a66dcb62';
@@ -1041,6 +1062,7 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 			isSolid: true,
 			mass: 0.25, // It's a big key
 			visualRef: keyVisualRefs[i],
+			maze1Importance: 2,
 		}, keyClassRefs[i])
 		gdm.tempStoreObject<EntityClass>( {
 			debugLabel: "cheap "+keyColors[i]+"-lock door",
@@ -1065,6 +1087,7 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 		isSolid: true,
 		mass: 0.25, // It's an average triforce
 		visualRef: triforceImgRef,
+		maze1Importance: 3,
 	}, triforceEntityClassId);
 	gdm.tempStoreObject<EntityClass>( {
 		debugLabel: "apple",
@@ -1080,6 +1103,34 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 		isMaze1Edible: true,
 		maze1NutritionalValue: 10000 // Not realistic!  Realistic value:  397480 joules (95 kilocalories)
 	}, appleEntityClassId);
+	const stickVisualBoundingBox = makeAabb(-0.25, -0.25, -0.125, +0.25, +0.125, +0.125);
+	const stickPhysicalBoundingBox = makeAabb(-0.25, -0.125, -0.125, +0.25, +0.125, +0.125);
+	gdm.tempStoreObject<EntityClass>( {
+		debugLabel: "stick",
+		structureType: StructureType.INDIVIDUAL,
+		tilingBoundingBox: HUNIT_CUBE,
+		physicalBoundingBox: stickPhysicalBoundingBox,
+		visualBoundingBox: stickVisualBoundingBox,
+		isMaze1AutoPickup: true,
+		isAffectedByGravity: true,
+		isSolid: true,
+		mass: 0.25,
+		visualRef: stick1ImgRef,
+		maze1Importance: 0,
+	}, stick1EntityClassId);
+	gdm.tempStoreObject<EntityClass>( {
+		debugLabel: "stick",
+		structureType: StructureType.INDIVIDUAL,
+		tilingBoundingBox: HUNIT_CUBE,
+		physicalBoundingBox: stickPhysicalBoundingBox,
+		visualBoundingBox: stickVisualBoundingBox,
+		isMaze1AutoPickup: true,
+		isAffectedByGravity: true,
+		isSolid: true,
+		mass: 0.25,
+		visualRef: stick2ImgRef,
+		maze1Importance: 0,
+	}, stick2EntityClassId);
 	
 	const regularTileEntityPaletteRef = makeTileEntityPaletteRef( [
 		null,

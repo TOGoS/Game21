@@ -121,6 +121,8 @@ export interface EntityClass {
 	isMaze1Edible? : boolean;
 	/** @temporary-shortcut */
 	maze1NutritionalValue? : number;
+	/** @temporary-shortcut */
+	maze1Importance?: number;
 	
 	visualRef? : string;
 	

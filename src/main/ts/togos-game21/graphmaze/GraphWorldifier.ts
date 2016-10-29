@@ -561,6 +561,12 @@ export default class GraphWorldifier {
 				tileBmp.fill(roomBounds.minX, Math.max(roomBounds.minY+1,leftFloorHeight-hallWidth),z0, leftWallX,Math.min(roomBounds.maxY-1,leftFloorHeight),z1, 0);
 			}
 			
+			const itemX = !protoRoom.protoLinks[DIR_DOWN] ? 0.5 :
+				!protoRoom.protoLinks[DIR_LEFT] ? -1.5 :
+				!protoRoom.protoLinks[DIR_RIGHT] ? +1.5 :
+				-0.5;
+			const roomEntities:KeyedList<RoomEntity> = {}
+			
 			if( hasGarden ) {
 				// Garden!
 				tileBmp.fill( roomBounds.minX+1,primaryFloorHeight,z0, roomBounds.maxX-1,roomBounds.maxY,z1, 0 );
@@ -580,6 +586,14 @@ export default class GraphWorldifier {
 						if( Math.random() < 0.125 ) plantTileIndex = 14; // brown brick
 						else plantTileIndex = [26,25,3][Math.floor(Math.random()*Math.random()*3)];
 						tileBmp.fill(x,groundHeightAbs-1,z0, x+1,groundHeightAbs,z1, plantTileIndex);
+					}
+					if( Math.random() < 0.125 && x != Math.floor(itemX) ) {
+						// Leave a stick!
+						const stickClassRef = pickOne([dat.stick1EntityClassId, dat.stick2EntityClassId]);
+						roomEntities[newUuidRef()] = {
+							position: {x:x+0.5, y:groundHeightAbs-1/8, z:0},
+							entity: { classRef: stickClassRef }
+						};
 					}
 				}
 			}
@@ -678,9 +692,7 @@ export default class GraphWorldifier {
 				tileBmp.fill(lastDoorPos+1,roomBounds.minX,z0, roomBounds.maxX,ceilingHeight,z1, rightWallTileIndex);
 				tileBmp.fill(lastDoorPos+1,primaryFloorHeight,z0, roomBounds.maxX,roomBounds.maxY,z1, rightWallTileIndex);
 			}
-			
-			const roomEntities:KeyedList<RoomEntity> = {}
-			
+						
 			const itemClassRefs:string[] = [];
 			let itemsNeedFancyPedestal = false;
 			if( span.node && !itemsPlaced ) {
@@ -703,10 +715,6 @@ export default class GraphWorldifier {
 				}
 			}
 			
-			const itemX = !protoRoom.protoLinks[DIR_DOWN] ? 0.5 :
-				!protoRoom.protoLinks[DIR_LEFT] ? -1.5 :
-				!protoRoom.protoLinks[DIR_RIGHT] ? +1.5 :
-				-0.5;
 			let itemY = floorHeights[Math.floor(itemX-roomBounds.minX)] - 0.5;
 			if( itemsNeedFancyPedestal ) itemY -= 1;
 			
