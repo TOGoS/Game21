@@ -115,6 +115,8 @@ export interface EntityClass {
 	
 	/** @temporary-shortcut */
 	isMaze1AutoPickup? : boolean;
+	/** @temporary-shortcut */
+	maze1InventorySize? : number;
 	/** @temporary-shortcut ; replace with entity internal systems; this indicates the key class that will destroy a cheap door */
 	cheapMaze1DoorKeyClassRef? : string;
 	/** @temporary-shortcut */

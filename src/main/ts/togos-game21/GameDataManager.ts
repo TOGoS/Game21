@@ -74,8 +74,8 @@ export default class GameDataManager {
 		throw new Error(ref+" not in mutable object store");
 	}
 	
-	public getObject<T>( ref:string ):T {
-		const v = this.getObjectIfLoaded<T>(ref, true);
+	public getObject<T>( ref:string, initiateFetch:boolean=false ):T {
+		const v = this.getObjectIfLoaded<T>(ref, initiateFetch);
 		if( v == null ) throw new Error(ref+" not loaded");
 		return v;
 	}
@@ -107,7 +107,7 @@ export default class GameDataManager {
 	}
 	
 	public getRoom( ref:string ):Room { return this.getObject<Room>(ref); }
-	public getEntityClass( ref:string ):EntityClass { return this.getObject<EntityClass>(ref); }
+	public getEntityClass( ref:string, initiateFetch:boolean=false ):EntityClass { return this.getObject<EntityClass>(ref, initiateFetch); }
 	
 	protected cache<T>( k:string, v:T ):void {
 		this.objectCache[k] = v;

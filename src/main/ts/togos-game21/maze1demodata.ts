@@ -708,6 +708,7 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 			[leftHandAttachmentZoneKey]: playerHandAttachmentZoneClassRef,
 			[rightHandAttachmentZoneKey]: playerHandAttachmentZoneClassRef,
 		},
+		maze1InventorySize: 4,
 	}, playerEntityClassId );
 	const deadPlayerPhysicalBoundingBox = makeAabb(-0.25, -0.125, -0.25, +0.25, +0.125, +0.25);
 	const deadPlayerVisualBoundingBox = makeAabb(-0.5, -0.5+0.125, -0.25, +0.5, +0.125, +0.25);

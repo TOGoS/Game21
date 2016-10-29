@@ -965,12 +965,50 @@ export class MazeGamePhysics {
 						continue checkIois;
 					}
 					if( foundIoi.entityClass.isMaze1AutoPickup ) {
-						delete rooms[foundIoi.roomRef].roomEntities[foundIoi.roomEntityId];
-						if( entity.maze1Inventory == undefined ) entity.maze1Inventory = {};
+						let pickedUp:boolean;
 						if( foundIoi.entityClass.isMaze1Edible ) {
 							entity.storedEnergy += +foundIoi.entityClass.maze1NutritionalValue;
+							pickedUp = true;
 						} else {
+							const inventorySize = entityClass.maze1InventorySize;
+							if( inventorySize == undefined ) continue checkIois;
+							if( entity.maze1Inventory == undefined ) entity.maze1Inventory = {};
+							let currentItemCount = 0;
+							let leastImportantItemKey:string|undefined;
+							let leastImportantItemImportance:number = Infinity;
+							for( let k in entity.maze1Inventory ) {
+								++currentItemCount;
+								const itemClass = gdm.getEntityClass(entity.maze1Inventory[k].classRef);
+								const itemImportance = itemClass.maze1Importance || 0;
+								if( itemImportance < leastImportantItemImportance ) {
+									leastImportantItemImportance = itemImportance;
+									leastImportantItemKey = k;
+								}
+							}
+							if( currentItemCount >= inventorySize ) {
+								if( leastImportantItemKey == undefined ) {
+									console.warn("Can't pick up new item; inventory full and nothing to drop!")
+									continue checkIois;
+								}
+								const foundItemImportance = foundIoi.entityClass.maze1Importance || 0;
+								if( foundItemImportance < leastImportantItemImportance ) {
+									continue checkIois;
+								}
+								const throwDirection = vectorIsZero(roomEntity.velocity) ? {x:1,y:0,z:0} : normalizeVector(roomEntity.velocity, -1);
+								const throwStart = addVector(roomEntity.position, normalizeVector(throwDirection, 0.5));
+								try {
+									this.game.placeItemSomewhereNear(entity.maze1Inventory[leastImportantItemKey], r, throwStart, throwDirection);
+								} catch( err ) {
+									console.log("Couldn't drop less important item:", err);
+									continue checkIois;
+								}
+								delete entity.maze1Inventory[leastImportantItemKey];
+							}
 							entity.maze1Inventory[foundIoi.roomEntityId] = foundIoi.entity;
+							pickedUp = true;
+						}
+						if( pickedUp ) {
+							delete rooms[foundIoi.roomRef].roomEntities[foundIoi.roomEntityId];
 						}
 					}
 					doKey: if( foundIoi.entityClass.cheapMaze1DoorKeyClassRef ) {
@@ -1548,6 +1586,32 @@ export class MazeSimulator {
 			const blockLoc = this.fixLocation( {roomRef: roomId, position: makeVector(relX+rePos.x, relY+rePos.y, relZ+rePos.z)} );
 			this.setTileTreeBlock( blockLoc.roomRef, blockLoc.position, tileScale, block );
 			return;
+		} else if( path == '/give' ) {
+			// put a thing in your inventory, if there's space
+			const itemClassRef = md[1];
+			if( itemClassRef == undefined ) return;
+			try {
+				const itemClass = this.gameDataManager.getEntityClass(itemClassRef, true);
+			} catch (err) {
+				console.error("Couldn't give item", err);
+				return;
+			}
+			const entityClass = this.gameDataManager.getEntityClass(roomEntity.entity.classRef);
+			const inventorySize = entityClass.maze1InventorySize || 0;
+			if( inventorySize == 0 ) {
+				console.warn("Can't add item; inventory size = 0");
+				return;
+			}
+			let currentItemCount = 0;
+			if( roomEntity.entity.maze1Inventory == undefined ) roomEntity.entity.maze1Inventory = {};
+			for( let k in roomEntity.entity.maze1Inventory ) ++currentItemCount;
+			if( currentItemCount < inventorySize ) {
+				roomEntity.entity.maze1Inventory[newUuidRef()] = {
+					classRef: itemClassRef
+				};
+			} else {
+				console.warn("Can't add item; inventory full");
+			}
 		} else if( path == '/vomit' ) {
 			if( roomEntity.entity.storedEnergy != undefined ) {
 				roomEntity.entity.storedEnergy /= 2;
@@ -1726,7 +1790,7 @@ export class MazeSimulator {
 		}
 	}
 	
-	protected findEmptySpaceNear(bb:AABB, roomId:string, position:Vector3D):RoomLocation {
+	public findEmptySpaceNear(bb:AABB, roomId:string, position:Vector3D):RoomLocation {
 		let distance = 0;
 		const filter:EntityFilter = (roomEntityId:string, roomEntity:RoomEntity, entity:Entity, entityClass:EntityClass) => {
 			if( entityClass.structureType == StructureType.INDIVIDUAL ) {
@@ -1751,7 +1815,7 @@ export class MazeSimulator {
 		throw new Error("Failed to find empty space!");
 	}
 	
-	protected placeItemSomewhereNear(entity:Entity, roomId:string, position:Vector3D, velocity:Vector3D=ZERO_VECTOR) {
+	public placeItemSomewhereNear(entity:Entity, roomId:string, position:Vector3D, velocity:Vector3D=ZERO_VECTOR) {
 		const entityClass = this.gameDataManager.getEntityClass(entity.classRef);
 		const physBb = entityClass.physicalBoundingBox;
 		if( entityClass.structureType != StructureType.INDIVIDUAL ) {
@@ -2649,6 +2713,13 @@ export class MazeDemo {
 					break;
 				case 'vomit':
 					this.enqueueMessage([ROOMID_FINDENTITY, this.playerId], ["/vomit"]);
+					break;
+				case 'give':
+					if( tokens.length == 2 ) {
+						this.enqueueMessage([ROOMID_FINDENTITY, this.playerId], ["/give", tokens[1].text]);
+					} else {
+						this.logger.error("/give takes 1 argument: <entity class ref>.  e.g. '/give urn:uuid:4f3fd5b7-b51e-4ae7-9673-febed16050c1'");
+					}
 					break;
 				default:
 					this.logger.error("Unrecognized command: /"+tokens[0].text);
