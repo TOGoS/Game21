@@ -1062,6 +1062,7 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 			isAffectedByGravity: true,
 			isSolid: true,
 			mass: 0.25, // It's a big key
+			coefficientOfFriction: 0.75,
 			visualRef: keyVisualRefs[i],
 			maze1Importance: 2,
 		}, keyClassRefs[i])
@@ -1117,6 +1118,7 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 		isSolid: true,
 		mass: 0.25,
 		visualRef: stick1ImgRef,
+		coefficientOfFriction: 0.75,
 		maze1Importance: 0,
 	}, stick1EntityClassId);
 	gdm.tempStoreObject<EntityClass>( {
@@ -1130,6 +1132,7 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 		isSolid: true,
 		mass: 0.25,
 		visualRef: stick2ImgRef,
+		coefficientOfFriction: 0.75,
 		maze1Importance: 0,
 	}, stick2EntityClassId);
 	
