@@ -1120,7 +1120,6 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 		mass: 0.25,
 		coefficientOfFriction: 0.75,
 		visualRef: stick1ImgRef,
-		coefficientOfFriction: 0.75,
 		maze1Importance: 0,
 	}, stick1EntityClassId);
 	gdm.tempStoreObject<EntityClass>( {
@@ -1135,7 +1134,6 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 		mass: 0.25,
 		coefficientOfFriction: 0.75,
 		visualRef: stick2ImgRef,
-		coefficientOfFriction: 0.75,
 		maze1Importance: 0,
 	}, stick2EntityClassId);
 	
