@@ -10,6 +10,7 @@
   - submit to contest by Oct 30th
 - Random maze bonus stuff
   - sound effects
+  - vomit chunks
   - monsters (maybe just bouncy lightbulbs)
 - Maze with keys and switches
 - Packet truck

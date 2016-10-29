@@ -603,6 +603,9 @@ export default class GraphWorldifier {
 				const linkX = topProtoLink.position.x;
 				if( fancyLadders ) {
 					if( topProtoLink.attributes.isBidirectional ) {
+						const holeMinX = linkX-randInt(0,1);
+						const holeMaxX = linkX+1+randInt(0,1);
+						tileBmp.fill(holeMinX,y0,z0, holeMaxX,floorHeights[linkX-x0]-1,z1, 0);
 						tileBmp.fill(linkX,y0,z0, linkX+1,floorHeights[linkX-x0]-1,z1, ladderTileIndex);
 					} else {
 						const hallWidth = topProtoLink.attributes.interSpan ? 2 : 4;
