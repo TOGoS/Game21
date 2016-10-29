@@ -9,12 +9,9 @@
 * Random maze (entry 21)
   - submit to contest by Oct 30th
 - Random maze bonus stuff
-  - Update loading status while generating
   - sound effects
-  - extra items scattered around (apples, sandwiches, trophies)
   - monsters (maybe just bouncy lightbulbs)
 - Maze with keys and switches
-  - Ability to place non-block entities
 - Packet truck
 - Image with dynamic (via material map overrides) indicator lights?
 - Small game with signal wires?
@@ -225,6 +222,9 @@ Maze1:
 * Win dialog should be less big; buttons should be larger and centered
 * Guess to add '#' on the end of save game refs that are missing it.
 * Number keys to select tile palette.
+* Update loading status while generating
+* extra items scattered around (apples, sandwiches, trophies)
+* Ability to place non-block entities (can /give them to yourself, at least)
 Random maze generation:
 * 8x8 rooms
 * generate maze graph
