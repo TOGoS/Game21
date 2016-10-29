@@ -797,8 +797,7 @@ export class MazeGamePhysics {
 				const eAPerpVel = perpendicularPart(eAVel, collision.velocity);
 				const eBPerpVel = perpendicularPart(eBVel, collision.velocity);
 				const frictionImpulse = normalizeVector(subtractVector(eAPerpVel,eBPerpVel),
-					(eAClass.coefficientOfFriction || 0.25) *
-					(eAClass.coefficientOfFriction || 0.25) *
+					Math.max(eAClass.coefficientOfFriction || 0.25, eBClass.coefficientOfFriction || 0.25) *
 					vectorLength(stopImpulse) *
 					Math.max(0, 1-theBounceFactor)
 				);

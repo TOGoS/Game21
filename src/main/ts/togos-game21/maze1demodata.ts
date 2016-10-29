@@ -1062,7 +1062,7 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 			isAffectedByGravity: true,
 			isSolid: true,
 			mass: 0.25, // It's a big key
-			coefficientOfFriction: 0.75,
+			coefficientOfFriction: 0.65,
 			visualRef: keyVisualRefs[i],
 			maze1Importance: 2,
 		}, keyClassRefs[i])
@@ -1101,6 +1101,7 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 		isAffectedByGravity: true,
 		isSolid: true,
 		mass: 0.25,
+		coefficientOfFriction: 0.25,
 		visualRef: appleImgRef,
 		isMaze1Edible: true,
 		maze1NutritionalValue: 10000 // Not realistic!  Realistic value:  397480 joules (95 kilocalories)
@@ -1117,6 +1118,7 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 		isAffectedByGravity: true,
 		isSolid: true,
 		mass: 0.25,
+		coefficientOfFriction: 0.75,
 		visualRef: stick1ImgRef,
 		coefficientOfFriction: 0.75,
 		maze1Importance: 0,
@@ -1131,6 +1133,7 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 		isAffectedByGravity: true,
 		isSolid: true,
 		mass: 0.25,
+		coefficientOfFriction: 0.75,
 		visualRef: stick2ImgRef,
 		coefficientOfFriction: 0.75,
 		maze1Importance: 0,
