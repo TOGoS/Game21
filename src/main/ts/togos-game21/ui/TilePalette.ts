@@ -1,8 +1,14 @@
 import { TileEntity, Entity } from '../world';
 import Quaternion from '../Quaternion';
 
+export interface PaletteItem {
+	key?: string; // To map to world inventory, which is different
+	entity: Entity;
+	orientation: Quaternion;
+}
+
 export default class TilePalette {
-	protected tileEntities:(TileEntity|null)[];
+	protected tileEntities:(PaletteItem|undefined)[];
 	protected imageUrls:(string|null)[];
 	protected imageUrlPromises:(Promise<string>|undefined)[];
 	protected tileElements:(HTMLElement)[];
@@ -97,6 +103,13 @@ export default class TilePalette {
 	protected selectListeners:Array<(index:number, te:TileEntity|null)=>void> = [];
 	
 	public get selectedSlotIndex():number { return this._selectedSlotIndex; }
+	public get selectedItem():PaletteItem|undefined {
+		return this.tileEntities[this._selectedSlotIndex];
+	}
+	public get selectedItemKey():string|undefined {
+		const item = this.selectedItem;
+		return (item == null) ? undefined : item.key;
+	}
 	
 	public selectSlot( index:number ):void {
 		if( index == this._selectedSlotIndex ) return;

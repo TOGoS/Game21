@@ -53,7 +53,7 @@ import Token, { TokenType } from './forth/Token';
 import Logger from './Logger';
 import MultiLogger from './MultiLogger';
 import DOMLogger from './ui/DOMLogger';
-import TilePaletteUI from './ui/TilePalette';
+import TilePaletteUI, { PaletteItem } from './ui/TilePalette';
 import {
 	StorageCompartmentContentUI
 } from './ui/inventory';
@@ -952,8 +952,18 @@ export class MazeGamePhysics {
 				)
 				
 				const foundIois = this.game.entitiesAt(r, roomEntity.position, pickupBb, pickupFilter);
-				for( let p in foundIois ) {
+				checkIois: for( let p in foundIois ) {
 					const foundIoi = foundIois[p];
+					if(
+						foundIoi.roomRef == r &&
+						dotProduct(
+							subtractVector(foundIoi.entityPosition, roomEntity.position),
+							subtractVector(foundIoi.roomEntity.velocity||ZERO_VECTOR,roomEntity.velocity||ZERO_VECTOR),
+						) > 0
+					) {
+						// If they're moving away from each other, forget it!
+						continue checkIois;
+					}
 					if( foundIoi.entityClass.isMaze1AutoPickup ) {
 						delete rooms[foundIoi.roomRef].roomEntities[foundIoi.roomEntityId];
 						if( entity.maze1Inventory == undefined ) entity.maze1Inventory = {};
@@ -1182,7 +1192,7 @@ export class MazeGamePhysics {
 						displacement = addVector(displacement, scaleVector(displacement, -stepDisplacementRatio));
 						continue displacementStep;
 					}
-
+					
 					// Uh oh, we've collided somehow.
 					// Need to take that into account, zero out part or all of our displacement
 					// based on where the obstacle was, register some impulses
@@ -1268,7 +1278,7 @@ export class MazeGamePhysics {
 						}
 						
 						displacement = { x: remainingDx, y: remainingDy, z: 0 };
-
+						
 						++iter;
 						if( iter > 2 ) {
 							console.log("Too many displacement steps while moving "+entityId+":", roomEntity, "class:", entityClass, "iter:", iter, "velocity:", velocity, "displacement:", displacement, "bounceBox:", bounceBox, "max dvx coll:", maxDvxColl, "max dby coll:", maxDvyColl);
@@ -1542,6 +1552,21 @@ export class MazeSimulator {
 			if( roomEntity.entity.storedEnergy != undefined ) {
 				roomEntity.entity.storedEnergy /= 2;
 			}
+		} else if( path == '/throwinventoryitem' ) {
+			const itemRef = md[1];
+			const item = roomEntity.entity.maze1Inventory[itemRef];
+			if( item == undefined ) {
+				console.warn("No item "+itemRef+" seems to exist in inventory:", roomEntity.entity.maze1Inventory);
+				return;
+			}
+			const throwOffset = normalizeVector({x:+md[2], y:+md[3], z:+md[4]}, 0.5);
+			try {
+				this.placeItemSomewhereNear(item, roomId, addVector(roomEntity.position,throwOffset), scaleVector(throwOffset,10));
+			} catch( err ) {
+				console.log("Couldn't throw:", err)
+				return;
+			}
+			delete roomEntity.entity.maze1Inventory[itemRef];
 		}
 	}
 	
@@ -1705,14 +1730,14 @@ export class MazeSimulator {
 		let distance = 0;
 		const filter:EntityFilter = (roomEntityId:string, roomEntity:RoomEntity, entity:Entity, entityClass:EntityClass) => {
 			if( entityClass.structureType == StructureType.INDIVIDUAL ) {
-				return entityClass.isSolid;
+				return entityClass.isSolid !== false;
 			}
 			return undefined;
 		};
-		for( let attempts=0; attempts<1000; ++attempts ) {
+		for( let attempts=0; attempts<16; ++attempts ) {
 			const placePos = {
-				x:position.x + Math.random()*distance*2-1,
-				y:position.y + Math.random()*distance*2-1,
+				x:position.x + (Math.random()*2-1)*distance,
+				y:position.y + (Math.random()*2-1)*distance,
 				z:position.z
 			};
 			if( this.entitiesAt(roomId, placePos, bb, filter).length == 0 ) {
@@ -1726,7 +1751,7 @@ export class MazeSimulator {
 		throw new Error("Failed to find empty space!");
 	}
 	
-	protected placeItemSomewhereNear(entity:Entity, roomId:string, position:Vector3D) {
+	protected placeItemSomewhereNear(entity:Entity, roomId:string, position:Vector3D, velocity:Vector3D=ZERO_VECTOR) {
 		const entityClass = this.gameDataManager.getEntityClass(entity.classRef);
 		const physBb = entityClass.physicalBoundingBox;
 		if( entityClass.structureType != StructureType.INDIVIDUAL ) {
@@ -1736,6 +1761,7 @@ export class MazeSimulator {
 		const room = this.activeRooms[loc.roomRef];
 		room.roomEntities[entity.id || newUuidRef()] = {
 			position: loc.position,
+			velocity: velocity,
 			entity: entity
 		}
 	}
@@ -1965,11 +1991,11 @@ export class MazeDemo {
 		}
 		
 		{
-			const invItems:TileEntity[] = [];
+			const invItems:PaletteItem[] = [];
 			if( foundPlayer ) {
 				const inv = foundPlayer.entity.maze1Inventory || {};
 				for( let k in inv ) {
-					invItems.push({orientation: Quaternion.IDENTITY, entity: inv[k]});
+					invItems.push({key: k, orientation: Quaternion.IDENTITY, entity: inv[k]});
 					if( inv[k].classRef == dat.triforceEntityClassId && !this.foundTriforceThisLevel ) {
 						// omg a triforce
 						++this.foundTriforceCount;
@@ -2372,26 +2398,39 @@ export class MazeDemo {
 	protected paintCoordinates:Vector3D|undefined;
 	
 	protected maybePaint() {
-		if( this._demoMode != DemoMode.EDIT ) return;
 		const coords = this.paintCoordinates;
 		if( coords ) {
 			this.enqueueMessage(
 				[ROOMID_FINDENTITY, this.playerId],
 				["/painttiletreeblock", coords.x, coords.y, coords.z, 1, this.paintEntityClassRef]
 			);
-		};
+		}
 	}
 	
 	public handleMouseEvent(evt:MouseEvent):void {
 		if( evt.buttons == 1 ) {
 			const cpCoords = this.eventToCanvasPixelCoordinates(evt);
 			const coords = this.view.canvasPixelToWorldCoordinates(cpCoords.x, cpCoords.y);
-			if( this.picking ) {
-				const entity:TileEntity|undefined = this.view.getTileEntityAt(coords, 1);
-				this.tilePaletteUi.setSlot(this.tilePaletteUi.selectedSlotIndex, entity||null);
-			} else {
-				this.paintCoordinates = coords;
-				this.maybePaint();
+			switch( this._demoMode ) {
+			case DemoMode.EDIT:
+				if( this.picking ) {
+					const entity:TileEntity|undefined = this.view.getTileEntityAt(coords, 1);
+					this.tilePaletteUi.setSlot(this.tilePaletteUi.selectedSlotIndex, entity||null);
+				} else {
+					this.paintCoordinates = coords;
+					this.maybePaint();
+				}
+				break;
+			case DemoMode.PLAY:
+				{
+					const itemKey = this.maze1InventoryUi.selectedItemKey;
+					console.log("Throw "+itemKey+"!", coords);
+					if( itemKey ) this.enqueueMessage(
+						[ROOMID_FINDENTITY, this.playerId],
+						["/throwinventoryitem", this.maze1InventoryUi.selectedItemKey, coords.x, coords.y, coords.z]
+					);
+				}
+				break;
 			}
 		} else {
 			this.paintCoordinates = undefined;
