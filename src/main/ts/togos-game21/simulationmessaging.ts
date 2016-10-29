@@ -29,6 +29,12 @@ export const CHAN_ANALOG_2 = 2;
 // More analog channels?
 export const CHAN_ETHERNET = 8023; // Data assumed to be Ethernet Type II frames
 
+export interface SimpleEvent {
+	// "I really want to get this done now."
+	classRef: "http://ns.nuke24.net/Game21/SimulationMessage/SimpleEvent";
+	eventCode : string;
+}
+
 export interface TextHeard {
 	classRef: "http://ns.nuke24.net/Game21/SimulationMessage/TextHeard";
 	sourcePosition: Vector3D;
@@ -43,7 +49,7 @@ export interface CommandReceived {
 	command: EntityCommandData;
 }
 
-export type SimulationMessage = TextHeard|CommandReceived;
+export type SimulationMessage = SimpleEvent|TextHeard|CommandReceived;
 
 /**
  * Will result in a HearText message on any entity that can hear it

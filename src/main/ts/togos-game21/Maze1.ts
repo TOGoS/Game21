@@ -57,6 +57,7 @@ import TilePaletteUI, { PaletteItem } from './ui/TilePalette';
 import {
 	StorageCompartmentContentUI
 } from './ui/inventory';
+import SoundPlayer from './ui/SoundPlayer';
 
 import {
 	ITEMCLASS_BLUEKEY,
@@ -1141,9 +1142,19 @@ export class MazeGamePhysics {
 					
 					if( dmd.y < 0 && entityClass.maxJumpImpulse ) {
 						const jumpImpulse:Vector3D = {x:0, y:entityClass.maxJumpImpulse, z:0};
-						this.attemptInducedImpulse(
+						if( this.attemptInducedImpulse(
 							r, re, roomEntity,
-							floorCollision.roomRef, floorCollision.roomEntityId, floorCollision.roomEntity, jumpImpulse);
+							floorCollision.roomRef, floorCollision.roomEntityId, floorCollision.roomEntity, jumpImpulse)
+						) {
+							this.game.enqueueAction( {
+								"classRef": "http://ns.nuke24.net/Game21/SimulationAction/ReceiveMessage",
+								entityPath: ['ui'],
+								message: {
+									classRef: "http://ns.nuke24.net/Game21/SimulationMessage/SimpleEvent",
+									eventCode: "jump"
+								}
+							})
+						}
 					}
 				} else {
 					if( dmd && dmd.y < 0 && entityClass.maxJumpImpulse ) {
@@ -1331,6 +1342,10 @@ export class MazeGamePhysics {
 	}
 }
 
+interface ExternalDevice {
+	message( em:SimulationMessage, replyPath?:EntityPath ):void;
+}
+
 // TODO: Rename to MazeGameSimulator,
 // move active room management to GameDataManager.
 export class MazeSimulator {
@@ -1340,7 +1355,12 @@ export class MazeSimulator {
 	public logger:Logger = console;
 	
 	protected enqueuedActions:SimulationAction[] = [];
-
+	
+	protected externalDevices:KeyedList<ExternalDevice> = {};
+	public registerExternalDevice( name:string, dev:ExternalDevice ):void {
+		this.externalDevices[name] = dev;
+	}
+	
 	public constructor( public gameDataManager:GameDataManager ) { }
 	
 	public enqueueAction( act:SimulationAction ):void {
@@ -1733,6 +1753,12 @@ export class MazeSimulator {
 	
 	protected doReceiveMessageAction( act:ReceiveMessageAction ):void {
 		let roomId:string|undefined;
+		
+		if( this.externalDevices[act.entityPath[0]] ) {
+			this.externalDevices[act.entityPath[0]].message( act.message, act.replyPath );
+			return;
+		}
+		
 		switch( act.entityPath[0] ) {
 		case ROOMID_SIMULATOR:
 			this.processSimulatorMessage(act.message);
@@ -1934,6 +1960,7 @@ export class MazeDemo {
 	public exportDatastore : MemoryDatastore<Uint8Array>;
 	public simulator : MazeSimulator;
 	public canvas:HTMLCanvasElement;
+	public soundPlayer:SoundPlayer;
 	public view : MazeView;
 	public playerId : string;
 	public tabSwitchesMode : boolean = true;
@@ -2265,6 +2292,18 @@ export class MazeDemo {
 			entityImageManager: new EntityImageManager(gdm)
 		};
 		this.simulator = new MazeSimulator(gdm);
+		this.simulator.registerExternalDevice( "ui", {
+			message: (msg:SimulationMessage) => {
+				switch( msg.classRef ) {
+				case "http://ns.nuke24.net/Game21/SimulationMessage/SimpleEvent":
+					switch( msg.eventCode ) {
+					case 'jump':
+						this.soundPlayer.playSoundByRef('urn:bitprint:PUI5IOGTUW32PKDJXH2WPAIKF6ZV2UVH.5YEO5BYLXIINTBTLXFWIQ5QKOOA5O2CARTPMTZQ', true);
+					}
+					break;
+				}
+			}
+		} );
 		
 		const loadPromise = this.simulator.fullyLoadRooms( rootRoomId ).then( () => {
 			this.playerId = playerId;
@@ -2895,6 +2934,7 @@ export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string, loadingSt
 	const v = new MazeView(canv);
 	
 	const demo = new MazeDemo();
+	demo.soundPlayer = new SoundPlayer(ds);
 	demo.canvas = canv;
 	demo.datastore = ds;
 	demo.memoryDatastore = memds;
