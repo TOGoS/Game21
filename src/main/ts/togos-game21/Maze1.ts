@@ -1883,9 +1883,11 @@ export class MazeDemo {
 		this.loadingStatusUpdated(stat);
 	}
 	
+	public get demoMode() { return this._demoMode; }
 	public set demoMode(mode:number) {
+		mode = mode % 2;
 		if( mode == this._demoMode ) return;
-		this._demoMode = mode % 2;
+		this._demoMode = mode;
 		if( this._demoMode == DemoMode.EDIT ) {
 			this.tilePaletteUi.element.style.display = "";
 			this.maze1InventoryUi.element.style.display = "none";
