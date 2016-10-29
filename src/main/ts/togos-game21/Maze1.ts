@@ -14,7 +14,10 @@ import { DistributedBucketMapManager } from './DistributedBucketMap';
 import KeyedList from './KeyedList';
 import Vector3D from './Vector3D';
 import { makeVector, setVector, vectorToString, ZERO_VECTOR } from './vector3ds';
-import { addVector, subtractVector, vectorLength, vectorIsZero, scaleVector, normalizeVector, dotProduct, roundVectorToGrid } from './vector3dmath';
+import {
+	accumulateVector, addVector, subtractVector, scaleVector, normalizeVector,
+	vectorLength, vectorIsZero, dotProduct, roundVectorToGrid
+} from './vector3dmath';
 import AABB from './AABB';
 import {
 	makeAabb, aabbWidth, aabbHeight, aabbDepth,
@@ -81,6 +84,7 @@ import {
 const UI_ENTIY_PATH = [ROOMID_EXTERNAL, "demo UI"];
 
 // KeyEvent isn't always available, boo.
+const KEY_CTRL = 17;
 const KEY_ESC = 27;
 const KEY_UP = 38;
 const KEY_DOWN = 40;
@@ -689,6 +693,12 @@ interface Collision {
 	velocity : Vector3D;
 }
 
+function perpendicularPart( vec:Vector3D, perpendicularTo:Vector3D ):Vector3D {
+	const perpendicularLength = vectorLength(perpendicularTo);
+	if( perpendicularLength == 0 ) return vec;
+	return subtractVector(vec, scaleVector(perpendicularTo, dotProduct(vec,perpendicularTo)/perpendicularLength));
+}
+
 export class MazeGamePhysics {
 	constructor( protected game:MazeSimulator ) { }
 	
@@ -773,11 +783,27 @@ export class MazeGamePhysics {
 				const eAClass = this.game.gameDataManager.getEntityClass(collision.roomEntityA.entity.classRef);
 				const eBClass = this.game.gameDataManager.getEntityClass(collision.roomEntityB.entity.classRef);
 				// TODO: Figure out collision physics better?
-				const impulse = scaleVector(collision.velocity, Math.min(entityMass(eAClass), entityMass(eBClass))*(1+bounceFactor(eAClass, eBClass)));
+				const theBounceFactor = bounceFactor(eAClass, eBClass);
+				const stopImpulse = scaleVector(collision.velocity, Math.min(entityMass(eAClass), entityMass(eBClass)));
+				const bounceImpulse = scaleVector(stopImpulse, theBounceFactor);
+				const eAVel = collision.roomEntityA.velocity || ZERO_VECTOR;
+				const eBVel = collision.roomEntityB.velocity || ZERO_VECTOR;
+				const eAPerpVel = perpendicularPart(eAVel, collision.velocity);
+				const eBPerpVel = perpendicularPart(eBVel, collision.velocity);
+				const frictionImpulse = normalizeVector(subtractVector(eAPerpVel,eBPerpVel),
+					(eAClass.coefficientOfFriction || 0.25) *
+					(eAClass.coefficientOfFriction || 0.25) *
+					vectorLength(stopImpulse) *
+					Math.max(0, 1-theBounceFactor)
+				);
+				const totalImpulse = {x:0,y:0,z:0};
+				accumulateVector(stopImpulse, totalImpulse)
+				accumulateVector(bounceImpulse, totalImpulse)
+				accumulateVector(frictionImpulse, totalImpulse)
 				this.registerImpulse(
 					collision.roomAId, collEntityAId, collision.roomEntityA,
 					collision.roomBId, collEntityBId, collision.roomEntityB,
-					impulse
+					totalImpulse
 				);
 			}
 		}
@@ -1909,6 +1935,8 @@ export class MazeDemo {
 		this.view.viewage = newViewage;
 	}
 	
+	protected picking:boolean = false;
+
 	// TODO: Make the key codes key_ constants
 	// TODO: use keyActions for the other things, too.
 	protected keyActions:KeyedList<string[]> = {
@@ -1929,6 +1957,8 @@ export class MazeDemo {
 		65: ['left'],
 		83: ['down'],
 		68: ['right'],
+		
+		[KEY_CTRL]: ['pick'],
 	};
 	
 	protected keysDown:KeyedList<boolean> = {};
@@ -1957,6 +1987,8 @@ export class MazeDemo {
 		if( this.simulator && this.playerId ) {
 			this.enqueueMessage([ROOMID_FINDENTITY, this.playerId], ["/desiredmovementdirection", moveX, moveY, 0]);
 		}
+		
+		this.picking = actions['pick'];
 	}
 	
 	// When keys are pressed in the main game interface
@@ -2266,7 +2298,7 @@ export class MazeDemo {
 		if( evt.buttons == 1 ) {
 			const cpCoords = this.eventToCanvasPixelCoordinates(evt);
 			const coords = this.view.canvasPixelToWorldCoordinates(cpCoords.x, cpCoords.y);
-			if( this.keysDown[17] ) {
+			if( this.picking ) {
 				const entity:TileEntity|undefined = this.view.getTileEntityAt(coords, 1);
 				this.tilePaletteUi.setSlot(this.tilePaletteUi.selectedSlotIndex, entity||null);
 			} else {
