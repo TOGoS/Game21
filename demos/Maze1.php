@@ -226,11 +226,6 @@ ul.tile-palette li.selected {
 	height: 80vh;
 	width: 80vw;
 }
-#win-dialog {
-	top: 20vh;
-	right: 25vw;
-	left: 25vw;
-}
 
 .dialog-text-area {
 	background: rgba(0,0,0,0.6);	
@@ -332,27 +327,30 @@ ul.tile-palette li.selected {
 	color: white;
 }
 
-#win-dialog {
+.event-dialog {
+	top: 20vh;
+	right: 25vw;
+	left: 25vw;
 	background: black;
 }
-.win-dialog-message-area {
+.event-dialog-message-area {
 	display: flex;
 	flex-direction: column;
 	flex-grow: 2;
 }
-.win-dialog-message-area > p {
+.event-dialog-message-area > p {
 	font-size: 36px;
 	text-align: center;
 	margin: 8px 16px;
 }
-.win-dialog-button-area {
+.event-dialog-button-area {
 	display: flex;
 	flex-basis: content;
 	flex-grow: 0;
 	flex-direction: row;
 	justify-content: space-around;
 }
-.win-dialog-button-area button {
+.event-dialog-button-area button {
 	margin: 8px;
 	font-size: 24px;
 }
@@ -458,10 +456,16 @@ non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
 <div id="inventory-dialog" style="display:none">
 </div>
 
-<div id="win-dialog" class="dialog-box" style="display:none">
-<div id="win-dialog-message-area" class="win-dialog-message-area"></div>
-<div id="win-dialog-button-area" class="win-dialog-button-area"></div>
+<div id="win-dialog" class="dialog-box event-dialog" style="display:none">
+<div id="win-dialog-message-area" class="event-dialog-message-area"></div>
+<div id="win-dialog-button-area" class="event-dialog-button-area"></div>
 </div>
+
+<div id="restart-dialog" class="dialog-box event-dialog" style="display:none">
+<div id="restart-dialog-message-area" class="event-dialog-message-area"></div>
+<div id="restart-dialog-button-area" class="event-dialog-button-area"></div>
+</div>
+
 
 <?php if($includeFakeContent): ?>
 <p>But I must explain to you how all this mistaken idea of denouncing pleasure

@@ -867,13 +867,11 @@ export function mazeToWorld(worldifier:GraphWorldifier):Promise<{ gdm:GameDataMa
 	}).then( (worldifier) => {
 		const startRoomRef = worldifier.run();
 		const startRoom = gdm.getMutableRoom(startRoomRef)
-		startRoom.roomEntities[dat.playerEntityId] = {
+		startRoom.roomEntities[dat.primarySpawnPointEntityId] = {
 			position: {x:1.5,y:0.5,z:0},
 			entity: {
 				id: dat.playerEntityId,
-				classRef: dat.playerEntityClassId,
-				desiresMaze1AutoActivation: true,
-				storedEnergy: 100000 // Not meant to be realistic for now
+				classRef: dat.spawnPointEntityClassId,
 			}
 		}
 		

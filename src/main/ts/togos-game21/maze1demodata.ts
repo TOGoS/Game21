@@ -107,6 +107,16 @@ const playerPix = [
 	0,0,0,0,1,1,0,0,0,0,0,1,1,0,0,0,
 	0,0,1,1,1,1,0,0,0,0,0,1,1,1,1,0,
 ];
+const deadPlayerPix = [
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0,
+	0,1,1,1,1,0,1,0,1,0,0,0,0,0,0,0,
+	0,0,1,1,0,0,1,0,1,0,1,1,0,1,1,0,
+	0,1,1,1,1,0,1,0,1,0,0,0,1,0,0,0,
+	0,1,0,1,0,0,0,1,0,1,1,1,0,1,1,0,
+];
 const plant1Pix = [
 	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -346,7 +356,8 @@ const bigBrikImgRef = "bitimg:color0=0;color1="+rgbaToNumber(220,220,200,255)+",
 const bigBlueBrikImgRef   = bitImgRef(black,wallBlue,bigBrikPix);
 const bigYellowBrikImgRef = bitImgRef(black,wallYellow,bigBrikPix);
 const bigRedBrikImgRef    = bitImgRef(black,wallRed,bigBrikPix);
-const playerImgRef = "bitimg:color0=0;color1="+rgbaToNumber(224,224,96,255)+","+hexEncodeBits(playerPix);
+const playerImgRef        = bitImgRef(0,[224,224,96],playerPix);
+const deadPlayerImgRef    = bitImgRef(0,[112,96,48],deadPlayerPix,16,8);
 const plant1ImgRef         = bitImgRef(0,[64,192,64],plant1Pix);
 const browningPlant1ImgRef = bitImgRef(0,[64,112,64],plant1Pix);
 const brownPlant1ImgRef    = bitImgRef(0,[80, 72,48],plant1Pix);
@@ -502,7 +513,10 @@ export const platformSegmentEntityClassId = 'urn:uuid:819f8257-bcad-4d2f-a64e-0a
 export const platform3EntityClassId = 'urn:uuid:585927b9-b225-49d7-a49a-dff0445a1f78';
 export const tileEntityPaletteId = 'urn:uuid:50c19be4-7ab9-4dda-a52f-cf4cfe2562ac';
 
-export const playerEntityClassId = 'urn:uuid:416bfc18-7412-489f-a45e-6ff4c6a4e08b';
+
+export const spawnPointEntityClassId = 'urn:uuid:416bfc18-7412-489f-a45e-6ff4c6a4e08a';
+export const playerEntityClassId     = 'urn:uuid:416bfc18-7412-489f-a45e-6ff4c6a4e08b';
+export const deadPlayerEntityClassId = 'urn:uuid:416bfc18-7412-489f-a45e-6ff4c6a4e08c';
 export const tanRox1EntityClassId    = 'urn:uuid:4513ae98-0f43-4099-a532-6522adc6b6f1';
 export const brikEntityClassId       = 'urn:uuid:7164c409-9d00-4d75-8fc6-4f30a5755f77';
 export const brownBrikEntityClassId  = 'urn:uuid:7164c409-9d00-4d75-8fc6-4f30a5755f78';
@@ -531,7 +545,8 @@ export const latticeColumnBgEntityClassId = 'urn:uuid:b64789e4-023c-49ea-98b5-a9
 export const latticeColumnBgRightBlockEntityClassId = 'urn:uuid:c447986a-19d2-447a-ab39-afe9df781dbe';
 export const latticeColumnBgLeftBlockEntityClassId = 'urn:uuid:c145afdd-bc60-4c97-bad8-b6fcb3e1846f';
 
-export const playerEntityId      = 'urn:uuid:d42a8340-ec03-482b-ae4c-a1bfdec4ba32';
+export const primarySpawnPointEntityId = 'urn:uuid:d42a8340-ec03-482b-ae4c-a1bfdec4ba3a'; 
+export const playerEntityId            = 'urn:uuid:d42a8340-ec03-482b-ae4c-a1bfdec4ba32';
 export const ballEntityId        = 'urn:uuid:10070a44-2a0f-41a1-bcfb-b9e16a6f1b59';
 export const blueKeyEntityId     = 'urn:uuid:fd1935da-f128-4195-8a13-90fbf59ef3b1';
 export const yellowKeyEntityId   = 'urn:uuid:fd1935da-f128-4195-8a13-90fbf59ef3b2';
@@ -645,6 +660,13 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 	}, playerHandAttachmentZoneClassRef);
 	
 	gdm.tempStoreObject<EntityClass>( {
+		debugLabel: "spawn point",
+		structureType: StructureType.NONE,
+		tilingBoundingBox: UNIT_CUBE,
+		visualBoundingBox: UNIT_CUBE,
+		physicalBoundingBox: UNIT_CUBE,
+	}, spawnPointEntityClassId);
+	gdm.tempStoreObject<EntityClass>( {
 		debugLabel: "player",
 		structureType: StructureType.INDIVIDUAL,
 		tilingBoundingBox: UNIT_CUBE,
@@ -666,6 +688,20 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 			[rightHandAttachmentZoneKey]: playerHandAttachmentZoneClassRef,
 		},
 	}, playerEntityClassId );
+	const deadPlayerPhysicalBoundingBox = makeAabb(-0.25, -0.125, -0.25, +0.25, +0.125, +0.25);
+	const deadPlayerVisualBoundingBox = makeAabb(-0.5, -0.5+0.125, -0.25, +0.5, +0.125, +0.25);
+	gdm.tempStoreObject<EntityClass>( {
+		debugLabel: "dead player",
+		structureType: StructureType.INDIVIDUAL,
+		tilingBoundingBox: UNIT_CUBE,
+		physicalBoundingBox: deadPlayerPhysicalBoundingBox,
+		visualBoundingBox: deadPlayerVisualBoundingBox,
+		isSolid: true,
+		isAffectedByGravity: true,
+		mass: 45, // 100 lbs; he's a small guy
+		bounciness: 1/64,
+		visualRef: deadPlayerImgRef,
+	}, deadPlayerEntityClassId );
 
 	gdm.tempStoreObject<EntityClass>({
 		debugLabel: "bouncy ball",
@@ -1033,9 +1069,9 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 	gdm.tempStoreObject<EntityClass>( {
 		debugLabel: "apple",
 		structureType: StructureType.INDIVIDUAL,
-		tilingBoundingBox: QUNIT_CUBE,
-		physicalBoundingBox: QUNIT_CUBE,
-		visualBoundingBox: QUNIT_CUBE,
+		tilingBoundingBox: HUNIT_CUBE,
+		physicalBoundingBox: HUNIT_CUBE,
+		visualBoundingBox: HUNIT_CUBE,
 		isMaze1AutoPickup: true,
 		isAffectedByGravity: true,
 		isSolid: true,

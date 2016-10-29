@@ -895,12 +895,17 @@ export class MazeGamePhysics {
 		const entitiesToMove:{roomId:string, entityId:string, moveOrder:number}[] = [];
 		const snapGridSize = this.snapGridSize;
 		
-		// Auto pickups!  And door opens.
+		// Auto pickups!  And door opens.  And death.
 		for( let r in this.activeRoomIds ) {
 			let room = rooms[r];
 			for( let re in room.roomEntities ) {
 				const roomEntity = room.roomEntities[re];
 				const entity = roomEntity.entity;
+				
+				if( entity.classRef == dat.playerEntityClassId && entity.storedEnergy < 1 ) {
+					entity.classRef = dat.deadPlayerEntityClassId;
+				}
+				
 				if( !entity.desiresMaze1AutoActivation ) continue;
 				const entityClass = gdm.getEntityClass(entity.classRef);
 				
@@ -1499,6 +1504,10 @@ export class MazeSimulator {
 			const blockLoc = this.fixLocation( {roomRef: roomId, position: makeVector(relX+rePos.x, relY+rePos.y, relZ+rePos.z)} );
 			this.setTileTreeBlock( blockLoc.roomRef, blockLoc.position, tileScale, block );
 			return;
+		} else if( path == '/vomit' ) {
+			if( roomEntity.entity.storedEnergy != undefined ) {
+				roomEntity.entity.storedEnergy /= 2;
+			}
 		}
 	}
 	
@@ -1744,7 +1753,8 @@ export class MazeDemo {
 	public tilePaletteUi:TilePaletteUI;
 	public maze1InventoryUi:TilePaletteUI;
 	public consoleDialog?:ConsoleDialogBox;
-	public winDialog?:WinDialogBox;
+	public winDialog?:EventDialogBox;
+	public restartDialog?:EventDialogBox;
 	public loadDialog?:DialogBox;
 	public helpDialog?:DialogBox;
 	public energyIndicator?:ScalarIndicator;
@@ -1771,7 +1781,7 @@ export class MazeDemo {
 	
 	protected logLoadingStatus(stat:string, isError:boolean=false, err?:Error) {
 		this.loadingStatusUpdated(stat);
-		if( isError ) this.logger.error(stat, err);
+		if( isError ) this.logger.error(stat, err || new Error(stat));
 		else this.logger.log(stat);
 	}
 	
@@ -1872,8 +1882,13 @@ export class MazeDemo {
 					}
 				}
 				if( this.energyIndicator ) this.energyIndicator.value = foundPlayer.entity.storedEnergy;
+				if( foundPlayer.entity.storedEnergy < 1 && this.restartDialog && !this.restartDialog.isVisible ) {
+					this.logger.log("You have run out of energy and died. :(");
+					this.restartDialog.message = "You have run out of energy and died.";
+					this.restartDialog.isVisible = true;
+				} 
 			} else {
-				if( this.energyIndicator ) this.energyIndicator.value = 0;
+				if( this.energyIndicator ) this.energyIndicator.value = undefined;
 			}
 			this.maze1InventoryUi.setAllSlots(invItems);
 		}
@@ -2083,6 +2098,37 @@ export class MazeDemo {
 		});
 	}
 	
+	public restartLevel():void {
+		const newPlayerId = this.playerId = newUuidRef();
+		let playerPlaced = false;
+		for( let r in this.simulator.activeRooms ) {
+			const room = this.simulator.activeRooms[r];
+			for( let re in room.roomEntities ) {
+				const roomEntity = room.roomEntities[re];
+				if( !playerPlaced && roomEntity.entity.classRef == dat.spawnPointEntityClassId ) {
+					// Oh oh put the player here!
+					room.roomEntities[newPlayerId] = {
+						position: roomEntity.position,
+						entity: {
+							id: newPlayerId,
+							classRef: dat.playerEntityClassId,
+							desiresMaze1AutoActivation: true,
+							storedEnergy: 100000
+						}
+					};
+					playerPlaced = true;
+				}
+				if( re != newPlayerId && roomEntity.entity.classRef == dat.playerEntityClassId ) {
+					roomEntity.entity.classRef = dat.deadPlayerEntityClassId;
+				}
+			}
+		}
+		if( this.restartDialog ) this.restartDialog.isVisible = false;
+		if( !playerPlaced ) {
+			this.logLoadingStatus("No spawn point found!", true);
+		}
+	}
+	
 	public generateAndLoadNewLevel(level:number):Promise<void> {
 		let attempts = 0;
 		let generateMaze:()=>Promise<void> = () => Promise.resolve(); // stupid ts compiler blah
@@ -2102,9 +2148,9 @@ export class MazeDemo {
 			this.logger.log(generationMessage);
 			this.loadingStatus = "Generating level "+level+"...";
 			if( this.winDialog ) this.winDialog.message = generationMessage;
-			if( this.winDialog && this.winDialog.nextLevelButton ) this.winDialog.nextLevelButton.disabled = true;
+			if( this.winDialog && this.winDialog.dismissButton ) this.winDialog.dismissButton.disabled = true;
 			++attempts;
-				
+			
 			const p = new Promise( (res,rej) => setTimeout(res,50) ).then( () => {
 				const maze = generator.generate();
 				this.logger.log("Generated maze graph with "+maze.nodes.length+" nodes, "+maze.links.length+" links");
@@ -2117,7 +2163,9 @@ export class MazeDemo {
 				return worldifier;
 			}).then( (worldifier) => mazeToWorld(worldifier) ).then( ({gdm, playerId, startRoomRef}) => {
 				this.hideDialog(this.winDialog);
-				return this.loadGame2( gdm, playerId, startRoomRef, "generated maze" );
+				return this.loadGame2( gdm, playerId, startRoomRef, "generated maze" ).then( () => {
+					this.restartLevel();
+				});
 			}, (err) => {
 				if( attempts < 50 ) {
 					this.logger.warn("Maze generation failed; trying agin (attempt #"+attempts+"): ", err);
@@ -2133,7 +2181,7 @@ export class MazeDemo {
 				this.currentLevelNumber = level;
 			});
 			return finalmente(p, () => {
-				if( this.winDialog && this.winDialog.nextLevelButton ) this.winDialog.nextLevelButton.disabled = false;
+				if( this.winDialog && this.winDialog.dismissButton ) this.winDialog.dismissButton.disabled = false;
 			});
 		}
 		return generateMaze();
@@ -2435,6 +2483,12 @@ export class MazeDemo {
 						this.enqueueMessage([ROOMID_SIMULATOR], ["/connect-rooms", roomAId, dirName, roomBId]);
 					}
 					break;
+				case 'restart-level':
+					this.restartLevel();
+					break;
+				case 'vomit':
+					this.enqueueMessage([ROOMID_FINDENTITY, this.playerId], ["/vomit"]);
+					break;
 				default:
 					this.logger.error("Unrecognized command: /"+tokens[0].text);
 					break;
@@ -2475,6 +2529,9 @@ class DialogBox {
 	public get isVisible() {
 		return this.element.style.display != 'none';
 	}
+	public set isVisible(v:boolean) {
+		this.setVisible(v);
+	}
 	
 	/**
 	 * Always use demo.hideDialog so that focus can be put back on game interface!
@@ -2492,9 +2549,9 @@ function hideDialogBox(db:DialogBox|undefined) {
 	if( db ) db.setVisible(false);
 }
 
-class WinDialogBox extends DialogBox {
+class EventDialogBox extends DialogBox {
 	public messageAreaElement:HTMLElement|undefined|null;
-	public nextLevelButton:HTMLButtonElement|undefined|null;
+	public dismissButton:HTMLButtonElement|undefined|null;
 	
 	public set message(text:string) {
 		const e = this.messageAreaElement;
@@ -2508,7 +2565,7 @@ class WinDialogBox extends DialogBox {
 	
 	public setVisible(viz:boolean) {
 		super.setVisible(viz);
-		if( viz && this.nextLevelButton ) this.nextLevelButton.focus();
+		if( viz && this.dismissButton ) this.dismissButton.focus();
 	}
 }
 
@@ -2779,7 +2836,7 @@ export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string, loadingSt
 	
 	const winDialogElem = document.getElementById('win-dialog');
 	if( winDialogElem ) {
-		const winDialog:WinDialogBox = demo.winDialog = new WinDialogBox(winDialogElem);
+		const winDialog:EventDialogBox = demo.winDialog = new EventDialogBox(winDialogElem);
 		winDialog.messageAreaElement = document.getElementById('win-dialog-message-area');
 		const winButtonArea = document.getElementById('win-dialog-button-area');
 		
@@ -2788,7 +2845,7 @@ export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string, loadingSt
 		}
 		
 		if( winButtonArea ) {
-			const nextLevelButton = winDialog.nextLevelButton = document.createElement('button');
+			const nextLevelButton = winDialog.dismissButton = document.createElement('button');
 			nextLevelButton.appendChild(document.createTextNode('Next level!'));
 			nextLevelButton.onclick = dismissWinDialog;
 			winButtonArea.appendChild(nextLevelButton);
@@ -2797,6 +2854,32 @@ export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string, loadingSt
 		winDialogElem.addEventListener('keydown', (keyEvent:KeyboardEvent) => {
 			if( keyEvent.keyCode == KEY_ESC || keyEvent.keyCode == KEY_ENTER ) {
 				dismissWinDialog();
+				keyEvent.preventDefault();
+				keyEvent.stopPropagation();
+			}
+		});
+	}
+	
+	const restartDialogElem = document.getElementById('restart-dialog');
+	if( restartDialogElem ) {
+		const restartDialog:EventDialogBox = demo.restartDialog = new EventDialogBox(restartDialogElem);
+		restartDialog.messageAreaElement = document.getElementById('restart-dialog-message-area');
+		const restartButtonArea = document.getElementById('restart-dialog-button-area');
+		
+		const dismissRestartDialog = () => {
+			demo.restartLevel();
+		}
+		
+		if( restartButtonArea ) {
+			const restartLevelButton = restartDialog.dismissButton = document.createElement('button');
+			restartLevelButton.appendChild(document.createTextNode('Restart level'));
+			restartLevelButton.onclick = dismissRestartDialog;
+			restartButtonArea.appendChild(restartLevelButton);
+		}
+		
+		restartDialogElem.addEventListener('keydown', (keyEvent:KeyboardEvent) => {
+			if( keyEvent.keyCode == KEY_ESC || keyEvent.keyCode == KEY_ENTER ) {
+				dismissRestartDialog();
 				keyEvent.preventDefault();
 				keyEvent.stopPropagation();
 			}
