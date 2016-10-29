@@ -26,9 +26,10 @@
 
 ## Misc to-do items
 
-- Friction
+* Friction
+* Control+click is broken!!  plz fix.  maybe on master branch
+- Berries on bushes
 - Dead player should drop any items
-- Control+click is broken!!  plz fix.  maybe on master branch
 
 Different random maze generation:
 - wave function collapse-generated rooms

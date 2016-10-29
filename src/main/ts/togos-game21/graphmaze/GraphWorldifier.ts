@@ -684,14 +684,14 @@ export default class GraphWorldifier {
 			const itemClassRefs:string[] = [];
 			let itemsNeedFancyPedestal = false;
 			if( span.node && !itemsPlaced ) {
-				makeItemList: for( let k in span.node.items ) {
+				for( let k in span.node.items ) {
 					const itemClassId = span.node.items[k];
 					let entityClassRef:string;
 					switch( itemClassId ) {
 					case ITEMCLASS_BLUEKEY  : entityClassRef = dat.blueKeyEntityClassId; break;
 					case ITEMCLASS_YELLOWKEY: entityClassRef = dat.yellowKeyEntityClassId; break;
 					case ITEMCLASS_REDKEY   : entityClassRef = dat.redKeyEntityClassId; break;
-					case ITEMCLASS_START    : continue makeItemList;
+					case ITEMCLASS_START    : entityClassRef = dat.spawnPointEntityClassId; break;
 					case ITEMCLASS_END      : entityClassRef = dat.triforceEntityClassId; break;
 					default: throw new Error("Unknown entity type "+itemClassId);
 					}
@@ -714,14 +714,12 @@ export default class GraphWorldifier {
 				const entityClassRef = itemClassRefs[i];
 				const tileX = Math.floor(itemX);
 				const tileY = Math.floor(itemY);
-				if( itemsNeedFancyPedestal ) {
+				if( itemsNeedFancyPedestal && !itemsPlaced ) {
 					tileBmp.fill(tileX,tileY+1,z0, tileX+1,tileY+2,z1, platformTileIndex);
 				}
 				
 				// Make sure there's space around to get the thing!
-				tileBmp.fill(tileX,tileY,z0, tileX+1,tileY+1,z1, 0);
-				tileBmp.fill(tileX-1,tileY,z0, tileX,tileY+2,z1, 0);
-				tileBmp.fill(tileX+1,tileY,z0, tileX+2,tileY+2,z1, 0);
+				tileBmp.fill(tileX-1,tileY,z0, tileX+2,tileY+1,z1, 0);
 				roomEntities[newUuidRef()] = {
 					position: {x: itemX, y: itemY, z:0},
 					entity: { classRef: entityClassRef }
@@ -792,8 +790,9 @@ export default class GraphWorldifier {
 	
 	protected figureFoodLocations() {
 		const fitNodes = nMostFit( this.maze.nodes, Math.ceil(this.maze.nodes.length / 10), (n:MazeNode) => {
-			if( !isEmpty(n.items) ) return 0;
-			return 1/(1+n.linkIds.length) + Math.random()/16;
+			let itemCount = 0;
+			for( let i in n.items ) ++itemCount;
+			return 8/(1+n.linkIds.length+itemCount) + Math.random()/2;
 		});
 		for( let i=0; i<fitNodes.length; ++i ) {
 			this.nodeFoods[fitNodes[i].id] = true;
@@ -866,6 +865,7 @@ export function mazeToWorld(worldifier:GraphWorldifier):Promise<{ gdm:GameDataMa
 		return worldifier;
 	}).then( (worldifier) => {
 		const startRoomRef = worldifier.run();
+		/*
 		const startRoom = gdm.getMutableRoom(startRoomRef)
 		startRoom.roomEntities[dat.primarySpawnPointEntityId] = {
 			position: {x:1.5,y:0.5,z:0},
@@ -874,7 +874,7 @@ export function mazeToWorld(worldifier:GraphWorldifier):Promise<{ gdm:GameDataMa
 				classRef: dat.spawnPointEntityClassId,
 			}
 		}
-		
+		*/
 		return { gdm, playerId:dat.playerEntityId, startRoomRef };
 	})
 }
