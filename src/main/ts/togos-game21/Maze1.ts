@@ -1009,6 +1009,10 @@ export class MazeGamePhysics {
 							pickedUp = true;
 						}
 						if( pickedUp ) {
+							this.game.sendSimpleEventToUi({
+								classRef: "http://ns.nuke24.net/Game21/SimulationMessage/ItemGot",
+								itemClassRef: foundIoi.entity.classRef
+							})
 							delete rooms[foundIoi.roomRef].roomEntities[foundIoi.roomEntityId];
 						}
 					}
@@ -1146,14 +1150,10 @@ export class MazeGamePhysics {
 							r, re, roomEntity,
 							floorCollision.roomRef, floorCollision.roomEntityId, floorCollision.roomEntity, jumpImpulse)
 						) {
-							this.game.enqueueAction( {
-								"classRef": "http://ns.nuke24.net/Game21/SimulationAction/ReceiveMessage",
-								entityPath: ['ui'],
-								message: {
-									classRef: "http://ns.nuke24.net/Game21/SimulationMessage/SimpleEvent",
-									eventCode: "jump"
-								}
-							})
+							this.game.sendSimpleEventToUi({
+								classRef: "http://ns.nuke24.net/Game21/SimulationMessage/SimpleEvent",
+								eventCode: 'jump'
+							});
 						}
 					}
 				} else {
@@ -1558,6 +1558,10 @@ export class MazeSimulator {
 				}
 			}
 		}
+		this.sendSimpleEventToUi({
+			classRef: "http://ns.nuke24.net/Game21/SimulationMessage/SimpleEvent",
+			eventCode: 'door-opened'
+		});
 	}
 	
 	protected processEntityMessage(
@@ -1750,6 +1754,13 @@ export class MazeSimulator {
 		}
 		return undefined;
 	}
+	
+	public sendSimpleEventToUi(message:SimulationMessage) {
+		const dev = this.externalDevices['ui'];
+		if( !dev ) return;
+		dev.message( message );
+	}
+
 	
 	protected doReceiveMessageAction( act:ReceiveMessageAction ):void {
 		let roomId:string|undefined;
@@ -2292,13 +2303,41 @@ export class MazeDemo {
 			entityImageManager: new EntityImageManager(gdm)
 		};
 		this.simulator = new MazeSimulator(gdm);
+		const sounds:KeyedList<{dataRef:string}> = {
+			'jump': {dataRef: 'urn:bitprint:PUI5IOGTUW32PKDJXH2WPAIKF6ZV2UVH.5YEO5BYLXIINTBTLXFWIQ5QKOOA5O2CARTPMTZQ'},
+			'food-ate': {dataRef: 'urn:bitprint:52C7CJ3H23QPTH4ORAS4XMI2JIGKYOKC.F6NQEI6XJYNCSHQFDOGO3PWBUDX6ZOD6KJTYCWA'},
+			'key-got': {dataRef: 'urn:bitprint:S6K6KYKJVBNLIR5Y7MDQHMR4ORQZGYOE.AU73BOMZZKFBMGOS4CBJCGWVKGJW72PKW2UGNAY'},
+			'triforce-got': {dataRef: 'urn:bitprint:NLQVXM2OZGSHWVWJVUPBFIGKBJ4PLJ6N.L4IOHLRD5U57XEW4U4CI5TDFC4NGF6XVNGLSAPA'},
+			'stick-got': {dataRef: 'urn:bitprint:RK2CXQIXPC6DX7E66AKWJFBPBHBZ6EJI.BYKJVUZFX4CFTFOVT4OXNDAOLJBJ3MHN7NN57GQ'},
+			'door-opened': {dataRef: 'urn:bitprint:TXAUXVJ77XD5YVQDGIDGO6NPYPUER65P.DHARB5VFR6KWT4MAMYXBVMCKOJDTRPZKKSB4G3I'},
+		}
+		const simpleEventSounds:KeyedList<{dataRef:string}> = {
+			'jump': sounds['jump'],
+			'door-opened': sounds['door-opened'],
+		}
+		const itemSounds:KeyedList<{dataRef:string}> = {
+			[dat.appleEntityClassId]: sounds['food-ate'],
+			[dat.blueKeyEntityClassId]: sounds['key-got'],
+			[dat.yellowKeyEntityClassId]: sounds['key-got'],
+			[dat.redKeyEntityClassId]: sounds['key-got'], 
+			[dat.triforceEntityClassId]: sounds['triforce-got'],
+			[dat.stick1EntityClassId]: sounds['stick-got'],
+			[dat.stick2EntityClassId]: sounds['stick-got'],
+		};
+		for( let k in sounds ) {
+			this.soundPlayer.preloadSound(sounds[k].dataRef);
+		}
 		this.simulator.registerExternalDevice( "ui", {
 			message: (msg:SimulationMessage) => {
 				switch( msg.classRef ) {
 				case "http://ns.nuke24.net/Game21/SimulationMessage/SimpleEvent":
-					switch( msg.eventCode ) {
-					case 'jump':
-						this.soundPlayer.playSoundByRef('urn:bitprint:PUI5IOGTUW32PKDJXH2WPAIKF6ZV2UVH.5YEO5BYLXIINTBTLXFWIQ5QKOOA5O2CARTPMTZQ', true);
+					if( simpleEventSounds[msg.eventCode] ) {
+						this.soundPlayer.playSoundByRef(simpleEventSounds[msg.eventCode].dataRef);
+					}
+					break;
+				case "http://ns.nuke24.net/Game21/SimulationMessage/ItemGot":
+					if( itemSounds[msg.itemClassRef] ) {
+						this.soundPlayer.playSoundByRef(itemSounds[msg.itemClassRef].dataRef);
 					}
 					break;
 				}
