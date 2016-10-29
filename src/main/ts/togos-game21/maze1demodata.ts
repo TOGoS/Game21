@@ -269,6 +269,16 @@ const keyPix = [
 	1,1,0,1,1,1,1,1,
 	0,1,1,1,0,1,0,1,
 ];
+const applePix = [
+	0,0,0,0,0,1,0,0,
+	0,0,0,0,1,0,0,0,
+	0,1,1,1,0,1,1,0,
+	1,1,1,1,1,1,1,0,
+	1,1,1,1,1,0,1,0,
+	1,1,1,1,1,0,1,0,
+	0,1,1,1,0,1,1,0,
+	0,0,1,0,1,1,0,0,
+];
 const cheapDoorPix = [
 	0,1,1,0,1,1,0,1,1,0,
 	0,1,1,0,1,1,0,1,1,0,
@@ -357,6 +367,7 @@ const blueKeyImgRef   = bitImgRef(0,  [0,  0,192],keyPix,8,4);
 const yellowKeyImgRef = bitImgRef(0,[192,192,  0],keyPix,8,4);
 const redKeyImgRef    = bitImgRef(0,[192,  0,  0],keyPix,8,4);
 const triforceImgRef  = bitImgRef(0,[200,200,128],triforcePix,12,12);
+const appleImgRef     = bitImgRef(0,[128,64,32],applePix);
 
 const cheapBlueDoorImgRef   = bitImgRef(0,[  0,  0,192],cheapDoorPix,10,16);
 const cheapYellowDoorImgRef = bitImgRef(0,[192,192,  0],cheapDoorPix,10,16);
@@ -535,6 +546,7 @@ export const blueKeyEntityClassId   = 'urn:uuid:f2f4bea7-7a6a-45af-9a70-83c7ce58
 export const redKeyEntityClassId    = 'urn:uuid:f2f4bea7-7a6a-45af-9a70-83c7ce58ba32';
 export const yellowKeyEntityClassId = 'urn:uuid:f2f4bea7-7a6a-45af-9a70-83c7ce58ba33';
 export const triforceEntityClassId  = 'urn:uuid:849d75c9-ab5b-476f-9192-c87601d40de0';
+export const appleEntityClassId     = 'urn:uuid:6048f9b8-f5bf-414a-b439-3f812e1ad31a';
 
 export const cheapBlueDoorEntityClassId   = 'urn:uuid:0575864a-e0d0-4fa4-b84a-a724a66dcb61';
 export const cheapRedDoorEntityClassId    = 'urn:uuid:0575864a-e0d0-4fa4-b84a-a724a66dcb62';
@@ -1018,6 +1030,20 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 		mass: 0.25, // It's an average triforce
 		visualRef: triforceImgRef,
 	}, triforceEntityClassId);
+	gdm.tempStoreObject<EntityClass>( {
+		debugLabel: "apple",
+		structureType: StructureType.INDIVIDUAL,
+		tilingBoundingBox: QUNIT_CUBE,
+		physicalBoundingBox: QUNIT_CUBE,
+		visualBoundingBox: QUNIT_CUBE,
+		isMaze1AutoPickup: true,
+		isAffectedByGravity: true,
+		isSolid: true,
+		mass: 0.25,
+		visualRef: appleImgRef,
+		isMaze1Edible: true,
+		maze1NutritionalValue: 10000 // Not realistic!  Realistic value:  397480 joules (95 kilocalories)
+	}, appleEntityClassId);
 	
 	const regularTileEntityPaletteRef = makeTileEntityPaletteRef( [
 		null,

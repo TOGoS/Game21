@@ -34,3 +34,8 @@ export function symmetricDifference<T>( a:KeyedList<T>, b:KeyedList<T> ):KeyedLi
 	for( let k in b ) if( !a[k] ) diff[k] = b[k];
 	return diff;
 }
+
+export function isEmpty<T>(t:KeyedList<T>):boolean {
+	for( let i in t ) return false;
+	return true;
+}

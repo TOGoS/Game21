@@ -920,7 +920,11 @@ export class MazeGamePhysics {
 					if( foundIoi.entityClass.isMaze1AutoPickup ) {
 						delete rooms[foundIoi.roomRef].roomEntities[foundIoi.roomEntityId];
 						if( entity.maze1Inventory == undefined ) entity.maze1Inventory = {};
-						entity.maze1Inventory[foundIoi.roomEntityId] = foundIoi.entity;
+						if( foundIoi.entityClass.isMaze1Edible ) {
+							entity.storedEnergy += +foundIoi.entityClass.maze1NutritionalValue;
+						} else {
+							entity.maze1Inventory[foundIoi.roomEntityId] = foundIoi.entity;
+						}
 					}
 					doKey: if( foundIoi.entityClass.cheapMaze1DoorKeyClassRef ) {
 						const requiredKeyClass = foundIoi.entityClass.cheapMaze1DoorKeyClassRef;

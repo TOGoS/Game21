@@ -117,6 +117,10 @@ export interface EntityClass {
 	isMaze1AutoPickup? : boolean;
 	/** @temporary-shortcut ; replace with entity internal systems; this indicates the key class that will destroy a cheap door */
 	cheapMaze1DoorKeyClassRef? : string;
+	/** @temporary-shortcut */
+	isMaze1Edible? : boolean;
+	/** @temporary-shortcut */
+	maze1NutritionalValue? : number;
 	
 	visualRef? : string;
 	

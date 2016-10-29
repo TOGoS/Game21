@@ -14,6 +14,8 @@ import {
 	ITEMCLASS_END,
 	ITEMCLASS_START,
 } from '../graphmaze';
+import { pickOne, nMostFit } from './picking';
+import { isEmpty } from './setutil';
 import GameDataManager from '../GameDataManager';
 import {
 	newType4Uuid,
@@ -250,11 +252,6 @@ function randInt(min:number, max:number) {
 
 function rot2<T>( t:T[] ) {
 	return [t[2],t[3],t[0],t[1]];
-}
-
-function pickOne<T>( t:T[] ):T {
-	if( t.length == 0 ) throw new Error("Can't pick from zero-length list!")
-	return t[Math.floor(Math.random()*t.length)];
 }
 
 export default class GraphWorldifier {
@@ -684,26 +681,40 @@ export default class GraphWorldifier {
 			
 			const roomEntities:KeyedList<RoomEntity> = {}
 			
+			const itemClassRefs:string[] = [];
+			let itemsNeedFancyPedestal = false;
+			if( span.node && !itemsPlaced ) {
+				makeItemList: for( let k in span.node.items ) {
+					const itemClassId = span.node.items[k];
+					let entityClassRef:string;
+					switch( itemClassId ) {
+					case ITEMCLASS_BLUEKEY  : entityClassRef = dat.blueKeyEntityClassId; break;
+					case ITEMCLASS_YELLOWKEY: entityClassRef = dat.yellowKeyEntityClassId; break;
+					case ITEMCLASS_REDKEY   : entityClassRef = dat.redKeyEntityClassId; break;
+					case ITEMCLASS_START    : continue makeItemList;
+					case ITEMCLASS_END      : entityClassRef = dat.triforceEntityClassId; break;
+					default: throw new Error("Unknown entity type "+itemClassId);
+					}
+					itemClassRefs.push(entityClassRef);
+					itemsNeedFancyPedestal = true;
+				}
+				if( this.nodeFoods[span.node.id] ) {
+					itemClassRefs.push(dat.appleEntityClassId);
+				}
+			}
+			
 			const itemX = !protoRoom.protoLinks[DIR_DOWN] ? 0.5 :
 				!protoRoom.protoLinks[DIR_LEFT] ? -1.5 :
 				!protoRoom.protoLinks[DIR_RIGHT] ? +1.5 :
 				-0.5;
-			let itemY = floorHeights[Math.floor(itemX-roomBounds.minX)] - 1.5;
-			if( span.node && !itemsPlaced ) placeItems: for( let k in span.node.items ) {
-				const itemClassId = span.node.items[k];
-				let entityClassRef:string;
-				switch( itemClassId ) {
-				case ITEMCLASS_BLUEKEY  : entityClassRef = dat.blueKeyEntityClassId; break;
-				case ITEMCLASS_YELLOWKEY: entityClassRef = dat.yellowKeyEntityClassId; break;
-				case ITEMCLASS_REDKEY   : entityClassRef = dat.redKeyEntityClassId; break;
-				case ITEMCLASS_START    : continue placeItems;
-				case ITEMCLASS_END      : entityClassRef = dat.triforceEntityClassId; break;
-				default: throw new Error("Unknown entity type "+itemClassId);
-				}
-				
+			let itemY = floorHeights[Math.floor(itemX-roomBounds.minX)] - 0.5;
+			if( itemsNeedFancyPedestal ) itemY -= 1;
+			
+			for( let i in itemClassRefs ) {
+				const entityClassRef = itemClassRefs[i];
 				const tileX = Math.floor(itemX);
 				const tileY = Math.floor(itemY);
-				if( !itemsPlaced ) {
+				if( itemsNeedFancyPedestal ) {
 					tileBmp.fill(tileX,tileY+1,z0, tileX+1,tileY+2,z1, platformTileIndex);
 				}
 				
@@ -777,8 +788,21 @@ export default class GraphWorldifier {
 		}
 	}
 	
+	protected nodeFoods:KeyedList<boolean> = {};
+	
+	protected figureFoodLocations() {
+		const fitNodes = nMostFit( this.maze.nodes, Math.ceil(this.maze.nodes.length / 10), (n:MazeNode) => {
+			if( !isEmpty(n.items) ) return 0;
+			return 1/(1+n.linkIds.length) + Math.random()/16;
+		});
+		for( let i=0; i<fitNodes.length; ++i ) {
+			this.nodeFoods[fitNodes[i].id] = true;
+		}
+	}
+	
 	public run() {
 		this.figureNodeThemes();
+		this.figureFoodLocations();
 		
 		let startNodeId = '0';
 		const nodeProtoRoomSpans:KeyedList<ProtoRoomSpan> = {}
