@@ -1748,7 +1748,7 @@ export class MazeSimulator {
 			return;
 		}
 		const entity = roomEntity.entity;
-		for( let i in entity.maze1Inventory ) {
+		if( entity.maze1Inventory ) for( let i in entity.maze1Inventory ) {
 			try {
 				this.placeItemSomewhereNear(entity.maze1Inventory[i], roomRef, roomEntity.position);
 			} catch( err ) {

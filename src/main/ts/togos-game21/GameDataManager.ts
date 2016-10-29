@@ -335,7 +335,7 @@ export default class GameDataManager {
 	
 	protected _fullyCacheEntity( entity:Entity, itemPromises:Promise<any>[] ):void  {
 		itemPromises.push(this.fullyCacheEntityClass(entity.classRef));
-		for( let ii in entity.maze1Inventory ) {
+		if( entity.maze1Inventory ) for( let ii in entity.maze1Inventory ) {
 			this._fullyCacheEntity(entity.maze1Inventory[ii], itemPromises);
 		}
 	}
