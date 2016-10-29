@@ -14,7 +14,10 @@ import { DistributedBucketMapManager } from './DistributedBucketMap';
 import KeyedList from './KeyedList';
 import Vector3D from './Vector3D';
 import { makeVector, setVector, vectorToString, ZERO_VECTOR } from './vector3ds';
-import { addVector, subtractVector, vectorLength, vectorIsZero, scaleVector, normalizeVector, dotProduct, roundVectorToGrid } from './vector3dmath';
+import {
+	accumulateVector, addVector, subtractVector, scaleVector, normalizeVector,
+	vectorLength, vectorIsZero, dotProduct, roundVectorToGrid
+} from './vector3dmath';
 import AABB from './AABB';
 import {
 	makeAabb, aabbWidth, aabbHeight, aabbDepth,
@@ -690,6 +693,12 @@ interface Collision {
 	velocity : Vector3D;
 }
 
+function perpendicularPart( vec:Vector3D, perpendicularTo:Vector3D ):Vector3D {
+	const perpendicularLength = vectorLength(perpendicularTo);
+	if( perpendicularLength == 0 ) return vec;
+	return subtractVector(vec, scaleVector(perpendicularTo, dotProduct(vec,perpendicularTo)/perpendicularLength));
+}
+
 export class MazeGamePhysics {
 	constructor( protected game:MazeSimulator ) { }
 	
@@ -755,11 +764,27 @@ export class MazeGamePhysics {
 				const eAClass = this.game.gameDataManager.getEntityClass(collision.roomEntityA.entity.classRef);
 				const eBClass = this.game.gameDataManager.getEntityClass(collision.roomEntityB.entity.classRef);
 				// TODO: Figure out collision physics better?
-				const impulse = scaleVector(collision.velocity, Math.min(entityMass(eAClass), entityMass(eBClass))*(1+bounceFactor(eAClass, eBClass)));
+				const theBounceFactor = bounceFactor(eAClass, eBClass);
+				const stopImpulse = scaleVector(collision.velocity, Math.min(entityMass(eAClass), entityMass(eBClass)));
+				const bounceImpulse = scaleVector(stopImpulse, theBounceFactor);
+				const eAVel = collision.roomEntityA.velocity || ZERO_VECTOR;
+				const eBVel = collision.roomEntityB.velocity || ZERO_VECTOR;
+				const eAPerpVel = perpendicularPart(eAVel, collision.velocity);
+				const eBPerpVel = perpendicularPart(eBVel, collision.velocity);
+				const frictionImpulse = normalizeVector(subtractVector(eAPerpVel,eBPerpVel),
+					(eAClass.coefficientOfFriction || 0.25) *
+					(eAClass.coefficientOfFriction || 0.25) *
+					vectorLength(stopImpulse) *
+					Math.max(0, 1-theBounceFactor)
+				);
+				const totalImpulse = {x:0,y:0,z:0};
+				accumulateVector(stopImpulse, totalImpulse)
+				accumulateVector(bounceImpulse, totalImpulse)
+				accumulateVector(frictionImpulse, totalImpulse)
 				this.registerImpulse(
 					collision.roomAId, collEntityAId, collision.roomEntityA,
 					collision.roomBId, collEntityBId, collision.roomEntityB,
-					impulse
+					totalImpulse
 				);
 			}
 		}
