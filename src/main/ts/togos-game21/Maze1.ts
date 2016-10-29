@@ -933,6 +933,7 @@ export class MazeGamePhysics {
 			for( let re in room.roomEntities ) {
 				const roomEntity = room.roomEntities[re];
 				const entity = roomEntity.entity;
+				const reVel = roomEntity.velocity||ZERO_VECTOR;
 				
 				if( entity.classRef == dat.playerEntityClassId && entity.storedEnergy < 1 ) {
 					this.game.killRoomEntity(r, re);
@@ -958,7 +959,7 @@ export class MazeGamePhysics {
 						foundIoi.roomRef == r &&
 						dotProduct(
 							subtractVector(foundIoi.entityPosition, roomEntity.position),
-							subtractVector(foundIoi.roomEntity.velocity||ZERO_VECTOR,roomEntity.velocity||ZERO_VECTOR),
+							subtractVector(foundIoi.roomEntity.velocity||ZERO_VECTOR,reVel),
 						) > 0
 					) {
 						// If they're moving away from each other, forget it!
@@ -994,7 +995,7 @@ export class MazeGamePhysics {
 								if( foundItemImportance < leastImportantItemImportance ) {
 									continue checkIois;
 								}
-								const throwDirection = vectorIsZero(roomEntity.velocity) ? {x:1,y:0,z:0} : normalizeVector(roomEntity.velocity, -1);
+								const throwDirection = vectorIsZero(reVel) ? {x:1,y:0,z:0} : normalizeVector(reVel, -1);
 								const throwStart = addVector(roomEntity.position, normalizeVector(throwDirection, 0.5));
 								try {
 									this.game.placeItemSomewhereNear(entity.maze1Inventory[leastImportantItemKey], r, throwStart, throwDirection);
@@ -1617,8 +1618,12 @@ export class MazeSimulator {
 				roomEntity.entity.storedEnergy /= 2;
 			}
 		} else if( path == '/throwinventoryitem' ) {
+			if( md[1] == undefined ) {
+				console.error("missing item key argument to /throwinventoryitem");
+				return;
+			}
 			const itemRef = md[1];
-			const item = roomEntity.entity.maze1Inventory[itemRef];
+			const item = roomEntity.entity.maze1Inventory ? roomEntity.entity.maze1Inventory[itemRef] : undefined;
 			if( item == undefined ) {
 				console.warn("No item "+itemRef+" seems to exist in inventory:", roomEntity.entity.maze1Inventory);
 				return;
