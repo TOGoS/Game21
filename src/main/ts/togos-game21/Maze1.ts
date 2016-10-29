@@ -2187,7 +2187,7 @@ export class MazeDemo {
 		return loadPromise;
 	}
 	
-	public loadGame(saveRef:string):Promise<MazeSimulator> {
+	protected loadGame1(saveRef:string):Promise<MazeSimulator> {
 		this.stopSimulation();
 		if( saveRef.substr(saveRef.length-1) != '#' ) saveRef += "#";
 		this.logLoadingStatus("Loading save "+saveRef+"...");
@@ -2198,6 +2198,24 @@ export class MazeDemo {
 		}, (err) => {
 			this.logLoadingStatus("Error loading save "+saveRef+"!", true, err);
 		});
+	}
+	
+	public loadGame(saveGameRef:string):Promise<MazeSimulator> {
+		const levelRe = /^level(\d+)$/;
+		let levelReMatch:RegExpExecArray|null;
+		const tempGdm = new GameDataManager(this.datastore);
+		
+		if( saveGameRef == 'demo' ) {
+			return dat.initData(tempGdm).then( () => this.loadGame2( tempGdm, dat.playerEntityId, dat.room1Id, "demo maze" ));
+		} else if( saveGameRef == '' || saveGameRef == undefined ) {
+			return Promise.resolve().then( () => this.generateAndLoadNewLevel(0));
+		} else if( (levelReMatch = levelRe.exec(saveGameRef)) ) {
+			// generateAndLoadNewLevel depends on some UI elements being set up, so defer it...
+			const levelNumber = parseInt(levelReMatch[1]);
+			return Promise.resolve().then( () => this.generateAndLoadNewLevel(levelNumber));
+		} else {
+			return this.loadGame1(saveGameRef);
+		}
 	}
 	
 	public restartLevel():void {
@@ -2231,7 +2249,7 @@ export class MazeDemo {
 		}
 	}
 	
-	public generateAndLoadNewLevel(level:number):Promise<void> {
+	public generateAndLoadNewLevel(level:number):Promise<MazeSimulator> {
 		let attempts = 0;
 		let generateMaze:()=>Promise<void> = () => Promise.resolve(); // stupid ts compiler blah
 		generateMaze = () => {
@@ -2286,7 +2304,7 @@ export class MazeDemo {
 				if( this.winDialog && this.winDialog.dismissButton ) this.winDialog.dismissButton.disabled = false;
 			});
 		}
-		return generateMaze();
+		return generateMaze().then( () => this.simulator );
 	}
 	
 	public hideDialog(d:DialogBox|undefined) {
@@ -2765,21 +2783,7 @@ export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string, loadingSt
 	demo.loadingStatusUpdated = loadingStatusUpdated;
 	demo.importCacheStrings(cacheStrings);
 	
-	const tempGdm = new GameDataManager(ds);
-	let gameLoaded:Promise<any>;
-	const levelRe = /^level(\d+)$/;
-	let levelReMatch:RegExpExecArray|null;
-	if( saveGameRef == 'demo' ) {
-		gameLoaded = dat.initData(tempGdm).then( () => demo.loadGame2( tempGdm, dat.playerEntityId, dat.room1Id, "demo maze" ));
-	} else if( saveGameRef == '' || saveGameRef == undefined ) {
-		gameLoaded = Promise.resolve().then( () => demo.generateAndLoadNewLevel(0));
-	} else if( (levelReMatch = levelRe.exec(saveGameRef)) ) {
-		// generateAndLoadNewLevel depends on some UI elements being set up, so defer it...
-		const levelNumber = parseInt(levelReMatch[1]);
-		gameLoaded = Promise.resolve().then( () => demo.generateAndLoadNewLevel(levelNumber));
-	} else {
-		gameLoaded = demo.loadGame(saveGameRef);
-	}
+	const gameLoaded = demo.loadGame(saveGameRef);
 	
 	canv.addEventListener('mousedown', demo.handleMouseEvent.bind(demo));
 	canv.addEventListener('mouseup'  , demo.handleMouseEvent.bind(demo));
