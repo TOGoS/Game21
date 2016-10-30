@@ -2310,12 +2310,12 @@ export class MazeDemo {
 		};
 		this.simulator = new MazeSimulator(gdm);
 		const sounds:KeyedList<SoundEffect> = {
-			'jump': {dataRef: 'urn:bitprint:PUI5IOGTUW32PKDJXH2WPAIKF6ZV2UVH.5YEO5BYLXIINTBTLXFWIQ5QKOOA5O2CARTPMTZQ'},
-			'food-ate': {dataRef: 'urn:bitprint:52C7CJ3H23QPTH4ORAS4XMI2JIGKYOKC.F6NQEI6XJYNCSHQFDOGO3PWBUDX6ZOD6KJTYCWA'},
+			'jump': {dataRef: 'urn:bitprint:PUI5IOGTUW32PKDJXH2WPAIKF6ZV2UVH.5YEO5BYLXIINTBTLXFWIQ5QKOOA5O2CARTPMTZQ', volume: 0.25},
+			'food-ate': {dataRef: 'urn:bitprint:52C7CJ3H23QPTH4ORAS4XMI2JIGKYOKC.F6NQEI6XJYNCSHQFDOGO3PWBUDX6ZOD6KJTYCWA', volume: 0.75},
 			'key-got': {dataRef: 'urn:bitprint:S6K6KYKJVBNLIR5Y7MDQHMR4ORQZGYOE.AU73BOMZZKFBMGOS4CBJCGWVKGJW72PKW2UGNAY', volume: 0.125},
 			'triforce-got': {dataRef: 'urn:bitprint:NLQVXM2OZGSHWVWJVUPBFIGKBJ4PLJ6N.L4IOHLRD5U57XEW4U4CI5TDFC4NGF6XVNGLSAPA'},
 			'stick-got': {dataRef: 'urn:bitprint:RK2CXQIXPC6DX7E66AKWJFBPBHBZ6EJI.BYKJVUZFX4CFTFOVT4OXNDAOLJBJ3MHN7NN57GQ'},
-			'door-opened': {dataRef: 'urn:bitprint:24QIYL5AH2ZEWUB4KYQSAWPYV43DOKKC.3WIXHFFFIT2ZK4D6HVGP52BIBRU5WIRK27BMWUA'},
+			'door-opened': {dataRef: 'urn:bitprint:24QIYL5AH2ZEWUB4KYQSAWPYV43DOKKC.3WIXHFFFIT2ZK4D6HVGP52BIBRU5WIRK27BMWUA', volume: 0.5},
 		}
 		const simpleEventSounds:KeyedList<SoundEffect> = {
 			'jump': sounds['jump'],
@@ -2806,13 +2806,24 @@ export class MazeDemo {
 					break;
 				case 'sound-effects':
 					if( tokens.length == 1 ) {
-						this.soundEffectsEnabled = !this.soundEffectsEnabled;
 					} else if( tokens.length == 2 ) {
-						// TODO: Better boolean parsing!
-						this.soundEffectsEnabled = tokens[1].text == 'on';
+						const t = tokens[1].text.trim().toLowerCase();
+						let v:boolean;
+						switch( t ) {
+						case '0': case 'off': case 'false': case 'disabled':
+							v = false; break;
+						case '1': case 'on': case 'true': case 'enabled':
+							v = true; break;
+						default:
+							this.logger.error("Bad on/off value: '"+t+"'");
+							break doCommand;
+						}
+						this.soundEffectsEnabled = v;
 					} else {
 						this.logger.error("Usage: /sound-effects [on|off]");
+						break;
 					}
+					this.logger.log("Sound effects are "+(this.soundEffectsEnabled ? "enabled" : "disabled"));
 					break;
 				case 'vomit':
 					this.enqueueMessage([ROOMID_FINDENTITY, this.playerId], ["/vomit"]);
