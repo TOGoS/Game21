@@ -112,6 +112,7 @@ export function deepFreeze<T>(obj:T, allowInPlace:boolean=false):T {
 };
 
 export function thaw<T>(obj:T):T {
+	if( obj == null ) return obj;
 	if( !isFrozen(obj) ) return obj;
 	if( typeof obj !== 'object' && typeof obj !== 'function' ) return obj;
 	return map(obj, identity, null);
