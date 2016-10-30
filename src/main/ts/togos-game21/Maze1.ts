@@ -1663,7 +1663,7 @@ export class MazeSimulator {
 				console.warn("No inventory at all; can't throw item'");
 				return;
 			}
-			const item = roomEntity.entity.maze1Inventory ? roomEntity.entity.maze1Inventory[itemRef] : undefined;
+			const item = roomEntity.entity.maze1Inventory[itemRef];
 			if( item == undefined ) {
 				console.warn("No item "+itemRef+" seems to exist in inventory:", roomEntity.entity.maze1Inventory);
 				return;
@@ -1987,6 +1987,7 @@ export class MazeDemo {
 	public datastore : Datastore<Uint8Array>;
 	public memoryDatastore : MemoryDatastore<Uint8Array>;
 	public exportDatastore : MemoryDatastore<Uint8Array>;
+	public gameDataManager : GameDataManager;
 	public simulator : MazeSimulator;
 	public canvas:HTMLCanvasElement;
 	public soundPlayer:SoundPlayer;
@@ -2321,6 +2322,7 @@ export class MazeDemo {
 			gameDataManager: gdm,
 			entityImageManager: new EntityImageManager(gdm)
 		};
+		this.gameDataManager = gdm;
 		this.simulator = new MazeSimulator(gdm);
 		const sounds:KeyedList<SoundEffect> = {
 			'jump': {dataRef: 'urn:bitprint:PUI5IOGTUW32PKDJXH2WPAIKF6ZV2UVH.5YEO5BYLXIINTBTLXFWIQ5QKOOA5O2CARTPMTZQ', volume: 0.25},
@@ -2699,7 +2701,51 @@ export class MazeDemo {
 				return;
 				// do nothing!
 			} else {
-				doCommand: switch( tokens[0].text ) {
+				const tt0 = tokens[0].text;
+				doCommand: switch( tt0 ) {
+				case 'set': case 'set/cache':
+					if( !this.gameDataManager ) {
+						this.logger.error("Can't update name mappings; no game loaded");
+						break;
+					}
+					if( tokens.length == 3 ) {
+						const name = tokens[1].text;
+						const hardRef = tokens[2].text;
+						this.gameDataManager.updateMap({[name]: hardRef});
+						if( tt0 == 'set/cache' ) {
+							this.gameDataManager.cacheObjects([hardRef]);
+						}
+					} else {
+						this.logger.error("/set takes 2 arguments: /set <name> <hard reference>");
+					}
+					break;
+				case 'get-hard-ref':
+					if( !this.gameDataManager ) {
+						this.logger.error("Can't look up hard refs; no game loaded");
+						break;
+					}
+					for( let t=1; t<tokens.length; ++t ) {
+						const name = tokens[t].text;
+						this.gameDataManager.fetchHardRef(name).then( (hardRef) => {
+							this.logger.log("/set/cache '"+name+"' '"+hardRef+"'");
+						}).catch( (err) => {
+							this.logger.error("Failed to look up hard ref for '"+name+"':", err);
+						});
+					};
+					break;
+				case 'cache':
+					if( !this.gameDataManager ) {
+						this.logger.error("Can't cache anything; no game loaded");
+						break;
+					}
+					{
+						const stuffToCache:string[] = [];
+						for( let t=1; t<tokens.length; ++t ) {
+							stuffToCache.push(tokens[t].text);
+						}
+						this.gameDataManager.cacheObjects(stuffToCache);
+					}
+					break;
 				case 'next-level':
 					this.generateAndLoadNewLevel(this.currentLevelNumber+1);
 					break;

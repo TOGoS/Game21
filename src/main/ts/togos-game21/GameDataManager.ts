@@ -23,28 +23,51 @@ function assertNameNotHashUrn( name:string ) {
 	}
 }
 
+function thawEntity(entity:Entity) {
+	entity = thaw(entity);
+	if( entity.internalSystems ) {
+		entity.internalSystems = thaw(entity.internalSystems);
+		for( let isk in entity.internalSystems ) {
+			entity.internalSystems[isk] = thaw(entity.internalSystems[isk]);
+		}
+	}
+	if( entity.maze1Inventory ) {
+		entity.maze1Inventory = thaw(entity.maze1Inventory);
+		for( let ik in entity.maze1Inventory ) {
+			entity.maze1Inventory[ik] = thawEntity(entity.maze1Inventory[ik]);
+		}
+	}
+	return entity;
+}
+
+type SoftRef = string;
+type HardRef = string;
+type Ref = string;
+type Map<K extends string,V> = KeyedList<V>;
+type Set<T extends string> = Map<T,boolean>; // Or could use booleans like the graphmaze/setutil
+
 export default class GameDataManager {
 	protected objectMapManager: DistributedBucketMapManager<string>;
-	protected objectCache: KeyedList<any> = {};
-	protected knownStored: KeyedList<string> = {};
+	protected objectCache: Map<Ref,any> = {};
+	protected knownStored: Set<HardRef> = {};
 	/**
 	 * Stuff we're currently storing.
 	 * Generally we don't want to let stuff fall out of the cache
 	 * if we're still storing it, since that could result in fetch
 	 * returning an outdated value!
 	 */
-	protected storing: KeyedList<boolean> = {};
-	protected fetching: KeyedList<Promise<any>> = {};
+	protected storing: Set<Ref> = {};
+	protected fetching: Map<Ref,Promise<any>> = {};
 	
-	protected mutableObjects: KeyedList<any> = {};
+	protected mutableObjects: Map<SoftRef,any> = {};
 	/**
 	 * Immutable URNs of objects that have been 'temp stored'
 	 * and should be saved to the backing datastore on flushUpdates
 	 * if they are still referenced from the root nodes.
 	 */
-	protected tempObjectUrns:KeyedList<string> = {};
+	protected tempObjectUrns:Set<HardRef> = {};
 	/** Name => data name mappings that haven't yet been saved */
-	protected tempNameMap:KeyedList<string|undefined> = {};
+	protected tempNameMap:Map<SoftRef,HardRef|undefined> = {};
 	
 	public constructor( protected datastore:Datastore<Uint8Array>, rootNodeUri?:string ) {
 		this.objectMapManager = new DistributedBucketMapManager<string>(this.datastore, rootNodeUri);
@@ -52,8 +75,9 @@ export default class GameDataManager {
 	
 	public get rootMapNodeUri():string { return this.objectMapManager.rootNodeUri; }
 	
-	public fetchTranslation( name:string ):Promise<string> {
+	public fetchHardRef( name:string ):Promise<string> {
 		if( this.tempNameMap[name] ) return Promise.resolve(this.tempNameMap[name]);
+		if( this.mutableObjects[name] ) return Promise.reject(new Error("No hard ref for "+name+" because it is currently loaded as mutable"));
 		return this.objectMapManager.fetchValue(name).then( (hardRef:string|undefined) => {
 			if( hardRef == undefined ) {
 				return Promise.reject("No mapping found for "+name);
@@ -96,7 +120,7 @@ export default class GameDataManager {
 		room.roomEntities = thaw(room.roomEntities);
 		for( let re in room.roomEntities ) {
 			room.roomEntities[re] = thaw(room.roomEntities[re]);
-			room.roomEntities[re].entity = thaw(room.roomEntities[re].entity);
+			room.roomEntities[re].entity = thawEntity(room.roomEntities[re].entity);
 		}
 		room.neighbors = thaw(room.neighbors);
 		for( let n in room.neighbors ) {
@@ -121,12 +145,12 @@ export default class GameDataManager {
 		if( isHashUrn(ref) ) {
 			return this.fetching[ref] = fetchObject(ref, this.datastore, true).then( (v:any) => {
 				this.cache(ref, v);
-				this.knownStored[ref] = ref;
+				this.knownStored[ref] = true;
 				delete this.fetching[ref];
 				return <T>v;
 			});
 		} else {
-			return this.fetching[ref] = this.fetchTranslation(ref).then( (realRef:string) => {
+			return this.fetching[ref] = this.fetchHardRef(ref).then( (realRef:string) => {
 				return this.fetchObject(realRef).then( (v:any) => {
 					this.cache(ref, v);
 					delete this.fetching[ref];
@@ -136,7 +160,8 @@ export default class GameDataManager {
 		}
 	}
 	
-	// Since this is cache 'objects', I think it should by default be recursive.
+	// Since this is cache 'objects', I think it should by default be recursive
+	// for subject URNs (i.e. 'urn:sha1:BLAH#' should be recursive, 'urn:sha1:BLAH' should not be)
 	public cacheObjects( refs:(string[]|KeyedList<string>) ):Promise<any> {
 		const leRefs:any = refs; // Placate the TypeScript compiler.
 		const fetchPromises:Promise<any>[] = [];
@@ -218,7 +243,7 @@ export default class GameDataManager {
 					// This would be a major problem!
 					return Promise.reject(new Error("Temp-saved object "+k+" finally saved with different URN: "+savedAs));
 				}
-				this.knownStored[savedAs] = savedAs;
+				this.knownStored[savedAs] = true;
 				return savedAs;
 			}));
 		}
@@ -251,13 +276,18 @@ export default class GameDataManager {
 	}
 	
 	public updateMap( updates:KeyedList<string> ):Promise<string> {
+		for( let k in updates ) {
+			// Any overrides are no longer valid!
+			delete this.tempNameMap[k];
+			delete this.objectCache[k];
+		}
 		return this.objectMapManager.storeValues( updates );
 	}
 	
 	public storeObject<T>( obj:T, _name?:string ):Promise<string> {
 		obj = deepFreeze(obj);
 		const urnProm = storeObject( obj, this.datastore ).then( (storedAs) => {
-			this.knownStored[storedAs] = storedAs;
+			this.knownStored[storedAs] = true;
 			return storedAs;
 		});
 		const name = _name; // Make it const so later references check out
@@ -302,7 +332,7 @@ export default class GameDataManager {
 		obj = deepFreeze(obj);
 		const urn = identifyObject( obj, this.datastore.identify );
 		this.objectCache[urn] = obj;
-		this.tempObjectUrns[urn] = urn;
+		this.tempObjectUrns[urn] = true;
 		if( _name ) {
 			assertNameNotHashUrn(_name);
 			this.objectCache[_name] = obj;

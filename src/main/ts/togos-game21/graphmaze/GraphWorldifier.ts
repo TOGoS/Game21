@@ -872,7 +872,7 @@ import { SaveGame } from '../Maze1';
 
 export function mazeToWorld(worldifier:GraphWorldifier):Promise<{ gdm:GameDataManager, playerId:string, startRoomRef:string }> {
 	const gdm = worldifier.gameDataManager;
-	return dat.initData(gdm).then(() => gdm.fetchTranslation( dat.tileEntityPaletteId )).then( (tepRef) => {
+	return dat.initData(gdm).then(() => gdm.fetchHardRef( dat.tileEntityPaletteId )).then( (tepRef) => {
 		//const worldifier:GraphWorldifier = new GraphWorldifier(gdm, maze);
 		worldifier.tileEntityPaletteRef = tepRef;
 		return worldifier;

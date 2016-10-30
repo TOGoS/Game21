@@ -629,7 +629,7 @@ if( typeof require != 'undefined' && typeof module != 'undefined' && require.mai
 	generateMazeGraph( mgOpts ).then( (_mg:MazeGraph) => {
 		mg = _mg;
 		return dat.initData(gdm);
-	}).then( () => gdm.fetchTranslation(dat.tileEntityPaletteId) ).then( (tileEntityPaletteRef) => {
+	}).then( () => gdm.fetchHardRef(dat.tileEntityPaletteId) ).then( (tileEntityPaletteRef) => {
 		return mazeToRooms(mg, gdm, tileEntityPaletteRef);
 	}).then( (mg:MazeGraph) => {
 		if( addPlayer ) {
