@@ -1641,9 +1641,9 @@ export class MazeSimulator {
 			if( roomEntity.entity.storedEnergy != undefined ) {
 				roomEntity.entity.storedEnergy /= 2;
 				chunks: for( let i=0; i<20; ++i ) {
-					let vel = roomEntity.velocity;
+					let vel = roomEntity.velocity||ZERO_VECTOR;
 					if( vectorIsZero(vel) ) vel = {x:0,y:-1,z:0};
-					vel = addVector(vel, normalizeVector(roomEntity.velocity, 5));
+					vel = addVector(vel, normalizeVector(vel, 5));
 					vel = {x:vel.x+Math.random()-0.5, y:vel.y+Math.random()-0.5, z:vel.z};
 					vel = normalizeVector(vel, 4 + Math.random()*0.25 - 0.125);
 					const offset = normalizeVector(vel, 0.5);
