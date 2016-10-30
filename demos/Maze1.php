@@ -91,9 +91,10 @@ html, body {
 	margin: 0;
 	padding: 0;
 	color: white;
-	box-sizing: border-box;
-	
 	font-family: sans-serif;
+}
+* {
+	box-sizing: border-box;
 }
 p, ul {
 	margin: 0;
@@ -105,12 +106,17 @@ ul {
 .game-interface {
 	display: flex;
 	width: 100%;
-<?php if($fillScreen): ?>
-	height: 100vh;
-<?php endif; ?>
 	flex-direction: column;
 	justify-content: space-around;
 	background: black;
+}
+<?php if( $fillScreen ): ?>
+.game-interface {
+	height: 100vh;
+	margin: 0;
+}
+<?php else: ?>
+.game-interface {
 	border-top: 2px solid darkgray;
 	border-bottom: 2px solid darkgray;
 	margin: 8px 0 8px 0;
@@ -119,6 +125,7 @@ ul {
 	border-top: 2px solid lightgray;
 	border-bottom: 2px solid lightgray;
 }
+<?php endif; ?>
 .maze-area {
 	width: 100%;
 	display: flex;
