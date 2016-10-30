@@ -71,7 +71,7 @@ extract($config, EXTR_SKIP|EXTR_REFS);
 
 ?>
 <?php if($asPlogEntry == '21'): ?>
-date: 2016-10-27
+date: 2016-10-30
 subject: Random mazes
 thumbnail-image-url: http://picture-files.nuke24.net/uri-res/raw/urn:bitprint:YWNEXCEUE3SMXYA7EAI4CSUNPBEZXW62.KSFA52RQC46ZVQDXX4IPUIBHTZKDIG3D5O4UNKY/RandomCave.png
 summary: Random graph-based mazes for you to wander in!
