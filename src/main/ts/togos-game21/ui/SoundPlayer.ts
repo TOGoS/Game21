@@ -15,11 +15,15 @@ export default class SoundPlayer {
 		this.auctx = auctx;
 	}
 	
-	public playSound(buf:AudioBuffer) {
+	public playSound(buf:AudioBuffer, volume?:number) {
 		if( this.auctx ) {
+			if( volume == undefined ) volume = 1;
 			const source = this.auctx.createBufferSource();
 			source.buffer = buf;
-			source.connect(this.auctx.destination);
+			const gain:GainNode = this.auctx.createGain();
+			gain.gain.value = volume;
+			source.connect(gain);
+			gain.connect(this.auctx.destination);
 			source.start();
 		}
 	}
@@ -37,13 +41,11 @@ export default class SoundPlayer {
 		});
 	}
 	
-	public playSoundByRef(soundRef:string, initiateFetch:boolean=false) {
+	public playSoundByRef(soundRef:string, volume:number|undefined) {
 		if( !this.auctx ) return;
 		
 		if( this.loadedSounds[soundRef] ) {
-			this.playSound(this.loadedSounds[soundRef]);
-		} else if( initiateFetch ) {
-			this.preloadSound(soundRef);
+			this.playSound(this.loadedSounds[soundRef], volume);
 		} else {
 			console.error("Can't play sound "+soundRef+"; not loaded");
 		}

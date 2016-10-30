@@ -1963,6 +1963,11 @@ interface GameContext {
 	entityImageManager : EntityImageManager;
 }
 
+interface SoundEffect {
+	dataRef : string;
+	volume? : number;
+}
+
 type GameContextListener = (ctx:GameContext)=>void;
 
 export class MazeDemo {
@@ -2303,19 +2308,19 @@ export class MazeDemo {
 			entityImageManager: new EntityImageManager(gdm)
 		};
 		this.simulator = new MazeSimulator(gdm);
-		const sounds:KeyedList<{dataRef:string}> = {
+		const sounds:KeyedList<SoundEffect> = {
 			'jump': {dataRef: 'urn:bitprint:PUI5IOGTUW32PKDJXH2WPAIKF6ZV2UVH.5YEO5BYLXIINTBTLXFWIQ5QKOOA5O2CARTPMTZQ'},
 			'food-ate': {dataRef: 'urn:bitprint:52C7CJ3H23QPTH4ORAS4XMI2JIGKYOKC.F6NQEI6XJYNCSHQFDOGO3PWBUDX6ZOD6KJTYCWA'},
-			'key-got': {dataRef: 'urn:bitprint:S6K6KYKJVBNLIR5Y7MDQHMR4ORQZGYOE.AU73BOMZZKFBMGOS4CBJCGWVKGJW72PKW2UGNAY'},
+			'key-got': {dataRef: 'urn:bitprint:S6K6KYKJVBNLIR5Y7MDQHMR4ORQZGYOE.AU73BOMZZKFBMGOS4CBJCGWVKGJW72PKW2UGNAY', volume: 0.125},
 			'triforce-got': {dataRef: 'urn:bitprint:NLQVXM2OZGSHWVWJVUPBFIGKBJ4PLJ6N.L4IOHLRD5U57XEW4U4CI5TDFC4NGF6XVNGLSAPA'},
 			'stick-got': {dataRef: 'urn:bitprint:RK2CXQIXPC6DX7E66AKWJFBPBHBZ6EJI.BYKJVUZFX4CFTFOVT4OXNDAOLJBJ3MHN7NN57GQ'},
 			'door-opened': {dataRef: 'urn:bitprint:TXAUXVJ77XD5YVQDGIDGO6NPYPUER65P.DHARB5VFR6KWT4MAMYXBVMCKOJDTRPZKKSB4G3I'},
 		}
-		const simpleEventSounds:KeyedList<{dataRef:string}> = {
+		const simpleEventSounds:KeyedList<SoundEffect> = {
 			'jump': sounds['jump'],
 			'door-opened': sounds['door-opened'],
 		}
-		const itemSounds:KeyedList<{dataRef:string}> = {
+		const itemSounds:KeyedList<SoundEffect> = {
 			[dat.appleEntityClassId]: sounds['food-ate'],
 			[dat.blueKeyEntityClassId]: sounds['key-got'],
 			[dat.yellowKeyEntityClassId]: sounds['key-got'],
@@ -2332,12 +2337,12 @@ export class MazeDemo {
 				switch( msg.classRef ) {
 				case "http://ns.nuke24.net/Game21/SimulationMessage/SimpleEvent":
 					if( simpleEventSounds[msg.eventCode] ) {
-						this.soundPlayer.playSoundByRef(simpleEventSounds[msg.eventCode].dataRef);
+						this.soundPlayer.playSoundByRef(simpleEventSounds[msg.eventCode].dataRef, simpleEventSounds[msg.eventCode].volume);
 					}
 					break;
 				case "http://ns.nuke24.net/Game21/SimulationMessage/ItemGot":
 					if( itemSounds[msg.itemClassRef] ) {
-						this.soundPlayer.playSoundByRef(itemSounds[msg.itemClassRef].dataRef);
+						this.soundPlayer.playSoundByRef(itemSounds[msg.itemClassRef].dataRef, itemSounds[msg.itemClassRef].volume);
 					}
 					break;
 				}
