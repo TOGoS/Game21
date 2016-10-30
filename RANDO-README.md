@@ -59,3 +59,4 @@ to copy blocks into your block palette.
 You can click different block palette entries to select them.
 
 You can place items by ```give```ing them to yourself and then throwing them.
+See game1demodata.ts for class IDs.
