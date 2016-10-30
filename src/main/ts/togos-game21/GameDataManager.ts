@@ -136,10 +136,12 @@ export default class GameDataManager {
 		}
 	}
 	
+	// Since this is cache 'objects', I think it should by default be recursive.
 	public cacheObjects( refs:(string[]|KeyedList<string>) ):Promise<any> {
+		const leRefs:any = refs; // Placate the TypeScript compiler.
 		const fetchPromises:Promise<any>[] = [];
-		for( let r in refs ) {
-			fetchPromises.push(this.fetchObject(refs[r]));
+		for( let r in leRefs ) {
+			fetchPromises.push(this.fetchObject(leRefs[r]));
 		}
 		return Promise.all(fetchPromises);
 	}
