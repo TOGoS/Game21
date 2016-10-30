@@ -136,6 +136,14 @@ export default class GameDataManager {
 		}
 	}
 	
+	public cacheObjects( refs:(string[]|KeyedList<string>) ):Promise<any> {
+		const fetchPromises:Promise<any>[] = [];
+		for( let r in refs ) {
+			fetchPromises.push(this.fetchObject(refs[r]));
+		}
+		return Promise.all(fetchPromises);
+	}
+	
 	protected objectsToSave:KeyedList<any> = {};
 	protected collected:KeyedList<string> = {};
 	

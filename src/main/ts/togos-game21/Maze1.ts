@@ -2364,7 +2364,11 @@ export class MazeDemo {
 			}
 		} );
 		
-		const loadPromise = this.simulator.fullyLoadRooms( rootRoomId ).then( () => {
+		const loadPromise = gdm.cacheObjects([
+			dat.basicTileEntityPaletteRef // A thing whose ID tends to be hard coded around
+		]).then(	() =>
+			this.simulator.fullyLoadRooms( rootRoomId )
+		).then( () => {
 			this.playerId = playerId;
 			this.updateView();
 			this.startSimulation();
