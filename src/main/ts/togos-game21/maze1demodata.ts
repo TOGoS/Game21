@@ -225,6 +225,10 @@ const doorTrackPix = [
 	0,1,0,1,
 	0,0,0,0,
 ];
+const chunkPix = [
+	0,1,1,1,
+	1,1,1,0,
+];
 const doorSegmentPix = [
 	0,0,1,1,1,1,1,1,0,0,
 	0,1,1,0,0,0,0,1,1,0,
@@ -398,6 +402,9 @@ const triforceImgRef  = bitImgRef(0,[200,200,128],triforcePix,12,12);
 const appleImgRef     = bitImgRef(0,[160,64,32],applePix);
 const stick1ImgRef    = bitImgRef(0,[112,96,72],stick1Pix,8,6);
 const stick2ImgRef    = bitImgRef(0,[112,96,72],stick2Pix,8,6);
+const vomitChunk1ImgRef= bitImgRef(0,[128,96,48],chunkPix,4,2);
+const vomitChunk2ImgRef= bitImgRef(0,[96,128,48],chunkPix,4,2);
+const vomitChunk3ImgRef= bitImgRef(0,[160,192,64],chunkPix,4,2);
 
 const cheapBlueDoorImgRef   = bitImgRef(0,[  0,  0,192],cheapDoorPix,10,16);
 const cheapYellowDoorImgRef = bitImgRef(0,[192,192,  0],cheapDoorPix,10,16);
@@ -583,6 +590,9 @@ export const triforceEntityClassId  = 'urn:uuid:849d75c9-ab5b-476f-9192-c87601d4
 export const appleEntityClassId     = 'urn:uuid:6048f9b8-f5bf-414a-b439-3f812e1ad31a';
 export const stick1EntityClassId    = 'urn:uuid:4f3fd5b7-b51e-4ae7-9673-febed16050c1';
 export const stick2EntityClassId    = 'urn:uuid:4f3fd5b7-b51e-4ae7-9673-febed16050c2';
+export const vomitChunk1EntityClassId= 'urn:uuid:8025cb25-4797-48ef-9500-78f202f074ea';
+export const vomitChunk2EntityClassId= 'urn:uuid:8025cb25-4797-48ef-9500-78f202f074eb';
+export const vomitChunk3EntityClassId= 'urn:uuid:8025cb25-4797-48ef-9500-78f202f074ec';
 
 export const cheapBlueDoorEntityClassId   = 'urn:uuid:0575864a-e0d0-4fa4-b84a-a724a66dcb61';
 export const cheapRedDoorEntityClassId    = 'urn:uuid:0575864a-e0d0-4fa4-b84a-a724a66dcb62';
@@ -1136,6 +1146,53 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 		visualRef: stick2ImgRef,
 		maze1Importance: 0,
 	}, stick2EntityClassId);
+	
+	const chunkBb = makeAabb(-1/8, -1/16, -1/8, +1/8, +1/16, +1/8);
+	gdm.tempStoreObject<EntityClass>( {
+		debugLabel: "vomit chunk",
+		structureType: StructureType.INDIVIDUAL,
+		tilingBoundingBox: chunkBb,
+		physicalBoundingBox: chunkBb,
+		visualBoundingBox: chunkBb,
+		isAffectedByGravity: true,
+		isSolid: true,
+		mass: 1/32,
+		coefficientOfFriction: 0.75,
+		visualRef: vomitChunk1ImgRef,
+		isMaze1AutoPickup: true,
+		isMaze1Edible: true,
+		maze1NutritionalValue: 10
+	}, vomitChunk1EntityClassId);
+	gdm.tempStoreObject<EntityClass>( {
+		debugLabel: "vomit chunk",
+		structureType: StructureType.INDIVIDUAL,
+		tilingBoundingBox: chunkBb,
+		physicalBoundingBox: chunkBb,
+		visualBoundingBox: chunkBb,
+		isAffectedByGravity: true,
+		isSolid: true,
+		mass: 1/32,
+		coefficientOfFriction: 0.75,
+		visualRef: vomitChunk2ImgRef,
+		isMaze1AutoPickup: true,
+		isMaze1Edible: true,
+		maze1NutritionalValue: 10
+	}, vomitChunk2EntityClassId);
+	gdm.tempStoreObject<EntityClass>( {
+		debugLabel: "vomit chunk",
+		structureType: StructureType.INDIVIDUAL,
+		tilingBoundingBox: chunkBb,
+		physicalBoundingBox: chunkBb,
+		visualBoundingBox: chunkBb,
+		isAffectedByGravity: true,
+		isSolid: true,
+		mass: 1/32,
+		coefficientOfFriction: 0.75,
+		visualRef: vomitChunk3ImgRef,
+		isMaze1AutoPickup: true,
+		isMaze1Edible: true,
+		maze1NutritionalValue: 10
+	}, vomitChunk3EntityClassId);
 	
 	const regularTileEntityPaletteRef = makeTileEntityPaletteRef( [
 		null,

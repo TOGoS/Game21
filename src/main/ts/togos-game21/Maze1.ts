@@ -14,6 +14,7 @@ import { DistributedBucketMapManager } from './DistributedBucketMap';
 import KeyedList from './KeyedList';
 import Vector3D from './Vector3D';
 import { makeVector, setVector, vectorToString, ZERO_VECTOR } from './vector3ds';
+import { pickOne } from './graphmaze/picking';
 import {
 	accumulateVector, addVector, subtractVector, scaleVector, normalizeVector,
 	vectorLength, vectorIsZero, dotProduct, roundVectorToGrid
@@ -1639,6 +1640,18 @@ export class MazeSimulator {
 		} else if( path == '/vomit' ) {
 			if( roomEntity.entity.storedEnergy != undefined ) {
 				roomEntity.entity.storedEnergy /= 2;
+				chunks: for( let i=0; i<20; ++i ) {
+					let vel = roomEntity.velocity;
+					if( vectorIsZero(vel) ) vel = {x:0,y:-1,z:0};
+					vel = addVector(vel, normalizeVector(roomEntity.velocity, 5));
+					vel = {x:vel.x+Math.random()-0.5, y:vel.y+Math.random()-0.5, z:vel.z};
+					vel = normalizeVector(vel, 4 + Math.random()*0.25 - 0.125);
+					const offset = normalizeVector(vel, 0.5);
+					const chunk = {classRef: pickOne([dat.vomitChunk1EntityClassId, dat.vomitChunk2EntityClassId, dat.vomitChunk3EntityClassId])};
+					try {
+						this.placeItemSomewhereNear(chunk, roomId, addVector(roomEntity.position, offset), vel);
+					} catch (err) { break chunks; }
+				}
 			}
 		} else if( path == '/throwinventoryitem' ) {
 			if( md[1] == undefined ) {
