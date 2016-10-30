@@ -6,6 +6,11 @@ If you got this as a zip file, it should include demos/RandomMazes.html.
 It is totally self-contained and contains the entire game.
 Open that in your browser.
 
+Microsoft Edge seems to have a problem using
+localStorage on a local filesystem page.
+If that happens, try Chrome or Firefox or using the online version
+at http://www.nuke24.net/plog/21.html .
+
 Otherwise, you can build using ```make```.
 A recent version of Node and NPM is required.
 
