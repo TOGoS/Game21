@@ -2711,9 +2711,12 @@ export class MazeDemo {
 					if( tokens.length == 3 ) {
 						const name = tokens[1].text;
 						const hardRef = tokens[2].text;
-						this.gameDataManager.updateMap({[name]: hardRef});
 						if( tt0 == 'set/cache' ) {
-							this.gameDataManager.cacheObjects([hardRef]);
+							this.gameDataManager.cacheObjects([hardRef]).then( () => {
+								this.gameDataManager.updateMap({[name]: hardRef});
+							});
+						} else {
+							this.gameDataManager.updateMap({[name]: hardRef});
 						}
 					} else {
 						this.logger.error("/set takes 2 arguments: /set <name> <hard reference>");

@@ -275,11 +275,15 @@ export default class GameDataManager {
 		this.knownStored = {};
 	}
 	
-	public updateMap( updates:KeyedList<string> ):Promise<string> {
+	public updateMap( updates:Map<SoftRef,HardRef> ):Promise<string> {
 		for( let k in updates ) {
 			// Any overrides are no longer valid!
 			delete this.tempNameMap[k];
 			delete this.objectCache[k];
+			if( this.objectCache[updates[k]] ) {
+				// If everything's already in memory, make sure immediate gets will still work.
+				this.objectCache[k] = this.objectCache[updates[k]];
+			}
 		}
 		return this.objectMapManager.storeValues( updates );
 	}
