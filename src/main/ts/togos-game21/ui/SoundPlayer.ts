@@ -29,10 +29,12 @@ export default class SoundPlayer {
 	}
 	
 	public preloadSound(soundRef:string):void {
+		const auctx = this.auctx;
+		if( auctx == undefined ) return;
 		if( this.loadingSounds[soundRef] ) return;
 		this.loadingSounds[soundRef] = true;
 		this.datastore.fetch( soundRef ).then( (buffer:Uint8Array) => {
-			this.auctx.decodeAudioData(buffer.buffer).then( (aubuf:AudioBuffer) => {
+			auctx.decodeAudioData(buffer.buffer).then( (aubuf:AudioBuffer) => {
 				this.loadedSounds[soundRef] = aubuf;
 				delete this.loadingSounds[soundRef];
 			}, (err) => {
