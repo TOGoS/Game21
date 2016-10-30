@@ -1980,6 +1980,7 @@ export class MazeDemo {
 	public view : MazeView;
 	public playerId : string;
 	public tabSwitchesMode : boolean = true;
+	public soundEffectsEnabled : boolean = true;
 	protected tickTimerId? : number;
 	protected tickRate = 1/32;
 	protected _demoMode:DemoMode = DemoMode.PLAY;
@@ -2334,6 +2335,7 @@ export class MazeDemo {
 		}
 		this.simulator.registerExternalDevice( "ui", {
 			message: (msg:SimulationMessage) => {
+				if( !this.soundEffectsEnabled ) return;
 				switch( msg.classRef ) {
 				case "http://ns.nuke24.net/Game21/SimulationMessage/SimpleEvent":
 					if( simpleEventSounds[msg.eventCode] ) {
@@ -2801,6 +2803,16 @@ export class MazeDemo {
 					break;
 				case 'restart-level':
 					this.restartLevel();
+					break;
+				case 'sound-effects':
+					if( tokens.length == 1 ) {
+						this.soundEffectsEnabled = !this.soundEffectsEnabled;
+					} else if( tokens.length == 2 ) {
+						// TODO: Better boolean parsing!
+						this.soundEffectsEnabled = tokens[1].text == 'on';
+					} else {
+						this.logger.error("Usage: /sound-effects [on|off]");
+					}
 					break;
 				case 'vomit':
 					this.enqueueMessage([ROOMID_FINDENTITY, this.playerId], ["/vomit"]);
