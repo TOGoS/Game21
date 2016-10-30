@@ -53,7 +53,7 @@ function config_from_env(array $properties, array $input=array()) {
 		}
 		
 		$default = $prop['defaultValue'];
-		$shouldBeBool = is_bool($default);
+		$shouldBeBool = $prop['valueType'] == 'boolean';
 		
 		if( isset($_REQUEST[$k]) ) $config[$k] = $_REQUEST[$k];
 		else if( isset($input[$k]) ) $config[$k] = $input[$k];
