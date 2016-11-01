@@ -38,11 +38,8 @@ export interface ArrayConstructionExpression extends ProgramExpression {
 	values : ProgramExpression[];
 }
 
-export interface BusMessageSend extends ProgramExpression {
-	classRef : "http://ns.nuke24.net/Game21/ProgramExpression/BusMessageSend";
-	dataExpression : ProgramExpression;
-}
-
+const FUNC_SEND_BUS_MESSAGE = "http://ns.nuke24.net/InternalSystemFunctions/SendBusMessage";
+const FUNC_ENTITY_CLASS_REF = "http://ns.nuke24.net/InternalSystemFunctions/EntityClassRef";
 
 
 /**

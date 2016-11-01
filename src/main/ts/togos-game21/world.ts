@@ -66,17 +66,17 @@ export interface AttachmentZoneClass {
 
 /** @conceptual */
 export interface Conductor {
+	classRef: "http://ns.nuke24.net/Game21/EntityInternalSystem/Conductor";
 	mediumRef: string; // Same as message transmission mediums, e.g. "http://ns.nuke24.net/Game21/TransmissionMedia/Copper"
 	endpointPositions : Vector3D[];
 }
 
-/** A door that disintegrates when touched with the proper key */
-export interface CheapDoorInternalSystem {
-	classRef: "http://ns.nuke24.net/Game21/EntityInternalSystem/CheapDoor";
-	unlockingItemClassRefs: KeyedList<boolean>; // Keys are class IDs of keys that can unlock it
+export interface ButtonInternalSystem {
+	classRef: "http://ns.nuke24.net/Game21/EntityInternalSystem/Button";
+	onTouchExpressionRef: string;
 }
 
-export type EntityInternalSystem = CheapDoorInternalSystem;
+export type EntityInternalSystem = ButtonInternalSystem;
 
 /**
  * These should be considered immutable.

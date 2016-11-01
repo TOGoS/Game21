@@ -3,16 +3,35 @@ Entity internal systems
 - Programs can return a value whose meaning depends on the callback
 - Programs can also put a message onto the entity-wide message bus
 - Messages are OSC-like; paths are of the format /<subsystem>/...
+- Generally should be implemented with immutable data structures on EntityClass#defaultInternalSystems.
+  Only become mutable when made into Entity#internalSystems,
+  which should only be done lazily for systems with internal state.
+- Some types make sense as 'singletons', e.g. the delay one, so should have a standard key.
+- Otherwise, keys are arbitrary and determined while developing a full system.
+
 Internal system types:
+- Conductor (
+  + mediumRef
+  + endpointPositions
 - Button
   + onTouch(activatorItemClassRef)
 - Receptacle
   - Acts like a button, but activated by an item.
-  + accept(item:Entity) : returns false to reject an item; otherwise returns attachment zone key into which to store it or "destroy"
+  + accept(item:Entity) : returns...
+    - "reject" - do not accept the item and do not invoke 'received'
+	 - "return" - do not take the item, but 'receive' will be invoked
+	 - "accept" - attempt to accept the item into self, invoking 'received' if successful
+	 - "destroy" - accept the item and destroy it; 'receive' will always be invoked
   + received(item:Entity) - when an item has been shoved in
-- Network adapter (wired/unidirectional, wireless/unidirectional, wirelsss/omnidirectional, magical uplink)
-  - /<adapter name>/sendoscpacket <dest IP> <data...>
+- Network adapter (subclasses for wired/unidirectional, wireless/unidirectional, wirelsss/omnidirectional, magical uplink)
+  + mediumRef
+  + position? (physical position of interface on entity, if wired)
+  - /<adapter name>/oscpacket <dest IP> <data...>
+  - /<adapter name>/ippacket <packet data>
+  - /<adapter name>/etherframe
   + onOscMessage(message)
+  + onIpPacket(packet)
+  + onEtherFrame(frame)
 - Direction controller
   - /desiredmovementdirection <dir>
   - controls entity's desired movement direction
@@ -26,10 +45,24 @@ Internal system types:
   + message
 - Entity morpher
   - /entityclass <classRef>
-  - change entity's class
+  - change entity's class, possibly to nothing.
+- Bridge
+  - forwards messages to another entity's bus;
+    can be used to gloss over communication to e.g. doors and lifts
+	 so physical wired or radio links don't need to be made.
+  - /<bridge name>/<forwarded path...> ...
+  + message? : specific message to send; otherwise it forwards whatever
+  + entity ID
+- Area bridge
+  - Forwards a message to multiple entities in an area around this one.
+    Use to implement cheap doors!
+  - /<name>/<forwarded path...> ...
+  + message?
+  + area (an AABB)
 - [Simple] Internal Computer
   - Has internal state variables
   - Can handle any message addressed to it
   + onBusMessage(data)
 - External computer
   - Bridge to pass messages to some magical program outside the simulation (probably docker based or whatever)
+  - Looks like a regular computer as far as other components are concerned.
