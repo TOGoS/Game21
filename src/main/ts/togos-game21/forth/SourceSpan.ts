@@ -1,7 +1,10 @@
 import SourceLocation from './SourceLocation';
 
+// Note that this is compatible with TOGVM SourceLocations.
+// Don't go renaming fields without that in mind.
+
 interface SourceSpan extends SourceLocation {
-	fileUri : string;
+	filename : string;
 	lineNumber : number;
 	columnNumber : number;
 	// 'end' gives the point after the last character
