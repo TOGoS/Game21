@@ -335,7 +335,6 @@ export default class MazeGenerator {
 			
 			this.calculateNodeDistances(stageStartNode);
 			const stagePreEndNode = this._selectedNode = bestFit(this.nodes, (n:MazeNode) => Math.random() + n.distanceValue + n.id*4/this.nodes.length);
-			console.log("Stage "+s+"; "+(this.nodes.length-stageStart)+" nodes; end node ID = "+stagePreEndNode.id+", distance = "+stagePreEndNode.distanceValue);
 			const stageEndNode = this.dig({
 				allowsForwardMovement: true,
 				allowsBackwardMovement: true,
