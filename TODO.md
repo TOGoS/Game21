@@ -38,20 +38,8 @@ interface EntityBusMessage {
   activationTime: time
 }
 
-Entity subsystems
-- May be triggered by messages or the physics engine or etc etc
-- May emit entity bus messages, which may have 
 
 
-- All subsystems on 'entity data bus'
-  - Can respond to messages on bus
-  - Can put messages on bus
-  - 
-
-- Touch sensor
-  - Required item list
-  - output code
-- 
 
 - Berries on bushes
 

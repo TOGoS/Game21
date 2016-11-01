@@ -1,0 +1,35 @@
+Entity internal systems
+- Can handle events by evaluating programs
+- Programs can return a value whose meaning depends on the callback
+- Programs can also put a message onto the entity-wide message bus
+- Messages are OSC-like; paths are of the format /<subsystem>/...
+Internal system types:
+- Button
+  + onTouch(activatorItemClassRef)
+- Receptacle
+  - Acts like a button, but activated by an item.
+  + accept(item:Entity) : returns false to reject an item; otherwise returns attachment zone key into which to store it or "destroy"
+  + received(item:Entity) - when an item has been shoved in
+- Network adapter (wired/unidirectional, wireless/unidirectional, wirelsss/omnidirectional, magical uplink)
+  - /<adapter name>/sendoscpacket <dest IP> <data...>
+  + onOscMessage(message)
+- Direction controller
+  - /desiredmovementdirection <dir>
+  - controls entity's desired movement direction
+- Delay
+  - /delay <delay> <message to forward>
+- Timer
+  - /<timer name>/enabled {true|false}
+  + enabled
+  + interval
+  + offset
+  + message
+- Entity morpher
+  - /entityclass <classRef>
+  - change entity's class
+- [Simple] Internal Computer
+  - Has internal state variables
+  - Can handle any message addressed to it
+  + onBusMessage(data)
+- External computer
+  - Bridge to pass messages to some magical program outside the simulation (probably docker based or whatever)
