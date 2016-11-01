@@ -24,15 +24,15 @@ function testGameDataManager( testNamePrefix:string, ds:Datastore<Uint8Array> ) 
 		value: "42"
 	};
 	
-	const fetchProm1 = gdm.fetchObject<Thingy>('urn:ken').then( (v:Thingy) => {
+	const fetchProm1 = storeProm.then(() => gdm.fetchObject<Thingy>('urn:ken')).then( (v:Thingy) => {
 		return assertEqualsPromise(expectedKen, v, 'urn:ken resolved to not what we expected after fastStoring: '+JSON.stringify(v));
 	});
 	registerTestResult(testNamePrefix+' fetch ken', fetchProm1);
 	
-	const fetchProm2 = fetchProm1.then(() => storeProm).then( () => {
+	const fetchProm2 = fetchProm1.then( () => {
 		const cachedKen = gdm.getObjectIfLoaded('urn:ken');
 		if( cachedKen == null ) {
-			return Promise.reject(new Error('getObjectIfLoaded(\'urn:ken\') should have returned null before cache clear'));
+			return Promise.reject(new Error('getObjectIfLoaded(\'urn:ken\') should have returned non-null before cache clear'));
 		}
 		
 		gdm.clearCache();
