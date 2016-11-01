@@ -1158,14 +1158,10 @@ export class MazeGamePhysics {
 							r, re, roomEntity,
 							floorCollision.roomRef, floorCollision.roomEntityId, floorCollision.roomEntity, jumpImpulse)
 						) {
-							const listener = getEntityInternalSystem( roomEntity.entity, "eventlistener", gdm );
-							if( listener ) {
-								// xxxx
-								enqueueInternalBusMessage( entity, ["/eventlistener", <SimpleEventOccurred>{
-									classRef: "http://ns.nuke24.net/Game21/SimulationMessage/SimpleEventOccurred",
-									eventCode: "jump",
-								}] );
-							}
+							this.game.sendProximalEventMessageToNearbyEntities( r, roomEntity.position, 8, {
+								classRef: "http://ns.nuke24.net/Game21/SimulationMessage/SimpleEventOccurred",
+								eventCode: "jump",
+							});
 						}
 					}
 				} else {
