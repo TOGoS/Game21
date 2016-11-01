@@ -7,13 +7,13 @@ import TransformationMatrix3D from './TransformationMatrix3D';
 import ShapeSheetUtil from './ShapeSheetUtil';
 import { AnimationType, animationTypeFromName } from './Animation';
 import ProceduralShape from './ProceduralShape';
-import Token, { TokenType } from './forth/Token';
+import Token, { TokenType } from './lang/Token';
 import { isResolved } from './promises';
 import {
 	Program, RuntimeContext, CompilationContext, Word, RuntimeWord, CompilationWord, WordType,
 	atText, compileSource, runContext
 } from './forth/rs1';
-import SourceLocation from './forth/SourceLocation';
+import SourceLocation from './lang/SourceLocation';
 import {
 	standardWords, makeWordGetter, mergeDicts, parseNumberWord
 } from './forth/rs1words';
@@ -273,7 +273,7 @@ export interface ForthProceduralShapeData extends ScriptProceduralShapeData {
 
 export class ForthProceduralShapeCompiler {
 	public compileProgram(script:string, sourceLocation:SourceLocation = {
-		fileUri:'anynymous source', lineNumber:1, columnNumber:1
+		filename:'anynymous source', lineNumber:1, columnNumber:1
 	}) : Promise<CompilationContext> {
 		const ctx : CompilationContext = {
 			sourceLocation: sourceLocation,

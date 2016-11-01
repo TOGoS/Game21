@@ -1,7 +1,7 @@
 /// <reference path="../../Promise.d.ts" />
 
 import { resolvedPromise, rejectedPromise } from '../promises';
-import Token, { TokenType } from './Token';
+import Token, { TokenType } from '../lang/Token';
 import KeyedList from '../KeyedList';
 import {
 	Word, WordType, RuntimeWord, CompilationWord, RuntimeContext, CompilationContext, Program, WordGetter,

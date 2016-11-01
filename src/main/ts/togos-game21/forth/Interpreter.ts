@@ -1,6 +1,6 @@
 import KeyedList from '../KeyedList';
-import Token, { TokenType } from './Token';
-import { TokenListener } from './Tokenizer';
+import Token, { TokenType } from '../lang/Token';
+import { TokenListener } from '../lang/Tokenizer';
 
 type BytecodeInstruction = number; // More specifically, a number -128 to +127
 

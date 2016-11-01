@@ -1,8 +1,8 @@
 /// <reference path="../../Promise.d.ts" />
 
-import SourceLocation from './SourceLocation';
-import Token, {TokenType} from './Token';
-import Tokenizer from './Tokenizer';
+import SourceLocation from '../lang/SourceLocation';
+import Token, {TokenType} from '../lang/Token';
+import Tokenizer from '../lang/Tokenizer';
 import {
 	WordType, Word, RuntimeWord, CompilationWord, RuntimeContext, CompilationContext, Program,
 	compileSource, compileTokens, makeWordGetter, runContext
@@ -44,7 +44,7 @@ function fetch( ref:string ):Promise<string> {
 function compileRef( ref:URIRef, compilation:CompilationContext ) : Promise<CompilationContext> {
 	return fetch(ref.uri).then( (resolved) => {
 		return compileSource(resolved, compilation, {
-			fileUri: ref.uri,
+			filename: ref.uri,
 			lineNumber: 1,
 			columnNumber: 1
 		})
@@ -102,7 +102,7 @@ let compileCtx:CompilationContext = {
 	program: [],
 	dictionary: words,
 	sourceLocation: {
-		fileUri: "AsymcCompilationTest",
+		filename: "AsymcCompilationTest",
 		lineNumber: 1,
 		columnNumber: 1,
 	},

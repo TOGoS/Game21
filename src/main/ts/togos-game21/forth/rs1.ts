@@ -4,9 +4,9 @@ import { resolvedPromise, rejectedPromise } from '../promises';
 
 // Runtime System 1
 
-import Token, { TokenType } from './Token';
-import Tokenizer from './Tokenizer';
-import SourceLocation from './SourceLocation';
+import Token, { TokenType } from '../lang/Token';
+import Tokenizer from '../lang/Tokenizer';
+import SourceLocation from '../lang/SourceLocation';
 import KeyedList from '../KeyedList';
 
 export enum WordType {
@@ -68,7 +68,7 @@ export interface RuntimeContext {
 export type Program = RuntimeWord[];
 
 export function atText( sl:SourceLocation ) {
-	return "at "+sl.fileUri+":"+sl.lineNumber+","+sl.columnNumber;
+	return "at "+sl.filename+":"+sl.lineNumber+","+sl.columnNumber;
 }
 
 export function getWord( ctx:CompilationContext, text:string ):Word|null {

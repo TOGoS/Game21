@@ -1,5 +1,5 @@
 import Interpreter, {ProgramBuilder, INTRABANK_BITS, Word, numberDynamicWord, bytecodeWords, standardCompileWords} from './Interpreter';
-import Tokenizer from './Tokenizer';
+import Tokenizer from '../lang/Tokenizer';
 
 function assertEquals( expected:any, actual:any, message:string ):void {
 	if( expected !== actual ) throw new Error("Assertion failed; "+expected+" != "+actual+(message ? "; "+message : ''));
@@ -41,7 +41,7 @@ function evalu(source:string):any {
 	interp.defineWords(bytecodeWords);
 	interp.defineWords(standardCompileWords);
 	var tokenizer = new Tokenizer(interp.token.bind(interp));
-	tokenizer.sourceLocation = {fileUri:'?', lineNumber:1, columnNumber:1};
+	tokenizer.sourceLocation = {filename:'?', lineNumber:1, columnNumber:1};
 	tokenizer.text(source);
 	tokenizer.end();
 	return interp.programState.dataStack.pop();	

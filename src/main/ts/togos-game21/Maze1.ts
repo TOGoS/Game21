@@ -48,8 +48,8 @@ import ImageSlice from './ImageSlice';
 import { EMPTY_IMAGE_SLICE, imageFromUrl } from './images';
 import { rewriteTileTree } from './tiletrees';
 
-import Tokenizer from './forth/Tokenizer';
-import Token, { TokenType } from './forth/Token';
+import Tokenizer from './lang/Tokenizer';
+import Token, { TokenType } from './lang/Token';
 
 import Logger from './Logger';
 import MultiLogger from './MultiLogger';
@@ -2694,7 +2694,7 @@ export class MazeDemo {
 				if( token.type == TokenType.COMMENT ) return;
 				tokens.push(token)
 			} );
-			tokenizer.sourceLocation = {fileUri:"console-input", lineNumber: this.commandHistory.length+1, columnNumber: 1};
+			tokenizer.sourceLocation = {filename:"console-input", lineNumber: this.commandHistory.length+1, columnNumber: 1};
 			tokenizer.text(cmd.substr(1));
 			tokenizer.end();
 			if( tokens.length == 0 ) {

@@ -54,7 +54,7 @@ export default class Tokenizer {
 	protected tokenStartColumnNumber:number = 1;
 	protected sourceLineNumber:number = 1;
 	protected sourceColumnNumber:number = 1;
-	protected sourceFileUri:string = "(anonymous source buffer)";
+	protected sourceFilename:string = "(anonymous source buffer)";
 	protected ended:boolean = false;
 	
 	public constructor(l:TokenListener) {
@@ -102,7 +102,7 @@ export default class Tokenizer {
 		}
 		
 		const p = this.tokenListener(new Token( this.tokenBuffer, this.tokenType, {
-			fileUri: this.sourceFileUri,
+			filename: this.sourceFilename,
 			lineNumber: this.tokenStartLineNumber,
 			columnNumber: this.tokenStartColumnNumber,
 			endLineNumber: this.sourceLineNumber,
@@ -115,7 +115,7 @@ export default class Tokenizer {
 	}
 	
 	protected get atstr():string {
-		return "at "+this.sourceFileUri+":"+this.sourceLineNumber+","+this.sourceColumnNumber;
+		return "at "+this.sourceFilename+":"+this.sourceLineNumber+","+this.sourceColumnNumber;
 	}
 	
 	protected _char(c:number) : Promise<void>|void {
@@ -220,7 +220,7 @@ export default class Tokenizer {
 	public set sourceLocation(sl:SourceLocation) {
 		this.sourceLineNumber = sl.lineNumber;
 		this.sourceColumnNumber = sl.columnNumber;
-		this.sourceFileUri = sl.fileUri;
+		this.sourceFilename = sl.filename;
 	}
 	public text(text:string, skip:number=0) : Thenable<void> {
 		for( let i=skip; i<text.length; ++i ) {
@@ -246,7 +246,7 @@ export default class Tokenizer {
 				type: TokenType.END_OF_FILE,
 				text: "",
 				sourceLocation: {
-					fileUri: this.sourceFileUri,
+					filename: this.sourceFilename,
 					lineNumber: this.sourceLineNumber,
 					columnNumber: this.sourceColumnNumber,
 					endLineNumber: this.sourceLineNumber,

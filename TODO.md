@@ -24,11 +24,36 @@
 
 ## Misc to-do items
 
-* Friction
-* Control+click is broken!!  plz fix.  maybe on master branch
+
+sasda
+  drain 0.125J
+
+/**
+ * 
+ */
+interface EntitySubsystemProgramExpression {
+  classRef : string
+}
+interface EntityBusMessage {
+  activationTime: time
+}
+
+Entity subsystems
+- May be triggered by messages or the physics engine or etc etc
+- May emit entity bus messages, which may have 
+
+
+- All subsystems on 'entity data bus'
+  - Can respond to messages on bus
+  - Can put messages on bus
+  - 
+
+- Touch sensor
+  - Required item list
+  - output code
+- 
+
 - Berries on bushes
-* Dead player should drop any items
-- sound effects
 
 Different random maze generation:
 - wave function collapse-generated rooms
@@ -226,6 +251,10 @@ Maze1:
 * Update loading status while generating
 * extra items scattered around (apples, sandwiches, trophies)
 * Ability to place non-block entities (can /give them to yourself, at least)
+* Friction
+* Control+click is broken!!  plz fix.  maybe on master branch
+* Dead player should drop any maze1 items
+* Cheaty sound effects (physics directly messages UI)
 Random maze generation:
 * 8x8 rooms
 * generate maze graph

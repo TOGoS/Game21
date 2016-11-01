@@ -17,7 +17,7 @@ function reset() {
 	tokens = [];
 	tokenizer = new Tokenizer( (t:Token) => { tokens.push(t) } );
 	tokenizer.sourceLocation = {
-		fileUri: "test",
+		filename: "test",
 		lineNumber: 1,
 		columnNumber: 1
 	};
@@ -33,21 +33,21 @@ function reset() {
 	assertEquals( 4, tokens.length, "Should be 3 tokens (including the EOF one)!" );
 	
 	assertEquals( new Token("foo", TokenType.BAREWORD, {
-		fileUri: "test",
+		filename: "test",
 		lineNumber: 1,
 		columnNumber: 1,
 		endLineNumber: 1,
 		endColumnNumber: 4,
 	}), tokens[0], "Token #0 mismatched" );
 	assertEquals( new Token("bar", TokenType.BAREWORD, {
-		fileUri: "test",
+		filename: "test",
 		lineNumber: 1,
 		columnNumber: 5,
 		endLineNumber: 1,
 		endColumnNumber: 8,
 	}), tokens[1], "Token #1 mismatched" );
 	assertEquals( new Token("baz", TokenType.BAREWORD, {
-		fileUri: "test",
+		filename: "test",
 		lineNumber: 2,
 		columnNumber: 9,
 		endLineNumber: 2,
@@ -64,7 +64,7 @@ function reset() {
 	assertEquals( 4, tokens.length, "Should've found 4 tokens (including the EOF one)" );
 	
 	assertEquals( new Token("foo bar", TokenType.DOUBLE_QUOTED, {
-		fileUri: "test",
+		filename: "test",
 		lineNumber: 1,
 		columnNumber: 1,
 		endLineNumber: 1,
@@ -72,7 +72,7 @@ function reset() {
 	}), tokens[0], "Token #0 mismatched" );
 
 	assertEquals( new Token("baz quux", TokenType.SINGLE_QUOTED, {
-		fileUri: "test",
+		filename: "test",
 		lineNumber: 1,
 		columnNumber: 11,
 		endLineNumber: 1,
@@ -80,7 +80,7 @@ function reset() {
 	}), tokens[1], "Token #1 mismatched" );
 
 	assertEquals( new Token("\n\tjiffy ‹'pop' «bop›» corn\n", TokenType.DOUBLE_QUOTED, {
-		fileUri: "test",
+		filename: "test",
 		lineNumber: 1,
 		columnNumber: 22,
 		endLineNumber: 3,
@@ -96,7 +96,7 @@ function reset() {
 
 	assertEquals( 2, tokens.length, "Should've found 2 tokens (including the EOF one)" );
 	assertEquals( new Token("foo \\\"'\x07\x1B\x0C\n\r\t\x0B", TokenType.DOUBLE_QUOTED, {
-		fileUri: "test",
+		filename: "test",
 		lineNumber: 1,
 		columnNumber: 1,
 		endLineNumber: 1,

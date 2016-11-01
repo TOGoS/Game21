@@ -1,8 +1,8 @@
 /// <reference path="../../Promise.d.ts" />
 
-import SourceLocation from './SourceLocation';
-import Token, {TokenType} from './Token';
-import Tokenizer from './Tokenizer';
+import SourceLocation from '../lang/SourceLocation';
+import Token, {TokenType} from '../lang/Token';
+import Tokenizer from '../lang/Tokenizer';
 import {
 	WordType, Word, RuntimeWord, CompilationWord, RuntimeContext, CompilationContext, Program,
 	compileSource, compileTokens, runContext
@@ -50,13 +50,13 @@ function registerResultStackTest( name:string, s:any[], source:string ) {
 		compilingMain: true,
 		onToken: null,
 		sourceLocation: {
-			fileUri: 'registerResultStackTest',
+			filename: 'registerResultStackTest',
 			lineNumber: 1,
 			columnNumber: 1
 		}
 	};
 	
-	const res:Promise<TestResult> = compileSource(source, compileCtx, {fileUri:"test:"+name, lineNumber:1, columnNumber:1} ).
+	const res:Promise<TestResult> = compileSource(source, compileCtx, {filename:"test:"+name, lineNumber:1, columnNumber:1} ).
 		then( (compileCtx:CompilationContext) => {
 			//console.log("Compiled "+name, compileCtx);
 			return runProgram( compileCtx.program );
