@@ -4,6 +4,7 @@ import ShapeSheet from './ShapeSheet';
 import ProceduralShape from './ProceduralShape';
 import Animation from './Animation';
 import { ObjectVisual, MAObjectVisual, ObjectVisualState, ObjectVisualFrame, VisualBasisType } from './ObjectVisual';
+import GameDataManager from './GameDataManager';
 import TransformationMatrix3D from './TransformationMatrix3D';
 import Vector3D from './Vector3D';
 import { scaleVector } from './vector3dmath';
@@ -12,7 +13,7 @@ import { scaleAabb } from './aabbs';
 import ShapeSheetRenderer from './ShapeSheetRenderer';
 import ShapeSheetUtil from './ShapeSheetUtil';
 import SurfaceMaterial from './SurfaceMaterial';
-import { Game } from './world';
+//import { Game } from './world';
 import { remap, IDENTITY_MATERIAL_REMAP, paletteToMap as materialPaletteToMap } from './surfacematerials';
 import {DEFAULT_LIGHTS} from './lights';
 
@@ -111,12 +112,9 @@ function phase( time:number, length:number ) {
 export default class ObjectImageManager {
 	public resolution:number = 16;
 	protected lights = DEFAULT_LIGHTS;
-	public game?:Game;
 	protected _superSampling:number = 2;
 	
-	constructor(game?:Game) {
-		this.game = game;
-	}
+	constructor(protected gameDataManager?:GameDataManager) { }
 	
 	public frameToShapeSheetSlice(ov:ObjectVisualFrame, t:number, orientation:Quaternion, preferredResolution:number):ImageSlice<ShapeSheet> {
 		switch( ov.visualBasisType ) {
@@ -213,13 +211,14 @@ export default class ObjectImageManager {
 		return animation.frames[frameNumber];
 	}
 	
+	/*
 	// TODO: Move stuff like this to some DataAccessor class or something
 	// that wraps game + other stuffs
 	protected materialMaps:KeyedList<Array<SurfaceMaterial>> = {};
 	protected getMaterialMap(materialPaletteRef:string):Array<SurfaceMaterial> {
 		if( this.materialMaps[materialPaletteRef] == null ) {
-			if( !this.game ) throw new Error("No game data; can't look up material palette by ref");
-			const pal:Array<string|undefined> = this.game.materialPalettes[materialPaletteRef];
+			if( !this.gameDataManager ) throw new Error("No game data; can't look up material palette by ref");
+			const pal:Array<string|undefined> = this.gameDataManager.materialPalettes[materialPaletteRef];
 			if( pal == null ) throw new Error("No such material palette: "+materialPaletteRef);
 			this.materialMaps[materialPaletteRef] = materialPaletteToMap( pal, this.game.materials );
 		}
@@ -227,7 +226,7 @@ export default class ObjectImageManager {
 	}
 	
 	protected getMaObjectVisual(ref:string):MAObjectVisual {
-		if( !this.game ) throw new Error("No game data; can't look up material-agnostic object visual by ref");
+		if( !this.gameDataManager ) throw new Error("No game data; can't look up material-agnostic object visual by ref");
 		const viz = this.game.maObjectVisuals[ref];
 		if( viz == null ) throw new Error("No such object visual as "+ref);
 		return viz;
@@ -282,5 +281,11 @@ export default class ObjectImageManager {
 			imageSlice: imageSlice
 		};
 		return imageSlice;
+	}
+	*/
+	
+	public objectVisualImage(visual:ObjectVisual, state:KeyedList<any>, time:number, orientation:Quaternion, preferredResolution:number=this.resolution):ImageSlice<HTMLImageElement>|undefined {
+		// Hey look we need to re-implement all of the internals with promises!
+		return undefined;
 	}
 }

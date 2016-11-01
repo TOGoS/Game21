@@ -40,9 +40,3 @@ export interface ArrayConstructionExpression extends ProgramExpression {
 
 const FUNC_SEND_BUS_MESSAGE = "http://ns.nuke24.net/InternalSystemFunctions/SendBusMessage";
 const FUNC_ENTITY_CLASS_REF = "http://ns.nuke24.net/InternalSystemFunctions/EntityClassRef";
-
-
-/**
- * An OSC message, basically.
- */
-type SubsystemBusMessage = any[];

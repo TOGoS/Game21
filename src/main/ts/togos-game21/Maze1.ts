@@ -29,7 +29,10 @@ import Quaternion from './Quaternion';
 import TransformationMatrix3D from './TransformationMatrix3D';
 import SceneShader, { ShadeRaster, VISIBILITY_VOID, VISIBILITY_NONE, VISIBILITY_MIN } from './SceneShader';
 import { uuidUrn, newType4Uuid } from '../tshash/uuids';
-import { makeTileTreeRef, makeTileEntityPaletteRef, eachSubEntity, eachSubEntityIntersectingBb, connectRooms } from './worldutil';
+import {
+	makeTileTreeRef, makeTileEntityPaletteRef, eachSubEntity, eachSubEntityIntersectingBb, connectRooms,
+	getEntityInternalSystem, setEntityInternalSystem, enqueueInternalBusMessage
+} from './worldutil';
 import * as dat from './maze1demodata';
 import * as http from './http';
 import {
@@ -42,7 +45,7 @@ import {
 	TileTree,
 	TileEntity,
 	StructureType,
-	TileEntityPalette
+	TileEntityPalette,
 } from './world';
 import ImageSlice from './ImageSlice';
 import { EMPTY_IMAGE_SLICE, imageFromUrl } from './images';
@@ -68,6 +71,12 @@ import {
 import GraphMazeGenerator from './graphmaze/GraphMazeGenerator2';
 import GraphWorldifier, { mazeToWorld } from './graphmaze/GraphWorldifier';
 
+import SimulationMessage, {
+	SimpleEventOccurred,
+	TextHeard,
+	InternalBusMessageReceived,
+	ProximalSimulationMessage,
+} from './SimulationMessage';
 import {
 	EntityPath,
 	EntityCommandData,
@@ -75,9 +84,6 @@ import {
 	SendDataPacketAction,
 	SendAnalogValueAction,
 	ReceiveMessageAction,
-	SimulationMessage,
-	TextHeard,
-	CommandReceived,
 	ROOMID_SIMULATOR,
 	ROOMID_FINDENTITY,
 	ROOMID_EXTERNAL,
@@ -1010,10 +1016,11 @@ export class MazeGamePhysics {
 							pickedUp = true;
 						}
 						if( pickedUp ) {
-							this.game.sendSimpleEventToUi({
-								classRef: "http://ns.nuke24.net/Game21/SimulationMessage/ItemGot",
-								itemClassRef: foundIoi.entity.classRef
-							})
+							this.game.sendProximalEventMessageToNearbyEntities(r, roomEntity.position, 8, {
+								classRef: "http://ns.nuke24.net/Game21/SimulationMessage/ItemPickedUp",
+								itemClassRef: foundIoi.entity.classRef,
+								pickerPath: [r, re],
+							});
 							delete rooms[foundIoi.roomRef].roomEntities[foundIoi.roomEntityId];
 						}
 					}
@@ -1151,10 +1158,14 @@ export class MazeGamePhysics {
 							r, re, roomEntity,
 							floorCollision.roomRef, floorCollision.roomEntityId, floorCollision.roomEntity, jumpImpulse)
 						) {
-							this.game.sendSimpleEventToUi({
-								classRef: "http://ns.nuke24.net/Game21/SimulationMessage/SimpleEvent",
-								eventCode: 'jump'
-							});
+							const listener = getEntityInternalSystem( roomEntity.entity, "eventlistener", gdm );
+							if( listener ) {
+								// xxxx
+								enqueueInternalBusMessage( entity, ["/eventlistener", <SimpleEventOccurred>{
+									classRef: "http://ns.nuke24.net/Game21/SimulationMessage/SimpleEventOccurred",
+									eventCode: "jump",
+								}] );
+							}
 						}
 					}
 				} else {
@@ -1559,8 +1570,10 @@ export class MazeSimulator {
 				}
 			}
 		}
-		this.sendSimpleEventToUi({
-			classRef: "http://ns.nuke24.net/Game21/SimulationMessage/SimpleEvent",
+		// TODO: This should send an event to nearby entities that can hear it
+		// with relativePosition filled in.
+		this.sendProximalEventMessageToNearbyEntities(roomId, pos, 8, {
+			classRef: "http://ns.nuke24.net/Game21/SimulationMessage/SimpleEventOccurred",
 			eventCode: 'door-opened'
 		});
 	}
@@ -1768,20 +1781,50 @@ export class MazeSimulator {
 		return undefined;
 	}
 	
-	public sendSimpleEventToUi(message:SimulationMessage) {
+	public getRoomEntity(entityId:string):RoomEntity|undefined {
+		for( let roomId in this.rooms ) {
+			const room = this.rooms[roomId];
+			if( room.roomEntities[entityId] ) return room.roomEntities[entityId];
+		}
+		return undefined;
+	}
+	
+	public enqueueMessage( targetPath:EntityPath, message:SimulationMessage, replyPath?:EntityPath ) {
+		if( targetPath[0] == ROOMID_EXTERNAL ) {
+			this.deliverExternalDeviceMessage(targetPath, message, replyPath);
+		}
+		
+		this.enqueueAction({
+			classRef: "http://ns.nuke24.net/Game21/SimulationAction/ReceiveMessage",
+			entityPath: targetPath,
+			message,
+			replyPath,
+		})
+	}
+	
+	public sendProximalEventMessageToNearbyEntities(
+		roomId:string, pos:Vector3D, maxDistance:number,
+		message:ProximalSimulationMessage
+	) {
+		// Ha ha for now just forward to UI.
+		// TODO: Look for entities with ProximalEventDetectors,
+		// pass this message to them.
+		// The player's should be set up to forward to /controlleruplink,
+		// Which should be translated to a message to the UI.
 		const dev = this.externalDevices['ui'];
 		if( !dev ) return;
 		dev.message( message );
 	}
-
+	
+	protected deliverExternalDeviceMessage( targetPath:EntityPath, message:SimulationMessage, replyPath?:EntityPath ) {
+		const deviceId = targetPath[1];
+		if( this.externalDevices[deviceId] ) {
+			this.externalDevices[deviceId].message( message, replyPath );
+		}
+	}
 	
 	protected doReceiveMessageAction( act:ReceiveMessageAction ):void {
 		let roomId:string|undefined;
-		
-		if( this.externalDevices[act.entityPath[0]] ) {
-			this.externalDevices[act.entityPath[0]].message( act.message, act.replyPath );
-			return;
-		}
 		
 		switch( act.entityPath[0] ) {
 		case ROOMID_SIMULATOR:
@@ -1795,7 +1838,7 @@ export class MazeSimulator {
 			}
 			break;
 		case ROOMID_EXTERNAL:
-			console.log("Hey look, message to "+act.entityPath.join("/")+":", act.message);
+			this.deliverExternalDeviceMessage(act.entityPath, act.message, act.replyPath);
 			return;
 		default:
 			roomId = act.entityPath[0];
@@ -1998,6 +2041,7 @@ export class MazeDemo {
 	protected tickTimerId? : number;
 	protected tickRate = 1/32;
 	protected _demoMode:DemoMode = DemoMode.PLAY;
+	protected deviceId : string = newUuidRef();
 	
 	public gameInterfaceElem : HTMLElement|undefined|null;
 	public tilePaletteUi:TilePaletteUI;
@@ -2211,7 +2255,7 @@ export class MazeDemo {
 		let moveY = down  ? +1 : up   ? -1 : 0;
 		
 		if( this.simulator && this.playerId ) {
-			this.enqueueMessage([ROOMID_FINDENTITY, this.playerId], ["/desiredmovementdirection", moveX, moveY, 0]);
+			this.enqueueCommand([ROOMID_FINDENTITY, this.playerId], ["/desiredmovementdirection", moveX, moveY, 0]);
 		}
 		
 		this.picking = actions['pick'];
@@ -2315,6 +2359,52 @@ export class MazeDemo {
 		});
 	}
 	
+	protected sounds:KeyedList<SoundEffect> = {
+		'jump': {dataRef: 'urn:bitprint:PUI5IOGTUW32PKDJXH2WPAIKF6ZV2UVH.5YEO5BYLXIINTBTLXFWIQ5QKOOA5O2CARTPMTZQ', volume: 0.25},
+		'food-ate': {dataRef: 'urn:bitprint:52C7CJ3H23QPTH4ORAS4XMI2JIGKYOKC.F6NQEI6XJYNCSHQFDOGO3PWBUDX6ZOD6KJTYCWA', volume: 0.75},
+		'key-got': {dataRef: 'urn:bitprint:S6K6KYKJVBNLIR5Y7MDQHMR4ORQZGYOE.AU73BOMZZKFBMGOS4CBJCGWVKGJW72PKW2UGNAY', volume: 0.125},
+		'triforce-got': {dataRef: 'urn:bitprint:NLQVXM2OZGSHWVWJVUPBFIGKBJ4PLJ6N.L4IOHLRD5U57XEW4U4CI5TDFC4NGF6XVNGLSAPA'},
+		'stick-got': {dataRef: 'urn:bitprint:RK2CXQIXPC6DX7E66AKWJFBPBHBZ6EJI.BYKJVUZFX4CFTFOVT4OXNDAOLJBJ3MHN7NN57GQ'},
+		'door-opened': {dataRef: 'urn:bitprint:24QIYL5AH2ZEWUB4KYQSAWPYV43DOKKC.3WIXHFFFIT2ZK4D6HVGP52BIBRU5WIRK27BMWUA', volume: 0.5},
+	}
+	protected simpleEventSounds:KeyedList<SoundEffect> = {
+		'jump': this.sounds['jump'],
+		'door-opened': this.sounds['door-opened'],
+	}
+	protected itemSounds:KeyedList<SoundEffect> = {
+		[dat.appleEntityClassId]: this.sounds['food-ate'],
+		[dat.blueKeyEntityClassId]: this.sounds['key-got'],
+		[dat.yellowKeyEntityClassId]: this.sounds['key-got'],
+		[dat.redKeyEntityClassId]: this.sounds['key-got'],
+		[dat.triforceEntityClassId]: this.sounds['triforce-got'],
+		[dat.stick1EntityClassId]: this.sounds['stick-got'],
+		[dat.stick2EntityClassId]: this.sounds['stick-got'],
+	};
+	
+	public preloadSounds() {
+		for( let k in this.sounds ) {
+			this.soundPlayer.preloadSound(this.sounds[k].dataRef);
+		}
+	}
+	
+	protected playSound(f:SoundEffect|undefined) {
+		if( f == undefined ) return;
+		this.soundPlayer.playSoundByRef(f.dataRef, f.volume);
+	}
+	
+	protected handleSimulationMessage( msg:SimulationMessage ) {
+		console.log("Message from simulation!", msg);
+		if( !this.soundEffectsEnabled ) return;
+		switch( msg.classRef ) {
+		case "http://ns.nuke24.net/Game21/SimulationMessage/SimpleEventOccurred":
+			this.playSound( this.simpleEventSounds[msg.eventCode] );
+			break;
+		case "http://ns.nuke24.net/Game21/SimulationMessage/ItemPickedUp":
+			this.playSound( this.itemSounds[msg.itemClassRef] );
+			break;
+		}
+	}
+	
 	public loadGame2(gdm:GameDataManager, playerId:string, rootRoomId:string, gameDescription:string):Promise<MazeSimulator> {
 		this.stopSimulation();
 		this.logLoadingStatus("Loading "+gameDescription+"...");
@@ -2324,47 +2414,12 @@ export class MazeDemo {
 		};
 		this.gameDataManager = gdm;
 		this.simulator = new MazeSimulator(gdm);
-		const sounds:KeyedList<SoundEffect> = {
-			'jump': {dataRef: 'urn:bitprint:PUI5IOGTUW32PKDJXH2WPAIKF6ZV2UVH.5YEO5BYLXIINTBTLXFWIQ5QKOOA5O2CARTPMTZQ', volume: 0.25},
-			'food-ate': {dataRef: 'urn:bitprint:52C7CJ3H23QPTH4ORAS4XMI2JIGKYOKC.F6NQEI6XJYNCSHQFDOGO3PWBUDX6ZOD6KJTYCWA', volume: 0.75},
-			'key-got': {dataRef: 'urn:bitprint:S6K6KYKJVBNLIR5Y7MDQHMR4ORQZGYOE.AU73BOMZZKFBMGOS4CBJCGWVKGJW72PKW2UGNAY', volume: 0.125},
-			'triforce-got': {dataRef: 'urn:bitprint:NLQVXM2OZGSHWVWJVUPBFIGKBJ4PLJ6N.L4IOHLRD5U57XEW4U4CI5TDFC4NGF6XVNGLSAPA'},
-			'stick-got': {dataRef: 'urn:bitprint:RK2CXQIXPC6DX7E66AKWJFBPBHBZ6EJI.BYKJVUZFX4CFTFOVT4OXNDAOLJBJ3MHN7NN57GQ'},
-			'door-opened': {dataRef: 'urn:bitprint:24QIYL5AH2ZEWUB4KYQSAWPYV43DOKKC.3WIXHFFFIT2ZK4D6HVGP52BIBRU5WIRK27BMWUA', volume: 0.5},
+		
+		const thisDev:ExternalDevice = {
+			message: this.handleSimulationMessage.bind(this)
 		}
-		const simpleEventSounds:KeyedList<SoundEffect> = {
-			'jump': sounds['jump'],
-			'door-opened': sounds['door-opened'],
-		}
-		const itemSounds:KeyedList<SoundEffect> = {
-			[dat.appleEntityClassId]: sounds['food-ate'],
-			[dat.blueKeyEntityClassId]: sounds['key-got'],
-			[dat.yellowKeyEntityClassId]: sounds['key-got'],
-			[dat.redKeyEntityClassId]: sounds['key-got'], 
-			[dat.triforceEntityClassId]: sounds['triforce-got'],
-			[dat.stick1EntityClassId]: sounds['stick-got'],
-			[dat.stick2EntityClassId]: sounds['stick-got'],
-		};
-		for( let k in sounds ) {
-			this.soundPlayer.preloadSound(sounds[k].dataRef);
-		}
-		this.simulator.registerExternalDevice( "ui", {
-			message: (msg:SimulationMessage) => {
-				if( !this.soundEffectsEnabled ) return;
-				switch( msg.classRef ) {
-				case "http://ns.nuke24.net/Game21/SimulationMessage/SimpleEvent":
-					if( simpleEventSounds[msg.eventCode] ) {
-						this.soundPlayer.playSoundByRef(simpleEventSounds[msg.eventCode].dataRef, simpleEventSounds[msg.eventCode].volume);
-					}
-					break;
-				case "http://ns.nuke24.net/Game21/SimulationMessage/ItemGot":
-					if( itemSounds[msg.itemClassRef] ) {
-						this.soundPlayer.playSoundByRef(itemSounds[msg.itemClassRef].dataRef, itemSounds[msg.itemClassRef].volume);
-					}
-					break;
-				}
-			}
-		} );
+		//this.simulator.registerExternalDevice( this.deviceId, thisDev );
+		this.simulator.registerExternalDevice( 'ui', thisDev );
 		
 		const loadPromise = gdm.cacheObjects([
 			dat.basicTileEntityPaletteRef // A thing whose ID tends to be hard coded around
@@ -2372,6 +2427,13 @@ export class MazeDemo {
 			this.simulator.fullyLoadRooms( rootRoomId )
 		).then( () => {
 			this.playerId = playerId;
+			const playerRoomEntity = this.simulator.getRoomEntity(playerId);
+			if( playerRoomEntity ) {
+				setEntityInternalSystem( playerRoomEntity.entity, "controlleruplink", {
+					classRef: "http://ns.nuke24.net/Game21/EntityInternalSystem/InterEntityBusBridge",
+					forwardTo: [ROOMID_EXTERNAL, this.deviceId],
+				}, this.gameDataManager );
+			}
 			this.updateView();
 			this.startSimulation();
 			return this.simulator;
@@ -2576,7 +2638,7 @@ export class MazeDemo {
 	protected maybePaint() {
 		const coords = this.paintCoordinates;
 		if( coords ) {
-			this.enqueueMessage(
+			this.enqueueCommand(
 				[ROOMID_FINDENTITY, this.playerId],
 				["/painttiletreeblock", coords.x, coords.y, coords.z, 1, this.paintEntityClassRef]
 			);
@@ -2601,7 +2663,7 @@ export class MazeDemo {
 			case DemoMode.PLAY:
 				if( !this.mouse1PreviouslyDown ) {
 					const itemKey = this.maze1InventoryUi.selectedItemKey;
-					if( itemKey ) this.enqueueMessage(
+					if( itemKey ) this.enqueueCommand(
 						[ROOMID_FINDENTITY, this.playerId],
 						["/throwinventoryitem", this.maze1InventoryUi.selectedItemKey, coords.x, coords.y, coords.z]
 					);
@@ -2661,7 +2723,7 @@ export class MazeDemo {
 	public goToCommandHistoryBeginning() { this.goToCommandHistory(0); }
 	public goToCommandHistoryEnd() { this.goToCommandHistory(this.commandHistory.length); }
 	
-	public enqueueMessage(entityPath:EntityPath, command:EntityCommandData, replyPath:EntityPath=UI_ENTIY_PATH):void {
+	public enqueueCommand(entityPath:EntityPath, command:EntityCommandData, replyPath:EntityPath=UI_ENTIY_PATH):void {
 		this.simulator.enqueueAction({
 			classRef: "http://ns.nuke24.net/Game21/SimulationAction/ReceiveMessage",
 			entityPath: entityPath,
@@ -2834,7 +2896,7 @@ export class MazeDemo {
 						const newRoomUuid = newUuidRef();
 						this.logger.log("New room ID:", newRoomUuid);
 						const size = tokens[2] ? +tokens[2].text : this.defaultNewRoomSize;
-						this.enqueueMessage([ROOMID_SIMULATOR], ["/create-room", newRoomUuid, size]);
+						this.enqueueCommand([ROOMID_SIMULATOR], ["/create-room", newRoomUuid, size]);
 					}
 					break;
 				case 'connect-new-room': case 'dig-new-room': case 'dnr':
@@ -2851,8 +2913,8 @@ export class MazeDemo {
 						const newRoomUuid = newUuidRef();
 						const dir = tokens[1].text;
 						this.logger.log("New room ID:", newRoomUuid);
-						this.enqueueMessage([ROOMID_SIMULATOR], ["/create-room", newRoomUuid, this.defaultNewRoomSize]);
-						this.enqueueMessage([ROOMID_SIMULATOR], ["/connect-rooms", currentLocation.roomRef, dir, newRoomUuid]);
+						this.enqueueCommand([ROOMID_SIMULATOR], ["/create-room", newRoomUuid, this.defaultNewRoomSize]);
+						this.enqueueCommand([ROOMID_SIMULATOR], ["/connect-rooms", currentLocation.roomRef, dir, newRoomUuid]);
 					}
 					break;
 				case 'cr': case 'connect-rooms':
@@ -2864,7 +2926,7 @@ export class MazeDemo {
 						const roomAId = tokens[1].text;
 						const dirName = tokens[2].text;
 						const roomBId = tokens[3].text;
-						this.enqueueMessage([ROOMID_SIMULATOR], ["/connect-rooms", roomAId, dirName, roomBId]);
+						this.enqueueCommand([ROOMID_SIMULATOR], ["/connect-rooms", roomAId, dirName, roomBId]);
 					}
 					break;
 				case 'restart-level':
@@ -2892,11 +2954,11 @@ export class MazeDemo {
 					this.logger.log("Sound effects are "+(this.soundEffectsEnabled ? "enabled" : "disabled"));
 					break;
 				case 'vomit':
-					this.enqueueMessage([ROOMID_FINDENTITY, this.playerId], ["/vomit"]);
+					this.enqueueCommand([ROOMID_FINDENTITY, this.playerId], ["/vomit"]);
 					break;
 				case 'give':
 					if( tokens.length == 2 ) {
-						this.enqueueMessage([ROOMID_FINDENTITY, this.playerId], ["/give", tokens[1].text]);
+						this.enqueueCommand([ROOMID_FINDENTITY, this.playerId], ["/give", tokens[1].text]);
 					} else {
 						this.logger.error("/give takes 1 argument: <entity class ref>.  e.g. '/give urn:uuid:4f3fd5b7-b51e-4ae7-9673-febed16050c1'");
 					}
@@ -3068,6 +3130,7 @@ export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string, loadingSt
 	
 	const demo = new MazeDemo();
 	demo.soundPlayer = new SoundPlayer(ds);
+	demo.preloadSounds();
 	demo.canvas = canv;
 	demo.datastore = ds;
 	demo.memoryDatastore = memds;
@@ -3134,7 +3197,7 @@ export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string, loadingSt
 		const openDoorButton = document.createElement('button');
 		openDoorButton.appendChild(document.createTextNode("Up"));
 		openDoorButton.onclick = () => {
-			demo.enqueueMessage(
+			demo.enqueueCommand(
 				[ROOMID_FINDENTITY, targetEntityIdBox.value],
 				["/desiredmovementdirection", 0, -1, 0]
 			);
@@ -3143,7 +3206,7 @@ export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string, loadingSt
 		const closeDoorButton = document.createElement('button');
 		closeDoorButton.appendChild(document.createTextNode("Down"));
 		closeDoorButton.onclick = () => {
-			demo.enqueueMessage(
+			demo.enqueueCommand(
 				[ROOMID_FINDENTITY, targetEntityIdBox.value],
 				["/desiredmovementdirection", 0, +1, 0]
 			);

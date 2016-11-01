@@ -1,4 +1,5 @@
 import Vector3D from './Vector3D';
+import SimulationMessage from './SimulationMessage';
 
 /**
  * [room ID, entity key, (attachment zone ID, item key)*]
@@ -29,32 +30,6 @@ export const CHAN_ANALOG_2 = 2;
 // More analog channels?
 export const CHAN_ETHERNET = 8023; // Data assumed to be Ethernet Type II frames
 
-export interface ItemGot {
-	classRef: "http://ns.nuke24.net/Game21/SimulationMessage/ItemGot";
-	itemClassRef: string;
-}
-
-export interface SimpleEvent {
-	// "I really want to get this done now."
-	classRef: "http://ns.nuke24.net/Game21/SimulationMessage/SimpleEvent";
-	eventCode : string;
-}
-
-export interface TextHeard {
-	classRef: "http://ns.nuke24.net/Game21/SimulationMessage/TextHeard";
-	sourcePosition: Vector3D;
-	loudness: number; // How loud was it when you heard it?
-	voiceRef: string;
-	speakerName: string;
-	text: string;
-}
-
-export interface CommandReceived {
-	classRef: "http://ns.nuke24.net/Game21/SimulationMessage/CommandReceived";
-	command: EntityCommandData;
-}
-
-export type SimulationMessage = SimpleEvent|ItemGot|TextHeard|CommandReceived;
 
 /**
  * Will result in a HearText message on any entity that can hear it

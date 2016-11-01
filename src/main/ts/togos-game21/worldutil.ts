@@ -4,7 +4,11 @@ import { scaleVector } from './vector3dmath';
 import Quaternion from './Quaternion';
 import AABB from './AABB';
 import { makeAabb, aabbWidth, aabbHeight, aabbDepth, UNBOUNDED_AABB } from './aabbs';
-import { Room, RoomEntity, Entity, EntityClass, StructureType, TileTree, TileEntityPalette } from './world';
+import {
+	Room, RoomEntity, Entity, EntityClass, StructureType, TileTree, TileEntityPalette
+} from './world';
+import InternalBusMessage, { InternallyBussed } from './InternalBusMessage';
+import EntityInternalSystem from './EntityInternalSystem';
 import GameDataManager from './GameDataManager';
 import { deepFreeze } from './DeepFreezer';
 import { hash, sha1Urn, base32Encode } from '../tshash/index';
@@ -237,4 +241,26 @@ export function roomEntityVelocity(re:RoomEntity):Vector3D {
 }
 export function roomEntityOrientation(re:RoomEntity):Quaternion {
 	return coalesce2(re.orientation, Quaternion.IDENTITY);
+}
+
+export function getEntityInternalSystem(e:Entity, systemKey:string, gdm:GameDataManager):EntityInternalSystem|undefined {
+	if( e.internalSystems != undefined && e.internalSystems.hasOwnProperty(systemKey) ) {
+		return e.internalSystems[systemKey];
+	}
+	const eClass = gdm.getEntityClass(e.classRef);
+	if( eClass.defaultInternalSystems == undefined ) return undefined;
+	return eClass.defaultInternalSystems[systemKey];
+}
+
+export function setEntityInternalSystem(e:Entity, systemKey:string, system:EntityInternalSystem|undefined, gdm:GameDataManager):void {
+	// TODO: If replacing one with its default state, just delete the override
+	if( e.internalSystems == undefined ) {
+		e.internalSystems = {};
+	}
+	e.internalSystems[systemKey] = system;
+}
+
+export function enqueueInternalBusMessage( bussy:InternallyBussed, message:InternalBusMessage ):void {
+	if( bussy.enqueuedBusMessages == undefined ) bussy.enqueuedBusMessages = [];
+	bussy.enqueuedBusMessages.push(message);
 }

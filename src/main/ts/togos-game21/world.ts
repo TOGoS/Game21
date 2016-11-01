@@ -1,9 +1,11 @@
-import ObjectVisual, {MAObjectVisual} from './ObjectVisual';
 import Quaternion from './Quaternion';
 import KeyedList from './KeyedList';
 import Vector3D from './Vector3D';
 import AABB from './AABB';
-import SurfaceMaterial from './SurfaceMaterial';
+
+import EntityInternalSystem from './EntityInternalSystem';
+import InternalBusMessage, { InternallyBussed } from './InternalBusMessage';
+import TimeTargetted from './TimeTargetted';
 
 import { deepFreeze } from './DeepFreezer';
 
@@ -63,20 +65,6 @@ export interface AttachmentZoneClass {
 	mayPassPower? : boolean; // Default = false
 	mayPassData?  : boolean; // Undefined = false
 }
-
-/** @conceptual */
-export interface Conductor {
-	classRef: "http://ns.nuke24.net/Game21/EntityInternalSystem/Conductor";
-	mediumRef: string; // Same as message transmission mediums, e.g. "http://ns.nuke24.net/Game21/TransmissionMedia/Copper"
-	endpointPositions : Vector3D[];
-}
-
-export interface ButtonInternalSystem {
-	classRef: "http://ns.nuke24.net/Game21/EntityInternalSystem/Button";
-	onTouchExpressionRef: string;
-}
-
-export type EntityInternalSystem = ButtonInternalSystem;
 
 /**
  * These should be considered immutable.
@@ -165,7 +153,7 @@ export interface AttachmentZone {
  * (which makes the name 'entity' a bit of a misnomer, since it implies 'a single thing with inherent identity').
  * Another object (a RoomEntity, a TileEntity) links an Entity to somewhere.
  */
-export interface Entity {
+export interface Entity extends InternallyBussed {
 	id?: string;
 	classRef : EntityClassRef;
 	debugLabel? : string;
@@ -174,8 +162,12 @@ export interface Entity {
 	 * which may be used by behavior and rendering
 	 */ 
 	state? : KeyedList<any>;
-	/** @conceptual */
-	internalSystems? : KeyedList<EntityInternalSystem>;
+	/**
+	 * Overrides of the entity class's default internal systems.
+	 * A key with value=undefined means this entity is lacking that system.
+	 */
+	internalSystems? : KeyedList<EntityInternalSystem|undefined>;
+	enqueuedBusMessages? : InternalBusMessage[];
 	
 	desiredMovementDirection? : Vector3D;
 	/**
@@ -245,21 +237,4 @@ export interface Room {
 	bounds : AABB;
 	roomEntities : KeyedList<RoomEntity>;
 	neighbors : KeyedList<RoomNeighbor>;
-}
-
-/**
- * Theoretical structure.
- * Since the set of data making up a game might become really large,
- * it will be distributed and not directly accessible from a single object.
- * Instead, sub-objects would be DistributedBucketMaps
- */
-export interface Game {
-	materials: KeyedList<SurfaceMaterial>;
-	materialPalettes: KeyedList<Array<string|undefined>>;
-	maObjectVisuals: KeyedList<MAObjectVisual>;
-	objectVisuals: KeyedList<ObjectVisual>;
-	tilePalettes: KeyedList<TileEntityPalette>;
-	entityClasses: KeyedList<EntityClass>;
-	rooms: KeyedList<Room>;
-	time: number; // Current time in the world
 }
