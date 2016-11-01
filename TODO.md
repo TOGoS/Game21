@@ -24,25 +24,6 @@
 
 ## Misc to-do items
 
-
-sasda
-  drain 0.125J
-
-/**
- * 
- */
-interface EntitySubsystemProgramExpression {
-  classRef : string
-}
-interface EntityBusMessage {
-  activationTime: time
-}
-
-
-
-
-- Berries on bushes
-
 Different random maze generation:
 - wave function collapse-generated rooms
 - big old simplex noise caves
