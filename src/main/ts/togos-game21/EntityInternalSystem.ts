@@ -1,3 +1,5 @@
+// TODO: rename to Subsystem; the system is a bunch of subsystems put together.
+
 import {
 	EntityPath
 } from './simulationmessaging';
