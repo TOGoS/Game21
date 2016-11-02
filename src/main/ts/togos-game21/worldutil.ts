@@ -8,7 +8,7 @@ import { makeAabb, aabbWidth, aabbHeight, aabbDepth, UNBOUNDED_AABB } from './aa
 import {
 	Room, RoomEntity, Entity, EntityClass, StructureType, TileTree, TileEntityPalette
 } from './world';
-import EntitySystemBusMessage, { MessageBusSystem } from './EntitySystemBusMessage';
+import EntitySystemBusMessage from './EntitySystemBusMessage';
 import EntitySubsystem from './EntitySubsystem';
 import GameDataManager from './GameDataManager';
 import { deepFreeze } from './DeepFreezer';
@@ -287,9 +287,4 @@ export function getEntitySubsystems(entity:Entity, gdm:GameDataManager):KeyedLis
 		}
 	}
 	return mergedSubsystems;
-}
-
-export function enqueueInternalBusMessage( bussy:MessageBusSystem, message:EntitySystemBusMessage ):void {
-	if( bussy.enqueuedBusMessages == undefined ) bussy.enqueuedBusMessages = [];
-	bussy.enqueuedBusMessages.push(message);
 }

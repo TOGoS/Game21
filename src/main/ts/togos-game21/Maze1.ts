@@ -31,7 +31,7 @@ import SceneShader, { ShadeRaster, VISIBILITY_VOID, VISIBILITY_NONE, VISIBILITY_
 import { uuidUrn, newType4Uuid } from '../tshash/uuids';
 import {
 	makeTileTreeRef, makeTileEntityPaletteRef, eachSubEntity, eachSubEntityIntersectingBb, connectRooms,
-	getEntitySubsystem, setEntitySubsystem, getEntitySubsystems, enqueueInternalBusMessage
+	getEntitySubsystem, setEntitySubsystem, getEntitySubsystems
 } from './worldutil';
 import * as esp from './internalsystemprogram';
 import * as dat from './maze1demodata';
@@ -48,7 +48,7 @@ import {
 	StructureType,
 	TileEntityPalette,
 } from './world';
-import EntitySystemBusMessage, { MessageBusSystem } from './EntitySystemBusMessage';
+import EntitySystemBusMessage from './EntitySystemBusMessage';
 import EntitySubsystem, {
 	ProximalEventDetector,
 	Appendage,
@@ -1368,7 +1368,7 @@ interface ExternalDevice {
 interface InternalSystemProgramEvaluationContext {
 	entityPath : EntityPath,
 	entity : Entity,
-	system : MessageBusSystem,
+	busMessageQueue : EntitySystemBusMessage[],
 	subsystemKey : string;
 	variableValues : KeyedList<any>;
 };
@@ -1403,8 +1403,7 @@ function evalInternalSystemProgram( expression:esp.ProgramExpression, ctx:ISPEC 
 					if( !Array.isArray(bm) || bm.length < 1 || typeof bm[0] != 'string' ) {
 						throw new Error("Entity message must be an array with string as first element");
 					}
-					if( !ctx.system.enqueuedBusMessages ) ctx.system.enqueuedBusMessages = [];
-					ctx.system.enqueuedBusMessages.push( bm );
+					ctx.busMessageQueue.push( bm );
 					return null;
 				} else {
 					throw new Error("SendBusMessage given non-1 arguments: "+JSON.stringify(argValues));
@@ -1897,10 +1896,11 @@ export class MazeSimulator {
 	
 	protected runSubsystemProgram(
 		entityPath:EntityPath, entity:Entity, subsystemKey:string, program:esp.ProgramExpression,
+		busMessageQueue:EntitySystemBusMessage[],
 		variableValues:KeyedList<any>
 	):any {
 		const ctx:ISPEC = {
-			entityPath, entity, system:entity, subsystemKey, variableValues
+			entityPath, entity, subsystemKey, busMessageQueue, variableValues
 		};
 		return evalInternalSystemProgram( program, ctx );
 	}
@@ -1913,11 +1913,12 @@ export class MazeSimulator {
 			case "http://ns.nuke24.net/Game21/EntitySubsystem/Button":
 				if( subsystem.pokedExpressionRef == undefined ) continue;
 				const expr = this.gameDataManager.getObject<esp.ProgramExpression>(subsystem.pokedExpressionRef);
+				const busMessageQueue:EntitySystemBusMessage[] = [];
 				this.runSubsystemProgram(
 					entityPath, entity,
-					sk, expr, {}
+					sk, expr, busMessageQueue, {}
 				);
-				this.updateInternalSystem(entityPath, entity);
+				this.handleSystemBusMessages(entityPath, entity, busMessageQueue);
 				break;
 			}
 		}
@@ -1963,7 +1964,7 @@ export class MazeSimulator {
 		}
 	}
 	
-	protected handleSubsystemMessage( entityPath:EntityPath, system:Entity, subsystemKey:string, subsystem:EntitySubsystem, message:EntitySystemBusMessage ):void {
+	protected handleSubsystemBusMessage( entityPath:EntityPath, system:Entity, subsystemKey:string, subsystem:EntitySubsystem, message:EntitySystemBusMessage ):void {
 		if( message.length < 1 ) {
 			console.warn("Zero-length message passed to subsystem "+subsystemKey, message);
 			return;
@@ -1982,6 +1983,7 @@ export class MazeSimulator {
 		case "http://ns.nuke24.net/Game21/EntitySubsystem/Appendage":
 			switch( message[0] ) {
 			case '/poke':
+				// TODO: enqueueAction instead of poking directly
 				this.doPoke(entityPath, system, subsystemKey, subsystem, {x:+message[1], y:+message[2], z:+message[3]});
 				return;
 			}
@@ -1992,8 +1994,14 @@ export class MazeSimulator {
 		}
 	}
 	
-	protected handleSystemMessage(
-		entityPath:EntityPath, system:Entity, message:EntitySystemBusMessage
+	/**
+	 * Handle a single bus message.
+	 * This may cause new messages to go onto the queue,
+	 * but handling those messages is left to the caller,
+	 * probably handleSystemBusMessages.
+	 */
+	protected handleSystemBusMessage(
+		entityPath:EntityPath, system:Entity, message:EntitySystemBusMessage, busMessageQueue:EntitySystemBusMessage[]
 	):void {
 		if( message.length < 1 ) {
 			console.warn("Zero length system bus message", message);
@@ -2019,17 +2027,15 @@ export class MazeSimulator {
 			return;
 		}
 		const subsystemMessage = [pprem[2], ...message.slice(1)];
-		this.handleSubsystemMessage(entityPath, system, subsystemKey, subsystem, subsystemMessage);
+		this.handleSubsystemBusMessage(entityPath, system, subsystemKey, subsystem, subsystemMessage);
 	}
 	
-	protected updateInternalSystem(
-		entityPath:EntityPath, system:Entity
+	protected handleSystemBusMessages(
+		entityPath:EntityPath, system:Entity, busMessageQueue:EntitySystemBusMessage[]
 	):void {
-		if( system.enqueuedBusMessages == undefined ) return;
-		for( let i=0; i<system.enqueuedBusMessages.length; ++i ) {
-			this.handleSystemMessage(entityPath, system, system.enqueuedBusMessages[i]);
+		for( let i=0; i<busMessageQueue.length; ++i ) {
+			this.handleSystemBusMessage(entityPath, system, busMessageQueue[i], busMessageQueue);
 		}
-		system.enqueuedBusMessages = undefined;
 	}
 	
 	public sendProximalEventMessageToNearbyEntities(
@@ -2068,14 +2074,15 @@ export class MazeSimulator {
 					// TODO: Clone message, add originPosition data.
 					const fixedMessage = message;
 					const expr = this.gameDataManager.getObject<esp.ProgramExpression>(iSys.eventDetectedExpressionRef);
+					const busMessageQueue:EntitySystemBusMessage[] = []; 
 					this.runSubsystemProgram(
 						[foundEntity.roomRef, foundEntity.roomEntityId], foundEntity.entity,
-						ESSKEY_PROXIMALEVENTDETECTOR, expr,
+						ESSKEY_PROXIMALEVENTDETECTOR, expr, busMessageQueue,
 						{
 							event: fixedMessage
 						}
 					);
-					this.updateInternalSystem([foundEntity.roomRef, foundEntity.roomEntityId], foundEntity.entity);
+					this.handleSystemBusMessages([foundEntity.roomRef, foundEntity.roomEntityId], foundEntity.entity, busMessageQueue);
 				}
 			}
 		}
@@ -2106,9 +2113,8 @@ export class MazeSimulator {
 			console.warn("Couldn't find entity "+entityPath.join('/'));
 			return;
 		}
-		if( entity.enqueuedBusMessages == undefined ) entity.enqueuedBusMessages = [];
-		entity.enqueuedBusMessages.push(message);
-		this.updateInternalSystem(entityPath, entity);
+		
+		this.handleSystemBusMessages(entityPath, entity, [message]);
 	}
 	
 	protected doAction( act:SimulationAction ):void {
