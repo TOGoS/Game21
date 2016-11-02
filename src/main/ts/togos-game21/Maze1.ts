@@ -1710,6 +1710,7 @@ export class MazeSimulator {
 			} else {
 				console.warn("Can't add item; inventory full");
 			}
+			return true;
 		} else if( path == '/vomit' ) {
 			if( entity.storedEnergy != undefined ) {
 				const roomEntity = this.getRoomEntityOrUndefined(entityPath);
@@ -1731,6 +1732,7 @@ export class MazeSimulator {
 					} catch (err) { break chunks; }
 				}
 			}
+			return true;
 		} else if( path == '/throwinventoryitem' ) {
 			const roomEntity = this.getRoomEntityOrUndefined(entityPath);
 			if( roomEntity == undefined ) {
@@ -1760,8 +1762,9 @@ export class MazeSimulator {
 			}
 			delete entity.maze1Inventory[itemRef];
 			return true;
+		} else {
+			return false;
 		}
-		return false;
 	}
 	
 	protected processSimulatorCommand(messageData:EntitySystemBusMessage):void {
@@ -1896,7 +1899,16 @@ export class MazeSimulator {
 		return evalInternalSystemProgram( program, ctx );
 	}
 	
-	protected handleSubsystemMessage( entityPath:EntityPath, system:Entity, subsystemKey:string, subsystem:EntitySubsystem, message:EntitySystemBusMessage ) {
+	protected doPoke( pokingEntityPath:EntityPath, pokingEntity:Entity, pokingSubsystemKey:string, pokingSubsystem:EntitySubsystem, offset:Vector3D ) {
+		console.log(pokingEntityPath.join('/')+' is trying to poke at '+vectorToString(offset));
+		// TODO: implement button poking or whatever
+	}
+	
+	protected handleSubsystemMessage( entityPath:EntityPath, system:Entity, subsystemKey:string, subsystem:EntitySubsystem, message:EntitySystemBusMessage ):void {
+		if( message.length < 1 ) {
+			console.warn("Zero-length message passed to subsystem "+subsystemKey, message);
+			return;
+		}
 		switch( subsystem.classRef ) {
 		case "http://ns.nuke24.net/Game21/EntitySubsystem/InterEntityBusBridge":
 			{
@@ -1906,6 +1918,13 @@ export class MazeSimulator {
 					busMessage: message,
 					replyPath: entityPath,
 				});
+			}
+			break;
+		case "http://ns.nuke24.net/Game21/EntitySubsystem/Appendage":
+			switch( message[0] ) {
+			case '/poke':
+				this.doPoke(entityPath, system, subsystemKey, subsystem, {x:+message[1], y:+message[2], z:+message[3]});
+				return;
 			}
 			break;
 		default:
@@ -1960,14 +1979,14 @@ export class MazeSimulator {
 	) {
 		const proximalEventDetectingEntityFilter:EntityFilter = (
 			roomEntityId:string, roomEntity:RoomEntity, entity:Entity, entityClass:EntityClass
-		):boolean => {
+		):boolean|undefined => {
 			const detectorSystem = getEntitySubsystem(entity, ESSKEY_PROXIMALEVENTDETECTOR, this.gameDataManager);
 			if( detectorSystem == undefined ) return false;
 			switch( detectorSystem.classRef ) {
 			case "http://ns.nuke24.net/Game21/EntitySubsystem/ProximalEventDetector":
 				if( detectorSystem.eventDetectedExpressionRef ) return true;
 			}
-			return false;
+			return undefined;
 		}
 		
 		// Ha ha for now just forward to UI.
@@ -2930,6 +2949,7 @@ export class MazeDemo {
 	}
 	
 	protected mouse1PreviouslyDown:boolean = true;
+	protected mouse2PreviouslyDown:boolean = true;
 	public handleMouseEvent(evt:MouseEvent):void {
 		if( evt.buttons == 1 ) {
 			const cpCoords = this.eventToCanvasPixelCoordinates(evt);
@@ -2946,10 +2966,16 @@ export class MazeDemo {
 				break;
 			case DemoMode.PLAY:
 				if( !this.mouse1PreviouslyDown ) {
+					/*
 					const itemKey = this.maze1InventoryUi.selectedItemKey;
 					if( itemKey ) this.enqueueInternalBusMessage(
 						[ROOMID_FINDENTITY, this.playerId],
 						["/throwinventoryitem", this.maze1InventoryUi.selectedItemKey, coords.x, coords.y, coords.z]
+					);
+					*/
+					this.enqueueInternalBusMessage(
+						[ROOMID_FINDENTITY, this.playerId],
+						['/rightarm/poke', coords.x, coords.y, coords.z]
 					);
 				}
 				break;
@@ -2958,6 +2984,25 @@ export class MazeDemo {
 		} else {
 			this.paintCoordinates = undefined;
 			this.mouse1PreviouslyDown = false;
+		}
+		if( evt.buttons == 2 ) {
+			const cpCoords = this.eventToCanvasPixelCoordinates(evt);
+			const coords = this.view.canvasPixelToWorldCoordinates(cpCoords.x, cpCoords.y);
+			switch( this._demoMode ) {
+			case DemoMode.PLAY:
+				if( !this.mouse2PreviouslyDown ) {
+					const itemKey = this.maze1InventoryUi.selectedItemKey;
+					if( itemKey ) this.enqueueInternalBusMessage(
+						[ROOMID_FINDENTITY, this.playerId],
+						["/throwinventoryitem", this.maze1InventoryUi.selectedItemKey, coords.x, coords.y, coords.z]
+					);
+				}
+				evt.preventDefault();
+				break;
+			}
+			this.mouse2PreviouslyDown = true;
+		} else {
+			this.mouse2PreviouslyDown = false;
 		}
 	}
 	
@@ -3423,6 +3468,7 @@ export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string, loadingSt
 	const gameLoaded = demo.loadGame(saveGameRef || "level0");
 	
 	canv.addEventListener('mousedown', demo.handleMouseEvent.bind(demo));
+	canv.addEventListener('contextmenu', demo.handleMouseEvent.bind(demo)); // Right clicks
 	canv.addEventListener('mouseup'  , demo.handleMouseEvent.bind(demo));
 	canv.addEventListener('mousemove', demo.handleMouseEvent.bind(demo));
 	
