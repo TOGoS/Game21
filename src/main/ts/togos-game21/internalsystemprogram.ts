@@ -50,3 +50,66 @@ export type FunctionRef =
 
 export const FUNC_SEND_BUS_MESSAGE = "http://ns.nuke24.net/InternalSystemFunctions/SendBusMessage";
 export const FUNC_ENTITY_CLASS_REF = "http://ns.nuke24.net/InternalSystemFunctions/EntityClassRef";
+
+const shortToLongFunctionRefs:KeyedList<FunctionRef> = {
+	"sendBusMessage": "http://ns.nuke24.net/InternalSystemFunctions/SendBusMessage",
+};
+
+export function sExpressionToProgramExpression(x:any):ProgramExpression {
+	if( typeof x == 'string' ) {
+		return <LiteralString>{
+			classRef: "http://ns.nuke24.net/TOGVM/Expressions/LiteralString",
+			literalValue: x
+		};
+	} else if( typeof x == 'number' ) {
+		return <LiteralNumber>{
+			classRef: "http://ns.nuke24.net/TOGVM/Expressions/LiteralNumber",
+			literalValue: x
+		};
+	} else if( typeof x == 'boolean' ) {
+		return <LiteralBoolean>{
+			classRef: "http://ns.nuke24.net/TOGVM/Expressions/LiteralBoolean",
+			literalValue: x
+		};
+	} else if( Array.isArray(x) ) {
+		if( x.length == 0 ) throw new Error("S-expression is zero length, which is bad!"); // Unless I decide it means Nil.
+		switch( x[0] ) {
+		case 'makeArray':
+			{
+				const componentExpressions:ProgramExpression[] = [];
+				for( let i=1; i<x.length; ++i ) {
+					componentExpressions.push( sExpressionToProgramExpression(x[i]) );
+				}
+				return <ArrayConstructionExpression>{
+					classRef: "http://ns.nuke24.net/TOGVM/Expressions/ArrayConstruction",
+					values: componentExpressions
+				}
+			}
+		case 'var':
+			{
+				if( x.length != 2 ) throw new Error("Var expression requires exactly one argument; gave: "+JSON.stringify(x));
+				if( typeof x[1] != 'string' ) {
+					throw new Error("Oh no var name must be a literal string, not "+JSON.stringify(x[1]));
+				}
+				return <VariableExpression>{
+					classRef: "http://ns.nuke24.net/TOGVM/Expressions/Variable",
+					variableName: x[1],
+				}
+			}
+		}
+		
+		if( shortToLongFunctionRefs[x[0]] ) {
+			const argumentExpressions:ProgramExpression[] = [];
+			for( let i=1; i<x.length; ++i ) {
+				argumentExpressions.push( sExpressionToProgramExpression(x[i] ) );
+			}
+			return <FunctionApplication>{
+				classRef: "http://ns.nuke24.net/TOGVM/Expressions/FunctionApplication",
+				functionRef: shortToLongFunctionRefs[x[0]],
+				arguments: argumentExpressions
+			};
+		}
+	}
+	
+	throw new Error("I can't compile this :( "+JSON.stringify(x));
+}

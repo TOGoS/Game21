@@ -36,6 +36,10 @@ export interface Button {
 	pokedExpressionRef? : string;
 }
 
+export interface EntityMorpher {
+	classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/EntityMorpher";
+}
+
 /**
  * May also be an attachment zone!
  * In which case systemKey will match attachmentzone key.
@@ -64,6 +68,7 @@ export type EntitySubsystem =
 	Appendage |
 	Button |
 	Conductor |
+	EntityMorpher |
 	InterEntityBusBridge |
 	MessageDelayer |
 	ProximalEventDetector |

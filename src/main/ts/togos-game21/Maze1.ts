@@ -2276,72 +2276,9 @@ interface SoundEffect {
 
 type GameContextListener = (ctx:GameContext)=>void;
 
-const shortToLongFunctionRefs:KeyedList<esp.FunctionRef> = {
-	"sendBusMessage": "http://ns.nuke24.net/InternalSystemFunctions/SendBusMessage",
-};
-
-function sExpressionToProgramExpression(x:any, gdm:GameDataManager):esp.ProgramExpression {
-	if( typeof x == 'string' ) {
-		return <esp.LiteralString>{
-			classRef: "http://ns.nuke24.net/TOGVM/Expressions/LiteralString",
-			literalValue: x
-		};
-	} else if( typeof x == 'number' ) {
-		return <esp.LiteralNumber>{
-			classRef: "http://ns.nuke24.net/TOGVM/Expressions/LiteralNumber",
-			literalValue: x
-		};
-	} else if( typeof x == 'boolean' ) {
-		return <esp.LiteralBoolean>{
-			classRef: "http://ns.nuke24.net/TOGVM/Expressions/LiteralBoolean",
-			literalValue: x
-		};
-	} else if( Array.isArray(x) ) {
-		if( x.length == 0 ) throw new Error("S-expression is zero length, which is bad!"); // Unless I decide it means Nil.
-		switch( x[0] ) {
-		case 'makeArray':
-			{
-				const componentExpressions:esp.ProgramExpression[] = [];
-				for( let i=1; i<x.length; ++i ) {
-					componentExpressions.push( sExpressionToProgramExpression(x[i], gdm) );
-				}
-				return <esp.ArrayConstructionExpression>{
-					classRef: "http://ns.nuke24.net/TOGVM/Expressions/ArrayConstruction",
-					values: componentExpressions
-				}
-			}
-		case 'var':
-			{
-				if( x.length != 2 ) throw new Error("Var expression requires exactly one argument; gave: "+JSON.stringify(x));
-				if( typeof x[1] != 'string' ) {
-					throw new Error("Oh no var name must be a literal string, not "+JSON.stringify(x[1]));
-				}
-				return <esp.VariableExpression>{
-					classRef: "http://ns.nuke24.net/TOGVM/Expressions/Variable",
-					variableName: x[1],
-				}
-			}
-		}
-		
-		if( shortToLongFunctionRefs[x[0]] ) {
-			const argumentExpressions:esp.ProgramExpression[] = [];
-			for( let i=1; i<x.length; ++i ) {
-				argumentExpressions.push( sExpressionToProgramExpression(x[i], gdm) );
-			}
-			return <esp.FunctionApplication>{
-				classRef: "http://ns.nuke24.net/TOGVM/Expressions/FunctionApplication",
-				functionRef: shortToLongFunctionRefs[x[0]],
-				arguments: argumentExpressions
-			};
-		}
-	}
-	
-	throw new Error("I can't compile this :( "+JSON.stringify(x));
-}
-
-function sExpressionToProgramExpressionRef(x:any[], gdm:GameDataManager):string {
+function sExpressionToProgramExpressionRef(sExp:any[], gdm:GameDataManager):string {
 	return gdm.tempStoreObject<esp.ProgramExpression>(
-		sExpressionToProgramExpression(x, gdm)
+		esp.sExpressionToProgramExpression(sExp)
 	);
 }
 

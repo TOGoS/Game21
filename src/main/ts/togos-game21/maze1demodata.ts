@@ -13,8 +13,15 @@ import {
 	makeTileEntityPaletteRef,
 	makeTileTreeRef
 } from './worldutil';
+import * as esp from './internalsystemprogram';
 import GameDataManager from './GameDataManager';
 /// <reference path="../Promise.d.ts"/>
+
+function sExpressionToProgramExpressionRef(sExp:any[], gdm:GameDataManager):string {
+	return gdm.tempStoreObject<esp.ProgramExpression>(
+		esp.sExpressionToProgramExpression(sExp)
+	);
+}
 
 function hexDig(i:number):string {
 	return String.fromCharCode( i < 10 ? 48 + i : 87 + i );
@@ -341,6 +348,26 @@ const triforcePix = [
 	1,1,1,1,1,1,1,1,1,1,1,1,
 	1,1,1,1,1,1,1,1,1,1,1,1,
 ]
+const toggleBoxOffPix = [
+	1,1,1,1,1,1,1,1,
+	1,0,0,0,0,0,0,0,
+	1,0,0,0,0,0,1,0,
+	1,0,0,0,0,0,1,0,
+	1,0,0,0,0,0,1,0,
+	1,0,0,0,0,0,1,0,
+	1,0,1,1,1,1,1,0,
+	1,0,0,0,0,0,0,0,
+]
+const toggleBoxOnPix = [
+	1,1,1,1,1,1,1,1,
+	1,0,0,0,0,0,0,0,
+	1,0,0,1,0,1,1,0,
+	1,0,1,0,1,0,1,0,
+	1,0,0,1,0,1,1,0,
+	1,0,1,0,1,0,1,0,
+	1,0,1,1,1,1,1,0,
+	1,0,0,0,0,0,0,0,
+]
 
 function bitImgColor(c:number|number[]):number {
 	if( typeof c == 'number' ) return c;
@@ -396,6 +423,8 @@ const ladder1SideImgRef = "bitimg:width=4;height=16;color1="+rgbaToNumber(128,96
 const ladder1TopImgRef = "bitimg:width=16;height=4;color1="+rgbaToNumber(128,96,96,255)+","+hexEncodeBits(ladder1TopPix);
 const latticeColumnImgRef = "bitimg:color1="+rgbaToNumber(192,192,192,255)+","+hexEncodeBits(latticeColumnPix);
 const latticeColumnBgImgRef = "bitimg:color1="+rgbaToNumber(64,64,64,255)+","+hexEncodeBits(latticeColumnPix);
+const toggleBoxOffImgRef = bitImgRef(0,[96,96,96],toggleBoxOffPix);
+const toggleBoxOnImgRef  = bitImgRef(0,[96,96,96],toggleBoxOnPix );
 
 const playerImgRef        = bitImgRef(0,[224,224,96],playerPix);
 const deadPlayerImgRef    = bitImgRef(0,[112,96,48],deadPlayerPix,16,8,8,6);
@@ -428,7 +457,7 @@ const room1Data = [
 	1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 2, 0,13, 0, 0,10,
 	1, 0,16, 0, 1, 3, 8, 8, 8, 8, 0, 0,13, 0, 0,10,
 	1, 0,16, 0, 1, 1, 1, 2, 2, 2, 2, 2,11, 0, 0,10,
-	1, 0,16, 0, 0, 0, 0, 0, 5, 0, 0, 0,13, 0, 0,10,
+	1, 0,16, 0, 0,30,30, 0, 5, 0, 0, 0,13, 0, 0,10,
 	1, 0, 2, 2, 2, 1, 1, 2, 5, 1, 1, 1,11, 0, 0,12,
 	1, 0, 2, 1, 1, 1, 1, 2, 5, 1, 0, 2,11, 0, 0,12,
 	1, 0, 0, 0, 2, 2, 2, 2, 5, 1, 0, 2,11, 0, 0,10,
@@ -575,6 +604,8 @@ export const latticeColumnLeftBlockEntityClassId = 'urn:uuid:9bee7432-5ad0-4f9d-
 export const latticeColumnBgEntityClassId = 'urn:uuid:b64789e4-023c-49ea-98b5-a9d892688bbb';
 export const latticeColumnBgRightBlockEntityClassId = 'urn:uuid:c447986a-19d2-447a-ab39-afe9df781dbe';
 export const latticeColumnBgLeftBlockEntityClassId = 'urn:uuid:c145afdd-bc60-4c97-bad8-b6fcb3e1846f';
+export const toggleBoxOffEntityClassRef = 'urn:uuid:5f51520a-09c9-4aaa-b0e8-68a03617eaf0';
+export const toggleBoxOnEntityClassRef  = 'urn:uuid:5f51520a-09c9-4aaa-b0e8-68a03617eaf1';
 
 export const primarySpawnPointEntityId = 'urn:uuid:d42a8340-ec03-482b-ae4c-a1bfdec4ba3a'; 
 export const playerEntityId            = 'urn:uuid:d42a8340-ec03-482b-ae4c-a1bfdec4ba32';
@@ -1058,6 +1089,61 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 		childEntityIndexes: [1,0,1,0,0,0,0,0,0,0,0,0,1,0,1,0]
 	}, latticeColumnBgLeftBlockEntityClassId );
 	
+	const toggleBoxBb = makeAabb(-1/4,-1/4,-1/8, +1/4,+1/4,+1/8); 
+	
+	gdm.tempStoreObject<EntityClass>( {
+		debugLabel: "toggle box (off)",
+		structureType: StructureType.INDIVIDUAL,
+		tilingBoundingBox: toggleBoxBb,
+		physicalBoundingBox: toggleBoxBb,
+		visualBoundingBox: toggleBoxBb,
+		visualRef: toggleBoxOffImgRef,
+		defaultSubsystems: {
+			"button": {
+				classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/Button",
+				pokedExpressionRef: sExpressionToProgramExpressionRef(
+					['sendBusMessage', ['makeArray', '/morph', toggleBoxOnEntityClassRef]],
+					gdm
+				)
+			},
+			"morph": {
+				classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/EntityMorpher",
+			}
+		}
+	}, toggleBoxOffEntityClassRef);
+	gdm.tempStoreObject<EntityClass>( {
+		debugLabel: "toggle box (on)",
+		structureType: StructureType.INDIVIDUAL,
+		tilingBoundingBox: toggleBoxBb,
+		physicalBoundingBox: toggleBoxBb,
+		visualBoundingBox: toggleBoxBb,
+		visualRef: toggleBoxOnImgRef,
+		defaultSubsystems: {
+			"button": {
+				classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/Button",
+				pokedExpressionRef: sExpressionToProgramExpressionRef(
+					['sendBusMessage', ['makeArray', '/morph', toggleBoxOffEntityClassRef]],
+					gdm
+				)
+			},
+			"morph": {
+				classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/EntityMorpher",
+			}
+		}
+	}, toggleBoxOnEntityClassRef);
+	const toggleBoxBlockEntityClassRef = gdm.tempStoreObject<TileTree>( {
+		debugLabel: "toggle box block",
+		structureType: StructureType.TILE_TREE,
+		tilingBoundingBox: UNIT_CUBE,
+		physicalBoundingBox: UNIT_CUBE,
+		visualBoundingBox: UNIT_CUBE,
+		xDivisions: 2,
+		yDivisions: 2,
+		zDivisions: 4,
+		childEntityPaletteRef: makeTileEntityPaletteRef([null, toggleBoxOffEntityClassRef, toggleBoxOnEntityClassRef], gdm),
+		childEntityIndexes: [0,0,0,0, 0,0,0,0, 0,0,0,0, 1,1,1,1],
+	});
+	
 	const keyBoundingBox = makeAabb(-0.25,-0.125,-0.125, +0.25,+0.125,+0.125);
 	const cheapDoorBoundingBox = makeAabb(-0.25,-0.5,-0.5, +0.25,+0.5,+0.5);
 
@@ -1260,6 +1346,7 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 		/* 27 */ browningVines1EntityClassId,
 		/* 28 */ roots1EntityClassId,
 		/* 29 */ tanRox1EntityClassId,
+		/* 30 */ toggleBoxBlockEntityClassRef,
 	], gdm, tileEntityPaletteId);
 	
 	// do this as second step because we need to reference that tile tree palette by ID
