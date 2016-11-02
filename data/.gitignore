@@ -1,0 +1,4 @@
+# Ignore everything not explicitly unignored.
+*
+!.gitignore
+!*.urn
