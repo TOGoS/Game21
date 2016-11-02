@@ -31,7 +31,7 @@ import SceneShader, { ShadeRaster, VISIBILITY_VOID, VISIBILITY_NONE, VISIBILITY_
 import { uuidUrn, newType4Uuid } from '../tshash/uuids';
 import {
 	makeTileTreeRef, makeTileEntityPaletteRef, eachSubEntity, eachSubEntityIntersectingBb, connectRooms,
-	getEntitySubsystem, setEntitySubsystem, enqueueInternalBusMessage
+	getEntitySubsystem, setEntitySubsystem, getEntitySubsystems, enqueueInternalBusMessage
 } from './worldutil';
 import * as esp from './internalsystemprogram';
 import * as dat from './maze1demodata';
@@ -51,6 +51,8 @@ import {
 import EntitySystemBusMessage, { MessageBusSystem } from './EntitySystemBusMessage';
 import EntitySubsystem, {
 	ProximalEventDetector,
+	Appendage,
+	Button,
 	ESSKEY_PROXIMALEVENTDETECTOR
 } from './EntitySubsystem';
 import ImageSlice from './ImageSlice';
@@ -1899,9 +1901,62 @@ export class MazeSimulator {
 		return evalInternalSystemProgram( program, ctx );
 	}
 	
-	protected doPoke( pokingEntityPath:EntityPath, pokingEntity:Entity, pokingSubsystemKey:string, pokingSubsystem:EntitySubsystem, offset:Vector3D ) {
-		console.log(pokingEntityPath.join('/')+' is trying to poke at '+vectorToString(offset));
-		// TODO: implement button poking or whatever
+	protected deliverPoke(entityPath:EntityPath, entity:Entity) {
+		const subsystems = getEntitySubsystems(entity, this.gameDataManager);
+		for( let sk in subsystems ) {
+			const subsystem = subsystems[sk];
+			switch( subsystem.classRef ) {
+			case "http://ns.nuke24.net/Game21/EntitySubsystem/Button":
+				if( subsystem.pokedExpressionRef == undefined ) continue;
+				const expr = this.gameDataManager.getObject<esp.ProgramExpression>(subsystem.pokedExpressionRef);
+				this.runSubsystemProgram(
+					entityPath, entity,
+					sk, expr, {}
+				);
+				this.updateInternalSystem(entityPath, entity);
+				break;
+			}
+		}
+	}
+	
+	protected doPoke( pokingEntityPath:EntityPath, pokingEntity:Entity, pokingSubsystemKey:string, pokingSubsystem:EntitySubsystem, pokeOffset:Vector3D ) {
+		console.log(pokingEntityPath.join('/')+' is trying to poke at '+vectorToString(pokeOffset));
+		
+		// TODO: List all pokable things in Z column, *then* filter by reachability
+		
+		const pokingAppendage:Appendage = <Appendage>pokingSubsystem;
+		if( pokingAppendage.maxReachDistance != undefined && vectorLength(pokeOffset) > pokingAppendage.maxReachDistance ) {
+			console.log("Aww sorry you can't reach that far.  :(");
+			return;
+		}
+		
+		const pokableEntityFilter:EntityFilter = (
+			roomEntityId:string, roomEntity:RoomEntity, entity:Entity, entityClass:EntityClass
+		):boolean|undefined => {
+			const subsystems = getEntitySubsystems(entity, this.gameDataManager);
+			for( let sk in subsystems ) {
+				const subsystem = subsystems[sk];
+				switch( subsystem.classRef ) {
+				case "http://ns.nuke24.net/Game21/EntitySubsystem/Button":
+					return true;
+				}
+			}
+			return undefined;
+		}
+		
+		pokingEntityPath = this.resolveEntityPath(pokingEntityPath);
+		const roomEntity = this.getRoomEntity(pokingEntityPath);
+		const pokedLocation = this.fixLocation({
+			roomRef: pokingEntityPath[0],
+			position: addVector(roomEntity.position, pokeOffset)
+		});
+		const pokedPosition = pokedLocation.position;
+		const pokeCheckBb = makeAabb(0,0,-1, 0,0,+1);
+		const foundPokableEntities = this.entitiesAt( pokedLocation.roomRef, pokedPosition, pokeCheckBb, pokableEntityFilter);
+		for( let fpe in foundPokableEntities ) {
+			const foundEntity = foundPokableEntities[fpe];
+			this.deliverPoke([foundEntity.roomRef, foundEntity.roomEntityId], foundEntity.entity);
+		}
 	}
 	
 	protected handleSubsystemMessage( entityPath:EntityPath, system:Entity, subsystemKey:string, subsystem:EntitySubsystem, message:EntitySystemBusMessage ):void {
