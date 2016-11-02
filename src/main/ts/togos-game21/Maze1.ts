@@ -189,8 +189,10 @@ interface BitImageInfo {
 	bitstr : string;
 	color0 : number;
 	color1 : number;
-	width : number;
-	height: number;
+	width  : number;
+	height : number;
+	originX: number;
+	originY: number;
 }
 
 const oneBitImageDataRegex = /^bitimg:([^,]+),([0-9a-f]+)$/;
@@ -210,12 +212,16 @@ function parseBitImg( m:RegExpExecArray ):BitImageInfo {
 			modVals[p[0]] = v;
 		}
 	}
+	const width  = (modVals['width']  || defaultWidth )|0;
+	const height = (modVals['height'] || defaultHeight)|0
 	return {
 		bitstr: bitStr,
 		color0: modVals['color0']|0,
 		color1: modVals['color1']|0,
-		width : modVals['width'] |0 || defaultWidth,
-		height: modVals['height']|0 || defaultHeight
+		width : width,
+		height: height,
+		originX: (modVals['originX'] || width /2)|0,
+		originY: (modVals['originY'] || height/2)|0,
 	}
 }
 
@@ -253,8 +259,10 @@ class EntityImageManager
 	
 	public constructor( protected gameDataManager:GameDataManager ) { }
 	
-	protected urlishImageCache:KeyedList<string> = {};
-	protected getUrlishImage( ref:string ):string {
+	// TODO: Use one set of ImageSlices using sheetRef
+	// instead of having one set of ImageSlice<ImageURL>s and one set of ImageSlice<Image>s
+	protected urlishImageCache:KeyedList<ImageSlice<string>> = {};
+	protected getUrlishImage( ref:string ):ImageSlice<string> {
 		if( this.urlishImageCache[ref] ) return this.urlishImageCache[ref];
 		
 		const bitImgRee = oneBitImageDataRegex.exec(ref);
@@ -262,11 +270,13 @@ class EntityImageManager
 		if( bitImgRee ) {
 			const bitImgInfo = parseBitImg(bitImgRee);
 			xRef = parseOneBitImageDataToDataUrl( bitImgInfo.bitstr, bitImgInfo.width, bitImgInfo.height, bitImgInfo.color0, bitImgInfo.color1 );
+			return this.urlishImageCache[ref] = new ImageSlice(
+				xRef, makeVector(bitImgInfo.originX, bitImgInfo.originY, 0),
+				16, makeAabb(0,0,0, bitImgInfo.width,bitImgInfo.height,0)
+			);
 		} else {
 			throw new Error(ref+" not parse!");
 		}
-		
-		return this.urlishImageCache[ref] = xRef;
 	}
 	
 	protected iconCache:KeyedList<ImageSlice<HTMLImageElement>> = {};
@@ -295,14 +305,14 @@ class EntityImageManager
 	public fetchIcon( visualRef:string, state:KeyedList<any>|undefined, time:number, orientation:Quaternion, preferredResolution:number ):Promise<ImageSlice<HTMLImageElement>> {
 		if( this.iconPromises[visualRef] ) return this.iconPromises[visualRef];
 		
-		const imgRef = this.getUrlishImage(visualRef);
-		return this.iconPromises[visualRef] = this.fetchImage(imgRef).then( (img) => {
+		const refSheet = this.getUrlishImage(visualRef);
+		return this.iconPromises[visualRef] = this.fetchImage(refSheet.sheet).then( (img) => {
 			return this.iconCache[visualRef] = {
-				sheetRef: imgRef,
+				sheetRef: refSheet.sheet,
 				sheet: img,
-				origin: makeVector(img.width/2, img.height/2, 0),
-				resolution: 16,
-				bounds: makeAabb(0,0,0, img.width,img.height,0)
+				origin: refSheet.origin,
+				resolution: refSheet.resolution,
+				bounds: refSheet.bounds
 			}
 		});
 		
@@ -522,13 +532,7 @@ function roomToMazeViewage( roomRef:string, roomPosition:Vector3D, gdm:GameDataM
 			
 			// TODO: Re-use items, visuals
 			if( visible ) viewage.visualEntities.push( {
-				// TODO: Just send position normal,
-				// visual should contain offsets
-				position: {
-					x: position.x + aabbAverageX(entityClass.visualBoundingBox),
-					y: position.y + aabbAverageY(entityClass.visualBoundingBox),
-					z: position.z + aabbAverageZ(entityClass.visualBoundingBox),
-				},
+				position,
 				orientation: orientation,
 				visualRef: entityClass.visualRef,
 				entity: includeGreatInfo ? entity : undefined,

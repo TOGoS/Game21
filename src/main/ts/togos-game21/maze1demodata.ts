@@ -351,12 +351,17 @@ function bitImgColor(c:number|number[]):number {
 	}
 	throw new Error("BitImg color parameter must be a number of array of length 3 or 4");
 }
-function bitImgRef(color0:number|number[],color1:number|number[],pixDat:number[],width?:number,height?:number):string {
+function bitImgRef(
+	color0:number|number[],color1:number|number[],pixDat:number[],
+	width?:number,height?:number,originX?:number,originY?:number
+):string {
 	const mods:string[] = [];
 	if( color0 != 0 ) mods.push("color0="+bitImgColor(color0));
 	mods.push("color1="+bitImgColor(color1));
 	if( width != undefined ) mods.push("width="+width);
 	if( height != undefined ) mods.push("height="+height);
+	if( originX != undefined ) mods.push("originX="+originX);
+	if( originY != undefined ) mods.push("originY="+originY);
 	return "bitimg:"+mods.join(';')+","+hexEncodeBits(pixDat);
 }
 
@@ -393,15 +398,15 @@ const latticeColumnImgRef = "bitimg:color1="+rgbaToNumber(192,192,192,255)+","+h
 const latticeColumnBgImgRef = "bitimg:color1="+rgbaToNumber(64,64,64,255)+","+hexEncodeBits(latticeColumnPix);
 
 const playerImgRef        = bitImgRef(0,[224,224,96],playerPix);
-const deadPlayerImgRef    = bitImgRef(0,[112,96,48],deadPlayerPix,16,8);
+const deadPlayerImgRef    = bitImgRef(0,[112,96,48],deadPlayerPix,16,8,8,6);
 
 const blueKeyImgRef   = bitImgRef(0,  [0,  0,192],keyPix,8,4);
 const yellowKeyImgRef = bitImgRef(0,[192,192,  0],keyPix,8,4);
 const redKeyImgRef    = bitImgRef(0,[192,  0,  0],keyPix,8,4);
 const triforceImgRef  = bitImgRef(0,[200,200,128],triforcePix,12,12);
 const appleImgRef     = bitImgRef(0,[160,64,32],applePix);
-const stick1ImgRef    = bitImgRef(0,[112,96,72],stick1Pix,8,6);
-const stick2ImgRef    = bitImgRef(0,[112,96,72],stick2Pix,8,6);
+const stick1ImgRef    = bitImgRef(0,[112,96,72],stick1Pix,8,6,4,4);
+const stick2ImgRef    = bitImgRef(0,[112,96,72],stick2Pix,8,6,4,4);
 const vomitChunk1ImgRef= bitImgRef(0,[128,96,48],chunkPix,4,2);
 const vomitChunk2ImgRef= bitImgRef(0,[96,128,48],chunkPix,4,2);
 const vomitChunk3ImgRef= bitImgRef(0,[160,192,64],chunkPix,4,2);
