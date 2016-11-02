@@ -166,7 +166,7 @@ export interface Entity extends MessageBusSystem {
 	 * Overrides of the entity class's default internal systems.
 	 * A key with value=undefined means this entity is lacking that system.
 	 */
-	internalSystems? : KeyedList<EntitySubsystem|undefined>;
+	subsystems? : KeyedList<EntitySubsystem|undefined>;
 	enqueuedBusMessages? : EntitySystemBusMessage[];
 	
 	desiredMovementDirection? : Vector3D;

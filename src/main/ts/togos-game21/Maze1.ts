@@ -80,12 +80,10 @@ import GraphWorldifier, { mazeToWorld } from './graphmaze/GraphWorldifier';
 import SimulationMessage, {
 	SimpleEventOccurred,
 	TextHeard,
-	InternalBusMessageReceived,
 	ProximalSimulationMessage,
 } from './SimulationMessage';
 import {
 	EntityPath,
-	EntityCommandData,
 	SimulationAction,
 	SendDataPacketAction,
 	SendAnalogValueAction,
@@ -109,7 +107,7 @@ const KEY_BACKTICK = 192;
 const KEY_0 = 48;
 const KEY_9 = 57;
 
-function entityMessageDataPath(emd:EntityCommandData):string {
+function entityMessageDataPath(emd:EntitySystemBusMessage):string {
 	return ""+emd[0];
 }
 
@@ -943,6 +941,7 @@ export class MazeGamePhysics {
 		// Auto pickups!  And door opens.  And death.
 		for( let r in this.activeRoomIds ) {
 			let room = rooms[r];
+			if( !room ) throw new Error("Somehow room '"+r+"' is in the active room IDs list, but there doesn't seem to be any such room");
 			for( let re in room.roomEntities ) {
 				const roomEntity = room.roomEntities[re];
 				const entity = roomEntity.entity;
@@ -1357,7 +1356,7 @@ export class MazeGamePhysics {
 }
 
 interface ExternalDevice {
-	message( em:SimulationMessage, replyPath?:EntityPath ):void;
+	onMessage( bm:EntitySystemBusMessage, sourcePath?:EntityPath ):void
 }
 
 interface InternalSystemProgramEvaluationContext {
@@ -1635,25 +1634,24 @@ export class MazeSimulator {
 		});
 	}
 	
-	protected processEntityMessage(
-		roomId:string, room:Room, entityId:string,
-		roomEntity:RoomEntity, md:SimulationMessage
-	):void {
-		switch( md.classRef ) {
-		case "http://ns.nuke24.net/Game21/SimulationMessage/CommandReceived":
-			return this.processEntityCommand(roomId, room, entityId, roomEntity, md.command);
-		}
-	}
-	
-	protected processEntityCommand(
-		roomId:string, room:Room, entityId:string,
-		roomEntity:RoomEntity, md:EntityCommandData
-	):void {	
+	/**
+	 * Returns true if the message was understood (even if not successful)
+	 */
+	protected processSpecialEntityCommand(
+		entityPath:EntityPath, entity:Entity, md:EntitySystemBusMessage
+	):boolean {
+		entityPath = this.resolveEntityPath(entityPath);
+		const roomId = entityPath[0];
+		
+		// TODO: Replace all the following with subsystems
+		// And remove this method!
 		const path = entityMessageDataPath(md);
 		if( path == "/desiredmovementdirection" ) {
-			roomEntity.entity.desiredMovementDirection = makeVector(+md[1],+md[2],+md[3]);
+			entity.desiredMovementDirection = makeVector(+md[1],+md[2],+md[3]);
 			// Make sure the room is marked as active:
-			this.activeRoomIds[roomId] = roomId;
+			if( this.rooms[roomId] ) this.activeRoomIds[roomId] = roomId; 
+			else console.warn("Oh no, active entity in non-loaded room '"+roomId+"'");
+			return true;
 		} else if( path == "/painttiletreeblock" ) {
 			const relX = +md[1];
 			const relY = +md[2];
@@ -1662,7 +1660,7 @@ export class MazeSimulator {
 			const block = md[5];
 			if( typeof block != 'string' && typeof block != 'number' && block !== null ) {
 				console.log("Erps; bad block");
-				return;
+				return true;
 			}
 			if( typeof block == 'string' ) {
 				if( this.gameDataManager.getObjectIfLoaded<EntityClass>( block ) == null ) {
@@ -1674,42 +1672,44 @@ export class MazeSimulator {
 					}).catch( (err) => {
 						console.error("Failed to load entity class "+block);
 					});
-					return;
+					return true;
 				}
 			}
+			const roomEntity = this.getRoomEntityOrUndefined(entityPath);
 			const rePos = roomEntity.position;
 			const blockLoc = this.fixLocation( {roomRef: roomId, position: makeVector(relX+rePos.x, relY+rePos.y, relZ+rePos.z)} );
 			this.setTileTreeBlock( blockLoc.roomRef, blockLoc.position, tileScale, block );
-			return;
+			return true;
 		} else if( path == '/give' ) {
 			// put a thing in your inventory, if there's space
 			const itemClassRef = md[1];
-			if( itemClassRef == undefined ) return;
+			if( itemClassRef == undefined ) return true;
 			try {
 				const itemClass = this.gameDataManager.getEntityClass(itemClassRef, true);
 			} catch (err) {
 				console.error("Couldn't give item", err);
-				return;
+				return true;
 			}
-			const entityClass = this.gameDataManager.getEntityClass(roomEntity.entity.classRef);
+			const entityClass = this.gameDataManager.getEntityClass(entity.classRef);
 			const inventorySize = entityClass.maze1InventorySize || 0;
 			if( inventorySize == 0 ) {
 				console.warn("Can't add item; inventory size = 0");
-				return;
+				return true;
 			}
 			let currentItemCount = 0;
-			if( roomEntity.entity.maze1Inventory == undefined ) roomEntity.entity.maze1Inventory = {};
-			for( let k in roomEntity.entity.maze1Inventory ) ++currentItemCount;
+			if( entity.maze1Inventory == undefined ) entity.maze1Inventory = {};
+			for( let k in entity.maze1Inventory ) ++currentItemCount;
 			if( currentItemCount < inventorySize ) {
-				roomEntity.entity.maze1Inventory[newUuidRef()] = {
+				entity.maze1Inventory[newUuidRef()] = {
 					classRef: itemClassRef
 				};
 			} else {
 				console.warn("Can't add item; inventory full");
 			}
 		} else if( path == '/vomit' ) {
-			if( roomEntity.entity.storedEnergy != undefined ) {
-				roomEntity.entity.storedEnergy /= 2;
+			if( entity.storedEnergy != undefined ) {
+				const roomEntity = this.getRoomEntityOrUndefined(entityPath);
+				entity.storedEnergy /= 2;
 				chunks: for( let i=0; i<20; ++i ) {
 					let vel = roomEntity.velocity||ZERO_VECTOR;
 					if( vectorIsZero(vel) ) vel = {x:0,y:-1,z:0};
@@ -1724,39 +1724,35 @@ export class MazeSimulator {
 				}
 			}
 		} else if( path == '/throwinventoryitem' ) {
+			const roomEntity = this.getRoomEntityOrUndefined(entityPath);
 			if( md[1] == undefined ) {
 				console.error("missing item key argument to /throwinventoryitem");
-				return;
+				return true;
 			}
 			const itemRef = md[1];
-			if( roomEntity.entity.maze1Inventory == undefined ) {
+			if( entity.maze1Inventory == undefined ) {
 				console.warn("No inventory at all; can't throw item'");
-				return;
+				return true;
 			}
-			const item = roomEntity.entity.maze1Inventory[itemRef];
+			const item = entity.maze1Inventory[itemRef];
 			if( item == undefined ) {
-				console.warn("No item "+itemRef+" seems to exist in inventory:", roomEntity.entity.maze1Inventory);
-				return;
+				console.warn("No item "+itemRef+" seems to exist in inventory:", entity.maze1Inventory);
+				return true;
 			}
 			const throwOffset = normalizeVector({x:+md[2], y:+md[3], z:+md[4]}, 0.5);
 			try {
 				this.placeItemSomewhereNear(item, roomId, addVector(roomEntity.position,throwOffset), scaleVector(throwOffset,10));
 			} catch( err ) {
 				console.log("Couldn't throw:", err)
-				return;
+				return true;
 			}
-			delete roomEntity.entity.maze1Inventory[itemRef];
+			delete entity.maze1Inventory[itemRef];
+			return true;
 		}
+		return false;
 	}
 	
-	protected processSimulatorMessage(msg:SimulationMessage):void {
-		switch( msg.classRef ) {
-		case "http://ns.nuke24.net/Game21/SimulationMessage/CommandReceived":
-			return this.processSimulatorCommand(msg.command);
-		}
-	}
-	
-	protected processSimulatorCommand(messageData:EntityCommandData):void {
+	protected processSimulatorCommand(messageData:EntitySystemBusMessage):void {
 		switch( messageData[0] ) {
 		case '/create-room':
 			{
@@ -1838,25 +1834,44 @@ export class MazeSimulator {
 		return undefined;
 	}
 	
-	public getRoomEntity(entityId:string):RoomEntity|undefined {
+	protected resolveEntityPath(entityPath:EntityPath):EntityPath {
+		if( entityPath[0] == ROOMID_FINDENTITY ) {
+			const roomId = this.findEntity(entityPath[1]);
+			if( roomId == undefined ) throw new Error("Failed to resolve entity path "+entityPath.join('/'));
+			return [roomId, ...entityPath.slice(1)];
+		}
+		return entityPath;
+	}
+	
+	public getRoomEntityOrUndefined(entityPath:string|EntityPath):RoomEntity|undefined {
+		if( typeof entityPath == 'string' ) {
+			entityPath = [ROOMID_FINDENTITY, entityPath];
+		}
+		if( entityPath[0] != ROOMID_FINDENTITY ) {
+			const room = this.rooms[entityPath[0]];
+			if( !room ) {
+				console.warn("No such room as '"+entityPath[0]+"', referenced by entity path");
+				return undefined;
+			}
+			return room.roomEntities[entityPath[1]];
+		}
 		for( let roomId in this.rooms ) {
 			const room = this.rooms[roomId];
-			if( room.roomEntities[entityId] ) return room.roomEntities[entityId];
+			if( room.roomEntities[entityPath[1]] ) return room.roomEntities[entityPath[1]];
 		}
 		return undefined;
 	}
 	
-	public enqueueMessage( targetPath:EntityPath, message:SimulationMessage, replyPath?:EntityPath ) {
-		if( targetPath[0] == ROOMID_EXTERNAL ) {
-			this.deliverExternalDeviceMessage(targetPath, message, replyPath);
-		}
-		
-		this.enqueueAction({
-			classRef: "http://ns.nuke24.net/Game21/SimulationAction/ReceiveMessage",
-			entityPath: targetPath,
-			message,
-			replyPath,
-		})
+	public getRoomEntity(entityPath:string|EntityPath):RoomEntity {
+		const e = this.getRoomEntityOrUndefined(entityPath);
+		if( e == undefined ) throw new Error("Room entity "+entityPath+" not found");
+		return e;
+	}
+	
+	public getEntityOrUndefined(entityPath:EntityPath):Entity|undefined {
+		const roomEntity = this.getRoomEntityOrUndefined(entityPath);
+		if( roomEntity == undefined ) return undefined;
+		return roomEntity.entity;
 	}
 	
 	protected runSubsystemProgram(
@@ -1870,10 +1885,20 @@ export class MazeSimulator {
 	}
 	
 	protected handleSubsystemMessage( entityPath:EntityPath, system:Entity, subsystemKey:string, subsystem:EntitySubsystem, message:EntitySystemBusMessage ) {
-		console.log("message to the "+subsystemKey, message);
-		// TODO!!!
 		switch( subsystem.classRef ) {
-			
+		case "http://ns.nuke24.net/Game21/EntitySubsystem/InterEntityBusBridge":
+			{
+				this.enqueueAction({
+					classRef: "http://ns.nuke24.net/Game21/SimulationAction/InduceSystemBusMessage",
+					entityPath: subsystem.forwardTo,
+					busMessage: message,
+					replyPath: entityPath,
+				});
+			}
+			break;
+		default:
+			console.warn(subsystem.classRef+" recieved bus message, but handling of it is not implemented:", message);
+			break;
 		}
 	}
 	
@@ -1893,13 +1918,16 @@ export class MazeSimulator {
 		}
 		
 		const subsystemKey = pprem[1];
-		if( !system.internalSystems[subsystemKey] ) {
+		if( !system.subsystems[subsystemKey] ) {
 			// This might turn out to be a semi-normal occurrence,
 			// in which case I should stop cluttering the log with it.
-			console.warn("Message to nonexistent subsystem '"+pprem[1]+"'", message);
+			
+			if( !this.processSpecialEntityCommand(entityPath, system, message ) ) {
+				console.warn("Message to nonexistent subsystem (and not a special command, either) '"+pprem[1]+"'", message);	
+			}
 			return;
 		}
-		const subsystem = system.internalSystems[subsystemKey];
+		const subsystem = system.subsystems[subsystemKey];
 		const subsystemMessage = [pprem[2], ...message.slice(1)];
 		this.handleSubsystemMessage(entityPath, system, subsystemKey, subsystem, subsystemMessage);
 	}
@@ -1946,12 +1974,14 @@ export class MazeSimulator {
 			switch( iSys.classRef ) {
 			case "http://ns.nuke24.net/Game21/EntitySubsystem/ProximalEventDetector":
 				if( iSys.onEventExpressionRef ) {
+					// TODO: Clone message, add originPosition data.
+					const fixedMessage = message;
 					const expr = this.gameDataManager.getObject<esp.ProgramExpression>(iSys.onEventExpressionRef);
 					this.runSubsystemProgram(
 						[foundEntity.roomRef, foundEntity.roomEntityId], foundEntity.entity,
 						ESSKEY_PROXIMALEVENTDETECTOR, expr,
 						{
-							event: message 
+							event: fixedMessage
 						}
 					);
 					this.updateInternalSystem([foundEntity.roomRef, foundEntity.roomEntityId], foundEntity.entity);
@@ -1965,62 +1995,39 @@ export class MazeSimulator {
 		dev.message( message );
 		*/
 	}
-	
-	protected deliverExternalDeviceMessage( targetPath:EntityPath, message:SimulationMessage, replyPath?:EntityPath ) {
-		const deviceId = targetPath[1];
-		if( this.externalDevices[deviceId] ) {
-			this.externalDevices[deviceId].message( message, replyPath );
-		}
-	}
-	
-	protected doReceiveMessageAction( act:ReceiveMessageAction ):void {
-		let roomId:string|undefined;
 		
-		switch( act.entityPath[0] ) {
-		case ROOMID_SIMULATOR:
-			this.processSimulatorMessage(act.message);
+	protected induceSystemBusMessage(entityPath:EntityPath, message:EntitySystemBusMessage, replyPath?:EntityPath):void {
+		if( entityPath[0] == ROOMID_SIMULATOR ) {
+			this.processSimulatorCommand(message);
 			return;
-		case ROOMID_FINDENTITY:
-			roomId = this.findEntity(act.entityPath[1]);
-			if( roomId == null ) {
-				console.warn("Can't deliver entity message: failed to find room containing entity "+act.entityPath[1]);
-				return;
+		}
+		if( entityPath[0] == ROOMID_EXTERNAL ) {
+			const dev = this.externalDevices[entityPath[1]];
+			if( dev ) {
+				dev.onMessage(message, replyPath);
+			} else {
+				console.warn("Cannot deliver system bus message to nonexistent external device '"+entityPath[1]+"'")
 			}
-			break;
-		case ROOMID_EXTERNAL:
-			this.deliverExternalDeviceMessage(act.entityPath, act.message, act.replyPath);
-			return;
-		default:
-			roomId = act.entityPath[0];
-		}
-		if( act.entityPath.length != 2 ) {
-			console.error("Can't deliver entity message: unsupported path length: "+act.entityPath.length);
 			return;
 		}
-		const room = this.rooms[roomId];
-		if( !room ) {
-			console.warn("Can't deliver entity message: no such room: '"+roomId+"'");
+		const entity = this.getEntityOrUndefined(entityPath);
+		if( entity == undefined ) {
+			console.warn("Couldn't find entity "+entityPath.join('/'));
 			return;
 		}
-		const roomEntityKey = act.entityPath[1];
-		const roomEntity = room.roomEntities[roomEntityKey];
-		if( roomEntity == null ) {
-			console.warn("Can't deliver entity message: entity "+roomEntityKey+" not found in room "+roomId);
-			return;
-		}
-		// TODO: May need to handle more path... 
-		this.processEntityMessage(roomId, room, roomEntityKey, roomEntity, act.message);
+		if( entity.enqueuedBusMessages == undefined ) entity.enqueuedBusMessages = [];
+		entity.enqueuedBusMessages.push(message);
+		this.updateInternalSystem(entityPath, entity);
 	}
 	
 	protected doAction( act:SimulationAction ):void {
 		switch( act.classRef ) {
-		case "http://ns.nuke24.net/Game21/SimulationAction/ReceiveMessage":
-			this.doReceiveMessageAction(act);
-			break;
+		case "http://ns.nuke24.net/Game21/SimulationAction/InduceSystemBusMessage":
+			this.induceSystemBusMessage(act.entityPath, act.busMessage, act.replyPath);
+			break;	
 		default:
-			console.error("Unrecognized action class: "+act.classRef);
+			console.warn("Skipping invocation of unsupported action class: "+act.classRef);
 		}
-
 	}
 	
 	protected doMessageUpdate() {
@@ -2082,6 +2089,7 @@ export class MazeSimulator {
 	}
 	
 	public killRoomEntity(roomRef:string, entityRef:string) {
+		// TODO: Replace with a energy / morph subsystem
 		const room = this.activeRooms[roomRef];
 		const roomEntity = room.roomEntities[entityRef];
 		if( roomEntity == undefined ) {
@@ -2098,6 +2106,7 @@ export class MazeSimulator {
 		}
 		entity.maze1Inventory = {};
 		entity.classRef = dat.deadPlayerEntityClassId;
+		entity.subsystems = {};
 		delete entity.desiredMovementDirection;
 		delete entity.desiresMaze1AutoActivation; // Otherwise skeleton will steal your dropped keys! 
 	}
@@ -2474,7 +2483,7 @@ export class MazeDemo {
 		let moveY = down  ? +1 : up   ? -1 : 0;
 		
 		if( this.simulator && this.playerId ) {
-			this.enqueueCommand([ROOMID_FINDENTITY, this.playerId], ["/desiredmovementdirection", moveX, moveY, 0]);
+			this.enqueueInternalBusMessage([ROOMID_FINDENTITY, this.playerId], ["/desiredmovementdirection", moveX, moveY, 0]);
 		}
 		
 		this.picking = actions['pick'];
@@ -2607,20 +2616,26 @@ export class MazeDemo {
 	}
 	
 	protected playSound(f:SoundEffect|undefined) {
+		if( !this.soundEffectsEnabled ) return;
 		if( f == undefined ) return;
 		this.soundPlayer.playSoundByRef(f.dataRef, f.volume);
 	}
 	
-	protected handleSimulationMessage( msg:SimulationMessage ) {
-		console.log("Message from simulation!", msg);
-		if( !this.soundEffectsEnabled ) return;
-		switch( msg.classRef ) {
-		case "http://ns.nuke24.net/Game21/SimulationMessage/SimpleEventOccurred":
-			this.playSound( this.simpleEventSounds[msg.eventCode] );
+	protected handleBusMessage( msg:EntitySystemBusMessage, replyPath?:EntityPath ) {
+		switch( msg[0] ) {
+		case "/proximalevent":
+			const evt:SimulationMessage = msg[1];
+			switch( evt.classRef ) {
+			case "http://ns.nuke24.net/Game21/SimulationMessage/SimpleEventOccurred":
+				this.playSound( this.simpleEventSounds[evt.eventCode] );
+				break;
+			case "http://ns.nuke24.net/Game21/SimulationMessage/ItemPickedUp":
+				this.playSound( this.itemSounds[evt.itemClassRef] );
+				break;
+			}
 			break;
-		case "http://ns.nuke24.net/Game21/SimulationMessage/ItemPickedUp":
-			this.playSound( this.itemSounds[msg.itemClassRef] );
-			break;
+		default:
+			this.logger.warn("Received unrecognized message from simulation", msg, replyPath)
 		}
 	}
 	
@@ -2635,10 +2650,10 @@ export class MazeDemo {
 		this.simulator = new MazeSimulator(gdm);
 		
 		const thisDev:ExternalDevice = {
-			message: this.handleSimulationMessage.bind(this)
+			onMessage: this.handleBusMessage.bind(this)
 		}
-		//this.simulator.registerExternalDevice( this.deviceId, thisDev );
-		this.simulator.registerExternalDevice( 'ui', thisDev );
+		this.simulator.registerExternalDevice( this.deviceId, thisDev );
+		//this.simulator.registerExternalDevice( 'ui', thisDev );
 		
 		const loadPromise = gdm.cacheObjects([
 			dat.basicTileEntityPaletteRef // A thing whose ID tends to be hard coded around
@@ -2677,7 +2692,26 @@ export class MazeDemo {
 		});
 	}
 	
-	protected addControllerUplink( entity:Entity ) {
+	public createNewPlayerEntity(newPlayerId:string):Entity {
+		const pe = {
+			id: newPlayerId,
+			classRef: dat.playerEntityClassId,
+			desiresMaze1AutoActivation: true,
+			storedEnergy: 100000,
+		};
+		this.addPlayerSubsystems(pe);
+		return pe;
+	}
+	
+	protected addPlayerSubsystems( entity:Entity ) {
+		this.logger.log("Adding player subsystems to entity "+entity.id+" with uplink to external device "+this.deviceId);
+		setEntitySubsystem( entity, ESSKEY_PROXIMALEVENTDETECTOR, {
+			classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/ProximalEventDetector",
+			onEventExpressionRef: sExpressionToProgramExpressionRef(
+				['sendBusMessage', ['makeArray', '/controlleruplink/proximalevent', ['var', 'event']]],
+				this.gameDataManager
+			)
+		}, this.gameDataManager );
 		setEntitySubsystem( entity, "controlleruplink", {
 			classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/InterEntityBusBridge",
 			forwardTo: [ROOMID_EXTERNAL, this.deviceId],
@@ -2685,9 +2719,10 @@ export class MazeDemo {
 	}
 	
 	protected fixPlayer():void {
-		const playerRoomEntity = this.simulator.getRoomEntity(this.playerId);
+		const playerRoomEntity = this.simulator.getRoomEntityOrUndefined(this.playerId);
 		if( playerRoomEntity ) {
-			this.addControllerUplink(playerRoomEntity.entity);
+			// In case they weren't included in that save OR WHATEVER
+			this.addPlayerSubsystems(playerRoomEntity.entity);
 		} else {
 			console.warn("Couldn't find player entity "+this.playerId+"; restarting level");
 			this.restartLevel();
@@ -2720,22 +2755,7 @@ export class MazeDemo {
 			for( let re in room.roomEntities ) {
 				const roomEntity = room.roomEntities[re];
 				if( !playerPlaced && roomEntity.entity.classRef == dat.spawnPointEntityClassId ) {
-					const playerEntity = {
-						id: newPlayerId,
-						classRef: dat.playerEntityClassId,
-						desiresMaze1AutoActivation: true,
-						storedEnergy: 100000,
-						internalSystems: {
-							[ESSKEY_PROXIMALEVENTDETECTOR]: <ProximalEventDetector>{
-								classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/ProximalEventDetector",
-								onEventExpressionRef: sExpressionToProgramExpressionRef(
-									['sendBusMessage', ['makeArray', '/controlleruplink/proximalevent', ['var', 'event']]],
-									this.gameDataManager
-								)
-							}
-						}
-					};
-					this.addControllerUplink(playerEntity);
+					const playerEntity = this.createNewPlayerEntity(newPlayerId);
 					this.simulator.placeItemSomewhereNear( playerEntity, r, roomEntity.position );
 					playerPlaced = true;
 				}
@@ -2875,7 +2895,7 @@ export class MazeDemo {
 	protected maybePaint() {
 		const coords = this.paintCoordinates;
 		if( coords ) {
-			this.enqueueCommand(
+			this.enqueueInternalBusMessage(
 				[ROOMID_FINDENTITY, this.playerId],
 				["/painttiletreeblock", coords.x, coords.y, coords.z, 1, this.paintEntityClassRef]
 			);
@@ -2900,7 +2920,7 @@ export class MazeDemo {
 			case DemoMode.PLAY:
 				if( !this.mouse1PreviouslyDown ) {
 					const itemKey = this.maze1InventoryUi.selectedItemKey;
-					if( itemKey ) this.enqueueCommand(
+					if( itemKey ) this.enqueueInternalBusMessage(
 						[ROOMID_FINDENTITY, this.playerId],
 						["/throwinventoryitem", this.maze1InventoryUi.selectedItemKey, coords.x, coords.y, coords.z]
 					);
@@ -2960,15 +2980,12 @@ export class MazeDemo {
 	public goToCommandHistoryBeginning() { this.goToCommandHistory(0); }
 	public goToCommandHistoryEnd() { this.goToCommandHistory(this.commandHistory.length); }
 	
-	public enqueueCommand(entityPath:EntityPath, command:EntityCommandData, replyPath:EntityPath=UI_ENTIY_PATH):void {
+	public enqueueInternalBusMessage(entityPath:EntityPath, busMessage:EntitySystemBusMessage, replyPath:EntityPath=UI_ENTIY_PATH):void {
 		this.simulator.enqueueAction({
-			classRef: "http://ns.nuke24.net/Game21/SimulationAction/ReceiveMessage",
+			classRef: "http://ns.nuke24.net/Game21/SimulationAction/InduceSystemBusMessage",
 			entityPath: entityPath,
+			busMessage,
 			replyPath: replyPath,
-			message: {
-				classRef: "http://ns.nuke24.net/Game21/SimulationMessage/CommandReceived",
-				command: command
-			}
 		});
 	}
 	
@@ -3133,7 +3150,7 @@ export class MazeDemo {
 						const newRoomUuid = newUuidRef();
 						this.logger.log("New room ID:", newRoomUuid);
 						const size = tokens[2] ? +tokens[2].text : this.defaultNewRoomSize;
-						this.enqueueCommand([ROOMID_SIMULATOR], ["/create-room", newRoomUuid, size]);
+						this.enqueueInternalBusMessage([ROOMID_SIMULATOR], ["/create-room", newRoomUuid, size]);
 					}
 					break;
 				case 'connect-new-room': case 'dig-new-room': case 'dnr':
@@ -3150,8 +3167,8 @@ export class MazeDemo {
 						const newRoomUuid = newUuidRef();
 						const dir = tokens[1].text;
 						this.logger.log("New room ID:", newRoomUuid);
-						this.enqueueCommand([ROOMID_SIMULATOR], ["/create-room", newRoomUuid, this.defaultNewRoomSize]);
-						this.enqueueCommand([ROOMID_SIMULATOR], ["/connect-rooms", currentLocation.roomRef, dir, newRoomUuid]);
+						this.enqueueInternalBusMessage([ROOMID_SIMULATOR], ["/create-room", newRoomUuid, this.defaultNewRoomSize]);
+						this.enqueueInternalBusMessage([ROOMID_SIMULATOR], ["/connect-rooms", currentLocation.roomRef, dir, newRoomUuid]);
 					}
 					break;
 				case 'cr': case 'connect-rooms':
@@ -3163,7 +3180,7 @@ export class MazeDemo {
 						const roomAId = tokens[1].text;
 						const dirName = tokens[2].text;
 						const roomBId = tokens[3].text;
-						this.enqueueCommand([ROOMID_SIMULATOR], ["/connect-rooms", roomAId, dirName, roomBId]);
+						this.enqueueInternalBusMessage([ROOMID_SIMULATOR], ["/connect-rooms", roomAId, dirName, roomBId]);
 					}
 					break;
 				case 'restart-level':
@@ -3191,11 +3208,11 @@ export class MazeDemo {
 					this.logger.log("Sound effects are "+(this.soundEffectsEnabled ? "enabled" : "disabled"));
 					break;
 				case 'vomit':
-					this.enqueueCommand([ROOMID_FINDENTITY, this.playerId], ["/vomit"]);
+					this.enqueueInternalBusMessage([ROOMID_FINDENTITY, this.playerId], ["/vomit"]);
 					break;
 				case 'give':
 					if( tokens.length == 2 ) {
-						this.enqueueCommand([ROOMID_FINDENTITY, this.playerId], ["/give", tokens[1].text]);
+						this.enqueueInternalBusMessage([ROOMID_FINDENTITY, this.playerId], ["/give", tokens[1].text]);
 					} else {
 						this.logger.error("/give takes 1 argument: <entity class ref>.  e.g. '/give urn:uuid:4f3fd5b7-b51e-4ae7-9673-febed16050c1'");
 					}
@@ -3434,7 +3451,7 @@ export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string, loadingSt
 		const openDoorButton = document.createElement('button');
 		openDoorButton.appendChild(document.createTextNode("Up"));
 		openDoorButton.onclick = () => {
-			demo.enqueueCommand(
+			demo.enqueueInternalBusMessage(
 				[ROOMID_FINDENTITY, targetEntityIdBox.value],
 				["/desiredmovementdirection", 0, -1, 0]
 			);
@@ -3443,7 +3460,7 @@ export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string, loadingSt
 		const closeDoorButton = document.createElement('button');
 		closeDoorButton.appendChild(document.createTextNode("Down"));
 		closeDoorButton.onclick = () => {
-			demo.enqueueCommand(
+			demo.enqueueInternalBusMessage(
 				[ROOMID_FINDENTITY, targetEntityIdBox.value],
 				["/desiredmovementdirection", 0, +1, 0]
 			);

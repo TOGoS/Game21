@@ -244,8 +244,8 @@ export function roomEntityOrientation(re:RoomEntity):Quaternion {
 }
 
 export function getEntitySubsystem(e:Entity, subsystemKey:string, gdm:GameDataManager):EntitySubsystem|undefined {
-	if( e.internalSystems != undefined && e.internalSystems.hasOwnProperty(subsystemKey) ) {
-		return e.internalSystems[subsystemKey];
+	if( e.subsystems != undefined && e.subsystems.hasOwnProperty(subsystemKey) ) {
+		return e.subsystems[subsystemKey];
 	}
 	const eClass = gdm.getEntityClass(e.classRef);
 	if( eClass.defaultInternalSystems == undefined ) return undefined;
@@ -254,10 +254,10 @@ export function getEntitySubsystem(e:Entity, subsystemKey:string, gdm:GameDataMa
 
 export function setEntitySubsystem(e:Entity, subsystemKey:string, subsystem:EntitySubsystem|undefined, gdm:GameDataManager):void {
 	// TODO: If replacing one with its default state, just delete the override
-	if( e.internalSystems == undefined ) {
-		e.internalSystems = {};
+	if( e.subsystems == undefined ) {
+		e.subsystems = {};
 	}
-	e.internalSystems[subsystemKey] = subsystem;
+	e.subsystems[subsystemKey] = subsystem;
 }
 
 export function enqueueInternalBusMessage( bussy:MessageBusSystem, message:EntitySystemBusMessage ):void {

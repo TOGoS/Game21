@@ -1,5 +1,6 @@
 import Vector3D from './Vector3D';
 import SimulationMessage from './SimulationMessage';
+import EntitySystemBusMessage from './EntitySystemBusMessage';
 
 /**
  * [room ID, entity key, (attachment zone ID, item key)*]
@@ -18,9 +19,6 @@ export function entityPathToString(path:EntityPath) {
 export const ROOMID_FINDENTITY = 'find-entity'; // Wherever the entity is
 export const ROOMID_SIMULATOR = 'simulator'; // The simulation itself (entity ID ignored?)
 export const ROOMID_EXTERNAL = 'external'; // For referring to recipients outside the simulation
-
-// Same format as an OSC message, minus the type header
-export type EntityCommandData = any[];
 
 export const XMSN_SPACE = "http://ns.nuke24.net/Game21/TransmissionMedia/Space";
 export const XMSN_COPPER = "http://ns.nuke24.net/Game21/TransmissionMedia/Copper";
@@ -83,4 +81,16 @@ export interface ReceiveMessageAction {
 	replyPath?: EntityPath;
 }
 
-export type SimulationAction = SendAnalogValueAction|SendDataPacketAction|ReceiveMessageAction|SpeakTextAction;
+export interface InduceSystemBusMessageAction {
+	classRef: "http://ns.nuke24.net/Game21/SimulationAction/InduceSystemBusMessage";
+	entityPath: EntityPath;
+	busMessage: EntitySystemBusMessage;
+	replyPath: EntityPath;
+}
+
+export type SimulationAction =
+	SendAnalogValueAction |
+	SendDataPacketAction |
+	ReceiveMessageAction |
+	SpeakTextAction |
+	InduceSystemBusMessageAction;

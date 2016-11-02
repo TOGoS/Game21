@@ -25,10 +25,10 @@ function assertNameNotHashUrn( name:string ) {
 
 function thawEntity(entity:Entity) {
 	entity = thaw(entity);
-	if( entity.internalSystems ) {
-		entity.internalSystems = thaw(entity.internalSystems);
-		for( let isk in entity.internalSystems ) {
-			entity.internalSystems[isk] = thaw(entity.internalSystems[isk]);
+	if( entity.subsystems ) {
+		entity.subsystems = thaw(entity.subsystems);
+		for( let isk in entity.subsystems ) {
+			entity.subsystems[isk] = thaw(entity.subsystems[isk]);
 		}
 	}
 	if( entity.maze1Inventory ) {
