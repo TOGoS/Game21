@@ -8,6 +8,7 @@
 !/demos/*.urn.log
 /game21libs.amd.es5.js
 /game21libs.amd.es5.js.map
+/maze1demo-datacache.json
 /node_modules
 /plog
 /target
