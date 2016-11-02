@@ -14,24 +14,24 @@ Internal system types:
   + mediumRef
   + endpointPositions
 - Button
-  + onTouch(activatorItemClassRef)
+  + poked(poker:EntityPath)
 - Receptacle
   - Acts like a button, but activated by an item.
-  + accept(item:Entity) : returns...
+  + itemOffered(item:Entity, offerer:EntityPath) : returns...
     - "reject" - do not accept the item and do not invoke 'received'
-	 - "return" - do not take the item, but 'receive' will be invoked
-	 - "accept" - attempt to accept the item into self, invoking 'received' if successful
-	 - "destroy" - accept the item and destroy it; 'receive' will always be invoked
-  + received(item:Entity) - when an item has been shoved in
+    - "return" - do not take the item, but 'receive' will be invoked
+    - "accept" - attempt to accept the item into self, invoking 'received' if successful
+    - "destroy" - accept the item and destroy it; 'receive' will always be invoked
+  + itemReceived(item:Entity) - when an item has been shoved in
 - Network adapter (subclasses for wired/unidirectional, wireless/unidirectional, wirelsss/omnidirectional, magical uplink)
   + mediumRef
   + position? (physical position of interface on entity, if wired)
   - /<adapter name>/oscpacket <dest IP> <data...>
   - /<adapter name>/ippacket <packet data>
   - /<adapter name>/etherframe
-  + onOscMessage(message)
-  + onIpPacket(packet)
-  + onEtherFrame(frame)
+  + oscMessageReceived(message)
+  + ipPacketReceived(packet)
+  + etherFrameReceived(frame)
 - Direction controller
   - /desiredmovementdirection <dir>
   - controls entity's desired movement direction

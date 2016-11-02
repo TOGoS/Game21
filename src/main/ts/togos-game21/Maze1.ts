@@ -1902,7 +1902,7 @@ export class MazeSimulator {
 			{
 				this.enqueueAction({
 					classRef: "http://ns.nuke24.net/Game21/SimulationAction/InduceSystemBusMessage",
-					entityPath: subsystem.forwardTo,
+					entityPath: subsystem.forwardEntityPath,
 					busMessage: message,
 					replyPath: entityPath,
 				});
@@ -1965,7 +1965,7 @@ export class MazeSimulator {
 			if( detectorSystem == undefined ) return false;
 			switch( detectorSystem.classRef ) {
 			case "http://ns.nuke24.net/Game21/EntitySubsystem/ProximalEventDetector":
-				if( detectorSystem.onEventExpressionRef ) return true;
+				if( detectorSystem.eventDetectedExpressionRef ) return true;
 			}
 			return false;
 		}
@@ -1986,10 +1986,10 @@ export class MazeSimulator {
 			if( !iSys ) continue;
 			switch( iSys.classRef ) {
 			case "http://ns.nuke24.net/Game21/EntitySubsystem/ProximalEventDetector":
-				if( iSys.onEventExpressionRef ) {
+				if( iSys.eventDetectedExpressionRef ) {
 					// TODO: Clone message, add originPosition data.
 					const fixedMessage = message;
-					const expr = this.gameDataManager.getObject<esp.ProgramExpression>(iSys.onEventExpressionRef);
+					const expr = this.gameDataManager.getObject<esp.ProgramExpression>(iSys.eventDetectedExpressionRef);
 					this.runSubsystemProgram(
 						[foundEntity.roomRef, foundEntity.roomEntityId], foundEntity.entity,
 						ESSKEY_PROXIMALEVENTDETECTOR, expr,
@@ -2720,17 +2720,17 @@ export class MazeDemo {
 		this.logger.log("Adding player subsystems to entity "+entity.id+" with uplink to external device "+this.deviceId);
 		setEntitySubsystem( entity, ESSKEY_PROXIMALEVENTDETECTOR, {
 			classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/ProximalEventDetector",
-			onEventExpressionRef: sExpressionToProgramExpressionRef(
+			eventDetectedExpressionRef: sExpressionToProgramExpressionRef(
 				['sendBusMessage', ['makeArray', '/controlleruplink/proximalevent', ['var', 'event']]],
 				this.gameDataManager
 			)
 		}, this.gameDataManager );
 		setEntitySubsystem( entity, "controlleruplink", {
 			classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/InterEntityBusBridge",
-			forwardTo: [ROOMID_EXTERNAL, this.deviceId],
+			forwardEntityPath: [ROOMID_EXTERNAL, this.deviceId],
 		}, this.gameDataManager );
 	}
-
+	
 	/**
 	 * If player does not exist, create one at a spawn point.
 	 * 

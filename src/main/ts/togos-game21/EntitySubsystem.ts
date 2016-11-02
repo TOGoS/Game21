@@ -16,6 +16,9 @@ export interface Conductor {
 	endpointPositions : Vector3D[];
 }
 
+/**
+ * /delay <delay time> <message>
+ */
 export interface MessageDelayer {
 	classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/MessageDelayer";
 	// Maybe actually a min heap?  Yeah that'd be good.
@@ -25,24 +28,36 @@ export interface MessageDelayer {
 export interface ProximalEventDetector {
 	classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/ProximalEventDetector";
 	// Will be called with ( event : event data )
-	onEventExpressionRef? : string;
+	eventDetectedExpressionRef? : string;
 }
 
 export interface Button {
 	classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/Button";
-	onTouchExpressionRef? : string;
+	pokedExpressionRef? : string;
+}
+
+/**
+ * May also be an attachment zone!
+ * In which case systemKey will match attachmentzone key.
+ * 
+ * Messages:
+ * - /poke x y z # poke whatever's at x,y,z relative to the entity.  if holding something, offers it to the thing.
+ */
+export interface Appendage {
+	classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/Appendage";
+	maxReachDistance?: number;
 }
 
 export interface Vision {
 	classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/Vision";
 	eyePositions: Vector3D[];
 	distance : number;
-	onSceneExpressionRef? : string;
+	sceneExpressionRef? : string;
 }
 
 export interface InterEntityBusBridge {
-	classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/InterEntityBusBridge";
-	forwardTo : EntityPath;
+	classRef : "http://ns.nuke24.net/Game21/EntitySubsystem/InterEntityBusBridge";
+	forwardEntityPath : EntityPath;
 }
 
 export type EntitySubsystem =
