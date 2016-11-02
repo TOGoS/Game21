@@ -61,11 +61,12 @@ export interface InterEntityBusBridge {
 }
 
 export type EntitySubsystem =
+	Appendage |
+	Button |
 	Conductor |
+	InterEntityBusBridge |
 	MessageDelayer |
 	ProximalEventDetector |
-	Button |
-	Vision |
-	InterEntityBusBridge;
+	Vision;
 
 export default EntitySubsystem;

@@ -2725,6 +2725,14 @@ export class MazeDemo {
 				this.gameDataManager
 			)
 		}, this.gameDataManager );
+		setEntitySubsystem( entity, "rightarm", {
+			classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/Appendage",
+			maxReachDistance: 1,
+		}, this.gameDataManager);
+		setEntitySubsystem( entity, "leftarm", {
+			classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/Appendage",
+			maxReachDistance: 1,
+		}, this.gameDataManager);
 		setEntitySubsystem( entity, "controlleruplink", {
 			classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/InterEntityBusBridge",
 			forwardEntityPath: [ROOMID_EXTERNAL, this.deviceId],
