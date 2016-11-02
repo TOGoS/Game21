@@ -2099,7 +2099,7 @@ function sExpressionToProgramExpression(x:any, gdm:GameDataManager):esp.ProgramE
 		case 'var':
 			{
 				if( x.length != 2 ) throw new Error("Var expression requires exactly one argument; gave: "+JSON.stringify(x));
-				if( typeof x[1] == 'string' ) {
+				if( typeof x[1] != 'string' ) {
 					throw new Error("Oh no var name must be a literal string, not "+JSON.stringify(x[1]));
 				}
 				return <esp.VariableExpression>{
