@@ -3,13 +3,20 @@ import SimulationMessage from './SimulationMessage';
 import EntitySystemBusMessage from './EntitySystemBusMessage';
 
 /**
- * [room ID, entity key, (attachment zone ID, item key)*]
+ * [room ID, entity key, (subsystem/attachment zone key, item key)*]
  * 
  * Room ID can be thought of as the 'attachment zone ID' for the entire world.
  * 
  * ROOMID_* constants have special meaning when used as room IDs in an entity path.
+ * 
+ * In place of an an attachment zone key,
+ *   '@structureoffset' means - thing at the following position (encoded as "x,y,z")
+ *   one level within the entity's structure.
+ *   Multiple '@structureoffset' 'x,y,z's may be needed for things deeply nested in a complex structure.
  */
 export type EntityPath = string[];
+
+export const AT_STRUCTURE_OFFSET = '@structureoffset';
 
 export function entityPathToString(path:EntityPath) {
 	// TODO: Don't encode ":"
