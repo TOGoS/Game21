@@ -2730,14 +2730,17 @@ export class MazeDemo {
 			forwardTo: [ROOMID_EXTERNAL, this.deviceId],
 		}, this.gameDataManager );
 	}
-	
+
+	/**
+	 * If player does not exist, create one at a spawn point.
+	 * 
+	 * Either way, fix up the player entity to have the required subsystems.
+	 **/	
 	protected fixPlayer():void {
 		const playerRoomEntity = this.simulator.getRoomEntityOrUndefined(this.playerId);
 		if( playerRoomEntity ) {
-			// In case they weren't included in that save OR WHATEVER
 			this.addPlayerSubsystems(playerRoomEntity.entity);
 		} else {
-			console.warn("Couldn't find player entity "+this.playerId+"; restarting level");
 			this.restartLevel();
 		}
 	}
