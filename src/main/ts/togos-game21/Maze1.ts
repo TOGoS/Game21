@@ -48,6 +48,7 @@ import {
 	StructureType,
 	TileEntityPalette,
 } from './world';
+import { InternallyBussed } from './InternalBusMessage';
 import {
 	ProximalEventDetector,
 	EISKEY_PROXIMALEVENTDETECTOR
@@ -1359,6 +1360,61 @@ interface ExternalDevice {
 	message( em:SimulationMessage, replyPath?:EntityPath ):void;
 }
 
+interface InternalSystemProgramEvaluationContext {
+	entityPath : EntityPath,
+	entity : Entity,
+	system : InternallyBussed,
+	subsystemKey : string;
+	variableValues : KeyedList<any>;
+};
+
+type ISPEC = InternalSystemProgramEvaluationContext;
+
+function evalInternalSystemProgram( expression:esp.ProgramExpression, ctx:ISPEC ):any {
+	switch( expression.classRef ) {
+	case "http://ns.nuke24.net/TOGVM/Expressions/LiteralString":
+	case "http://ns.nuke24.net/TOGVM/Expressions/LiteralNumber":
+	case "http://ns.nuke24.net/TOGVM/Expressions/LiteralBoolean":
+		return expression.literalValue;
+	case "http://ns.nuke24.net/TOGVM/Expressions/ArrayConstruction":
+		const argValues:any[] = [];
+		for( let i=0; i<expression.values.length; ++i ) {
+			argValues.push(evalInternalSystemProgram(expression.values[i], ctx));
+		}
+		return argValues;
+	case "http://ns.nuke24.net/TOGVM/Expressions/Variable":
+		return ctx.variableValues[expression.variableName];
+	case "http://ns.nuke24.net/TOGVM/Expressions/FunctionApplication":
+		{
+			const argValues:any[] = [];
+			for( let i=0; i<expression.arguments.length; ++i ) {
+				argValues.push(evalInternalSystemProgram(expression.arguments[i], ctx));
+			}
+			if( !expression.functionRef ) throw new Error("Oh no dynamic functions not implemented boo");
+			switch( expression.functionRef ) {
+			case "http://ns.nuke24.net/InternalSystemFunctions/SendBusMessage":
+				if( argValues.length == 1 ) { 
+					const bm = argValues[0];
+					if( !Array.isArray(bm) || bm.length < 1 || typeof bm[0] != 'string' ) {
+						throw new Error("Entity message must be an array with string as first element");
+					}
+					if( !ctx.system.enqueuedBusMessages ) ctx.system.enqueuedBusMessages = [];
+					ctx.system.enqueuedBusMessages.push( bm );
+					return null;
+				} else {
+					throw new Error("SendBusMessage given non-1 arguments: "+JSON.stringify(argValues));
+				}
+			default:
+				throw new Error("Call to unsupported function "+expression.functionRef);
+			}
+		}
+	default:
+		throw new Error(
+			"Dunno how to evaluate expression classcamp town ladies sing this song, do da, do da, "+
+			"camp town race track five miles long, oh da do da day: "+expression.classRef);
+	}
+}
+
 // TODO: Rename to MazeGameSimulator,
 // move active room management to GameDataManager.
 export class MazeSimulator {
@@ -1804,15 +1860,15 @@ export class MazeSimulator {
 	}
 	
 	protected runInternalSystemProgram(
-		entityPath:EntityPath, entity:Entity, systemKey:string, program:esp.ProgramExpression,
-		context:KeyedList<any>
+		entityPath:EntityPath, entity:Entity, subsystemKey:string, program:esp.ProgramExpression,
+		variableValues:KeyedList<any>
 	):any {
-		// TODO: Do the stuff.
-		// actually this should probably be a separate function maybe?
-		// But maybe not because it needs access to all this stuff.
-		switch( program.classRef ) {
-		//case "":
-		}
+		const ctx:ISPEC = {
+			entityPath, entity, system:entity, subsystemKey, variableValues
+		};
+		const value = evalInternalSystemProgram( program, ctx );
+		// TODO: And then handle any enqueued bus messages!
+		return value;
 	}
 	
 	public sendProximalEventMessageToNearbyEntities(
@@ -1842,14 +1898,29 @@ export class MazeSimulator {
 		), proximalEventDetectingEntityFilter );
 		
 		for( let fe in foundEntities ) {
-			getEntityInternalSystem(foundEntities[fe].entity, EISKEY_PROXIMALEVENTDETECTOR, this.gameDataManager);
-			// TODO: Make it go
+			const foundEntity = foundEntities[fe];
+			const iSys = getEntityInternalSystem(foundEntity.entity, EISKEY_PROXIMALEVENTDETECTOR, this.gameDataManager);
+			if( !iSys ) continue;
+			switch( iSys.classRef ) {
+			case "http://ns.nuke24.net/Game21/EntityInternalSystem/ProximalEventDetector":
+				if( iSys.onEventExpressionRef ) {
+					const expr = this.gameDataManager.getObject<esp.ProgramExpression>(iSys.onEventExpressionRef);
+					this.runInternalSystemProgram(
+						[foundEntity.roomRef, foundEntity.roomEntityId], foundEntity.entity,
+						EISKEY_PROXIMALEVENTDETECTOR, expr,
+						{
+							event: message 
+						}
+					);
+				}
+			}
 		}
 		
-		
+		/*
 		const dev = this.externalDevices['ui'];
 		if( !dev ) return;
 		dev.message( message );
+		*/
 	}
 	
 	protected deliverExternalDeviceMessage( targetPath:EntityPath, message:SimulationMessage, replyPath?:EntityPath ) {
@@ -2062,8 +2133,8 @@ interface SoundEffect {
 
 type GameContextListener = (ctx:GameContext)=>void;
 
-const shortToLongFunctionRefs:KeyedList<string> = {
-	"sendBusMessage": esp.FUNC_SEND_BUS_MESSAGE,
+const shortToLongFunctionRefs:KeyedList<esp.FunctionRef> = {
+	"sendBusMessage": "http://ns.nuke24.net/InternalSystemFunctions/SendBusMessage",
 };
 
 function sExpressionToProgramExpression(x:any, gdm:GameDataManager):esp.ProgramExpression {

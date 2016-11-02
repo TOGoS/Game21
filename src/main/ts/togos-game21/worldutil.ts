@@ -8,7 +8,7 @@ import {
 	Room, RoomEntity, Entity, EntityClass, StructureType, TileTree, TileEntityPalette
 } from './world';
 import InternalBusMessage, { InternallyBussed } from './InternalBusMessage';
-import EntityInternalSystem from './EntityInternalSystem';
+import EntitySubsystem from './EntityInternalSystem';
 import GameDataManager from './GameDataManager';
 import { deepFreeze } from './DeepFreezer';
 import { hash, sha1Urn, base32Encode } from '../tshash/index';
@@ -243,7 +243,7 @@ export function roomEntityOrientation(re:RoomEntity):Quaternion {
 	return coalesce2(re.orientation, Quaternion.IDENTITY);
 }
 
-export function getEntityInternalSystem(e:Entity, systemKey:string, gdm:GameDataManager):EntityInternalSystem|undefined {
+export function getEntityInternalSystem(e:Entity, systemKey:string, gdm:GameDataManager):EntitySubsystem|undefined {
 	if( e.internalSystems != undefined && e.internalSystems.hasOwnProperty(systemKey) ) {
 		return e.internalSystems[systemKey];
 	}
@@ -252,7 +252,7 @@ export function getEntityInternalSystem(e:Entity, systemKey:string, gdm:GameData
 	return eClass.defaultInternalSystems[systemKey];
 }
 
-export function setEntityInternalSystem(e:Entity, systemKey:string, system:EntityInternalSystem|undefined, gdm:GameDataManager):void {
+export function setEntityInternalSystem(e:Entity, systemKey:string, system:EntitySubsystem|undefined, gdm:GameDataManager):void {
 	// TODO: If replacing one with its default state, just delete the override
 	if( e.internalSystems == undefined ) {
 		e.internalSystems = {};

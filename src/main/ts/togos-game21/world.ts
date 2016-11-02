@@ -3,7 +3,7 @@ import KeyedList from './KeyedList';
 import Vector3D from './Vector3D';
 import AABB from './AABB';
 
-import EntityInternalSystem from './EntityInternalSystem';
+import EntitySubsystem from './EntityInternalSystem';
 import InternalBusMessage, { InternallyBussed } from './InternalBusMessage';
 import TimeTargetted from './TimeTargetted';
 
@@ -133,7 +133,7 @@ export interface EntityClass {
 	 *   (e.g. doors, lifts); may be locked or unlocked
 	 * - doorbell -> powers something, may require a key
 	 */
-	defaultInternalSystems? : KeyedList<EntityInternalSystem>;
+	defaultInternalSystems? : KeyedList<EntitySubsystem>;
 }
 
 export interface AttachmentEntity {
@@ -166,7 +166,7 @@ export interface Entity extends InternallyBussed {
 	 * Overrides of the entity class's default internal systems.
 	 * A key with value=undefined means this entity is lacking that system.
 	 */
-	internalSystems? : KeyedList<EntityInternalSystem|undefined>;
+	internalSystems? : KeyedList<EntitySubsystem|undefined>;
 	enqueuedBusMessages? : InternalBusMessage[];
 	
 	desiredMovementDirection? : Vector3D;
