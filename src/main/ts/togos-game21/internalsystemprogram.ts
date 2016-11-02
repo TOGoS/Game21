@@ -18,7 +18,7 @@ export interface LiteralNumber extends ProgramExpression {
 }
 export interface LiteralBoolean extends ProgramExpression {
 	classRef : "http://ns.nuke24.net/TOGVM/Expressions/LiteralBoolean";
-	literalValue : number;
+	literalValue : boolean;
 }
 export interface VariableExpression extends ProgramExpression {
 	classRef : "http://ns.nuke24.net/TOGVM/Expressions/Variable";
@@ -32,11 +32,12 @@ export interface FunctionApplication extends ProgramExpression {
 	classRef : "http://ns.nuke24.net/TOGVM/Expressions/FunctionApplication";
 	functionRef? : string;
 	functionExpression? : ProgramExpression;
+	arguments : ProgramExpression[];
 }
 export interface ArrayConstructionExpression extends ProgramExpression {
 	classRef : "http://ns.nuke24.net/TOGVM/Expressions/ArrayConstruction";
 	values : ProgramExpression[];
 }
 
-const FUNC_SEND_BUS_MESSAGE = "http://ns.nuke24.net/InternalSystemFunctions/SendBusMessage";
-const FUNC_ENTITY_CLASS_REF = "http://ns.nuke24.net/InternalSystemFunctions/EntityClassRef";
+export const FUNC_SEND_BUS_MESSAGE = "http://ns.nuke24.net/InternalSystemFunctions/SendBusMessage";
+export const FUNC_ENTITY_CLASS_REF = "http://ns.nuke24.net/InternalSystemFunctions/EntityClassRef";

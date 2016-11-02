@@ -33,6 +33,7 @@ import {
 	makeTileTreeRef, makeTileEntityPaletteRef, eachSubEntity, eachSubEntityIntersectingBb, connectRooms,
 	getEntityInternalSystem, setEntityInternalSystem, enqueueInternalBusMessage
 } from './worldutil';
+import * as esp from './internalsystemprogram';
 import * as dat from './maze1demodata';
 import * as http from './http';
 import {
@@ -47,6 +48,10 @@ import {
 	StructureType,
 	TileEntityPalette,
 } from './world';
+import {
+	ProximalEventDetector,
+	EISKEY_PROXIMALEVENTDETECTOR
+} from './EntityInternalSystem';
 import ImageSlice from './ImageSlice';
 import { EMPTY_IMAGE_SLICE, imageFromUrl } from './images';
 import { rewriteTileTree } from './tiletrees';
@@ -1798,15 +1803,50 @@ export class MazeSimulator {
 		})
 	}
 	
+	protected runInternalSystemProgram(
+		entityPath:EntityPath, entity:Entity, systemKey:string, program:esp.ProgramExpression,
+		context:KeyedList<any>
+	):any {
+		// TODO: Do the stuff.
+		// actually this should probably be a separate function maybe?
+		// But maybe not because it needs access to all this stuff.
+		switch( program.classRef ) {
+		//case "":
+		}
+	}
+	
 	public sendProximalEventMessageToNearbyEntities(
 		roomId:string, pos:Vector3D, maxDistance:number,
 		message:ProximalSimulationMessage
 	) {
+		const proximalEventDetectingEntityFilter:EntityFilter = (
+			roomEntityId:string, roomEntity:RoomEntity, entity:Entity, entityClass:EntityClass
+		):boolean => {
+			const detectorSystem = getEntityInternalSystem(entity, EISKEY_PROXIMALEVENTDETECTOR, this.gameDataManager);
+			if( detectorSystem == undefined ) return false;
+			switch( detectorSystem.classRef ) {
+			case "http://ns.nuke24.net/Game21/EntityInternalSystem/ProximalEventDetector":
+				if( detectorSystem.onEventExpressionRef ) return true;
+			}
+			return false;
+		}
+		
 		// Ha ha for now just forward to UI.
 		// TODO: Look for entities with ProximalEventDetectors,
 		// pass this message to them.
 		// The player's should be set up to forward to /controlleruplink,
 		// Which should be translated to a message to the UI.
+		const foundEntities = this.entitiesAt(roomId, pos, makeAabb(
+			-maxDistance,-maxDistance,-maxDistance,
+			+maxDistance,+maxDistance,+maxDistance
+		), proximalEventDetectingEntityFilter );
+		
+		for( let fe in foundEntities ) {
+			getEntityInternalSystem(foundEntities[fe].entity, EISKEY_PROXIMALEVENTDETECTOR, this.gameDataManager);
+			// TODO: Make it go
+		}
+		
+		
 		const dev = this.externalDevices['ui'];
 		if( !dev ) return;
 		dev.message( message );
@@ -2021,6 +2061,75 @@ interface SoundEffect {
 }
 
 type GameContextListener = (ctx:GameContext)=>void;
+
+const shortToLongFunctionRefs:KeyedList<string> = {
+	"sendBusMessage": esp.FUNC_SEND_BUS_MESSAGE,
+};
+
+function sExpressionToProgramExpression(x:any, gdm:GameDataManager):esp.ProgramExpression {
+	if( typeof x == 'string' ) {
+		return <esp.LiteralString>{
+			classRef: "http://ns.nuke24.net/TOGVM/Expressions/LiteralString",
+			literalValue: x
+		};
+	} else if( typeof x == 'number' ) {
+		return <esp.LiteralNumber>{
+			classRef: "http://ns.nuke24.net/TOGVM/Expressions/LiteralNumber",
+			literalValue: x
+		};
+	} else if( typeof x == 'boolean' ) {
+		return <esp.LiteralBoolean>{
+			classRef: "http://ns.nuke24.net/TOGVM/Expressions/LiteralBoolean",
+			literalValue: x
+		};
+	} else if( Array.isArray(x) ) {
+		if( x.length == 0 ) throw new Error("S-expression is zero length, which is bad!"); // Unless I decide it means Nil.
+		switch( x[0] ) {
+		case 'makeArray':
+			{
+				const componentExpressions:esp.ProgramExpression[] = [];
+				for( let i=1; i<x.length; ++i ) {
+					componentExpressions.push( sExpressionToProgramExpression(x[i], gdm) );
+				}
+				return <esp.ArrayConstructionExpression>{
+					classRef: "http://ns.nuke24.net/TOGVM/Expressions/ArrayConstruction",
+					values: componentExpressions
+				}
+			}
+		case 'var':
+			{
+				if( x.length != 2 ) throw new Error("Var expression requires exactly one argument; gave: "+JSON.stringify(x));
+				if( typeof x[1] == 'string' ) {
+					throw new Error("Oh no var name must be a literal string, not "+JSON.stringify(x[1]));
+				}
+				return <esp.VariableExpression>{
+					classRef: "http://ns.nuke24.net/TOGVM/Expressions/Variable",
+					variableName: x[1],
+				}
+			}
+		}
+		
+		if( shortToLongFunctionRefs[x[0]] ) {
+			const argumentExpressions:esp.ProgramExpression[] = [];
+			for( let i=1; i<x.length; ++i ) {
+				argumentExpressions.push( sExpressionToProgramExpression(x[i], gdm) );
+			}
+			return <esp.FunctionApplication>{
+				classRef: "http://ns.nuke24.net/TOGVM/Expressions/FunctionApplication",
+				functionRef: shortToLongFunctionRefs[x[0]],
+				arguments: argumentExpressions
+			};
+		}
+	}
+	
+	throw new Error("I can't compile this :( "+JSON.stringify(x));
+}
+
+function sExpressionToProgramExpressionRef(x:any[], gdm:GameDataManager):string {
+	return gdm.tempStoreObject<esp.ProgramExpression>(
+		sExpressionToProgramExpression(x, gdm)
+	);
+}
 
 export class MazeDemo {
 	public datastore : Datastore<Uint8Array>;
@@ -2493,7 +2602,16 @@ export class MazeDemo {
 							id: newPlayerId,
 							classRef: dat.playerEntityClassId,
 							desiresMaze1AutoActivation: true,
-							storedEnergy: 100000
+							storedEnergy: 100000,
+							internalSystems: {
+								[EISKEY_PROXIMALEVENTDETECTOR]: <ProximalEventDetector>{
+									classRef: "http://ns.nuke24.net/Game21/EntityInternalSystem/ProximalEventDetector",
+									onEventExpressionRef: sExpressionToProgramExpressionRef(
+										['sendBusMessage', ['makeArray', '/controlleruplink/proximalevent', ['var', 'message']]],
+										this.gameDataManager
+									)
+								}
+							}
 						}
 					};
 					playerPlaced = true;

@@ -6,6 +6,10 @@ import TimeTargetted from './TimeTargetted';
 import InternalBusMessage from './InternalBusMessage';
 import MinHeap  from './MinHeap';
 
+// Keys for singleton systems
+
+export const EISKEY_PROXIMALEVENTDETECTOR = "proximaleventdetector";
+
 export interface Conductor {
 	classRef: "http://ns.nuke24.net/Game21/EntityInternalSystem/Conductor";
 	mediumRef: string; // Same as message transmission mediums, e.g. "http://ns.nuke24.net/Game21/TransmissionMedia/Copper"
