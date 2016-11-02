@@ -122,6 +122,7 @@ export function rewriteTileTree(
 		}
 	}
 	if( newIndexes === indexes ) {
+		// No changes, ha ha ha!
 		return ttRef;
 	} else {
 		const newTt = clone(tt);

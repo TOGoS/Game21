@@ -86,6 +86,7 @@ import SimulationMessage, {
 } from './SimulationMessage';
 import {
 	EntityPath,
+	ModifyEntityAction,
 	SimulationAction,
 	SendDataPacketAction,
 	SendAnalogValueAction,
@@ -93,6 +94,7 @@ import {
 	ROOMID_SIMULATOR,
 	ROOMID_FINDENTITY,
 	ROOMID_EXTERNAL,
+	AT_STRUCTURE_OFFSET,
 } from './simulationmessaging';
 
 const UI_ENTIY_PATH = [ROOMID_EXTERNAL, "demo UI"];
@@ -450,7 +452,8 @@ export class MazeView {
 	protected drawOcclusionFog(viz:ShadeRaster):void {
 		this.drawRaster( viz, VISIBILITY_VOID, VISIBILITY_NONE, this.occlusionFillStyle, true);
 	}
-
+	
+	// TODO: Genericize the object draw list from CanvasWorldView and use it.
 	protected draw():void {
 		const ctx = this.canvas.getContext('2d');
 		if( !ctx ) return;
@@ -613,6 +616,8 @@ interface RoomEntityUpdate {
 type EntityFilter = (roomEntityId:string, roomEntity:RoomEntity, entity:Entity, entityClass:EntityClass)=>boolean|undefined; 
 
 interface FoundEntity {
+	entityPath : EntityPath;
+	
 	roomRef : string;
 	roomEntityId : string;
 	roomEntity : RoomEntity;
@@ -1525,22 +1530,23 @@ export class MazeSimulator {
 	 * since checking intersections is the last thing done with it.
 	 */
 	protected entitiesAt3(
-		roomRef:string, roomEntityId:string, roomEntity:RoomEntity, // Root roomEntity
+		entityPath:EntityPath, roomEntity:RoomEntity, // Root roomEntity
 		entityPos:Vector3D, entity:Entity, // Individual entity being checked against (may be a sub-entity of the roomEntity)
 		checkPos:Vector3D, checkBb:AABB, // Sample box
 		filter:EntityFilter,
 		into:FoundEntity[]
 	):void {
 		const proto = this.gameDataManager.getEntityClass( entity.classRef );
-		const filtered = filter(roomEntityId, roomEntity, entity, proto)
+		const filtered = filter(entityPath[1], roomEntity, entity, proto)
 		if( filtered === false ) return;
 		if( !aabbIntersectsWithOffset(entityPos, proto.physicalBoundingBox, checkPos, checkBb) ) return;
 		
 		if( proto.structureType == StructureType.INDIVIDUAL ) {
 			if( !filtered ) return;
 			into.push( {
-				roomRef: roomRef,
-				roomEntityId: roomEntityId,
+				entityPath,
+				roomRef: entityPath[0],
+				roomEntityId: entityPath[1],
 				roomEntity: roomEntity,
 				entityPosition: {x:entityPos.x, y:entityPos.y, z:entityPos.z},
 				entity: entity,
@@ -1549,7 +1555,12 @@ export class MazeSimulator {
 		}
 		
 		eachSubEntityIntersectingBb( entity, entityPos, checkPos, checkBb, this.gameDataManager, (subEnt, subEntPos, ori) => {
-			this.entitiesAt3( roomRef, roomEntityId, roomEntity, subEntPos, subEnt, checkPos, checkBb, filter, into );
+			const relativeOffset = subtractVector(subEntPos, entityPos);
+			const subPath = entityPath.concat([
+				AT_STRUCTURE_OFFSET,
+				relativeOffset.x+","+relativeOffset.y+","+relativeOffset.z
+			])
+			this.entitiesAt3( subPath, roomEntity, subEntPos, subEnt, checkPos, checkBb, filter, into );
 		}, this, entityPositionBuffer);
 	}
 	
@@ -1561,7 +1572,7 @@ export class MazeSimulator {
 		for( let re in room.roomEntities ) {
 			const roomEntity = room.roomEntities[re];
 			addVector( roomPos, roomEntity.position, entityPositionBuffer );
-			this.entitiesAt3(roomRef, re, roomEntity, entityPositionBuffer, roomEntity.entity, checkPos, checkBb, filter, into)
+			this.entitiesAt3([roomRef, re], roomEntity, entityPositionBuffer, roomEntity.entity, checkPos, checkBb, filter, into)
 		}
 	}
 	
@@ -1890,12 +1901,6 @@ export class MazeSimulator {
 		return e;
 	}
 	
-	public getEntityOrUndefined(entityPath:EntityPath):Entity|undefined {
-		const roomEntity = this.getRoomEntityOrUndefined(entityPath);
-		if( roomEntity == undefined ) return undefined;
-		return roomEntity.entity;
-	}
-	
 	protected runSubsystemProgram(
 		entityPath:EntityPath, entity:Entity, subsystemKey:string, program:esp.ProgramExpression,
 		busMessageQueue:EntitySystemBusMessage[],
@@ -1920,7 +1925,7 @@ export class MazeSimulator {
 					entityPath, entity,
 					sk, expr, busMessageQueue, {}
 				);
-				this.handleSystemBusMessages(entityPath, entity, busMessageQueue);
+				this.replaceEntity(entityPath, this.handleSystemBusMessages(entityPath, entity, busMessageQueue));
 				break;
 			}
 		}
@@ -1962,14 +1967,16 @@ export class MazeSimulator {
 		const foundPokableEntities = this.entitiesAt( pokedLocation.roomRef, pokedPosition, pokeCheckBb, pokableEntityFilter);
 		for( let fpe in foundPokableEntities ) {
 			const foundEntity = foundPokableEntities[fpe];
-			this.deliverPoke([foundEntity.roomRef, foundEntity.roomEntityId], foundEntity.entity);
+			this.deliverPoke(foundEntity.entityPath, foundEntity.entity);
 		}
 	}
 	
-	protected handleSubsystemBusMessage( entityPath:EntityPath, system:Entity, subsystemKey:string, subsystem:EntitySubsystem, message:EntitySystemBusMessage ):void {
+	protected handleSubsystemBusMessage(
+		entityPath:EntityPath, entity:Entity, subsystemKey:string, subsystem:EntitySubsystem, message:EntitySystemBusMessage
+	):Entity|undefined {
 		if( message.length < 1 ) {
 			console.warn("Zero-length message passed to subsystem "+subsystemKey, message);
-			return;
+			return entity;
 		}
 		switch( subsystem.classRef ) {
 		case "http://ns.nuke24.net/Game21/EntitySubsystem/InterEntityBusBridge":
@@ -1986,14 +1993,38 @@ export class MazeSimulator {
 			switch( message[0] ) {
 			case '/poke':
 				// TODO: enqueueAction instead of poking directly
-				this.doPoke(entityPath, system, subsystemKey, subsystem, {x:+message[1], y:+message[2], z:+message[3]});
-				return;
+				this.doPoke(entityPath, entity, subsystemKey, subsystem, {x:+message[1], y:+message[2], z:+message[3]});
+				break;
 			}
 			break;
+		case "http://ns.nuke24.net/Game21/EntitySubsystem/EntityMorpher":
+			{
+				if( message.length < 2 ) {
+					console.warn("EntityMorpher recieved command that's too short.", message);
+				}
+				// Oh hey, we can do that right here!
+				const resetEntityClassRef = ""+message[1];
+				const resetToClassDefaults = !!message[2];
+				const actuallyNeedsAnyModifications =
+					(resetEntityClassRef != entity.classRef) ||
+					(resetToClassDefaults && (
+						entity.subsystems != undefined ||
+						entity.maze1Inventory != undefined
+					));
+				if( !actuallyNeedsAnyModifications ) return entity;
+				if( Object.isFrozen(entity) ) entity = thaw(entity);
+				entity.classRef = resetEntityClassRef;
+				if( resetToClassDefaults ) {
+					delete entity.subsystems;
+					delete entity.maze1Inventory;
+				}
+				break;
+			}
 		default:
 			console.warn(subsystem.classRef+" recieved bus message, but handling of it is not implemented:", message);
 			break;
 		}
+		return entity;
 	}
 	
 	/**
@@ -2003,41 +2034,42 @@ export class MazeSimulator {
 	 * probably handleSystemBusMessages.
 	 */
 	protected handleSystemBusMessage(
-		entityPath:EntityPath, system:Entity, message:EntitySystemBusMessage, busMessageQueue:EntitySystemBusMessage[]
-	):void {
+		entityPath:EntityPath, entity:Entity, message:EntitySystemBusMessage, busMessageQueue:EntitySystemBusMessage[]
+	):Entity|undefined {
 		if( message.length < 1 ) {
 			console.warn("Zero length system bus message", message);
-			return;
+			return entity;
 		}
 		const path = ""+message[0];
 		const ppre = /^\/([^\/]+)(\/.*|)$/;
 		const pprem = ppre.exec(path);
 		if( pprem == null ) {
 			console.warn("Bad message path syntax: '"+path+"'");
-			return;
+			return entity;
 		}
 		
 		const subsystemKey = pprem[1];
-		const subsystem = getEntitySubsystem(system, subsystemKey, this.gameDataManager);
+		const subsystem = getEntitySubsystem(entity, subsystemKey, this.gameDataManager);
 		if( subsystem == undefined ) {
 			// This might turn out to be a semi-normal occurrence,
 			// in which case I should stop cluttering the log with it.
 			
-			if( !this.processSpecialEntityCommand(entityPath, system, message ) ) {
+			if( !this.processSpecialEntityCommand(entityPath, entity, message ) ) {
 				console.warn("Message to nonexistent subsystem (and not a special command, either) '"+pprem[1]+"'", message);	
 			}
-			return;
+			return entity;
 		}
 		const subsystemMessage = [pprem[2], ...message.slice(1)];
-		this.handleSubsystemBusMessage(entityPath, system, subsystemKey, subsystem, subsystemMessage);
+		return this.handleSubsystemBusMessage(entityPath, entity, subsystemKey, subsystem, subsystemMessage);
 	}
 	
 	protected handleSystemBusMessages(
-		entityPath:EntityPath, system:Entity, busMessageQueue:EntitySystemBusMessage[]
-	):void {
-		for( let i=0; i<busMessageQueue.length; ++i ) {
-			this.handleSystemBusMessage(entityPath, system, busMessageQueue[i], busMessageQueue);
+		entityPath:EntityPath, entity:Entity|undefined, busMessageQueue:EntitySystemBusMessage[]
+	):Entity|undefined {
+		for( let i=0; i<busMessageQueue.length && entity != undefined; ++i ) {
+			entity = this.handleSystemBusMessage(entityPath, entity, busMessageQueue[i], busMessageQueue);
 		}
+		return entity;
 	}
 	
 	public sendProximalEventMessageToNearbyEntities(
@@ -2084,18 +2116,58 @@ export class MazeSimulator {
 							event: fixedMessage
 						}
 					);
-					this.handleSystemBusMessages([foundEntity.roomRef, foundEntity.roomEntityId], foundEntity.entity, busMessageQueue);
+					this.replaceEntity(
+						foundEntity.entityPath,
+						this.handleSystemBusMessages(foundEntity.entityPath, foundEntity.entity, busMessageQueue),
+						foundEntity.entity
+					);
 				}
 			}
 		}
-		
-		/*
-		const dev = this.externalDevices['ui'];
-		if( !dev ) return;
-		dev.message( message );
-		*/
 	}
-		
+	
+	protected _mutateEntityAtPath( entity:Entity, entityPath:EntityPath, pathStart:number, mutator:(entity:Entity)=>Entity|undefined ) : Entity|undefined {
+		if( pathStart == entityPath.length ) {
+			return mutator(entity);
+		}
+		if( entityPath[pathStart] == AT_STRUCTURE_OFFSET ) {
+			const entityClass = this.gameDataManager.getEntityClass(entity.classRef);
+			if( entityClass.structureType == StructureType.TILE_TREE ) {
+				// TODO: allow passing an aabb to rewriteTileTree
+				// so that it skips parts we don't care about at all.
+				const newTtClassRef = rewriteTileTree(ZERO_VECTOR, entity.classRef,
+					(pos:Vector3D, aabb:AABB, index:number, e:TileEntity|null|undefined) => {
+						// TODO: apply mutator
+						throw new Error("Haha j/k _mutateEntityAtPath doesn't work yet on tile trees")
+					}, this.gameDataManager);
+				if( newTtClassRef == entity.classRef ) return entity;
+				entity = thaw(entity);
+				entity.classRef = newTtClassRef;
+				return entity;
+			}
+		}
+		throw new Error("Don't know how to do this mutation");
+	}
+	
+	protected mutateEntityAtPath( entityPath:EntityPath, mutator:(entity:Entity)=>Entity|undefined ) : void {
+		const roomEntity = this.getRoomEntityOrUndefined(entityPath);
+		if( roomEntity == undefined ) return undefined;
+		let entity = roomEntity.entity;
+		if( entity == undefined ) {
+			console.warn("Couldn't find root "+entityPath.join('/'));
+			return;
+		}
+		this._mutateEntityAtPath(entity, entityPath, 2, mutator);
+	}
+	
+	protected replaceEntity(entityPath:EntityPath, entity:Entity|undefined, oldVersion?:Entity) {
+		if( oldVersion != undefined && oldVersion === entity ) {
+			// Nothing to do, ha ha ha.
+			return;
+		}
+		this.mutateEntityAtPath(entityPath, () => entity);
+	}
+	
 	protected induceSystemBusMessage(entityPath:EntityPath, message:EntitySystemBusMessage, replyPath?:EntityPath):void {
 		if( entityPath[0] == ROOMID_SIMULATOR ) {
 			this.processSimulatorCommand(message);
@@ -2110,20 +2182,17 @@ export class MazeSimulator {
 			}
 			return;
 		}
-		const entity = this.getEntityOrUndefined(entityPath);
-		if( entity == undefined ) {
-			console.warn("Couldn't find entity "+entityPath.join('/'));
-			return;
-		}
-		
-		this.handleSystemBusMessages(entityPath, entity, [message]);
+		this.mutateEntityAtPath(entityPath, (entity:Entity) => {
+			return this.handleSystemBusMessages(entityPath, entity, [message]);
+		});
 	}
 	
 	protected doAction( act:SimulationAction ):void {
 		switch( act.classRef ) {
 		case "http://ns.nuke24.net/Game21/SimulationAction/InduceSystemBusMessage":
 			this.induceSystemBusMessage(act.entityPath, act.busMessage, act.replyPath);
-			break;	
+			break;
+			
 		default:
 			console.warn("Skipping invocation of unsupported action class: "+act.classRef);
 		}
@@ -2234,6 +2303,7 @@ export class MazeSimulator {
 					const entity = roomEntity.entity;
 					const entityClass = this.gameDataManager.getEntityClass(entity.classRef);
 					return {
+						entityPath: [r, id],
 						roomRef: r,
 						roomEntityId: id,
 						roomEntity,

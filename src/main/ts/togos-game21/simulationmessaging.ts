@@ -95,9 +95,20 @@ export interface InduceSystemBusMessageAction {
 	replyPath: EntityPath;
 }
 
+// Ha ha, it is probably unnecessary because
+// entities can morph themselves?
+export interface ModifyEntityAction {
+	classRef: "http://ns.nuke24.net/Game21/SimulationAction/ModifyEntity";
+	entityPath: EntityPath;
+	resetEntityClassRef?: string;
+	resetToClassDefaults?: boolean;
+	removeEntity?: boolean;
+}
+
 export type SimulationAction =
+	InduceSystemBusMessageAction |
+	ModifyEntityAction |
+	ReceiveMessageAction |
 	SendAnalogValueAction |
 	SendDataPacketAction |
-	ReceiveMessageAction |
-	SpeakTextAction |
-	InduceSystemBusMessageAction;
+	SpeakTextAction;
