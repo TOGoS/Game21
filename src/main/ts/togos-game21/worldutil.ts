@@ -1,4 +1,5 @@
 import Vector3D from './Vector3D';
+import KeyedList from './KeyedList';
 import { makeVector, setVector, vectorToArray, ZERO_VECTOR } from './vector3ds';
 import { scaleVector } from './vector3dmath';
 import Quaternion from './Quaternion';
@@ -248,8 +249,8 @@ export function getEntitySubsystem(e:Entity, subsystemKey:string, gdm:GameDataMa
 		return e.subsystems[subsystemKey];
 	}
 	const eClass = gdm.getEntityClass(e.classRef);
-	if( eClass.defaultInternalSystems == undefined ) return undefined;
-	return eClass.defaultInternalSystems[subsystemKey];
+	if( eClass.defaultSubsystems == undefined ) return undefined;
+	return eClass.defaultSubsystems[subsystemKey];
 }
 
 export function setEntitySubsystem(e:Entity, subsystemKey:string, subsystem:EntitySubsystem|undefined, gdm:GameDataManager):void {
@@ -258,6 +259,34 @@ export function setEntitySubsystem(e:Entity, subsystemKey:string, subsystem:Enti
 		e.subsystems = {};
 	}
 	e.subsystems[subsystemKey] = subsystem;
+}
+
+const emptySubsystemList:KeyedList<EntitySubsystem> = deepFreeze({});
+/**
+ * Returns a potentially immutable keyedlist of potentially immutable subsystems,
+ * including the default ones.
+ */
+export function getEntitySubsystems(entity:Entity, gdm:GameDataManager):KeyedList<EntitySubsystem> {
+	const entityClass = gdm.getEntityClass(entity.classRef);
+	if( entity.subsystems == undefined ) {
+		if( entityClass.defaultSubsystems == undefined ) return emptySubsystemList;
+		return entityClass.defaultSubsystems;
+	}
+	
+	// Otherwise we have to merge them.
+	const mergedSubsystems:KeyedList<EntitySubsystem> = {};
+	if( entityClass.defaultSubsystems ) for( let sk in entityClass.defaultSubsystems ) {
+		mergedSubsystems[sk] = entityClass.defaultSubsystems[sk];
+	}
+	if( entity.subsystems ) for( let sk in entity.subsystems ) {
+		const entitySubsystem = entity.subsystems[sk];
+		if( entitySubsystem != undefined ) {
+			mergedSubsystems[sk] = entitySubsystem;
+		} else {
+			delete mergedSubsystems[sk];
+		}
+	}
+	return mergedSubsystems;
 }
 
 export function enqueueInternalBusMessage( bussy:MessageBusSystem, message:EntitySystemBusMessage ):void {

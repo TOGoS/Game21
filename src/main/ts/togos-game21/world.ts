@@ -133,7 +133,7 @@ export interface EntityClass {
 	 *   (e.g. doors, lifts); may be locked or unlocked
 	 * - doorbell -> powers something, may require a key
 	 */
-	defaultInternalSystems? : KeyedList<EntitySubsystem>;
+	defaultSubsystems? : KeyedList<EntitySubsystem>;
 }
 
 export interface AttachmentEntity {
