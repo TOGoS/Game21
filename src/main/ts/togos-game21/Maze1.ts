@@ -1397,6 +1397,8 @@ function evalInternalSystemProgram( expression:esp.ProgramExpression, ctx:ISPEC 
 			}
 			if( !expression.functionRef ) throw new Error("Oh no dynamic functions not implemented boo");
 			switch( expression.functionRef ) {
+			case "http://ns.nuke24.net/InternalSystemFunctions/ProgN":
+				return argValues.length == 0 ? undefined : argValues[argValues.length-1];
 			case "http://ns.nuke24.net/InternalSystemFunctions/SendBusMessage":
 				if( argValues.length == 1 ) { 
 					const bm = argValues[0];

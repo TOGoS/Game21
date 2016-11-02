@@ -46,13 +46,15 @@ export type ProgramExpression =
 
 export type FunctionRef = 
 	"http://ns.nuke24.net/InternalSystemFunctions/SendBusMessage" |
-	"http://ns.nuke24.net/InternalSystemFunctions/EntityClassRef";
+	"http://ns.nuke24.net/InternalSystemFunctions/EntityClassRef" |
+	"http://ns.nuke24.net/InternalSystemFunctions/ProgN";
 
 export const FUNC_SEND_BUS_MESSAGE = "http://ns.nuke24.net/InternalSystemFunctions/SendBusMessage";
 export const FUNC_ENTITY_CLASS_REF = "http://ns.nuke24.net/InternalSystemFunctions/EntityClassRef";
 
 const shortToLongFunctionRefs:KeyedList<FunctionRef> = {
 	"sendBusMessage": "http://ns.nuke24.net/InternalSystemFunctions/SendBusMessage",
+	"progn": "http://ns.nuke24.net/InternalSystemFunctions/ProgN",
 };
 
 export function sExpressionToProgramExpression(x:any):ProgramExpression {
