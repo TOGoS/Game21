@@ -3,8 +3,8 @@ import KeyedList from './KeyedList';
 import Vector3D from './Vector3D';
 import AABB from './AABB';
 
-import EntitySubsystem from './EntityInternalSystem';
-import InternalBusMessage, { InternallyBussed } from './InternalBusMessage';
+import EntitySubsystem from './EntitySubsystem';
+import EntitySystemBusMessage, { MessageBusSystem } from './EntitySystemBusMessage';
 import TimeTargetted from './TimeTargetted';
 
 import { deepFreeze } from './DeepFreezer';
@@ -153,7 +153,7 @@ export interface AttachmentZone {
  * (which makes the name 'entity' a bit of a misnomer, since it implies 'a single thing with inherent identity').
  * Another object (a RoomEntity, a TileEntity) links an Entity to somewhere.
  */
-export interface Entity extends InternallyBussed {
+export interface Entity extends MessageBusSystem {
 	id?: string;
 	classRef : EntityClassRef;
 	debugLabel? : string;
@@ -167,7 +167,7 @@ export interface Entity extends InternallyBussed {
 	 * A key with value=undefined means this entity is lacking that system.
 	 */
 	internalSystems? : KeyedList<EntitySubsystem|undefined>;
-	enqueuedBusMessages? : InternalBusMessage[];
+	enqueuedBusMessages? : EntitySystemBusMessage[];
 	
 	desiredMovementDirection? : Vector3D;
 	/**

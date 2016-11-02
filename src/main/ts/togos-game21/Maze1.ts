@@ -31,7 +31,7 @@ import SceneShader, { ShadeRaster, VISIBILITY_VOID, VISIBILITY_NONE, VISIBILITY_
 import { uuidUrn, newType4Uuid } from '../tshash/uuids';
 import {
 	makeTileTreeRef, makeTileEntityPaletteRef, eachSubEntity, eachSubEntityIntersectingBb, connectRooms,
-	getEntityInternalSystem, setEntityInternalSystem, enqueueInternalBusMessage
+	getEntitySubsystem, setEntitySubsystem, enqueueInternalBusMessage
 } from './worldutil';
 import * as esp from './internalsystemprogram';
 import * as dat from './maze1demodata';
@@ -48,11 +48,11 @@ import {
 	StructureType,
 	TileEntityPalette,
 } from './world';
-import { InternallyBussed } from './InternalBusMessage';
-import {
+import EntitySystemBusMessage, { MessageBusSystem } from './EntitySystemBusMessage';
+import EntitySubsystem, {
 	ProximalEventDetector,
-	EISKEY_PROXIMALEVENTDETECTOR
-} from './EntityInternalSystem';
+	ESSKEY_PROXIMALEVENTDETECTOR
+} from './EntitySubsystem';
 import ImageSlice from './ImageSlice';
 import { EMPTY_IMAGE_SLICE, imageFromUrl } from './images';
 import { rewriteTileTree } from './tiletrees';
@@ -1363,7 +1363,7 @@ interface ExternalDevice {
 interface InternalSystemProgramEvaluationContext {
 	entityPath : EntityPath,
 	entity : Entity,
-	system : InternallyBussed,
+	system : MessageBusSystem,
 	subsystemKey : string;
 	variableValues : KeyedList<any>;
 };
@@ -1859,16 +1859,58 @@ export class MazeSimulator {
 		})
 	}
 	
-	protected runInternalSystemProgram(
+	protected runSubsystemProgram(
 		entityPath:EntityPath, entity:Entity, subsystemKey:string, program:esp.ProgramExpression,
 		variableValues:KeyedList<any>
 	):any {
 		const ctx:ISPEC = {
 			entityPath, entity, system:entity, subsystemKey, variableValues
 		};
-		const value = evalInternalSystemProgram( program, ctx );
-		// TODO: And then handle any enqueued bus messages!
-		return value;
+		return evalInternalSystemProgram( program, ctx );
+	}
+	
+	protected handleSubsystemMessage( entityPath:EntityPath, system:Entity, subsystemKey:string, subsystem:EntitySubsystem, message:EntitySystemBusMessage ) {
+		console.log("message to the "+subsystemKey, message);
+		// TODO!!!
+		switch( subsystem.classRef ) {
+			
+		}
+	}
+	
+	protected handleSystemMessage(
+		entityPath:EntityPath, system:Entity, message:EntitySystemBusMessage
+	):void {
+		if( message.length < 1 ) {
+			console.warn("Zero length system bus message", message);
+			return;
+		}
+		const path = ""+message[0];
+		const ppre = /^\/([^\/]+)(\/.*|)$/;
+		const pprem = ppre.exec(path);
+		if( pprem == null ) {
+			console.warn("Bad message path syntax: '"+path+"'");
+			return;
+		}
+		
+		const subsystemKey = pprem[1];
+		if( !system.internalSystems[subsystemKey] ) {
+			// This might turn out to be a semi-normal occurrence,
+			// in which case I should stop cluttering the log with it.
+			console.warn("Message to nonexistent subsystem '"+pprem[1]+"'", message);
+			return;
+		}
+		const subsystem = system.internalSystems[subsystemKey];
+		const subsystemMessage = [pprem[2], ...message.slice(1)];
+		this.handleSubsystemMessage(entityPath, system, subsystemKey, subsystem, subsystemMessage);
+	}
+	
+	protected updateInternalSystem(
+		entityPath:EntityPath, system:Entity
+	):void {
+		for( let i=0; i<system.enqueuedBusMessages.length; ++i ) {
+			this.handleSystemMessage(entityPath, system, system.enqueuedBusMessages[i]);
+		}
+		system.enqueuedBusMessages = []; 
 	}
 	
 	public sendProximalEventMessageToNearbyEntities(
@@ -1878,10 +1920,10 @@ export class MazeSimulator {
 		const proximalEventDetectingEntityFilter:EntityFilter = (
 			roomEntityId:string, roomEntity:RoomEntity, entity:Entity, entityClass:EntityClass
 		):boolean => {
-			const detectorSystem = getEntityInternalSystem(entity, EISKEY_PROXIMALEVENTDETECTOR, this.gameDataManager);
+			const detectorSystem = getEntitySubsystem(entity, ESSKEY_PROXIMALEVENTDETECTOR, this.gameDataManager);
 			if( detectorSystem == undefined ) return false;
 			switch( detectorSystem.classRef ) {
-			case "http://ns.nuke24.net/Game21/EntityInternalSystem/ProximalEventDetector":
+			case "http://ns.nuke24.net/Game21/EntitySubsystem/ProximalEventDetector":
 				if( detectorSystem.onEventExpressionRef ) return true;
 			}
 			return false;
@@ -1899,19 +1941,20 @@ export class MazeSimulator {
 		
 		for( let fe in foundEntities ) {
 			const foundEntity = foundEntities[fe];
-			const iSys = getEntityInternalSystem(foundEntity.entity, EISKEY_PROXIMALEVENTDETECTOR, this.gameDataManager);
+			const iSys = getEntitySubsystem(foundEntity.entity, ESSKEY_PROXIMALEVENTDETECTOR, this.gameDataManager);
 			if( !iSys ) continue;
 			switch( iSys.classRef ) {
-			case "http://ns.nuke24.net/Game21/EntityInternalSystem/ProximalEventDetector":
+			case "http://ns.nuke24.net/Game21/EntitySubsystem/ProximalEventDetector":
 				if( iSys.onEventExpressionRef ) {
 					const expr = this.gameDataManager.getObject<esp.ProgramExpression>(iSys.onEventExpressionRef);
-					this.runInternalSystemProgram(
+					this.runSubsystemProgram(
 						[foundEntity.roomRef, foundEntity.roomEntityId], foundEntity.entity,
-						EISKEY_PROXIMALEVENTDETECTOR, expr,
+						ESSKEY_PROXIMALEVENTDETECTOR, expr,
 						{
 							event: message 
 						}
 					);
+					this.updateInternalSystem([foundEntity.roomRef, foundEntity.roomEntityId], foundEntity.entity);
 				}
 			}
 		}
@@ -2603,13 +2646,7 @@ export class MazeDemo {
 			this.simulator.fullyLoadRooms( rootRoomId )
 		).then( () => {
 			this.playerId = playerId;
-			const playerRoomEntity = this.simulator.getRoomEntity(playerId);
-			if( playerRoomEntity ) {
-				setEntityInternalSystem( playerRoomEntity.entity, "controlleruplink", {
-					classRef: "http://ns.nuke24.net/Game21/EntityInternalSystem/InterEntityBusBridge",
-					forwardTo: [ROOMID_EXTERNAL, this.deviceId],
-				}, this.gameDataManager );
-			}
+			this.fixPlayer();
 			this.updateView();
 			this.startSimulation();
 			return this.simulator;
@@ -2640,19 +2677,36 @@ export class MazeDemo {
 		});
 	}
 	
+	protected addControllerUplink( entity:Entity ) {
+		setEntitySubsystem( entity, "controlleruplink", {
+			classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/InterEntityBusBridge",
+			forwardTo: [ROOMID_EXTERNAL, this.deviceId],
+		}, this.gameDataManager );
+	}
+	
+	protected fixPlayer():void {
+		const playerRoomEntity = this.simulator.getRoomEntity(this.playerId);
+		if( playerRoomEntity ) {
+			this.addControllerUplink(playerRoomEntity.entity);
+		} else {
+			console.warn("Couldn't find player entity "+this.playerId+"; restarting level");
+			this.restartLevel();
+		}
+	}
+	
 	public loadGame(saveGameRef:string):Promise<MazeSimulator> {
 		const levelRe = /^level(\d+)$/;
 		let levelReMatch:RegExpExecArray|null;
 		const tempGdm = new GameDataManager(this.datastore);
 		
 		if( saveGameRef == 'demo' ) {
-			return dat.initData(tempGdm).then( () => this.loadGame2( tempGdm, dat.playerEntityId, dat.room1Id, "demo maze" ));
+			return dat.initData(tempGdm).then( () => this.loadGame2( tempGdm, dat.playerEntityId, dat.room1Id, "demo maze" ))
 		} else if( saveGameRef == '' || saveGameRef == undefined ) {
-			return Promise.resolve().then( () => this.generateAndLoadNewLevel(0));
+			return Promise.resolve().then( () => this.generateAndLoadNewLevel(0))
 		} else if( (levelReMatch = levelRe.exec(saveGameRef)) ) {
 			// generateAndLoadNewLevel depends on some UI elements being set up, so defer it...
 			const levelNumber = parseInt(levelReMatch[1]);
-			return Promise.resolve().then( () => this.generateAndLoadNewLevel(levelNumber));
+			return Promise.resolve().then( () => this.generateAndLoadNewLevel(levelNumber))
 		} else {
 			return this.loadGame1(saveGameRef);
 		}
@@ -2666,25 +2720,23 @@ export class MazeDemo {
 			for( let re in room.roomEntities ) {
 				const roomEntity = room.roomEntities[re];
 				if( !playerPlaced && roomEntity.entity.classRef == dat.spawnPointEntityClassId ) {
-					// Oh oh put the player here!
-					room.roomEntities[newPlayerId] = {
-						position: roomEntity.position,
-						entity: {
-							id: newPlayerId,
-							classRef: dat.playerEntityClassId,
-							desiresMaze1AutoActivation: true,
-							storedEnergy: 100000,
-							internalSystems: {
-								[EISKEY_PROXIMALEVENTDETECTOR]: <ProximalEventDetector>{
-									classRef: "http://ns.nuke24.net/Game21/EntityInternalSystem/ProximalEventDetector",
-									onEventExpressionRef: sExpressionToProgramExpressionRef(
-										['sendBusMessage', ['makeArray', '/controlleruplink/proximalevent', ['var', 'message']]],
-										this.gameDataManager
-									)
-								}
+					const playerEntity = {
+						id: newPlayerId,
+						classRef: dat.playerEntityClassId,
+						desiresMaze1AutoActivation: true,
+						storedEnergy: 100000,
+						internalSystems: {
+							[ESSKEY_PROXIMALEVENTDETECTOR]: <ProximalEventDetector>{
+								classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/ProximalEventDetector",
+								onEventExpressionRef: sExpressionToProgramExpressionRef(
+									['sendBusMessage', ['makeArray', '/controlleruplink/proximalevent', ['var', 'event']]],
+									this.gameDataManager
+								)
 							}
 						}
 					};
+					this.addControllerUplink(playerEntity);
+					this.simulator.placeItemSomewhereNear( playerEntity, r, roomEntity.position );
 					playerPlaced = true;
 				}
 				if( re != newPlayerId && roomEntity.entity.classRef == dat.playerEntityClassId ) {

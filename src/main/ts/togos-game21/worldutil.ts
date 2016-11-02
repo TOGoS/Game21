@@ -7,8 +7,8 @@ import { makeAabb, aabbWidth, aabbHeight, aabbDepth, UNBOUNDED_AABB } from './aa
 import {
 	Room, RoomEntity, Entity, EntityClass, StructureType, TileTree, TileEntityPalette
 } from './world';
-import InternalBusMessage, { InternallyBussed } from './InternalBusMessage';
-import EntitySubsystem from './EntityInternalSystem';
+import EntitySystemBusMessage, { MessageBusSystem } from './EntitySystemBusMessage';
+import EntitySubsystem from './EntitySubsystem';
 import GameDataManager from './GameDataManager';
 import { deepFreeze } from './DeepFreezer';
 import { hash, sha1Urn, base32Encode } from '../tshash/index';
@@ -243,24 +243,24 @@ export function roomEntityOrientation(re:RoomEntity):Quaternion {
 	return coalesce2(re.orientation, Quaternion.IDENTITY);
 }
 
-export function getEntityInternalSystem(e:Entity, systemKey:string, gdm:GameDataManager):EntitySubsystem|undefined {
-	if( e.internalSystems != undefined && e.internalSystems.hasOwnProperty(systemKey) ) {
-		return e.internalSystems[systemKey];
+export function getEntitySubsystem(e:Entity, subsystemKey:string, gdm:GameDataManager):EntitySubsystem|undefined {
+	if( e.internalSystems != undefined && e.internalSystems.hasOwnProperty(subsystemKey) ) {
+		return e.internalSystems[subsystemKey];
 	}
 	const eClass = gdm.getEntityClass(e.classRef);
 	if( eClass.defaultInternalSystems == undefined ) return undefined;
-	return eClass.defaultInternalSystems[systemKey];
+	return eClass.defaultInternalSystems[subsystemKey];
 }
 
-export function setEntityInternalSystem(e:Entity, systemKey:string, system:EntitySubsystem|undefined, gdm:GameDataManager):void {
+export function setEntitySubsystem(e:Entity, subsystemKey:string, subsystem:EntitySubsystem|undefined, gdm:GameDataManager):void {
 	// TODO: If replacing one with its default state, just delete the override
 	if( e.internalSystems == undefined ) {
 		e.internalSystems = {};
 	}
-	e.internalSystems[systemKey] = system;
+	e.internalSystems[subsystemKey] = subsystem;
 }
 
-export function enqueueInternalBusMessage( bussy:InternallyBussed, message:InternalBusMessage ):void {
+export function enqueueInternalBusMessage( bussy:MessageBusSystem, message:EntitySystemBusMessage ):void {
 	if( bussy.enqueuedBusMessages == undefined ) bussy.enqueuedBusMessages = [];
 	bussy.enqueuedBusMessages.push(message);
 }

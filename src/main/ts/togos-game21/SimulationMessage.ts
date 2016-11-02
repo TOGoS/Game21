@@ -1,5 +1,5 @@
 import Vector3D from './Vector3D';
-import InternalBusMessage from './InternalBusMessage';
+import EntitySystemBusMessage from './EntitySystemBusMessage';
 import { EntityPath } from './simulationmessaging';
 
 interface ProximalEvent {
@@ -28,7 +28,7 @@ export interface TextHeard extends ProximalEvent {
 
 export interface InternalBusMessageReceived {
 	classRef: "http://ns.nuke24.net/Game21/SimulationMessage/CommandReceived";
-	command: InternalBusMessage;
+	command: EntitySystemBusMessage;
 }
 
 export type ProximalSimulationMessage = SimpleEventOccurred|ItemPickedUp|TextHeard;

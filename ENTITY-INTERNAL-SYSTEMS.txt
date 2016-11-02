@@ -51,7 +51,7 @@ Internal system types:
     can be used to gloss over communication to e.g. doors and lifts
 	 so physical wired or radio links don't need to be made.
   - /<bridge name>/<forwarded path...> ...
-  + message? : specific message to send; otherwise it forwards whatever
+  + message? : specific message to send; otherwise it forwards whatever  
   + entity ID
 - Area bridge
   - Forwards a message to multiple entities in an area around this one.
