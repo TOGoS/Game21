@@ -1676,6 +1676,10 @@ export class MazeSimulator {
 				}
 			}
 			const roomEntity = this.getRoomEntityOrUndefined(entityPath);
+			if( roomEntity == undefined ) {
+				console.warn("Can't place tile near "+entityPath.join('/')+"; entity not found");
+				return true;
+			}
 			const rePos = roomEntity.position;
 			const blockLoc = this.fixLocation( {roomRef: roomId, position: makeVector(relX+rePos.x, relY+rePos.y, relZ+rePos.z)} );
 			this.setTileTreeBlock( blockLoc.roomRef, blockLoc.position, tileScale, block );
@@ -1709,6 +1713,10 @@ export class MazeSimulator {
 		} else if( path == '/vomit' ) {
 			if( entity.storedEnergy != undefined ) {
 				const roomEntity = this.getRoomEntityOrUndefined(entityPath);
+				if( roomEntity == undefined ) {
+					console.warn("Can't vomit; room entity "+entityPath.join('/')+" not found");
+					return true;
+				}
 				entity.storedEnergy /= 2;
 				chunks: for( let i=0; i<20; ++i ) {
 					let vel = roomEntity.velocity||ZERO_VECTOR;
@@ -1725,6 +1733,10 @@ export class MazeSimulator {
 			}
 		} else if( path == '/throwinventoryitem' ) {
 			const roomEntity = this.getRoomEntityOrUndefined(entityPath);
+			if( roomEntity == undefined ) {
+				console.warn("Can't throw; no roomEntity "+entityPath.join('/')+" found");
+				return true;
+			}
 			if( md[1] == undefined ) {
 				console.error("missing item key argument to /throwinventoryitem");
 				return true;
@@ -1918,7 +1930,8 @@ export class MazeSimulator {
 		}
 		
 		const subsystemKey = pprem[1];
-		if( !system.subsystems[subsystemKey] ) {
+		const subsystem = getEntitySubsystem(system, subsystemKey, this.gameDataManager);
+		if( subsystem == undefined ) {
 			// This might turn out to be a semi-normal occurrence,
 			// in which case I should stop cluttering the log with it.
 			
@@ -1927,7 +1940,6 @@ export class MazeSimulator {
 			}
 			return;
 		}
-		const subsystem = system.subsystems[subsystemKey];
 		const subsystemMessage = [pprem[2], ...message.slice(1)];
 		this.handleSubsystemMessage(entityPath, system, subsystemKey, subsystem, subsystemMessage);
 	}
@@ -1935,10 +1947,11 @@ export class MazeSimulator {
 	protected updateInternalSystem(
 		entityPath:EntityPath, system:Entity
 	):void {
+		if( system.enqueuedBusMessages == undefined ) return;
 		for( let i=0; i<system.enqueuedBusMessages.length; ++i ) {
 			this.handleSystemMessage(entityPath, system, system.enqueuedBusMessages[i]);
 		}
-		system.enqueuedBusMessages = []; 
+		system.enqueuedBusMessages = undefined;
 	}
 	
 	public sendProximalEventMessageToNearbyEntities(
@@ -2756,7 +2769,12 @@ export class MazeDemo {
 				const roomEntity = room.roomEntities[re];
 				if( !playerPlaced && roomEntity.entity.classRef == dat.spawnPointEntityClassId ) {
 					const playerEntity = this.createNewPlayerEntity(newPlayerId);
-					this.simulator.placeItemSomewhereNear( playerEntity, r, roomEntity.position );
+					try {
+						this.simulator.placeItemSomewhereNear( playerEntity, r, roomEntity.position );
+					} catch( err ) {
+						console.warn("Failed to place player at spawn point "+re);
+					}
+					console.log("Player placed near spawn point "+re+", ID "+newPlayerId);
 					playerPlaced = true;
 				}
 				if( re != newPlayerId && roomEntity.entity.classRef == dat.playerEntityClassId ) {
@@ -2804,9 +2822,7 @@ export class MazeDemo {
 				return worldifier;
 			}).then( (worldifier) => mazeToWorld(worldifier) ).then( ({gdm, playerId, startRoomRef}) => {
 				this.hideDialog(this.winDialog);
-				return this.loadGame2( gdm, playerId, startRoomRef, "generated maze" ).then( () => {
-					this.restartLevel();
-				});
+				return this.loadGame2( gdm, playerId, startRoomRef, "generated maze" );
 			}, (err) => {
 				if( attempts < 50 ) {
 					this.logger.warn("Maze generation failed; trying agin (attempt #"+attempts+"): ", err);
