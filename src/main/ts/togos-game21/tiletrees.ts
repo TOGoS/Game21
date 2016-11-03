@@ -122,6 +122,8 @@ export function rewriteTileTreeIntersecting(
 				let tileIndex = indexes[i];
 				setVector(ttRewritePos, x0+(cx+0.5)*xd, y0+(cy+0.5)*yd, z0+(cz+0.5)*zd);
 				let newIndex = rewrite(ttRewritePos, ttRewriteAabb, tileIndex, pal[tileIndex]);
+				if( newIndex === tileIndex ) continue; // Shortcut when obviosuly no change.
+				
 				if( typeof newIndex == 'string' ) {
 					newIndex = tepm.findTileEntity( {entity: {classRef:newIndex}, orientation: Quaternion.IDENTITY} );
 				} else if( typeof newIndex == 'object' ) {
