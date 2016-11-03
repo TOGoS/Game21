@@ -2031,7 +2031,7 @@ export class MazeSimulator {
 			{
 				if( !subsystem.messageReceivedExpressionRef ) break;
 				
-				const vars = {};
+				const vars:KeyedList<any> = {};
 				if( subsystem.parameterVariableNames ) for( let i=0; i<subsystem.parameterVariableNames.length; ++i ) {
 					const varName = subsystem.parameterVariableNames[i];
 					vars[varName] = message[i+1];
@@ -2164,9 +2164,9 @@ export class MazeSimulator {
 					ZERO_VECTOR, entity.classRef,
 					offsetVector, ZERO_AABB,
 					(pos:Vector3D, aabb:AABB, index:number, te:TileEntity|null|undefined) => {
-						if( te == null ) return te;
+						if( te == null ) return null;
 						const newEnt = this._mutateEntityAtPath(te.entity, entityPath, pathStart+2, mutator);
-						return newEnt == undefined ? undefined : {entity:newEnt};
+						return newEnt == undefined ? null : {entity:newEnt};
 					}, this.gameDataManager);
 				if( newTtClassRef == entity.classRef ) return entity;
 				entity = thaw(entity);

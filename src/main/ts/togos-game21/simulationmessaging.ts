@@ -92,7 +92,7 @@ export interface InduceSystemBusMessageAction {
 	classRef: "http://ns.nuke24.net/Game21/SimulationAction/InduceSystemBusMessage";
 	entityPath: EntityPath;
 	busMessage: EntitySystemBusMessage;
-	replyPath: EntityPath;
+	replyPath?: EntityPath;
 }
 
 // Ha ha, it is probably unnecessary because
