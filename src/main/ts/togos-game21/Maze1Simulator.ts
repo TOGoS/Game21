@@ -56,7 +56,7 @@ import {
 import * as dat from './maze1demodata';
 import EntitySystemBusMessage from './EntitySystemBusMessage';
 import * as esp from './internalsystemprogram';
-import Logger from './logger';
+import Logger from './Logger';
 import GameDataManager from './GameDataManager';
 import newUuidRef from './newUuidRef';
 import { pickOne } from './graphmaze/picking';
