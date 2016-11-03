@@ -50,7 +50,7 @@ export default class TilePalette {
 			this.imageUrls[index] = null;
 			this.tileElements[index].style.backgroundImage = null;
 		} else if( this._renderer ) {
-			const renderP = this._renderer( tileEntity.entity, tileEntity.orientation );
+			const renderP = this._renderer( tileEntity.entity, tileEntity.orientation||Quaternion.IDENTITY );
 			this.imageUrlPromises[index] = renderP;
 			renderP.then( (url) => {
 				if( this.imageUrlPromises[index] === renderP ) { // Still waiting for me?
