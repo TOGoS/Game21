@@ -1554,12 +1554,15 @@ export class MazeSimulator {
 			} );
 		}
 		
+		// Position buffer gets re-used, so we can't rely on it
+		// still having the outer entity's position when we're
+		// inside the callback
+		const posX = entityPos.x, posY = entityPos.y, posZ = entityPos.z;
 		eachSubEntityIntersectingBb( entity, entityPos, checkPos, checkBb, this.gameDataManager, (subEnt, subEntPos, ori) => {
-			const relativeOffset = subtractVector(subEntPos, entityPos);
 			const subPath = entityPath.concat([
 				AT_STRUCTURE_OFFSET,
-				relativeOffset.x+","+relativeOffset.y+","+relativeOffset.z
-			])
+				(subEntPos.x-posX)+","+(subEntPos.y-posY)+","+(subEntPos.z-posZ)
+			]);
 			this.entitiesAt3( subPath, roomEntity, subEntPos, subEnt, checkPos, checkBb, filter, into );
 		}, this, entityPositionBuffer);
 	}
