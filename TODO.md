@@ -24,6 +24,18 @@
 
 ## Misc to-do items
 
+Maze1 simulation incremental refactoring
+- Partially immutable game states
+  - Promise-based so that stuff can be loaded as needed
+  - For the sake of clarity, pretend things are immutable for the most part
+  - Messaging steps are basically tree rewriting, so should be easier to make purely functional and promise-based
+  - Physics step:
+    - load all physically active rooms and their neighbors
+    - do physics step about the same as currently
+  - Occasional cache clear
+  - More occasional flushUpdates()
+- enqueueStep() { this.currentStatePromise = this.currentStatePromise.then( (currentState) => this.nextState(currentState, ) }
+
 Different random maze generation:
 - wave function collapse-generated rooms
 - big old simplex noise caves
