@@ -630,13 +630,6 @@ interface FoundEntity {
 type BounceBox = { [k:number]: FoundEntity|undefined }
 
 const entityPositionBuffer:Vector3D = makeVector(0,0,0);
-const rotate45Clockwise:TransformationMatrix3D        = deepFreeze(TransformationMatrix3D.fromXYZAxisAngle(0,0,1,+Math.PI/4));
-const rotate45CounterClockwise:TransformationMatrix3D = deepFreeze(TransformationMatrix3D.fromXYZAxisAngle(0,0,1,-Math.PI/4));
-const movementAttemptTransforms = [
-	TransformationMatrix3D.IDENTITY,
-	rotate45Clockwise,
-	rotate45CounterClockwise
-];
 
 function entityVelocity( roomEntity:RoomEntity ):Vector3D {
 	return roomEntity.velocity || ZERO_VECTOR;
