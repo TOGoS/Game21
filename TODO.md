@@ -25,6 +25,9 @@
 ## Misc to-do items
 
 Maze1 simulation incremental refactoring
+- Move simulator + physics engine to own file
+- Maze1Demo becomes Maze1UI
+  - and continue to decouple from simulation
 - Partially immutable game states
   - Promise-based so that stuff can be loaded as needed
   - For the sake of clarity, pretend things are immutable for the most part
