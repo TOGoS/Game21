@@ -219,7 +219,7 @@ export interface RoomVisualEntity {
  */
 export interface TileEntity {
 	entity : Entity;
-	orientation : Quaternion;
+	orientation? : Quaternion;
 }
 
 export type TileEntityPalette = Array<TileEntity|null>;
