@@ -223,16 +223,24 @@ function perpendicularPart( vec:Vector3D, perpendicularTo:Vector3D ):Vector3D {
 	return subtractVector(vec, scaleVector(perpendicularTo, dotProduct(vec,perpendicularTo)/perpendicularLength));
 }
 
-export class MazeGamePhysics {
-	constructor( protected simulator:Maze1Simulator ) { }
+import {
+	HardRef, SoftRef, LWSet
+} from './lwtypes';
+
+type RoomID = SoftRef;
+
+export class PhysicsUpdate {
+	constructor(
+		protected simulator:Maze1Simulator,
+		public activeRoomIds:LWSet<RoomID> = {},
+	) { }
 	
-	public activeRoomIds:KeyedList<string> = {};
-	public activatedRoomIds:KeyedList<string> = {};
+	public activatedRoomIds:LWSet<RoomID> = {};
 	
 	public induceVelocityChange( roomId:string, entityId:string, roomEntity:RoomEntity, dv:Vector3D ):void {
 		if( vectorIsZero(dv) ) return; // Save ourselves a little bit of work
 		roomEntity.velocity = addVector(entityVelocity(roomEntity), dv);
-		this.activatedRoomIds[roomId] = roomId;
+		this.activatedRoomIds[roomId] = true;
 	}
 	
 	public registerReactionlessImpulse( roomId:string, entityId:string, roomEntity:RoomEntity, impulse:Vector3D ):void {
@@ -572,7 +580,7 @@ export class MazeGamePhysics {
 				
 				// Room's got a possibly active entity in it,
 				// so add to the active rooms list.
-				this.activatedRoomIds[r] = r;
+				this.activatedRoomIds[r] = true;
 				// TODO: Don't activate room if entity is settled into an unmoving state
 				// (would require activating neighbor rooms when things at edges change, etc)
 				
@@ -753,7 +761,7 @@ export class MazeGamePhysics {
 							position: newPosition,
 							velocityPosition: newVelocityLocation.position
 						});
-						this.activatedRoomIds[newRoomRef] = newRoomRef;
+						this.activatedRoomIds[newRoomRef] = true;
 						entityRoomRef = newRoomRef;
 						if( stepDisplacementRatio == 1 ) break displacementStep; // Shortcut; this should happen anyway
 						// Subtract what we did and go again
@@ -927,8 +935,7 @@ function evalInternalSystemProgram( expression:esp.ProgramExpression, ctx:ISPEC 
 
 export default class Maze1Simulator {
 	protected rooms:KeyedList<Room> = {};
-	protected activeRoomIds:KeyedList<string> = {};
-	protected phys = new MazeGamePhysics(this);
+	protected activeRoomIds:LWSet<RoomID> = {};
 	public logger:Logger = console;
 	
 	protected enqueuedActions:SimulationAction[] = [];
@@ -1168,7 +1175,7 @@ export default class Maze1Simulator {
 		if( path == "/desiredmovementdirection" ) {
 			entity.desiredMovementDirection = makeVector(+md[1],+md[2],+md[3]);
 			// Make sure the room is marked as active:
-			if( this.rooms[roomId] ) this.activeRoomIds[roomId] = roomId; 
+			if( this.rooms[roomId] ) this.activeRoomIds[roomId] = true;
 			else console.warn("Oh no, active entity in non-loaded room '"+roomId+"'");
 			return true;
 		} else if( path == "/painttiletreeblock" ) {
@@ -1717,7 +1724,6 @@ export default class Maze1Simulator {
 		case "http://ns.nuke24.net/Game21/SimulationAction/InduceSystemBusMessage":
 			this.induceSystemBusMessage(act.entityPath, act.busMessage, act.replyPath);
 			break;
-			
 		default:
 			console.warn("Skipping invocation of unsupported action class: "+act.classRef);
 		}
@@ -1807,10 +1813,9 @@ export default class Maze1Simulator {
 	public update(interval:number=1/16) {
 		this.doMessageUpdates(interval/2);
 		
-		this.phys.activeRoomIds = this.activeRoomIds;
-		this.phys.activatedRoomIds = {};
-		this.phys.updateEntities(interval);
-		this.activeRoomIds = this.phys.activatedRoomIds;
+		const phys = new PhysicsUpdate(this, this.activeRoomIds);
+		phys.updateEntities(interval);
+		this.activeRoomIds = phys.activatedRoomIds;
 		
 		this.doMessageUpdates(interval/2);
 	}
