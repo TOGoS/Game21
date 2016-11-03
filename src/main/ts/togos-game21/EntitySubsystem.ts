@@ -31,6 +31,15 @@ export interface ProximalEventDetector {
 	eventDetectedExpressionRef? : string;
 }
 
+/** Receives messages and does /something/ */
+export interface SimpleComputer {
+	classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/SimpleComputer";
+	registerVariableNames? : string[];
+	parameterVariableNames? : string[];
+	// Will be called with arguments translated to corresponding parameter variables
+	messageReceivedExpressionRef? : string;
+}
+
 export interface Button {
 	classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/Button";
 	pokedExpressionRef? : string;
@@ -72,6 +81,7 @@ export type EntitySubsystem =
 	InterEntityBusBridge |
 	MessageDelayer |
 	ProximalEventDetector |
+	SimpleComputer |
 	Vision;
 
 export default EntitySubsystem;

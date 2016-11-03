@@ -47,7 +47,8 @@ export type ProgramExpression =
 export type FunctionRef = 
 	"http://ns.nuke24.net/InternalSystemFunctions/SendBusMessage" |
 	"http://ns.nuke24.net/InternalSystemFunctions/EntityClassRef" |
-	"http://ns.nuke24.net/InternalSystemFunctions/ProgN";
+	"http://ns.nuke24.net/InternalSystemFunctions/ProgN" |
+	"http://ns.nuke24.net/InternalSystemFunctions/Trace";
 
 export const FUNC_SEND_BUS_MESSAGE = "http://ns.nuke24.net/InternalSystemFunctions/SendBusMessage";
 export const FUNC_ENTITY_CLASS_REF = "http://ns.nuke24.net/InternalSystemFunctions/EntityClassRef";
@@ -55,6 +56,7 @@ export const FUNC_ENTITY_CLASS_REF = "http://ns.nuke24.net/InternalSystemFunctio
 const shortToLongFunctionRefs:KeyedList<FunctionRef> = {
 	"sendBusMessage": "http://ns.nuke24.net/InternalSystemFunctions/SendBusMessage",
 	"progn": "http://ns.nuke24.net/InternalSystemFunctions/ProgN",
+	"trace": "http://ns.nuke24.net/InternalSystemFunctions/Trace"
 };
 
 export function sExpressionToProgramExpression(x:any):ProgramExpression {

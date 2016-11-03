@@ -1403,6 +1403,9 @@ function evalInternalSystemProgram( expression:esp.ProgramExpression, ctx:ISPEC 
 			}
 			if( !expression.functionRef ) throw new Error("Oh no dynamic functions not implemented boo");
 			switch( expression.functionRef ) {
+			case "http://ns.nuke24.net/InternalSystemFunctions/Trace":
+				console.debug("Trace from entity subsystem program", argValues, ctx);
+				break;
 			case "http://ns.nuke24.net/InternalSystemFunctions/ProgN":
 				return argValues.length == 0 ? undefined : argValues[argValues.length-1];
 			case "http://ns.nuke24.net/InternalSystemFunctions/SendBusMessage":
@@ -1420,6 +1423,7 @@ function evalInternalSystemProgram( expression:esp.ProgramExpression, ctx:ISPEC 
 				throw new Error("Call to unsupported function "+expression.functionRef);
 			}
 		}
+		break;
 	default:
 		throw new Error(
 			"Dunno how to evaluate expression classcamp town ladies sing this song, do da, do da, "+
@@ -1977,7 +1981,7 @@ export class MazeSimulator {
 	}
 	
 	protected handleSubsystemBusMessage(
-		entityPath:EntityPath, entity:Entity, subsystemKey:string, subsystem:EntitySubsystem, message:EntitySystemBusMessage
+		entityPath:EntityPath, entity:Entity, subsystemKey:string, subsystem:EntitySubsystem, message:EntitySystemBusMessage, messageQueue:EntitySystemBusMessage[]
 	):Entity|undefined {
 		if( message.length < 1 ) {
 			console.warn("Zero-length message passed to subsystem "+subsystemKey, message);
@@ -2023,8 +2027,24 @@ export class MazeSimulator {
 					delete entity.subsystems;
 					delete entity.maze1Inventory;
 				}
-				break;
 			}
+			break;
+		case "http://ns.nuke24.net/Game21/EntitySubsystem/SimpleComputer":
+			{
+				if( !subsystem.messageReceivedExpressionRef ) break;
+				
+				const vars = {};
+				if( subsystem.parameterVariableNames ) for( let i=0; i<subsystem.parameterVariableNames.length; ++i ) {
+					const varName = subsystem.parameterVariableNames[i];
+					vars[varName] = message[i+1];
+				}
+				
+				const program = this.gameDataManager.getObject<esp.ProgramExpression>(subsystem.messageReceivedExpressionRef);
+				// Will need to change something a bit in order to allow
+				// data to be stored on the SimpleComputer
+				this.runSubsystemProgram(entityPath, entity, subsystemKey, program, messageQueue, vars);
+			}
+			break;
 		default:
 			console.warn(subsystem.classRef+" recieved bus message, but handling of it is not implemented:", message);
 			break;
@@ -2065,7 +2085,7 @@ export class MazeSimulator {
 			return entity;
 		}
 		const subsystemMessage = [pprem[2], ...message.slice(1)];
-		return this.handleSubsystemBusMessage(entityPath, entity, subsystemKey, subsystem, subsystemMessage);
+		return this.handleSubsystemBusMessage(entityPath, entity, subsystemKey, subsystem, subsystemMessage, busMessageQueue);
 	}
 	
 	protected handleSystemBusMessages(

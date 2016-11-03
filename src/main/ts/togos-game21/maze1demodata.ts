@@ -13,6 +13,7 @@ import {
 	makeTileEntityPaletteRef,
 	makeTileTreeRef
 } from './worldutil';
+import { ROOMID_FINDENTITY } from './simulationmessaging';
 import * as esp from './internalsystemprogram';
 import GameDataManager from './GameDataManager';
 /// <reference path="../Promise.d.ts"/>
@@ -457,9 +458,9 @@ const room1Data = [
 	1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 2, 0,13, 0, 0,10,
 	1, 0,16, 0, 1, 3, 8, 8, 8, 8, 0, 0,13, 0, 0,10,
 	1, 0,16, 0, 1, 1, 1, 2, 2, 2, 2, 2,11, 0, 0,10,
-	1, 0,16, 0, 0,30,30, 0, 5, 0, 0, 0,13, 0, 0,10,
-	1, 0, 2, 2, 2, 1, 1, 2, 5, 1, 1, 1,11, 0, 0,12,
-	1, 0, 2, 1, 1, 1, 1, 2, 5, 1, 0, 2,11, 0, 0,12,
+	1, 0,16, 0, 5,30,30, 0, 5, 0, 0, 0,13, 0, 0,10,
+	1, 0, 2, 2, 5, 1, 1, 2, 5, 1, 1, 1,11, 0, 0,12,
+	1, 0, 2, 1, 5, 0, 1, 2, 5, 1, 0, 2,11, 0, 0,12,
 	1, 0, 0, 0, 2, 2, 2, 2, 5, 1, 0, 2,11, 0, 0,10,
 	0, 0, 5, 0, 0, 0, 0, 0, 5, 0, 0, 2,11, 0, 0,12,
 	1, 1, 5, 1, 1, 1, 1, 1, 1, 1, 1, 1,11, 0, 0,10,
@@ -573,7 +574,6 @@ export const platformSegmentEntityClassId = 'urn:uuid:819f8257-bcad-4d2f-a64e-0a
 export const platform3EntityClassId = 'urn:uuid:585927b9-b225-49d7-a49a-dff0445a1f78';
 export const tileEntityPaletteId = 'urn:uuid:50c19be4-7ab9-4dda-a52f-cf4cfe2562ac';
 
-
 export const spawnPointEntityClassId = 'urn:uuid:416bfc18-7412-489f-a45e-6ff4c6a4e08a';
 export const playerEntityClassId     = 'urn:uuid:416bfc18-7412-489f-a45e-6ff4c6a4e08b';
 export const deadPlayerEntityClassId = 'urn:uuid:416bfc18-7412-489f-a45e-6ff4c6a4e08c';
@@ -614,6 +614,7 @@ export const blueKeyEntityId     = 'urn:uuid:fd1935da-f128-4195-8a13-90fbf59ef3b
 export const yellowKeyEntityId   = 'urn:uuid:fd1935da-f128-4195-8a13-90fbf59ef3b2';
 export const door3EntityId       = 'urn:uuid:1a8455be-8cce-4721-8ccb-7f5644e30081';
 export const platformEntityId    = 'urn:uuid:27c27635-99ba-4ef3-b3ff-445eb9b132e5';
+export const platformSwitchEntityId = 'urn:uuid:f2d3556d-2d46-4628-85d9-dd82b017a5fb';
 const room1TileTreeId     = 'urn:uuid:a11ed6ae-f096-4b30-bd39-2a78d39a1381';
 const room2TileTreeId     = 'urn:uuid:a11ed6ae-f096-4b30-bd39-2a78d39a1382';
 const room3TileTreeId     = 'urn:uuid:a11ed6ae-f096-4b30-bd39-2a78d39a1383';
@@ -1102,9 +1103,17 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 			"button": {
 				classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/Button",
 				pokedExpressionRef: sExpressionToProgramExpressionRef(
-					['sendBusMessage', ['makeArray', '/morph', toggleBoxOnEntityClassRef]],
+					['progn',
+						['sendBusMessage', ['makeArray', '/morph', toggleBoxOnEntityClassRef]],
+						['sendBusMessage', ['makeArray', '/onon']]],
 					gdm
 				)
+			},
+			"onon": {
+				classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/SimpleComputer"
+			},
+			"onoff": {
+				classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/SimpleComputer"
 			},
 			"morph": {
 				classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/EntityMorpher",
@@ -1122,9 +1131,17 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 			"button": {
 				classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/Button",
 				pokedExpressionRef: sExpressionToProgramExpressionRef(
-					['sendBusMessage', ['makeArray', '/morph', toggleBoxOffEntityClassRef]],
+					['progn',
+						['sendBusMessage', ['makeArray', '/morph', toggleBoxOffEntityClassRef]],
+						['sendBusMessage', ['makeArray', '/onoff']]],
 					gdm
 				)
+			},
+			"onon": {
+				classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/SimpleComputer"
+			},
+			"onoff": {
+				classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/SimpleComputer"
 			},
 			"morph": {
 				classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/EntityMorpher",
@@ -1370,7 +1387,7 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 				}
 			},
 			['the-triforce']: {
-				position: makeVector(-2.5, -1.5, 0),
+				position: makeVector(-2.5, +0.5, 0),
 				entity: {
 					classRef: triforceEntityClassId
 				}
@@ -1400,6 +1417,32 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 					desiredMovementDirection: makeVector(0, -1.0, 0),
 				}
 			},
+			[platformSwitchEntityId]: {
+				position: makeVector(3.5, -1.5, +3/8),
+				entity: {
+					classRef: toggleBoxOnEntityClassRef,
+					subsystems: {
+						"onon": {
+							"classRef": "http://ns.nuke24.net/Game21/EntitySubsystem/SimpleComputer",
+							messageReceivedExpressionRef: sExpressionToProgramExpressionRef(
+								['sendBusMessage', ['makeArray', '/liftlink/desiredmovementdirection', 0, -1, 0]],
+								gdm
+							)
+						},
+						"onoff": {
+							"classRef": "http://ns.nuke24.net/Game21/EntitySubsystem/SimpleComputer",
+							messageReceivedExpressionRef: sExpressionToProgramExpressionRef(
+								['sendBusMessage', ['makeArray', '/liftlink/desiredmovementdirection', 0, +1, 0]],
+								gdm
+							)
+						},
+						"liftlink": {
+							classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/InterEntityBusBridge",
+							forwardEntityPath: [ROOMID_FINDENTITY, platformEntityId]
+						}
+					}
+				}
+			}
 		},
 		neighbors: {
 			"w": {
