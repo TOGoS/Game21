@@ -31,6 +31,11 @@ export function vectorToString(v:Vector3D|undefined|null):string {
 }
 
 export function parseVector(a:any):Vector3D {
+	if( typeof a == 'string' ) {
+		if( a.charAt(0) == '<' && a.charAt(a.length-1) == '>' ) return parseVector(a.substr(1,a.length-2));
+		const parts = a.split(',');
+		return {x:+parts[0], y:+parts[1], z:+parts[2]};
+	}
 	if( typeof a.x == 'number' && typeof a.y == 'number' && typeof a.z == 'number' ) return a;
 	if( typeof a[0] == 'number' && typeof a[1] == 'number' && typeof a[2] == 'number' ) {
 		return makeVector(a[0],a[1],a[2]);
