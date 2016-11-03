@@ -6,13 +6,17 @@ import { addVector, subtractVector, vectorLength, vectorIsZero, scaleVector, nor
 import AABB from './AABB';
 import {
 	makeAabb, setAabb, aabbWidth, aabbHeight, aabbDepth,
-	aabbAverageX, aabbAverageY, aabbContainsVector, aabbIntersectsWithOffset
+	aabbAverageX, aabbAverageY, aabbContainsVector, aabbIntersectsWithOffset,
+	UNBOUNDED_AABB
 } from './aabbs';
 import GameDataManager from './GameDataManager';
 import { StructureType, Entity, EntityClass, TileTree, TileEntity, TileEntityPalette } from './world';
 
+/**
+ * tileAabb is relative to tilePos.
+ */
 export type TileTreeRewriteFunction = (
-	pos:Vector3D, aabb:AABB, index:number, e:TileEntity|null|undefined
+	tilePos:Vector3D, tileAabb:AABB, index:number, e:TileEntity|null|undefined
 ) => number|TileEntity|string|null;
 
 class TileEntityPaletteManager {
@@ -67,8 +71,9 @@ class TileEntityPaletteManager {
 
 const ttRewritePos = makeVector();
 const ttRewriteAabb = makeAabb(0,0,0,0,0,0);
-export function rewriteTileTree(
-	ttPos:Vector3D, ttRef:string,
+export function rewriteTileTreeIntersecting(
+	pos:Vector3D, ttRef:string,
+	bbPos:Vector3D, bb:AABB,
 	rewrite:TileTreeRewriteFunction,
 	gdm:GameDataManager
 ):string {
@@ -78,27 +83,44 @@ export function rewriteTileTree(
 	if( entityClass.structureType != StructureType.TILE_TREE ) {
 		throw new Error("Can't rewrite "+entityClass+"; not a tile tree!");
 	}
+	
 	const tt = <TileTree>entityClass;
 	const tepm = new TileEntityPaletteManager(tt.childEntityPaletteRef, gdm);
+	
 	const ttBb = tt.tilingBoundingBox;
+	const zDivs = tt.zDivisions, yDivs = tt.yDivisions, xDivs = tt.xDivisions;
+	const ttWidth = ttBb.maxX-ttBb.minX, ttHeight = ttBb.maxY-ttBb.minY, ttDepth = ttBb.maxZ-ttBb.minZ;
+	const xd = ttWidth/xDivs, yd = ttHeight/yDivs, zd = ttDepth/zDivs;
+	const halfZd = zd/2, halfXd = xd/2, halfYd = yd/2;
+	
+	// Tile tree corners, adjusted by pos:
+	const x0 = pos.x + ttBb.minX, x1 = pos.x + ttBb.maxX;
+	const y0 = pos.y + ttBb.minY, y1 = pos.y + ttBb.maxY;
+	const z0 = pos.z + ttBb.minZ, z1 = pos.z + ttBb.maxZ;
+	const bbMinX = bbPos.x+bb.minX, bbMaxX = bbPos.x+bb.maxX;
+	const bbMinY = bbPos.y+bb.minY, bbMaxY = bbPos.y+bb.maxY;
+	const bbMinZ = bbPos.z+bb.minZ, bbMaxZ = bbPos.z+bb.maxZ;
+	
+	// Slice/row/cell numbers that intersect the bounding box
+	const cx0 = bbMinX <= x0 ? 0 : bbMinX >= x1 ? xDivs : Math.floor((bbMinX-x0)/xd);
+	const cx1 = bbMaxX <= x0 ? 0 : bbMaxX >= x1 ? xDivs : Math.ceil( (bbMaxX-x0)/xd);
+	const cy0 = bbMinY <= y0 ? 0 : bbMinY >= y1 ? yDivs : Math.floor((bbMinY-y0)/yd);
+	const cy1 = bbMaxY <= y0 ? 0 : bbMaxY >= y1 ? yDivs : Math.ceil( (bbMaxY-y0)/yd);
+	const cz0 = bbMinZ <= z0 ? 0 : bbMinZ >= z1 ? zDivs : Math.floor((bbMinZ-z0)/zd);
+	const cz1 = bbMaxZ <= z0 ? 0 : bbMaxZ >= z1 ? zDivs : Math.ceil( (bbMaxZ-z0)/zd);
+	
 	const pal = tepm.palette;
-	const cellWidth  = aabbWidth( ttBb)/tt.xDivisions;
-	const cellHeight = aabbHeight(ttBb)/tt.yDivisions;
-	const cellDepth  = aabbDepth( ttBb)/tt.zDivisions;
-	setAabb(ttRewriteAabb, -cellWidth/2, -cellHeight/2, -cellDepth/2, +cellWidth/2, +cellHeight/2, +cellDepth/2);
-	const minX = ttPos.x+ttBb.minX, minY = ttPos.y+ttBb.minY, minZ = ttPos.z+ttBb.minZ;
 	const indexes = tt.childEntityIndexes;
 	let newIndexes = indexes;
-	for( let i=0, z=0; z<tt.zDivisions; ++z ) {
-		for( let y=0; y<tt.yDivisions; ++y ) {
-			for( let x=0; x<tt.xDivisions; ++x, ++i ) {
+	setAabb(ttRewriteAabb, -xd/2, -yd/2, -zd/2, +xd/2, +yd/2, +zd/2);
+	
+	for( let cz=cz0; cz < cz1; ++cz ) {
+		const subZ = z0+cz*zd+halfZd;
+		for( let cy=cy0; cy < cy1; ++cy ) {
+			const subY = y0+cy*yd+halfYd;
+			for( let cx=cx0, i=cx+(cy*xDivs)+(cz*xDivs*yDivs); cx < cx1; ++cx, ++i ) {
 				let tileIndex = indexes[i];
-				setVector(ttRewritePos, minX+(x+0.5)*cellWidth, minY+(y+0.5)*cellHeight, minZ+(z+0.5)*cellDepth);
-				/*
-				setAabb(ttRewriteAabb,
-					minX+    x*cellWidth, minY+    y*cellHeight, minZ+    z*cellDepth,
-					minX+(x+1)*cellWidth, minY+(y+1)*cellHeight, minZ+(z+1)*cellDepth);
-					*/
+				setVector(ttRewritePos, x0+(cx+0.5)*xd, y0+(cy+0.5)*yd, z0+(cz+0.5)*zd);
 				let newIndex = rewrite(ttRewritePos, ttRewriteAabb, tileIndex, pal[tileIndex]);
 				if( typeof newIndex == 'string' ) {
 					newIndex = tepm.findTileEntity( {entity: {classRef:newIndex}, orientation: Quaternion.IDENTITY} );
@@ -121,6 +143,7 @@ export function rewriteTileTree(
 			}
 		}
 	}
+	
 	if( newIndexes === indexes ) {
 		// No changes, ha ha ha!
 		return ttRef;
@@ -130,4 +153,14 @@ export function rewriteTileTree(
 		newTt.childEntityPaletteRef = tepm.paletteRef;
 		return gdm.tempStoreObject<TileTree>(newTt);
 	}
+}
+
+export function rewriteTileTree(
+	ttPos:Vector3D, ttRef:string,
+	rewrite:TileTreeRewriteFunction,
+	gdm:GameDataManager
+):string {
+	return rewriteTileTreeIntersecting(
+		ttPos, ttRef, ZERO_VECTOR, UNBOUNDED_AABB, rewrite, gdm
+	);
 }

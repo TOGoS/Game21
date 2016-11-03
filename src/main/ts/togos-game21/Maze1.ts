@@ -13,7 +13,7 @@ import { fetchObject, storeObject, fastStoreObject, encodeObject } from './JSONO
 import { DistributedBucketMapManager } from './DistributedBucketMap';
 import KeyedList from './KeyedList';
 import Vector3D from './Vector3D';
-import { makeVector, setVector, vectorToString, ZERO_VECTOR } from './vector3ds';
+import { makeVector, setVector, vectorToString, parseVector, ZERO_VECTOR } from './vector3ds';
 import { pickOne } from './graphmaze/picking';
 import {
 	accumulateVector, addVector, subtractVector, scaleVector, normalizeVector,
@@ -23,7 +23,8 @@ import AABB from './AABB';
 import {
 	makeAabb, aabbWidth, aabbHeight, aabbDepth,
 	aabbAverageX, aabbAverageY, aabbAverageZ,
-	aabbContainsVector, aabbIntersectsWithOffset, offsetAabbContainsVector
+	aabbContainsVector, aabbIntersectsWithOffset, offsetAabbContainsVector,
+	ZERO_AABB
 } from './aabbs';
 import Quaternion from './Quaternion';
 import TransformationMatrix3D from './TransformationMatrix3D';
@@ -57,7 +58,7 @@ import EntitySubsystem, {
 } from './EntitySubsystem';
 import ImageSlice from './ImageSlice';
 import { EMPTY_IMAGE_SLICE, imageFromUrl } from './images';
-import { rewriteTileTree } from './tiletrees';
+import { rewriteTileTreeIntersecting } from './tiletrees';
 
 import Tokenizer from './lang/Tokenizer';
 import Token, { TokenType } from './lang/Token';
@@ -1605,12 +1606,14 @@ export class MazeSimulator {
 				const posWithinTt = subtractVector(pos, roomEntity.position);
 				if( aabbContainsVector(entityClass.tilingBoundingBox, posWithinTt) ) {
 					// TODO: Make sure this works for trees with depth > 1
-					roomEntity.entity.classRef = rewriteTileTree(
+					roomEntity.entity.classRef = rewriteTileTreeIntersecting(
 						roomEntity.position, roomEntity.entity.classRef,
+						pos, ZERO_AABB,
 						(ckPos:Vector3D, ckAabb:AABB, currentTileIndex:number, currentTileEntity:TileEntity|null|undefined) => {
-							if( offsetAabbContainsVector(ckPos, ckAabb, pos) && aabbWidth(ckAabb) == tileScale ) {
+							if( aabbWidth(ckAabb) == tileScale ) {
 								return newTile;
 							} else {
+								// TODO: recurse, I guess?
 								return currentTileIndex;
 							}
 						}, this.gameDataManager
@@ -1631,8 +1634,9 @@ export class MazeSimulator {
 			if( entityClass.structureType == StructureType.TILE_TREE ) {
 				const posWithinTt = subtractVector(pos, roomEntity.position);
 				if( aabbContainsVector(entityClass.tilingBoundingBox, posWithinTt) ) {
-					roomEntity.entity.classRef = rewriteTileTree(
+					roomEntity.entity.classRef = rewriteTileTreeIntersecting(
 						roomEntity.position, roomEntity.entity.classRef,
+						ZERO_VECTOR, aabbOfDestruction,
 						(ckPos:Vector3D, ckAabb:AABB, currentTileIndex:number, currentTileEntity:TileEntity|null|undefined) => {
 							if(
 								aabbIntersectsWithOffset(ckPos, ckAabb, ZERO_VECTOR, aabbOfDestruction) &&
@@ -1647,8 +1651,6 @@ export class MazeSimulator {
 				}
 			}
 		}
-		// TODO: This should send an event to nearby entities that can hear it
-		// with relativePosition filled in.
 		this.sendProximalEventMessageToNearbyEntities(roomId, pos, 8, {
 			classRef: "http://ns.nuke24.net/Game21/SimulationMessage/SimpleEventOccurred",
 			eventCode: 'door-opened'
@@ -2134,22 +2136,30 @@ export class MazeSimulator {
 			return mutator(entity);
 		}
 		if( entityPath[pathStart] == AT_STRUCTURE_OFFSET ) {
+			const offsetVector:Vector3D = parseVector(entityPath[pathStart+1]);
 			const entityClass = this.gameDataManager.getEntityClass(entity.classRef);
+			console.log(entityPath.join('/')+" offset "+pathStart+"; subdividing entity class "+entity.classRef+", which is structure type "+entityClass.structureType);
 			if( entityClass.structureType == StructureType.TILE_TREE ) {
 				// TODO: allow passing an aabb to rewriteTileTree
 				// so that it skips parts we don't care about at all.
-				const newTtClassRef = rewriteTileTree(ZERO_VECTOR, entity.classRef,
-					(pos:Vector3D, aabb:AABB, index:number, e:TileEntity|null|undefined) => {
-						// TODO: apply mutator
-						throw new Error("Haha j/k _mutateEntityAtPath doesn't work yet on tile trees")
+				const newTtClassRef = rewriteTileTreeIntersecting(
+					ZERO_VECTOR, entity.classRef,
+					offsetVector, ZERO_AABB,
+					(pos:Vector3D, aabb:AABB, index:number, te:TileEntity|null|undefined) => {
+						if( te == null ) return te;
+						const newEnt = this._mutateEntityAtPath(te.entity, entityPath, pathStart+2, mutator);
+						return newEnt == undefined ? undefined : {entity:newEnt};
 					}, this.gameDataManager);
 				if( newTtClassRef == entity.classRef ) return entity;
 				entity = thaw(entity);
 				entity.classRef = newTtClassRef;
 				return entity;
+			} else {
+				throw new Error("Don't know how to @structureoffset when structure type = "+entityClass.structureType+
+					"; class = "+entity.classRef+", entire path = "+entityPath.join('/'));
 			}
 		}
-		throw new Error("Don't know how to do this mutation");
+		throw new Error("Don't know how to do this mutation when next path key is '"+entityPath[pathStart]+"'");
 	}
 	
 	protected mutateEntityAtPath( entityPath:EntityPath, mutator:(entity:Entity)=>Entity|undefined ) : void {
@@ -2506,7 +2516,7 @@ export class MazeDemo {
 			if( foundPlayer ) {
 				const inv = foundPlayer.entity.maze1Inventory || {};
 				for( let k in inv ) {
-					invItems.push({key: k, orientation: Quaternion.IDENTITY, entity: inv[k]});
+					invItems.push({key: k, entity: inv[k]});
 					if( inv[k].classRef == dat.triforceEntityClassId && !this.foundTriforceThisLevel ) {
 						// omg a triforce
 						++this.foundTriforceCount;

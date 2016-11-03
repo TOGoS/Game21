@@ -1,10 +1,12 @@
+/// <reference path="../../Promise.d.ts"/>
+
 import { TileEntity, Entity } from '../world';
 import Quaternion from '../Quaternion';
 
 export interface PaletteItem {
-	key?: string; // To map to world inventory, which is different
+	key?: string; // To map to world inventory, which is keyed by item IDs
 	entity: Entity;
-	orientation: Quaternion;
+	orientation?: Quaternion;
 }
 
 export default class TilePalette {
