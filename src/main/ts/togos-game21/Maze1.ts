@@ -98,8 +98,6 @@ import {
 	AT_STRUCTURE_OFFSET,
 } from './simulationmessaging';
 
-const UI_ENTIY_PATH = [ROOMID_EXTERNAL, "demo UI"];
-
 // KeyEvent isn't always available, boo.
 const KEY_CTRL = 17;
 const KEY_ESC = 27;
@@ -3159,7 +3157,7 @@ export class MazeDemo {
 	public goToCommandHistoryBeginning() { this.goToCommandHistory(0); }
 	public goToCommandHistoryEnd() { this.goToCommandHistory(this.commandHistory.length); }
 	
-	public enqueueInternalBusMessage(entityPath:EntityPath, busMessage:EntitySystemBusMessage, replyPath:EntityPath=UI_ENTIY_PATH):void {
+	public enqueueInternalBusMessage(entityPath:EntityPath, busMessage:EntitySystemBusMessage, replyPath?:EntityPath):void {
 		this.simulator.enqueueAction({
 			classRef: "http://ns.nuke24.net/Game21/SimulationAction/InduceSystemBusMessage",
 			entityPath: entityPath,
