@@ -24,6 +24,9 @@
 
 ## Misc to-do items
 
+Work towards network simulation
+- Vision data forwarded through player
+- Have a button that sends an OSC message through a physical wire
 Maze1 simulation incremental refactoring
 - Move simulator + physics engine to own file
 - Maze1Demo becomes Maze1UI
@@ -47,7 +50,7 @@ Maze1:
 - Talk command, show talked messages
   - this will allow showing early machine interaction working, as machines
     can speak "You touched me!" and stuff.
-- Some way to 'trigger' things; buttons or pressure plates or something
+* Some way to 'trigger' things; buttons or pressure plates or something
   - keep in mind will want to trigger with item, e.g. key
   - way for objects to 'appear to be usable with an item'
 - Draw additional neighbors if no overlap.

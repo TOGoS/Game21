@@ -1,38 +1,33 @@
-Standard placement for wiring
-and plumbing in a 1x1x1m block.
+Basic wiring uses only highest 1/4 Z (or Y) of block.
+This way the player can walk in front of it.
 
-  +z/+x/+z ->
-+y/+y/-x
- | +---+---+---+---+
- v |A           +-+|
-   |            |W||
-   |B           +-+|
-   +   +---+---+   +
-   |C  |       |+-+|
-   |   |       ||X||
-   |D  | Cargo |+-+|
-   +   + space +   +
-   |E  |       |+-+|
-   |   |       ||Y||
-   |F  |       |+-+|
-   +   +---+---+...+
-   |G          ;+-+|
-   |           ;|Z||
-   |H          ;+-+|
-   +---+---+---+---+
+Rightward: +x
+Down/inward: -z/+y or +y/+z
 
-A = Analog 0
-B = Ethernet 0
-C = Analog 1
-D = Ethernet 1
-G = +120VDC
-H = Power ground
-Z = Fluid 0 (usually water)
-Y = Simplified Direct Power Control
-X = Fluid 2
-W = Fluid 3
+     x=-1/2       x=0        x=+1/2
+       |           |           |
+       
++1/2 - +--+--+--+--+--+--+--+--+
+       |                       |
++3/8 - +     +--+              +
+       |     |E0|              |
++1/4 - +--+--+--+--+--+--+--+--+
+
++1/8 -
+
++0   -
+
+-1/8 -   Walkable space!
+
+-1/4 -
+
+-3/8 -
+
+-1/2 -
 
 
-Simplified Direct Power Control (SDPC).
-Contain virtual power (+ or - some voltage) and return (always 0V) wires.
-Can ignore load for simplified simulations with an infinitely powerful power source.
+Data + signal wires are 1/8 x 1/8
+
+E0 = Ethernet 0
+
+All other space is reserved.
