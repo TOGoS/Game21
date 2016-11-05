@@ -259,8 +259,8 @@ type EntityMatchFunction = (path:EntityPath,e:Entity)=>boolean;
 
 export abstract class SimulationUpdate {
 	protected gameDataManager:GameDataManager;
-	protected newlyEnqueuedActions:SimulationAction[] = [];
-	protected newPhysicallyActiveRoomIdSet : LWSet<RoomID> = {};
+	protected newEnqueuedActions:SimulationAction[];
+	protected newPhysicallyActiveRoomIdSet : LWSet<RoomID>;
 	protected logger:Logger;
 	
 	/**
@@ -280,6 +280,8 @@ export abstract class SimulationUpdate {
 	) {
 		this.gameDataManager = simulator.gameDataManager;
 		this.logger = simulator.logger;
+		this.newEnqueuedActions = this.initialSimulationState.enqueuedActions;
+		this.newPhysicallyActiveRoomIdSet = this.initialSimulationState.physicallyActiveRoomIdSet;
 	}
 	
 	protected markRoomPhysicallyActive(roomId:RoomID):void {
@@ -287,7 +289,7 @@ export abstract class SimulationUpdate {
 	}
 	
 	protected enqueueAction( act:SimulationAction ):void {
-		this.newlyEnqueuedActions.push(act);
+		this.newEnqueuedActions.push(act);
 	}
 	
 	protected getMutableRoom( roomId:string ):Room {
@@ -739,7 +741,7 @@ export abstract class SimulationUpdate {
 	}
 	
 	protected get hasPendingMessageUpdates():boolean {
-		return this.newlyEnqueuedActions.length > 0;
+		return this.newEnqueuedActions.length > 0;
 	}
 	
 	protected findEntityInAnyLoadedRoom(match:string|EntityMatchFunction, initialGuesses?:LWSet<RoomID>):EntityPath|undefined {
@@ -1226,7 +1228,7 @@ export abstract class SimulationUpdate {
 	protected makeNewState():SimulationState {
 		return {
 			time: this.logicalStepEndTime,
-			enqueuedActions: this.newlyEnqueuedActions,
+			enqueuedActions: this.newEnqueuedActions,
 			physicallyActiveRoomIdSet: this.newPhysicallyActiveRoomIdSet,
 			rootRoomIdSet: this.initialSimulationState.rootRoomIdSet,
 		}
@@ -1237,6 +1239,7 @@ export abstract class SimulationUpdate {
 
 export class LogicUpdate extends SimulationUpdate {
 	public doUpdate() : Promise<SimulationState> {
+		this.newEnqueuedActions = []; // We're going to handle the current ones!
 		const handlingActions = this.initialSimulationState.enqueuedActions;
 		for( let ac in handlingActions ) {
 			const act:SimulationAction = handlingActions[ac];
@@ -1879,6 +1882,7 @@ export class PhysicsUpdate extends SimulationUpdate {
 	public doUpdate():Promise<SimulationState> {
 		const loadRoomIds:LWSet<RoomID> = {};
 		return this.fullyLoadRoomsAndImmediateNeighbors(loadRoomIds).then( () => {
+			this.newPhysicallyActiveRoomIdSet = {}; // It will be rewritten by the update!
 			this.doUpdate2();
 			return this.makeNewState()
 		});
@@ -2025,8 +2029,12 @@ export default class Maze1Simulator {
 		return Promise.resolve(state);
 	}
 	
+	protected prevUpdateStart:number = 0;
 	public update():Promise<SimulationState> {
 		return this._currentMajorStatePromise = this._currentMajorStatePromise.then( (state0) => {
+			const realStartTime = new Date().valueOf()/1000;
+			//console.log("Major update! "+realStartTime+" ("+(realStartTime-this.prevUpdateStart).toFixed(2)+" since previous");
+			this.prevUpdateStart = realStartTime;
 			const startTime = state0.time;
 			const midTime = startTime + this.majorStepDuration/2;
 			const endTime = startTime + this.majorStepDuration;
