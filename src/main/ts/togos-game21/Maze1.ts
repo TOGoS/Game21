@@ -40,7 +40,7 @@ import {
 	ROOMID_FINDENTITY,
 	ROOMID_EXTERNAL,
 } from './simulationmessaging';
-import { ESSKEY_PROXIMALEVENTDETECTOR } from './EntitySubsystem'
+import EntitySubsystem, { ESSKEY_PROXIMALEVENTDETECTOR } from './EntitySubsystem'
 import * as esp from './internalsystemprogram';
 import * as dat from './maze1demodata';
 import * as http from './http';
@@ -596,14 +596,13 @@ class LevelSetterUpper extends SimulationUpdate {
 	}
 	
 	public createNewPlayerEntity(newPlayerId:string):Entity {
-		const pe = {
+		return {
 			id: newPlayerId,
 			classRef: dat.playerEntityClassId,
 			desiresMaze1AutoActivation: true,
 			storedEnergy: 100000,
+			subsystems: this.makePlayerSubsystems(),
 		};
-		this.addPlayerSubsystems(pe);
-		return pe;
 	}
 	
 	public restartLevel():Promise<SimulationState> {
@@ -634,33 +633,36 @@ class LevelSetterUpper extends SimulationUpdate {
 		return Promise.resolve(this.initialSimulationState);
 	}
 	
-	protected addPlayerSubsystems( entity:Entity ) {
-		this.logger.log("Adding player subsystems to entity "+entity.id+" with uplink to external device "+this.controllerDeviceId);
-		setEntitySubsystem( entity, ESSKEY_PROXIMALEVENTDETECTOR, {
-			classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/ProximalEventDetector",
-			eventDetectedExpressionRef: sExpressionToProgramExpressionRef(
-				['sendBusMessage', ['makeArray', '/controlleruplink/proximalevent', ['var', 'event']]],
-				this.gameDataManager
-			)
-		}, this.gameDataManager );
-		setEntitySubsystem( entity, "rightarm", {
-			classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/Appendage",
-			maxReachDistance: 1,
-		}, this.gameDataManager);
-		setEntitySubsystem( entity, "leftarm", {
-			classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/Appendage",
-			maxReachDistance: 1,
-		}, this.gameDataManager);
-		setEntitySubsystem( entity, "controlleruplink", {
-			classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/InterEntityBusBridge",
-			forwardEntityPath: [ROOMID_EXTERNAL, this.controllerDeviceId],
-		}, this.gameDataManager );
+	protected makePlayerSubsystems():KeyedList<EntitySubsystem> {
+		return {
+			[ESSKEY_PROXIMALEVENTDETECTOR]: {
+				classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/ProximalEventDetector",
+				eventDetectedExpressionRef: sExpressionToProgramExpressionRef(
+					['sendBusMessage', ['makeArray', '/controlleruplink/proximalevent', ['var', 'event']]],
+					this.gameDataManager
+				)
+			},
+			"rightarm": {
+				classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/Appendage",
+				maxReachDistance: 1,
+			},
+			"leftarm": {
+				classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/Appendage",
+				maxReachDistance: 1,
+			},
+			"controlleruplink": {
+				classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/InterEntityBusBridge",
+				forwardEntityPath: [ROOMID_EXTERNAL, this.controllerDeviceId],
+			}
+		}
 	}
 	
 	public fixPlayer():Promise<SimulationState> {
-		const playerRoomEntity = this.getRoomEntityOrUndefined(this.playerId);
+		const playerRoomEntity = this.findRoomEntity(this.playerId);
 		if( playerRoomEntity ) {
-			this.addPlayerSubsystems(playerRoomEntity.entity);
+			this.updateRoomEntity( playerRoomEntity.roomRef, playerRoomEntity.roomEntityId, {
+				subsystems: this.makePlayerSubsystems()
+			});
 			return Promise.resolve(this.initialSimulationState);
 		} else {
 			return this.restartLevel();
@@ -778,7 +780,7 @@ export class MazeDemo {
 	public tabSwitchesMode : boolean = true;
 	public soundEffectsEnabled : boolean = true;
 	protected tickTimerId? : number;
-	protected tickRate = 1/16;
+	protected tickRate = 1/32;
 	protected _demoMode:DemoMode = DemoMode.PLAY;
 	protected deviceId : string = newUuidRef();
 	
@@ -1067,6 +1069,7 @@ export class MazeDemo {
 			};
 			this.gameDataManager = gdm;
 			this.simulator = new MazeSimulator(gdm, simulationState);
+			this.simulator.majorStepDuration = this.tickRate;
 			this.simulator.registerRegularInterStateUpdateer( (sim,state) => {
 				this.maybePaint();
 				const viewUpdate = new ViewUpdateStep(sim,state,this);
@@ -1166,7 +1169,8 @@ export class MazeDemo {
 				rootRoomIdSet: {[ dat.room1Id]: true},
 				enqueuedActions: [],
 				physicallyActiveRoomIdSet: {[dat.room1Id]: true},
-				time: 0,
+				logicTime: 0,
+				physicsTime: 0,
 			}, dat.playerEntityId, "demo maze" ))
 		} else if( saveGameRef == '' || saveGameRef == undefined ) {
 			return Promise.resolve().then( () => this.generateAndLoadNewLevel(0))
@@ -1217,7 +1221,8 @@ export class MazeDemo {
 					enqueuedActions: [],
 					physicallyActiveRoomIdSet: {[startRoomRef]:true},
 					rootRoomIdSet: {[startRoomRef]:true},
-					time: 0,
+					logicTime: 0,
+					physicsTime: 0,
 				}, playerId, "generated maze" );
 			}, (err) => {
 				if( attempts < 50 ) {

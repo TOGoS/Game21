@@ -28,6 +28,7 @@ import EntitySubsystem, {
 import {
 	eachSubEntityIntersectingBb,
 	connectRooms,
+	setEntitySubsystem,
 	getEntitySubsystems,
 	getEntitySubsystem,
 } from './worldutil';
@@ -109,6 +110,8 @@ interface RoomEntityUpdate {
 	position? : Vector3D;
 	velocityPosition? : Vector3D;
 	velocity? : Vector3D;
+	desiredMovementDirection? : Vector3D;
+	subsystems? : KeyedList<EntitySubsystem>;
 }
 
 /*
@@ -235,7 +238,8 @@ type RoomID = SoftRef;
  * Represents the state of the simulator between steps.
  */
 export interface SimulationState {
-	time : number;
+	physicsTime : number;
+	logicTime : number;
 	enqueuedActions : SimulationAction[];
 	/**
 	 * IDs of rooms that with potentially physically active things.
@@ -262,6 +266,8 @@ export abstract class SimulationUpdate {
 	protected newEnqueuedActions:SimulationAction[];
 	protected newPhysicallyActiveRoomIdSet : LWSet<RoomID>;
 	protected logger:Logger;
+	protected newPhysicsTime:number;
+	protected newLogicTime:number;
 	
 	/**
 	 * Each step should simulate as if 'simulated step time' is passing.
@@ -274,14 +280,13 @@ export abstract class SimulationUpdate {
 	public constructor(
 		protected simulator:Maze1Simulator,
 		protected initialSimulationState:SimulationState,
-		protected logicalStepEndTime:number=initialSimulationState.time,
-		protected simulatedStepStartTime:number=initialSimulationState.time,
-		protected simulatedStepDuration:number=0,
 	) {
 		this.gameDataManager = simulator.gameDataManager;
 		this.logger = simulator.logger;
 		this.newEnqueuedActions = this.initialSimulationState.enqueuedActions;
 		this.newPhysicallyActiveRoomIdSet = this.initialSimulationState.physicallyActiveRoomIdSet;
+		this.newLogicTime   = this.initialSimulationState.logicTime;
+		this.newPhysicsTime = this.initialSimulationState.physicsTime;
 	}
 	
 	protected markRoomPhysicallyActive(roomId:RoomID):void {
@@ -392,6 +397,14 @@ export abstract class SimulationUpdate {
 		if( update.position ) {
 			roomEntity.position = update.position;
 			delete roomEntity.velocityPosition;
+		}
+		if( update.desiredMovementDirection ) {
+			roomEntity.entity.desiredMovementDirection = update.desiredMovementDirection;
+		}
+		if( update.subsystems ) {
+			for( let k in update.subsystems ) {
+				roomEntity.entity = setEntitySubsystem(roomEntity.entity, k, update.subsystems[k], this.gameDataManager);
+			}
 		}
 		if( update.velocityPosition ) roomEntity.velocityPosition = update.velocityPosition;
 		let newRoomRef = roomRef;
@@ -552,8 +565,9 @@ export abstract class SimulationUpdate {
 		// And remove this method!
 		const path = md[0];
 		if( path == "/desiredmovementdirection" ) {
-			entity.desiredMovementDirection = makeVector(+md[1],+md[2],+md[3]);
-			this.markRoomPhysicallyActive(roomId);
+			this.updateRoomEntity(entityPath[0], entityPath[1], {
+				desiredMovementDirection: makeVector(+md[1],+md[2],+md[3])
+			});
 			return true;
 		} else if( path == "/painttiletreeblock" ) {
 			const relX = +md[1];
@@ -1227,7 +1241,8 @@ export abstract class SimulationUpdate {
 	
 	protected makeNewState():SimulationState {
 		return {
-			time: this.logicalStepEndTime,
+			physicsTime: this.newPhysicsTime, 
+			logicTime: this.newLogicTime,
 			enqueuedActions: this.newEnqueuedActions,
 			physicallyActiveRoomIdSet: this.newPhysicallyActiveRoomIdSet,
 			rootRoomIdSet: this.initialSimulationState.rootRoomIdSet,
@@ -1240,6 +1255,7 @@ export abstract class SimulationUpdate {
 export class LogicUpdate extends SimulationUpdate {
 	public doUpdate() : Promise<SimulationState> {
 		this.newEnqueuedActions = []; // We're going to handle the current ones!
+		this.newLogicTime += this.simulator.logicStepDuration;
 		const handlingActions = this.initialSimulationState.enqueuedActions;
 		for( let ac in handlingActions ) {
 			const act:SimulationAction = handlingActions[ac];
@@ -1457,7 +1473,8 @@ export class PhysicsUpdate extends SimulationUpdate {
 	/** Call this after you've ensured that all physically active rooms and their neighbors are cached. */
 	protected doUpdate2() : void {
 		const gdm = this.gameDataManager;
-		const simulatedInterval = this.simulatedStepDuration;
+		const simulatedInterval = this.simulator.majorStepDuration;
+		this.newPhysicsTime += simulatedInterval;
 		const gravDv = makeVector(0, 10*simulatedInterval, 0);
 		const maxWalkForce = 450; // ~100 pounds of force?
 		
@@ -1953,13 +1970,14 @@ function evalInternalSystemProgram( expression:esp.ProgramExpression, ctx:ISPEC 
 	}
 }
 
-function fastForward(state:SimulationState, targetTime:number):SimulationState {
-	if( state.time >= targetTime ) return state;
+function fastForwardLogicTime(state:SimulationState, targetTime:number):SimulationState {
+	if( state.logicTime >= targetTime ) return state;
 	return {
 		enqueuedActions: state.enqueuedActions,
 		physicallyActiveRoomIdSet: state.physicallyActiveRoomIdSet,
 		rootRoomIdSet: state.rootRoomIdSet,
-		time: targetTime
+		logicTime: targetTime,
+		physicsTime: state.physicsTime,
 	}
 }
 
@@ -1969,7 +1987,8 @@ function appendActions(state:SimulationState, newActions:SimulationAction[]):Sim
 		enqueuedActions: state.enqueuedActions.concat(newActions),
 		physicallyActiveRoomIdSet: state.physicallyActiveRoomIdSet,
 		rootRoomIdSet: state.rootRoomIdSet,
-		time: state.time
+		logicTime: state.logicTime,
+		physicsTime: state.physicsTime,
 	}
 }
 
@@ -1998,8 +2017,8 @@ export default class Maze1Simulator {
 		this._currentMajorStatePromise = Promise.resolve(state);
 	}
 	
-	protected majorStepDuration:number = 1/16;
-	protected logicStepDuration:number = 1/8192;
+	public majorStepDuration:number = 1/16;
+	public logicStepDuration:number = 1/8192;
 	
 	protected slurpEnqueuedActionsInto(state:SimulationState):SimulationState {
 		if( this._enqueuedActions.length > 0 ) {
@@ -2012,11 +2031,11 @@ export default class Maze1Simulator {
 	protected doLogicUpdates(initialState:SimulationState, targetTime:number):Promise<SimulationState> {
 		// Any newly enqueued actions we want to act on ASAP, so:
 		initialState = this.slurpEnqueuedActionsInto(initialState);
-		if( initialState.time >= targetTime || initialState.enqueuedActions.length == 0 ) {
-			return Promise.resolve(fastForward(initialState, targetTime));
+		if( initialState.logicTime >= targetTime || initialState.enqueuedActions.length == 0 ) {
+			return Promise.resolve(fastForwardLogicTime(initialState, targetTime));
 		}
 		
-		const step = new LogicUpdate(this, initialState, initialState.time+this.logicStepDuration, initialState.time, this.logicStepDuration);
+		const step = new LogicUpdate(this, initialState);
 		return step.doUpdate().then( (newState) => this.doLogicUpdates(newState, targetTime) );
 	}
 	
@@ -2035,12 +2054,12 @@ export default class Maze1Simulator {
 			const realStartTime = new Date().valueOf()/1000;
 			//console.log("Major update! "+realStartTime+" ("+(realStartTime-this.prevUpdateStart).toFixed(2)+" since previous");
 			this.prevUpdateStart = realStartTime;
-			const startTime = state0.time;
+			const startTime = state0.logicTime; // At the beginning of a major step they should match!
 			const midTime = startTime + this.majorStepDuration/2;
 			const endTime = startTime + this.majorStepDuration;
 			return this.doLogicUpdates(state0, midTime).then( (state1) => {
 				// The physics step appears to happen instantaneously, I guess.
-				const physicsStep = new PhysicsUpdate(this, state1, midTime, startTime, endTime-startTime);
+				const physicsStep = new PhysicsUpdate(this, state1);
 				return physicsStep.doUpdate();
 			}).then( (state2) => {
 				return this.doLogicUpdates(state2, endTime);
@@ -2073,7 +2092,8 @@ export default class Maze1Simulator {
 	public flushUpdates():Promise<HardSimulationState> {
 		return this._currentMajorStatePromise.then( (state):Promise<HardSimulationState> => {
 			return this.gameDataManager.flushUpdates().then( (dataRef):HardSimulationState => ({
-				time: state.time,
+				logicTime: state.logicTime,
+				physicsTime: state.logicTime,
 				enqueuedActions: state.enqueuedActions,
 				physicallyActiveRoomIdSet: state.physicallyActiveRoomIdSet,
 				rootRoomIdSet: state.rootRoomIdSet,
