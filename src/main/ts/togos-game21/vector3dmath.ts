@@ -14,6 +14,14 @@ export function vectorIsZero( v:Vector3D ):boolean {
 	return v.x == 0 && v.y == 0 && v.z == 0;
 }
 
+function isNonFinite(x:number) {
+	return (x != x) || x === Infinity || x === -Infinity;
+}
+
+export function vectorHasAnyNonFiniteComponents( v:Vector3D ):boolean {
+	return isNonFinite(v.x) || isNonFinite(v.y) || isNonFinite(v.z);
+}
+
 export function vectorLength( v:Vector3D ):number {
 	return Math.sqrt(v.x*v.x + v.y*v.y + v.z*v.z);
 }

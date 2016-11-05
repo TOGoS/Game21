@@ -52,7 +52,7 @@ import {
 } from './simulationmessaging';
 import {
 	accumulateVector, addVector, subtractVector, scaleVector, normalizeVector,
-	vectorLength, vectorIsZero, dotProduct, roundVectorToGrid
+	vectorLength, vectorIsZero, vectorHasAnyNonFiniteComponents, dotProduct, roundVectorToGrid
 } from './vector3dmath';
 import * as dat from './maze1demodata';
 import EntitySystemBusMessage from './EntitySystemBusMessage';
@@ -386,12 +386,20 @@ export abstract class SimulationUpdate {
 	public updateRoomEntity( roomRef:string, entityId:string, update:RoomEntityUpdate ):void {
 		let room : Room = this.getMutableRoom(roomRef);
 		let roomEntity = room.roomEntities[entityId];
+		if( !roomEntity ) {
+			console.warn("Whoops, can't update room entity because it's not there! "+roomRef+"/"+entityId);
+			return;
+		}
 		if( update.destroyed ) {
 			delete room.roomEntities[entityId];
 			return;
 		}
 		if( update.velocity ) {
-			roomEntity.velocity = update.velocity;
+			if( vectorHasAnyNonFiniteComponents(update.velocity) ) {
+				console.warn("Refusing to goof up velocity to non-finite values: "+vectorToString(update.velocity));
+			} else {
+				roomEntity.velocity = update.velocity;
+			}
 		}
 		if( update.position ) {
 			roomEntity.position = update.position;
@@ -1748,6 +1756,10 @@ export class PhysicsUpdate extends SimulationUpdate {
 
 				let entityRoomRef = entityToMove.roomId;
 				
+				if( vectorHasAnyNonFiniteComponents(velocity) ) {
+					console.warn("Oh no, velocity got all weird: "+vectorToString(velocity)+" (entity "+entityId+", class "+entity.classRef+")");
+					continue;
+				}
 				let displacement = scaleVector( velocity, simulatedInterval );
 
 				const solidOtherEntityFilter:EntityFilter =
@@ -1762,8 +1774,19 @@ export class PhysicsUpdate extends SimulationUpdate {
 				//   calculate remaining displacement along surfaces
 				// }
 				
-				let iter = 0;
+				let totalIterations = 0;
+				let collisionIterations = 0;
 				displacementStep: while( displacement && !vectorIsZero(displacement) ) {
+					if( vectorHasAnyNonFiniteComponents(displacement) ) {
+						console.warn("OH NO, displacement got weird: "+vectorToString(displacement) )
+						break displacementStep;
+					}
+					++totalIterations;
+					if( totalIterations > 20 ) {
+						// Something got going really fast.
+						// Or some velocity became infinite?  Which would be a problem.
+						break displacementStep;
+					}
 					const maxDisplacementComponent =
 						Math.max( Math.abs(displacement.x), Math.abs(displacement.y), Math.abs(displacement.z) );
 					// How much of it can we do in a single step?
@@ -1810,7 +1833,7 @@ export class PhysicsUpdate extends SimulationUpdate {
 						
 						let remainingDx = displacement.x;
 						let remainingDy = displacement.y;
-
+						
 						// Is there a less repetetive way to write this?
 						// Check up/down/left/right to find collisions.
 						// If nothing found, then it must be a diagonal collision!
@@ -1880,9 +1903,9 @@ export class PhysicsUpdate extends SimulationUpdate {
 						
 						displacement = { x: remainingDx, y: remainingDy, z: 0 };
 						
-						++iter;
-						if( iter > 2 ) {
-							console.log("Too many displacement steps while moving "+entityId+":", roomEntity, "class:", entityClass, "iter:", iter, "velocity:", velocity, "displacement:", displacement, "bounceBox:", bounceBox, "max dvx coll:", maxDvxColl, "max dby coll:", maxDvyColl);
+						++collisionIterations;
+						if( collisionIterations > 2 ) {
+							console.log("Too many displacement steps while moving "+entityId+":", roomEntity, "class:", entityClass, "iter:", collisionIterations, "velocity:", velocity, "displacement:", displacement, "bounceBox:", bounceBox, "max dvx coll:", maxDvxColl, "max dby coll:", maxDvyColl);
 							break displacementStep;
 						}
 					}
