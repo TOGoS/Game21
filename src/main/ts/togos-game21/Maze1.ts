@@ -1169,8 +1169,7 @@ export class MazeDemo {
 				rootRoomIdSet: {[ dat.room1Id]: true},
 				enqueuedActions: [],
 				physicallyActiveRoomIdSet: {[dat.room1Id]: true},
-				logicTime: 0,
-				physicsTime: 0,
+				time: 0,
 			}, dat.playerEntityId, "demo maze" ))
 		} else if( saveGameRef == '' || saveGameRef == undefined ) {
 			return Promise.resolve().then( () => this.generateAndLoadNewLevel(0))
@@ -1221,8 +1220,7 @@ export class MazeDemo {
 					enqueuedActions: [],
 					physicallyActiveRoomIdSet: {[startRoomRef]:true},
 					rootRoomIdSet: {[startRoomRef]:true},
-					logicTime: 0,
-					physicsTime: 0,
+					time: 0,
 				}, playerId, "generated maze" );
 			}, (err) => {
 				if( attempts < 50 ) {

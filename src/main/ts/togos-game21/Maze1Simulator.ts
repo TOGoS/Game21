@@ -238,8 +238,7 @@ type RoomID = SoftRef;
  * Represents the state of the simulator between steps.
  */
 export interface SimulationState {
-	physicsTime : number;
-	logicTime : number;
+	time : number;
 	enqueuedActions : SimulationAction[];
 	/**
 	 * IDs of rooms that with potentially physically active things.
@@ -266,8 +265,7 @@ export abstract class SimulationUpdate {
 	protected newEnqueuedActions:SimulationAction[];
 	protected newPhysicallyActiveRoomIdSet : LWSet<RoomID>;
 	protected logger:Logger;
-	protected newPhysicsTime:number;
-	protected newLogicTime:number;
+	protected newTime:number;
 	
 	/**
 	 * Each step should simulate as if 'simulated step time' is passing.
@@ -283,10 +281,11 @@ export abstract class SimulationUpdate {
 	) {
 		this.gameDataManager = simulator.gameDataManager;
 		this.logger = simulator.logger;
+		// By default, don't change much.
+		// Different updates can rewrite these in doUpdate() before calling makeNewState()
 		this.newEnqueuedActions = this.initialSimulationState.enqueuedActions;
 		this.newPhysicallyActiveRoomIdSet = this.initialSimulationState.physicallyActiveRoomIdSet;
-		this.newLogicTime   = this.initialSimulationState.logicTime;
-		this.newPhysicsTime = this.initialSimulationState.physicsTime;
+		this.newTime = this.initialSimulationState.time;
 	}
 	
 	protected markRoomPhysicallyActive(roomId:RoomID):void {
@@ -1241,8 +1240,7 @@ export abstract class SimulationUpdate {
 	
 	protected makeNewState():SimulationState {
 		return {
-			physicsTime: this.newPhysicsTime, 
-			logicTime: this.newLogicTime,
+			time: this.newTime,
 			enqueuedActions: this.newEnqueuedActions,
 			physicallyActiveRoomIdSet: this.newPhysicallyActiveRoomIdSet,
 			rootRoomIdSet: this.initialSimulationState.rootRoomIdSet,
@@ -1255,7 +1253,7 @@ export abstract class SimulationUpdate {
 export class LogicUpdate extends SimulationUpdate {
 	public doUpdate() : Promise<SimulationState> {
 		this.newEnqueuedActions = []; // We're going to handle the current ones!
-		this.newLogicTime += this.simulator.logicStepDuration;
+		this.newTime += this.simulator.logicStepDuration;
 		const handlingActions = this.initialSimulationState.enqueuedActions;
 		for( let ac in handlingActions ) {
 			const act:SimulationAction = handlingActions[ac];
@@ -1474,7 +1472,6 @@ export class PhysicsUpdate extends SimulationUpdate {
 	protected doUpdate2() : void {
 		const gdm = this.gameDataManager;
 		const simulatedInterval = this.simulator.majorStepDuration;
-		this.newPhysicsTime += simulatedInterval;
 		const gravDv = makeVector(0, 10*simulatedInterval, 0);
 		const maxWalkForce = 450; // ~100 pounds of force?
 		
@@ -1970,14 +1967,13 @@ function evalInternalSystemProgram( expression:esp.ProgramExpression, ctx:ISPEC 
 	}
 }
 
-function fastForwardLogicTime(state:SimulationState, targetTime:number):SimulationState {
-	if( state.logicTime >= targetTime ) return state;
+function fastForwardTime(state:SimulationState, targetTime:number):SimulationState {
+	if( state.time >= targetTime ) return state;
 	return {
 		enqueuedActions: state.enqueuedActions,
 		physicallyActiveRoomIdSet: state.physicallyActiveRoomIdSet,
 		rootRoomIdSet: state.rootRoomIdSet,
-		logicTime: targetTime,
-		physicsTime: state.physicsTime,
+		time: targetTime,
 	}
 }
 
@@ -1987,8 +1983,7 @@ function appendActions(state:SimulationState, newActions:SimulationAction[]):Sim
 		enqueuedActions: state.enqueuedActions.concat(newActions),
 		physicallyActiveRoomIdSet: state.physicallyActiveRoomIdSet,
 		rootRoomIdSet: state.rootRoomIdSet,
-		logicTime: state.logicTime,
-		physicsTime: state.physicsTime,
+		time: state.time,
 	}
 }
 
@@ -2031,8 +2026,8 @@ export default class Maze1Simulator {
 	protected doLogicUpdates(initialState:SimulationState, targetTime:number):Promise<SimulationState> {
 		// Any newly enqueued actions we want to act on ASAP, so:
 		initialState = this.slurpEnqueuedActionsInto(initialState);
-		if( initialState.logicTime >= targetTime || initialState.enqueuedActions.length == 0 ) {
-			return Promise.resolve(fastForwardLogicTime(initialState, targetTime));
+		if( initialState.time >= targetTime || initialState.enqueuedActions.length == 0 ) {
+			return Promise.resolve(fastForwardTime(initialState, targetTime));
 		}
 		
 		const step = new LogicUpdate(this, initialState);
@@ -2054,7 +2049,7 @@ export default class Maze1Simulator {
 			const realStartTime = new Date().valueOf()/1000;
 			//console.log("Major update! "+realStartTime+" ("+(realStartTime-this.prevUpdateStart).toFixed(2)+" since previous");
 			this.prevUpdateStart = realStartTime;
-			const startTime = state0.logicTime; // At the beginning of a major step they should match!
+			const startTime = state0.time; // At the beginning of a major step they should match!
 			const midTime = startTime + this.majorStepDuration/2;
 			const endTime = startTime + this.majorStepDuration;
 			return this.doLogicUpdates(state0, midTime).then( (state1) => {
@@ -2092,8 +2087,7 @@ export default class Maze1Simulator {
 	public flushUpdates():Promise<HardSimulationState> {
 		return this._currentMajorStatePromise.then( (state):Promise<HardSimulationState> => {
 			return this.gameDataManager.flushUpdates().then( (dataRef):HardSimulationState => ({
-				logicTime: state.logicTime,
-				physicsTime: state.logicTime,
+				time: state.time,
 				enqueuedActions: state.enqueuedActions,
 				physicallyActiveRoomIdSet: state.physicallyActiveRoomIdSet,
 				rootRoomIdSet: state.rootRoomIdSet,
