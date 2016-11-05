@@ -383,7 +383,11 @@ non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
 <div class="game-interface" id="game-interface" tabindex="0">
 <div class="maze-area" id="maze-area" style="position:relative">
 <div id="camera-location-box" style="position:absolute; top:0; left:0;"></div>
-<div id="energy-bar" style="position:absolute; top:0; left:0; width:12px;">Energy: <span id="energy-counter">567</span></div>
+<div style="position:absolute; top:0; left:0;">
+<div id="energy-bar" style="width:12px;">Energy: <span id="energy-counter">567</span></div>
+<div>Updates per second: <span id="ups-counter"></span></div>
+<div>Physically active rooms: <span id="physically-active-room-counter"></span></div>
+</div>
 <canvas class="maze-canvas" id="maze-canvas" width="<?php eht($width); ?>" height="<?php eht($height); ?>"/>
 </div>
 

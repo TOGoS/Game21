@@ -11,7 +11,7 @@ import { deepFreeze, thaw, deepThaw, isDeepFrozen } from './DeepFreezer';
 import GameDataManager from './GameDataManager';
 import { fetchObject, storeObject, fastStoreObject, encodeObject } from './JSONObjectDatastore';
 import { DistributedBucketMapManager } from './DistributedBucketMap';
-import KeyedList from './KeyedList';
+import KeyedList, { elementCount } from './KeyedList';
 import Vector3D from './Vector3D';
 import { makeVector, setVector, vectorToString, parseVector, ZERO_VECTOR } from './vector3ds';
 import {
@@ -762,6 +762,8 @@ class ViewUpdateStep extends SimulationUpdate {
 		}
 		
 		this.demo.view.viewage = newViewage;
+		
+		this.demo.simulationUpdated( elementCount(this.initialSimulationState.physicallyActiveRoomIdSet) );
 	}
 	
 	public doUpdate():Promise<SimulationState> { throw new Error("Don't call this."); }
@@ -856,6 +858,20 @@ export class MazeDemo {
 	
 	protected tick() {
 		if( this.simulator ) this.simulator.update();
+	}
+	
+	protected prevUpdateTime:number = undefined;
+	protected ups = 0;
+	public simulationUpdated( activeRoomCount:number ) {
+		const currentTime = new Date().valueOf()/1000; 
+		if( this.prevUpdateTime != undefined ) {
+			const interval = currentTime - this.prevUpdateTime;
+			this.ups = 1/interval * 1/5 + this.ups * 4/5;
+			this.setCounter('ups', this.ups.toFixed(2));
+		}
+		this.prevUpdateTime = currentTime;
+		
+		this.setCounter('physically-active-room', activeRoomCount.toString() )
 	}
 
 	protected picking:boolean = false;
@@ -1061,7 +1077,7 @@ export class MazeDemo {
 	public loadGame2(gdm:GameDataManager, simulationState:SimulationState, playerId:string, gameDescription:string):Promise<MazeSimulator> {
 		this.logLoadingStatus('Waiting for current simulation step to complete...');
 		
-		const stopPromise = this.stopSimulation().then( () => {
+		const reloadSimulatorPromise = this.stopSimulation().then( () => {
 			this.logLoadingStatus("Loading "+gameDescription+"...");
 			this.context = {
 				gameDataManager: gdm,
@@ -1084,7 +1100,8 @@ export class MazeDemo {
 			//this.simulator.registerExternalDevice( 'ui', thisDev );
 		});
 		
-		const loadPromise = stopPromise.then( () => gdm.cacheObjects([
+		const loadPromise = reloadSimulatorPromise.then( () => gdm.cacheObjects([
+			// TODO: Due to new simulator architecture I think this step can be taken out.
 			dat.basicTileEntityPaletteRef // A thing whose ID tends to be hard coded around
 		])).then(	() => {
 			this.playerId = playerId;
@@ -1266,6 +1283,22 @@ export class MazeDemo {
 		hideDialogBox( this.helpDialog );
 		hideDialogBox( this.loadDialog );
 		if( this.gameInterfaceElem ) this.gameInterfaceElem.focus();
+	}
+	
+	protected elementCache:KeyedList<HTMLElement> = {};
+	
+	protected getHtmlElement(key:string):HTMLElement|undefined|null {
+		if( this.elementCache.hasOwnProperty(key) ) return this.elementCache[key];
+		return this.elementCache[key] = document.getElementById(key);
+	}
+	
+	public setCounter(elemId:string, value:string) {
+		const counterElemId = elemId+'-counter';
+		const counter = this.getHtmlElement(counterElemId);
+		if( counter ) {
+			if( !counter.firstChild ) counter.appendChild(document.createTextNode(""));
+			counter.firstChild.nodeValue = value;
+		}
 	}
 	
 	public inspect(ref:string):Promise<any> {
