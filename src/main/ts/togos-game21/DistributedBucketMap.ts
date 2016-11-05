@@ -154,7 +154,14 @@ export class DistributedBucketMapManager<T> {
 	public constructor( protected _datastore:Datastore<Uint8Array>, protected _rootNodeUri:string=EMPTY_NODE_URI ) {
 		this.allUpdatesPromise = Promise.resolve(_rootNodeUri);
 	}
-
+	
+	// TODO: Currently flushupdates waits for all current updates to finish,
+	// but also any additional updates started after flushUpdates was called,
+	// which made sense to me when I wrote it, but now I'm questioning that decision.
+	// If someone wants to keep flushing updates and then repeat as long as there
+	// are still pending updates, maybe that should be a different function.
+	// flushUpdates in other places (e.g. GameDataManager) are only guaranteed
+	// to flush any already started updates.
 	public flushUpdates():Promise<string> {
 		if( this.allUpdatesPromise ) return this.allUpdatesPromise;
 		return Promise.resolve(this._rootNodeUri);

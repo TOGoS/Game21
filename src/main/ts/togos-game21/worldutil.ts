@@ -1,3 +1,4 @@
+import { thaw } from './DeepFreezer';
 import Vector3D from './Vector3D';
 import KeyedList from './KeyedList';
 import { makeVector, setVector, vectorToArray, ZERO_VECTOR } from './vector3ds';
@@ -253,12 +254,14 @@ export function getEntitySubsystem(e:Entity, subsystemKey:string, gdm:GameDataMa
 	return eClass.defaultSubsystems[subsystemKey];
 }
 
-export function setEntitySubsystem(e:Entity, subsystemKey:string, subsystem:EntitySubsystem|undefined, gdm:GameDataManager):void {
+export function setEntitySubsystem(e:Entity, subsystemKey:string, subsystem:EntitySubsystem|undefined, gdm:GameDataManager):Entity {
 	// TODO: If replacing one with its default state, just delete the override
+	e = thaw(e);
 	if( e.subsystems == undefined ) {
 		e.subsystems = {};
 	}
 	e.subsystems[subsystemKey] = subsystem;
+	return e;
 }
 
 const emptySubsystemList:KeyedList<EntitySubsystem> = deepFreeze({});

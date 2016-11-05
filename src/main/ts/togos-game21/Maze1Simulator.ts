@@ -104,9 +104,11 @@ const sideDirections:XYZDirection[] = [
 const ALL_SIDES = 0x3F;
 
 interface RoomEntityUpdate {
+	destroyed? : boolean;
 	roomRef? : string;
 	position? : Vector3D;
 	velocityPosition? : Vector3D;
+	velocity? : Vector3D;
 }
 
 /*
@@ -229,737 +231,70 @@ import {
 
 type RoomID = SoftRef;
 
-export class PhysicsUpdate {
-	constructor(
+/**
+ * Represents the state of the simulator between steps.
+ */
+export interface SimulationState {
+	time : number;
+	enqueuedActions : SimulationAction[];
+	/**
+	 * IDs of rooms that with potentially physically active things.
+	 * This does not need to include neighboring rooms,
+	 * though they will also need to be loaded before doing the physics update.
+	 * The physics update step will do the physics update and then
+	 * rewrite this set.  All other steps will only add to it.
+	 */
+	physicallyActiveRoomIdSet : LWSet<RoomID>;
+	/**
+	 * Start point when searching for entities.
+	 */
+	rootRoomIdSet : LWSet<RoomID>;
+}
+
+export interface HardSimulationState extends SimulationState {
+	dataRef : HardRef;
+}
+
+type EntityMatchFunction = (path:EntityPath,e:Entity)=>boolean;
+
+export abstract class SimulationUpdate {
+	protected gameDataManager:GameDataManager;
+	protected newlyEnqueuedActions:SimulationAction[] = [];
+	protected newPhysicallyActiveRoomIdSet : LWSet<RoomID> = {};
+	protected logger:Logger;
+	
+	/**
+	 * Each step should simulate as if 'simulated step time' is passing.
+	 * Logical step end time is the value that should be put into the
+	 * resulting simulation state's #time field.
+	 * 
+	 * Defaults are appropriate for logically instantaneous updates
+	 * that don't care about time.
+	 */
+	public constructor(
 		protected simulator:Maze1Simulator,
-		public activeRoomIds:LWSet<RoomID> = {},
-	) { }
-	
-	public activatedRoomIds:LWSet<RoomID> = {};
-	
-	public induceVelocityChange( roomId:string, entityId:string, roomEntity:RoomEntity, dv:Vector3D ):void {
-		if( vectorIsZero(dv) ) return; // Save ourselves a little bit of work
-		roomEntity.velocity = addVector(entityVelocity(roomEntity), dv);
-		this.activatedRoomIds[roomId] = true;
+		protected initialSimulationState:SimulationState,
+		protected logicalStepEndTime:number=initialSimulationState.time,
+		protected simulatedStepStartTime:number=initialSimulationState.time,
+		protected simulatedStepDuration:number=0,
+	) {
+		this.gameDataManager = simulator.gameDataManager;
+		this.logger = simulator.logger;
 	}
 	
-	public registerReactionlessImpulse( roomId:string, entityId:string, roomEntity:RoomEntity, impulse:Vector3D ):void {
-		const entityClass = this.simulator.gameDataManager.getEntityClass(roomEntity.entity.classRef);
-		const mass = entityMass(entityClass);
-		if( mass == Infinity ) return; // Nothing's going to happen
-		this.induceVelocityChange(roomId, entityId, roomEntity, scaleVector(impulse, -1/mass));
+	protected markRoomPhysicallyActive(roomId:RoomID):void {
+		this.newPhysicallyActiveRoomIdSet[roomId] = true;
 	}
 	
-	public registerImpulse( eARoomId:string, entityAId:string, entityA:RoomEntity, eBRoomId:string, entityBId:string, entityB:RoomEntity, impulse:Vector3D ):void {
-		if( vectorIsZero(impulse) ) return; // Save ourselves a little bit of work
-		
-		const eAClass = this.simulator.gameDataManager.getEntityClass(entityA.entity.classRef);
-		const eBClass = this.simulator.gameDataManager.getEntityClass(entityB.entity.classRef);
-		
-		const eAMass = entityMass(eAClass);
-		const eBMass = entityMass(eBClass);
-		
-		if( eAMass == Infinity && eBMass == Infinity ) return; // Nothing's going to happen
-		
-		const eAVel = entityVelocity(entityA);
-		const eBVel = entityVelocity(entityB);
-		
-		let systemMass:number;
-		let aRat:number, bRat:number;
-		//let systemVelocity:Vector3D;
-		if( eAMass == Infinity ) {
-			systemMass = Infinity;
-			aRat = 0; bRat = 1;
-			//systemVelocity = eAVel;
-		} else if( eBMass == Infinity ) {
-			systemMass = Infinity;
-			aRat = 1; bRat = 0;
-			//systemVelocity = eBVel;
-		} else {
-			systemMass = eAMass + eBMass;
-			aRat = (systemMass-eAMass)/systemMass;
-			bRat = (systemMass-eBMass)/systemMass;
-			//systemVelocity = addVector(scaleVector(eAVel, eAMass/systemMass), scaleVector(eBVel, eBMass/systemMass));
-		}
-		
-		const relativeDv = scaleVector(impulse, 1/eBMass + 1/eAMass);
-		//const eADv = scaleVector(impulse, -1/eAMass);
-		
-		if( aRat != 0 ) this.induceVelocityChange(eARoomId, entityAId, entityA, scaleVector(relativeDv, -aRat));
-		if( bRat != 0 ) this.induceVelocityChange(eBRoomId, entityBId, entityB, scaleVector(relativeDv, +bRat));
+	protected enqueueAction( act:SimulationAction ):void {
+		this.newlyEnqueuedActions.push(act);
 	}
-	
-	public drainEnergy( entity:Entity, drain:number ):number {
-		if( entity.storedEnergy == undefined ) return drain;
-		//if( entity.storedEnergy == 0 ) return 0;
-		drain = Math.min(entity.storedEnergy, drain);
-		entity.storedEnergy -= drain;
-		return drain;
-	}
-	
-	public attemptInducedImpulse(
-		eARoomId:string, entityAId:string, entityA:RoomEntity, eBRoomId:string, entityBId:string, entityB:RoomEntity, impulse:Vector3D
-	):boolean {
-		const requiredEnergy = vectorLength(impulse); // TODO: I don't think that's right.
-		const availableEnergy = this.drainEnergy( entityA.entity, requiredEnergy );
-		// TODO: Calculate actual impulse from available energy
-		const adjustedImpulse = normalizeVector(impulse, availableEnergy);
-		this.registerImpulse( eARoomId, entityAId, entityA, eBRoomId, entityBId, entityB, adjustedImpulse );
-		return true;
-	}	
-	
-	protected applyCollisions() {
-		for( let collEntityAId in this.collisions ) {
-			for( let collEntityBId in this.collisions[collEntityAId] ) {
-				const collision:Collision = this.collisions[collEntityAId][collEntityBId];
-				const eAClass = this.simulator.gameDataManager.getEntityClass(collision.roomEntityA.entity.classRef);
-				const eBClass = this.simulator.gameDataManager.getEntityClass(collision.roomEntityB.entity.classRef);
-				// TODO: Figure out collision physics better?
-				const theBounceFactor = bounceFactor(eAClass, eBClass);
-				const stopImpulse = scaleVector(collision.velocity, Math.min(entityMass(eAClass), entityMass(eBClass)));
-				const bounceImpulse = scaleVector(stopImpulse, theBounceFactor);
-				const eAVel = collision.roomEntityA.velocity || ZERO_VECTOR;
-				const eBVel = collision.roomEntityB.velocity || ZERO_VECTOR;
-				const eAPerpVel = perpendicularPart(eAVel, collision.velocity);
-				const eBPerpVel = perpendicularPart(eBVel, collision.velocity);
-				const frictionImpulse = normalizeVector(subtractVector(eAPerpVel,eBPerpVel),
-					Math.max(eAClass.coefficientOfFriction || 0.25, eBClass.coefficientOfFriction || 0.25) *
-					vectorLength(stopImpulse) *
-					Math.max(0, 1-theBounceFactor)
-				);
-				const totalImpulse = {x:0,y:0,z:0};
-				accumulateVector(stopImpulse, totalImpulse)
-				accumulateVector(bounceImpulse, totalImpulse)
-				accumulateVector(frictionImpulse, totalImpulse)
-				this.registerImpulse(
-					collision.roomAId, collEntityAId, collision.roomEntityA,
-					collision.roomBId, collEntityBId, collision.roomEntityB,
-					totalImpulse
-				);
-			}
-		}
-		this.collisions = {};
-	}
-
-	protected collisions:KeyedList<KeyedList<Collision>>;
-	public registerCollision(
-		roomAId:string, eAId:string, eA:RoomEntity,
-		roomBId:string, eBId:string, eB:RoomEntity, velocity:Vector3D
-	):void {
-		if( eAId > eBId ) {
-			return this.registerCollision( roomBId, eBId, eB, roomAId, eAId, eA, scaleVector(velocity, -1));
-		}
-		
-		if( !this.collisions[eAId] ) this.collisions[eAId] = {};
-		const already = this.collisions[eAId][eBId];
-		
-		if( already && vectorLength(already.velocity) > vectorLength(velocity) ) return;
-		
-		this.collisions[eAId][eBId] = {
-			roomAId: roomAId,
-			roomEntityA: eA,
-			roomBId: roomBId,
-			roomEntityB: eB,
-			velocity: velocity
-		}
-	}
-	
-	protected borderingCuboid( roomRef:string, bb:AABB, dir:Vector3D, gridSize:number ):AABB {
-		let minX = bb.minX, maxX = bb.maxX;
-		let minY = bb.minY, maxY = bb.maxY;
-		let minZ = bb.minZ, maxZ = bb.maxZ;
-		if( dir.x < 0 ) {
-			maxX = minX; minX -= gridSize; 
-		} else if( dir.x > 0 ) {
-			minX = maxX; maxX += gridSize;
-		}
-		if( dir.y < 0 ) {
-			maxY = minY; minY -= gridSize; 
-		} else if( dir.y > 0 ) {
-			minY = maxY; maxY += gridSize;
-		}
-		if( dir.z < 0 ) {
-			maxZ = minZ; minZ -= gridSize; 
-		} else if( dir.z > 0 ) {
-			minZ = maxZ; maxZ += gridSize;
-		}
-		return makeAabb( minX,minY,minZ, maxX,maxY,maxZ );
-	}
-	
-	protected borderingEntities( roomRef:string, pos:Vector3D, bb:AABB, dir:Vector3D, gridSize:number, filter:EntityFilter ):FoundEntity[] {
-		const border = this.borderingCuboid(roomRef, bb, dir, gridSize);
-		return this.simulator.entitiesAt( roomRef, pos, border, filter );
-	}
-	
-	protected massivestCollision( collisions:FoundEntity[] ):FoundEntity|undefined {
-		let maxMass = 0;
-		let massivest:FoundEntity|undefined = undefined;
-		for( let c in collisions ) {
-			const coll = collisions[c];
-			const entityClass = this.simulator.gameDataManager.getEntityClass(coll.roomEntity.entity.classRef);
-			const mass = entityMass(entityClass);
-			if( mass > maxMass ) {
-				maxMass = mass;
-				massivest = coll;
-			}
-		}
-		return massivest;
-	}
-	
-	/**
-	 * Finds the most massive (interactive, rigid) object in the space specified
-	 */
-	protected massivestBorderingEntity( roomRef:string, pos:Vector3D, bb:AABB, dir:Vector3D, gridSize:number, filter:EntityFilter ):FoundEntity|undefined {
-		return this.massivestCollision( this.borderingEntities(roomRef, pos, bb, dir, gridSize, filter) );
-	}
-	
-	protected neighboringEntities( roomRef:string, pos:Vector3D, bb:AABB, sideMask:number, gridSize:number, filter:EntityFilter ):KeyedList<FoundEntity[]> {
-		const neighbors:KeyedList<FoundEntity[]> = {};
-		for( let d in sideDirections ) {
-			const xyzDir = sideDirections[d];
-			if( ((+xyzDir)&sideMask) == 0 ) continue;
-			const vec = xyzDirectionVectors[xyzDir];
-			neighbors[xyzDir] = this.borderingEntities(roomRef, pos, bb, vec, gridSize, filter);
-		}
-		return neighbors;
-	}
-
-	/**
-	 * What's around the entity?
-	 */
-	protected entityBounceBox( roomRef:string, pos:Vector3D, bb:AABB, sideMask:number, gridSize:number, filter:EntityFilter ):BounceBox {
-		const bounceBox:BounceBox = {};
-		for( let d in sideDirections ) {
-			const xyzDir = sideDirections[d];
-			if( ((+xyzDir)&sideMask) == 0 ) continue;
-			const vec = xyzDirectionVectors[xyzDir];
-			bounceBox[xyzDir] = this.massivestBorderingEntity(roomRef, pos, bb, vec, gridSize, filter);
-		}
-		return bounceBox;
-	}
-	
-	protected snapGridSize = 1/8;
-	
-	public updateEntities(interval:number):void {
-		const game = this.simulator;
-		const gdm = game.gameDataManager;
-		/** lesser object ID => greater object ID => force exerted from lesser to greater */
-		const gravRef:string = "gravity";
-		const gravDv = makeVector(0, 10*interval, 0);
-		const rooms = game.activeRooms;
-		const maxWalkForce = 450; // ~100 pounds of force?
-		
-		const entitiesToMove:{roomId:string, entityId:string, moveOrder:number}[] = [];
-		const snapGridSize = this.snapGridSize;
-		
-		// Auto pickups!  And door opens.  And death.
-		for( let r in this.activeRoomIds ) {
-			let room = rooms[r];
-			if( !room ) throw new Error("Somehow room '"+r+"' is in the active room IDs list, but there doesn't seem to be any such room");
-			for( let re in room.roomEntities ) {
-				const roomEntity = room.roomEntities[re];
-				const entity = roomEntity.entity;
-				const reVel = roomEntity.velocity||ZERO_VECTOR;
-				
-				if( entity.classRef == dat.playerEntityClassId && entity.storedEnergy < 1 ) {
-					this.simulator.killRoomEntity(r, re);
-				}
-				
-				if( !entity.desiresMaze1AutoActivation ) continue;
-				const entityClass = gdm.getEntityClass(entity.classRef);
-				
-				const pickupFilter:EntityFilter =
-					(roomEntityId:string, roomEntity:RoomEntity, entity:Entity, _entityClass:EntityClass) =>
-						_entityClass.structureType != StructureType.INDIVIDUAL ? undefined :
-						_entityClass.isMaze1AutoPickup || _entityClass.cheapMaze1DoorKeyClassRef != undefined;
-				const eBb = entityClass.physicalBoundingBox;
-				const pickupBb = makeAabb(
-					eBb.minX-snapGridSize, eBb.minY-snapGridSize, eBb.minZ-snapGridSize,
-					eBb.maxX+snapGridSize, eBb.maxY+snapGridSize, eBb.maxZ+snapGridSize
-				)
-				
-				const foundIois = this.simulator.entitiesAt(r, roomEntity.position, pickupBb, pickupFilter);
-				checkIois: for( let p in foundIois ) {
-					const foundIoi = foundIois[p];
-					if(
-						foundIoi.roomRef == r &&
-						dotProduct(
-							subtractVector(foundIoi.entityPosition, roomEntity.position),
-							subtractVector(foundIoi.roomEntity.velocity||ZERO_VECTOR,reVel),
-						) > 0
-					) {
-						// If they're moving away from each other, forget it!
-						continue checkIois;
-					}
-					if( foundIoi.entityClass.isMaze1AutoPickup ) {
-						let pickedUp:boolean;
-						if( foundIoi.entityClass.isMaze1Edible ) {
-							entity.storedEnergy += +foundIoi.entityClass.maze1NutritionalValue;
-							pickedUp = true;
-						} else {
-							const inventorySize = entityClass.maze1InventorySize;
-							if( inventorySize == undefined ) continue checkIois;
-							if( entity.maze1Inventory == undefined ) entity.maze1Inventory = {};
-							let currentItemCount = 0;
-							let leastImportantItemKey:string|undefined;
-							let leastImportantItemImportance:number = Infinity;
-							for( let k in entity.maze1Inventory ) {
-								++currentItemCount;
-								const itemClass = gdm.getEntityClass(entity.maze1Inventory[k].classRef);
-								const itemImportance = itemClass.maze1Importance || 0;
-								if( itemImportance < leastImportantItemImportance ) {
-									leastImportantItemImportance = itemImportance;
-									leastImportantItemKey = k;
-								}
-							}
-							if( currentItemCount >= inventorySize ) {
-								if( leastImportantItemKey == undefined ) {
-									console.warn("Can't pick up new item; inventory full and nothing to drop!")
-									continue checkIois;
-								}
-								const foundItemImportance = foundIoi.entityClass.maze1Importance || 0;
-								if( foundItemImportance < leastImportantItemImportance ) {
-									continue checkIois;
-								}
-								const throwDirection = vectorIsZero(reVel) ? {x:1,y:0,z:0} : normalizeVector(reVel, -1);
-								const throwStart = addVector(roomEntity.position, normalizeVector(throwDirection, 0.5));
-								try {
-									this.simulator.placeItemSomewhereNear(entity.maze1Inventory[leastImportantItemKey], r, throwStart, throwDirection);
-								} catch( err ) {
-									console.log("Couldn't drop less important item:", err);
-									continue checkIois;
-								}
-								delete entity.maze1Inventory[leastImportantItemKey];
-							}
-							entity.maze1Inventory[foundIoi.roomEntityId] = foundIoi.entity;
-							pickedUp = true;
-						}
-						if( pickedUp ) {
-							this.simulator.sendProximalEventMessageToNearbyEntities(r, roomEntity.position, 8, {
-								classRef: "http://ns.nuke24.net/Game21/SimulationMessage/ItemPickedUp",
-								itemClassRef: foundIoi.entity.classRef,
-								pickerPath: [r, re],
-							});
-							delete rooms[foundIoi.roomRef].roomEntities[foundIoi.roomEntityId];
-						}
-					}
-					doKey: if( foundIoi.entityClass.cheapMaze1DoorKeyClassRef ) {
-						const requiredKeyClass = foundIoi.entityClass.cheapMaze1DoorKeyClassRef;
-						const doorClass = foundIoi.entity.classRef;
-						// Does player have one?
-						if( entity.maze1Inventory ) {
-							for( let k in entity.maze1Inventory ) {
-								if( entity.maze1Inventory[k].classRef == requiredKeyClass ) {
-									this.simulator.destroyCheapDoor( foundIoi.roomRef, foundIoi.entityPosition, doorClass );
-									break doKey;
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-		
-		// Collect impulses
-		// impulses from previous step are also included.
-		for( let r in this.activeRoomIds ) {
-			let room = rooms[r];
-			for( let re in room.roomEntities ) {
-				const roomEntity = room.roomEntities[re];
-				const entity = roomEntity.entity;
-				const entityClass = gdm.getEntityClass(entity.classRef);
-				
-				if( entityClass.mass == null || entityClass.mass == Infinity ) {
-					// This thing ain't going anywhere
-					if( entity.desiredMovementDirection == null ) {
-						// Nor is it attempting to apply forces onto anyone else.
-						// So we can skip doing anything with it at all.
-						continue;
-					}
-				}
-				
-				// Room's got a possibly active entity in it,
-				// so add to the active rooms list.
-				this.activatedRoomIds[r] = true;
-				// TODO: Don't activate room if entity is settled into an unmoving state
-				// (would require activating neighbor rooms when things at edges change, etc)
-				
-				if( entityClass.isAffectedByGravity && entityClass.mass != null && entityClass.mass != Infinity ) {
-					this.registerReactionlessImpulse(r, re, roomEntity, scaleVector(gravDv, -entityClass.mass));
-					//this.induceVelocityChange(r, re, roomEntity, gravDv);
-				}
-				
-				const otherEntityFilter:EntityFilter =
-					(roomEntityId:string, roomEntity:RoomEntity, entity:Entity, _entityClass:EntityClass) =>
-						roomEntityId != re;
-				
-				const neighbEnts = this.neighboringEntities(
-					r, roomEntity.position, entityClass.physicalBoundingBox, ALL_SIDES, snapGridSize, otherEntityFilter );
-				
-				// TODO: Just use neighbEnts rather than querying again.
-				const solidOtherEntityFilter:EntityFilter =
-					(roomEntityId:string, roomEntity:RoomEntity, entity:Entity, entityClass:EntityClass) =>
-						roomEntityId != re && entityClass.isSolid !== false;
-				
-				const floorCollision = this.massivestBorderingEntity(
-					r, roomEntity.position, entityClass.physicalBoundingBox,
-					xyzDirectionVectors[XYZDirection.POSITIVE_Y], snapGridSize, solidOtherEntityFilter);
-				
-				/*
-				 * Possible forces:
-				 * * Gravity pulls everything down
-				 * - Entities may push directly off any surfaces (jump)
-				 * - Entities may push sideways against surfaces that they are pressed against (e.g. floor)
-				 * - Entities may climb along ladders or other climbable things
-				 */
-				
-				const dmd = entity.desiredMovementDirection;
-				let climbing = false;
-				let walking = false;
-				
-				if( dmd != null && entityClass.climbingSkill && (floorCollision == null || dmd.y != 0) ) {
-					const minClimbability = 1 - entityClass.climbingSkill;
-					let mostClimbable:FoundEntity|undefined;
-					let maxClimbability = 0;
-					for( let dir in neighbEnts ) {
-						const neighbEnts2 = neighbEnts[dir];
-						for( let e in neighbEnts2 ) {
-							const climbability = neighbEnts2[e].entityClass.climbability;
-							if( climbability != null && climbability >= minClimbability && climbability >= maxClimbability ) {
-								// Aw yih we can climb that!
-								// Theoretically we would take direction of movement into account,
-								// so if you wanted to go up you'd prefer a ladder that's itself moving that way.
-								mostClimbable = neighbEnts2[e];
-								maxClimbability = climbability;
-							}
-						}
-					}
-					if( mostClimbable ) {
-						climbing = true;
-						const maxClimbForce = entityClass.maxClimbForce || 0;
-						const currentRv:Vector3D = subtractVector(entityVelocity(roomEntity), entityVelocity(mostClimbable.roomEntity));
-						const maxClimbSpeed = entityClass.normalClimbingSpeed || entityClass.normalWalkingSpeed || 0;
-						const climbImpulse = impulseForAtLeastDesiredVelocity(
-							dmd, currentRv,
-							entityClass.mass, gdm.getEntityClass(mostClimbable.roomEntity.entity.classRef).mass,
-							maxClimbSpeed, interval*maxClimbForce, -1
-						);
-						this.attemptInducedImpulse(
-							r, re, roomEntity, mostClimbable.roomRef,
-							mostClimbable.roomEntityId, mostClimbable.roomEntity, climbImpulse);
-					}
-				}
-				
-				let onFloor = false;
-				
-				// TODO: Do this in a generic way for any 'walking' entities
-				walk: if( floorCollision && entityVelocity(roomEntity).y - entityVelocity(floorCollision.roomEntity).y >= 0 ) {
-					onFloor = true;
-					
-					if( dmd == null ) break walk;
-					/** Actual velocity relative to surface */
-					const dvx = entityVelocity(roomEntity).x - entityVelocity(floorCollision.roomEntity).x;
-					/** Desired velocity relative to surface */
-					const targetDvx = (entityClass.normalWalkingSpeed || 0) * oneify(dmd.x);
-					/** Desired velocity change */
-					const attemptDdvx = targetDvx - dvx;
-					// Attempt to change to target velocity in single tick
-					const walkForce = clampAbs( -attemptDdvx*entityClass.mass/interval, maxWalkForce );
-					const walkImpulse = {x:walkForce*interval, y:0, z:0};
-					this.attemptInducedImpulse(
-						r, re, roomEntity,
-						floorCollision.roomRef, floorCollision.roomEntityId, floorCollision.roomEntity,
-						walkImpulse);
-					
-					if( dmd.y < 0 && entityClass.maxJumpImpulse ) {
-						const jumpImpulse:Vector3D = {x:0, y:entityClass.maxJumpImpulse, z:0};
-						if( this.attemptInducedImpulse(
-							r, re, roomEntity,
-							floorCollision.roomRef, floorCollision.roomEntityId, floorCollision.roomEntity, jumpImpulse)
-						) {
-							this.simulator.sendProximalEventMessageToNearbyEntities( r, roomEntity.position, 8, {
-								classRef: "http://ns.nuke24.net/Game21/SimulationMessage/SimpleEventOccurred",
-								eventCode: "jump",
-							});
-						}
-					}
-				} else {
-					if( dmd && dmd.y < 0 && entityClass.maxJumpImpulse ) {
-						//console.log(re+" can't jump; not on floor.", dmd.y);
-					}
-				}
-				
-				if( !climbing && !onFloor && dmd && entityClass.maxFlyingForce ) {
-					this.registerReactionlessImpulse(
-						r, re, roomEntity, scaleVector(dmd, -entityClass.maxFlyingForce*interval) );
-				}
-				
-				if( roomEntity.velocity && !vectorIsZero(roomEntity.velocity) ) {
-					const moveOrder = -dotProduct(roomEntity.position, roomEntity.velocity);
-					entitiesToMove.push( {roomId: r, entityId: re, moveOrder} );
-				}
-			}
-		}
-		
-		entitiesToMove.sort( (a,b):number => a.moveOrder - b.moveOrder );
-		
-		// Apply velocity to positions,
-		// do collision detection to prevent overlap and collection collisions
-		this.collisions = {};
-		
-		for( const etm in entitiesToMove ) {
-			const entityToMove = entitiesToMove[etm];
-			const room = rooms[entityToMove.roomId];
-			const entityId = entityToMove.entityId;
-			{
-				const roomEntity = room.roomEntities[entityId];
-				const velocity:Vector3D|undefined = roomEntity.velocity;
-				if( velocity == null || vectorIsZero(velocity) ) continue;
-				
-				const entity = roomEntity.entity;
-				const entityClass = gdm.getEntityClass(entity.classRef);
-				const entityBb = entityClass.physicalBoundingBox;
-
-				let entityRoomRef = entityToMove.roomId;
-				
-				let displacement = scaleVector( velocity, interval );
-
-				const solidOtherEntityFilter:EntityFilter =
-					(roomEntityId:string, roomEntity:RoomEntity, entity:Entity, entityClass:EntityClass) =>
-						roomEntityId != entityId && entityClass.isSolid !== false;
-				
-				// Strategy here is:
-				// figure [remaining] displacement based on velocity*interval
-				// while remaining displacement > 0 {
-				//   move along velocity vector as far as possible without collision
-				//   based on objects in path of remaining displacement, apply impulses,
-				//   calculate remaining displacement along surfaces
-				// }
-				
-				let iter = 0;
-				displacementStep: while( displacement && !vectorIsZero(displacement) ) {
-					const maxDisplacementComponent =
-						Math.max( Math.abs(displacement.x), Math.abs(displacement.y), Math.abs(displacement.z) );
-					// How much of it can we do in a single step?
-					const stepDisplacementRatio = Math.min(snapGridSize, maxDisplacementComponent) / maxDisplacementComponent;
-					
-					// Attempt displacing!
-					const stepDeltaPos = scaleVector( displacement, stepDisplacementRatio ); 
-					const newVelocityLocation = game.fixLocation({
-						roomRef: entityRoomRef,
-						position: addVector(
-							roomEntity.velocityPosition || roomEntity.position,
-							stepDeltaPos
-						)
-					});
-					const newRoomRef = newVelocityLocation.roomRef;
-					const newPosition = roundVectorToGrid(newVelocityLocation.position, snapGridSize);
-					const collisions = game.entitiesAt(newVelocityLocation.roomRef, newPosition, entityBb, solidOtherEntityFilter);
-					if( collisions.length == 0 ) {
-						game.updateRoomEntity(entityRoomRef, entityId, {
-							roomRef: newRoomRef,
-							position: newPosition,
-							velocityPosition: newVelocityLocation.position
-						});
-						this.activatedRoomIds[newRoomRef] = true;
-						entityRoomRef = newRoomRef;
-						if( stepDisplacementRatio == 1 ) break displacementStep; // Shortcut; this should happen anyway
-						// Subtract what we did and go again
-						displacement = addVector(displacement, scaleVector(displacement, -stepDisplacementRatio));
-						continue displacementStep;
-					}
-					
-					// Uh oh, we've collided somehow.
-					// Need to take that into account, zero out part or all of our displacement
-					// based on where the obstacle was, register some impulses
-					
-					{
-						// TODO: Only need bounce box for directions moving in
-						const bounceBox:BounceBox = this.entityBounceBox(
-							entityRoomRef, roomEntity.position, entityBb, ALL_SIDES, snapGridSize, solidOtherEntityFilter );
-						
-						let maxDvx = 0;
-						let maxDvxColl:FoundEntity|undefined;
-						let maxDvy = 0;
-						let maxDvyColl:FoundEntity|undefined;
-						
-						let remainingDx = displacement.x;
-						let remainingDy = displacement.y;
-
-						// Is there a less repetetive way to write this?
-						// Check up/down/left/right to find collisions.
-						// If nothing found, then it must be a diagonal collision!
-						// So then check diagonals.
-						let coll:FoundEntity|undefined;
-						if( displacement.x > 0 && (coll = bounceBox[XYZDirection.POSITIVE_X]) ) {
-							remainingDx = 0;
-							const collVel = entityVelocity(coll.roomEntity);
-							const dvx = velocity.x - collVel.x;
-							if( dvx > maxDvx ) {
-								maxDvx = dvx;
-								maxDvxColl = coll;
-							}
-						}
-						if( displacement.x < 0 && (coll = bounceBox[XYZDirection.NEGATIVE_X]) ) {
-							remainingDx = 0;
-							const collVel = entityVelocity(coll.roomEntity);
-							const dvx = velocity.x - collVel.x;
-							if( dvx < maxDvx ) {
-								maxDvx = dvx;
-								maxDvxColl = coll;
-							}
-						}
-						if( displacement.y > 0 && (coll = bounceBox[XYZDirection.POSITIVE_Y]) ) {
-							remainingDy = 0;
-							const collVel = entityVelocity(coll.roomEntity);
-							const dvy = velocity.y - collVel.y;
-							if( maxDvyColl == null || dvy > maxDvy ) {
-								maxDvy = dvy;
-								maxDvyColl = coll;
-							}
-						}
-						if( displacement.y < 0 && (coll = bounceBox[XYZDirection.NEGATIVE_Y]) ) {
-							remainingDy = 0;
-							const collVel = entityVelocity(coll.roomEntity);
-							const dvy = velocity.y - collVel.y;
-							if( dvy < maxDvy ) {
-								maxDvy = dvy;
-								maxDvyColl = coll;
-							}
-						}
-						
-						if( maxDvxColl ) {
-							this.registerCollision(
-								newRoomRef, entityId, roomEntity,
-								maxDvxColl.roomRef, maxDvxColl.roomEntityId, maxDvxColl.roomEntity, makeVector(maxDvx, 0, 0) 
-							);
-						}
-						if( maxDvyColl ) {
-							this.registerCollision(
-								newRoomRef, entityId, roomEntity,
-								maxDvyColl.roomRef, maxDvyColl.roomEntityId, maxDvyColl.roomEntity, makeVector(0, maxDvy, 0)
-							);
-						}
-						
-						// New displacement = displacement without the components that
-						// would take us into obstacles:
-						if( remainingDx != 0 && remainingDy != 0 ) {
-							// A diagonal hit, probably.
-							// Keep the larger velocity component
-							if( Math.abs(remainingDx) < Math.abs(remainingDy) ) {
-								remainingDx = 0;
-							} else {
-								remainingDy = 0;
-							}
-						}
-						
-						displacement = { x: remainingDx, y: remainingDy, z: 0 };
-						
-						++iter;
-						if( iter > 2 ) {
-							console.log("Too many displacement steps while moving "+entityId+":", roomEntity, "class:", entityClass, "iter:", iter, "velocity:", velocity, "displacement:", displacement, "bounceBox:", bounceBox, "max dvx coll:", maxDvxColl, "max dby coll:", maxDvyColl);
-							break displacementStep;
-						}
-					}
-				}
-			}
-		}
-		
-		this.applyCollisions();
-	}
-}
-
-export interface ExternalDevice {
-	onMessage( bm:EntitySystemBusMessage, sourcePath?:EntityPath ):void
-}
-
-interface InternalSystemProgramEvaluationContext {
-	entityPath : EntityPath,
-	entity : Entity,
-	busMessageQueue : EntitySystemBusMessage[],
-	subsystemKey : string;
-	variableValues : KeyedList<any>;
-};
-
-type ISPEC = InternalSystemProgramEvaluationContext;
-
-function evalInternalSystemProgram( expression:esp.ProgramExpression, ctx:ISPEC ):any {
-	switch( expression.classRef ) {
-	case "http://ns.nuke24.net/TOGVM/Expressions/LiteralString":
-	case "http://ns.nuke24.net/TOGVM/Expressions/LiteralNumber":
-	case "http://ns.nuke24.net/TOGVM/Expressions/LiteralBoolean":
-		return expression.literalValue;
-	case "http://ns.nuke24.net/TOGVM/Expressions/ArrayConstruction":
-		const argValues:any[] = [];
-		for( let i=0; i<expression.values.length; ++i ) {
-			argValues.push(evalInternalSystemProgram(expression.values[i], ctx));
-		}
-		return argValues;
-	case "http://ns.nuke24.net/TOGVM/Expressions/Variable":
-		return ctx.variableValues[expression.variableName];
-	case "http://ns.nuke24.net/TOGVM/Expressions/FunctionApplication":
-		{
-			const argValues:any[] = [];
-			for( let i=0; i<expression.arguments.length; ++i ) {
-				argValues.push(evalInternalSystemProgram(expression.arguments[i], ctx));
-			}
-			if( !expression.functionRef ) throw new Error("Oh no dynamic functions not implemented boo");
-			switch( expression.functionRef ) {
-			case "http://ns.nuke24.net/InternalSystemFunctions/Trace":
-				console.debug("Trace from entity subsystem program", argValues, ctx);
-				break;
-			case "http://ns.nuke24.net/InternalSystemFunctions/ProgN":
-				return argValues.length == 0 ? undefined : argValues[argValues.length-1];
-			case "http://ns.nuke24.net/InternalSystemFunctions/SendBusMessage":
-				if( argValues.length == 1 ) { 
-					const bm = argValues[0];
-					if( !Array.isArray(bm) || bm.length < 1 || typeof bm[0] != 'string' ) {
-						throw new Error("Entity message must be an array with string as first element");
-					}
-					ctx.busMessageQueue.push( bm );
-					return null;
-				} else {
-					throw new Error("SendBusMessage given non-1 arguments: "+JSON.stringify(argValues));
-				}
-			default:
-				throw new Error("Call to unsupported function "+expression.functionRef);
-			}
-		}
-		break;
-	default:
-		throw new Error(
-			"Dunno how to evaluate expression classcamp town ladies sing this song, do da, do da, "+
-			"camp town race track five miles long, oh da do da day: "+expression.classRef);
-	}
-}
-
-export default class Maze1Simulator {
-	protected rooms:KeyedList<Room> = {};
-	protected activeRoomIds:LWSet<RoomID> = {};
-	public logger:Logger = console;
-	
-	protected enqueuedActions:SimulationAction[] = [];
-	
-	protected externalDevices:KeyedList<ExternalDevice> = {};
-	public registerExternalDevice( name:string, dev:ExternalDevice ):void {
-		this.externalDevices[name] = dev;
-	}
-	
-	public constructor( public gameDataManager:GameDataManager ) { }
-	
-	public enqueueAction( act:SimulationAction ):void {
-		this.enqueuedActions.push(act);
-	}
-	
-	public get activeRooms() { return this.rooms; }
 	
 	protected getMutableRoom( roomId:string ):Room {
-		if( this.rooms[roomId] ) return this.rooms[roomId];
-		return this.rooms[roomId] = this.gameDataManager.getMutableRoom(roomId);
+		return this.gameDataManager.getMutableRoom(roomId);
 	}
 	
 	public getRoom( roomId:string ):Room {
-		if( this.rooms[roomId] ) return this.rooms[roomId];
 		return this.gameDataManager.getRoom(roomId);
 	}
 	
@@ -972,31 +307,51 @@ export default class Maze1Simulator {
 			return this.getMutableRoom(roomId);
 		});
 	}
-
-	protected roomLoadPromises:KeyedList<Promise<Room>> = {};
-	protected fullyLoadRooms2( rootRoomId:string ):Promise<Room> {
-		if( this.roomLoadPromises[rootRoomId] ) return this.roomLoadPromises[rootRoomId];
-		this.roomLoadPromises[rootRoomId] = this.fullyLoadRoom( rootRoomId );
-		return this.roomLoadPromises[rootRoomId].then( (room) => {
+	
+	protected fullyLoadRooms2( rootRoomId:string, roomLoadPromises:KeyedList<Promise<Room>> ):Promise<Room> {
+		if( roomLoadPromises[rootRoomId] ) return roomLoadPromises[rootRoomId];
+		
+		roomLoadPromises[rootRoomId] = this.fullyLoadRoom( rootRoomId );
+		return roomLoadPromises[rootRoomId].then( (room) => {
 			const lProms:Promise<Room>[] = [];
 			for( let n in room.neighbors ) {
 				const nRoomRef = room.neighbors[n].roomRef;
-				if( !this.rooms[nRoomRef] && !this.roomLoadPromises[nRoomRef] ) {
-					lProms.push(this.fullyLoadRooms2(nRoomRef));
+				if( !roomLoadPromises[nRoomRef] ) {
+					lProms.push(this.fullyLoadRooms2(nRoomRef, roomLoadPromises));
 				}
 			}
 			return Promise.all(lProms).then( () => room );
 		});
 	}
 	
-	public rootRoomId:string|undefined; // Most recently fullyLoadRooms ref.
+	public fullyLoadRooms( rootRoomId:string, roomLoadPromises:KeyedList<Promise<Room>>={} ):Promise<void> {
+		return this.fullyLoadRooms2(rootRoomId, roomLoadPromises).then( () => {} );
+	}
 	
-	public fullyLoadRooms( rootRoomId:string ):Promise<KeyedList<Room>> {
-		this.rootRoomId = rootRoomId;
-		return this.fullyLoadRooms2(rootRoomId).then( () => {
-			this.roomLoadPromises = {};
-			return this.rooms;
-		} );
+	protected fullyLoadImmediateNeighbors( room:Room, loadPromises:KeyedList<Promise<Room>> ):Promise<any> {
+		const newPromises:Promise<Room>[] = [];
+		if( room.neighbors ) for( let n in room.neighbors ) {
+			const nrRef = room.neighbors[n].roomRef;
+			if( !loadPromises[nrRef] ) {
+				newPromises.push(loadPromises[nrRef] = this.fullyCacheRoom(nrRef));
+			}
+		}
+		return Promise.all(newPromises);
+	}
+	
+	public fullyLoadRoomsAndImmediateNeighbors( roomIds:LWSet<RoomID> ):Promise<void> {
+		const allPromises:KeyedList<Promise<Room>> = {};
+		const newPromises:Promise<Room>[] = [];
+		for( let r in roomIds ) {
+			if( !allPromises[r] ) {
+				// Due to the nature of primises,
+				// allPromises will first be filled with fully load room + neighbor promises,
+				// then the remaining neighbor ones.
+				const p = this.fullyLoadRoom(r).then( (room) => this.fullyLoadImmediateNeighbors(room, allPromises) );
+				newPromises.push(allPromises[r] = p);
+			}
+		}
+		return Promise.all(newPromises).then( () => {} );
 	}
 	
 	public fixLocation(loc:RoomLocation):RoomLocation {
@@ -1013,20 +368,42 @@ export default class Maze1Simulator {
 		}
 		return loc;
 	}
-
+	
+	protected roomEntityIsPhysicallyActive( roomEntity:RoomEntity ) {
+		if( roomEntity.entity.desiredMovementDirection ) return true;
+		if( roomEntity.velocity && !vectorIsZero(roomEntity.velocity) ) return true;
+		const entityClass = this.gameDataManager.getEntityClass(roomEntity.entity.classRef);
+		if( entityClass.isAffectedByGravity ) return true;
+		return false;
+	}
+	
 	public updateRoomEntity( roomRef:string, entityId:string, update:RoomEntityUpdate ):void {
 		let room : Room = this.getMutableRoom(roomRef);
 		let roomEntity = room.roomEntities[entityId];
+		if( update.destroyed ) {
+			delete room.roomEntities[entityId];
+			return;
+		}
+		if( update.velocity ) {
+			roomEntity.velocity = update.velocity;
+		}
 		if( update.position ) {
 			roomEntity.position = update.position;
 			delete roomEntity.velocityPosition;
 		}
 		if( update.velocityPosition ) roomEntity.velocityPosition = update.velocityPosition;
+		let newRoomRef = roomRef;
 		if( update.roomRef != null && update.roomRef != roomRef ) {
+			newRoomRef = update.roomRef;
 			let newRoom : Room = this.getMutableRoom(update.roomRef);
 			newRoom.roomEntities[entityId] = roomEntity;
 			delete room.roomEntities[entityId];
 		}
+		// TODO: Here's the spot where we could just totally stop simulating
+		// if the entity happened to be settled.
+		if( !this.newPhysicallyActiveRoomIdSet[newRoomRef] && this.roomEntityIsPhysicallyActive(roomEntity) ) {
+			this.newPhysicallyActiveRoomIdSet[newRoomRef] = true;
+		} 
 	}
 	
 	/**
@@ -1166,7 +543,7 @@ export default class Maze1Simulator {
 	protected processSpecialEntityCommand(
 		entityPath:EntityPath, entity:Entity, md:EntitySystemBusMessage
 	):boolean {
-		entityPath = this.resolveEntityPath(entityPath);
+		entityPath = this.fixEntityPathRoomId(entityPath);
 		const roomId = entityPath[0];
 		
 		// TODO: Replace all the following with subsystems
@@ -1174,9 +551,7 @@ export default class Maze1Simulator {
 		const path = md[0];
 		if( path == "/desiredmovementdirection" ) {
 			entity.desiredMovementDirection = makeVector(+md[1],+md[2],+md[3]);
-			// Make sure the room is marked as active:
-			if( this.rooms[roomId] ) this.activeRoomIds[roomId] = true;
-			else console.warn("Oh no, active entity in non-loaded room '"+roomId+"'");
+			this.markRoomPhysicallyActive(roomId);
 			return true;
 		} else if( path == "/painttiletreeblock" ) {
 			const relX = +md[1];
@@ -1364,22 +739,64 @@ export default class Maze1Simulator {
 	}
 	
 	protected get hasPendingMessageUpdates():boolean {
-		return this.enqueuedActions.length > 0;
+		return this.newlyEnqueuedActions.length > 0;
 	}
 	
-	protected findEntity(entityId:string):string|undefined{
-		for( let roomId in this.rooms ) {
-			const room = this.rooms[roomId];
-			if( room.roomEntities[entityId] ) return roomId;
+	protected findEntityInAnyLoadedRoom(match:string|EntityMatchFunction, initialGuesses?:LWSet<RoomID>):EntityPath|undefined {
+		if( initialGuesses == undefined ) initialGuesses = this.initialSimulationState.rootRoomIdSet;
+		
+		// Potentially optimize for the 'I know where that is!' case by
+		// allowing initialGuesses to be a single roomID
+		// and do a allocation-free check before going all out.
+		// Goal is to check that room, then its neighbors, then the entire world.
+		// May want to cache locations on the simulator.
+		const guessList:RoomID[] = [];
+		const guessSet:LWSet<RoomID> = {}
+		
+		for( let g in initialGuesses ) {
+			guessList.push(g);
+			guessSet[g] = true;
 		}
+		
+		for( let i=0; i<guessList.length; ++i ) {
+			const guess = guessList[i];
+			const room = this.gameDataManager.getObjectIfLoaded<Room>(guess);
+			if( room && room.roomEntities ) {
+				if( typeof match == 'string' ) {
+					if( room.roomEntities[match] ) return [guess,match];
+				} else {
+					for( let re in room.roomEntities ) {
+						const roomEntity = room.roomEntities[re];
+						const path = [guess,re];
+						if( match(path, roomEntity.entity) ) return path;
+					}
+				}
+			}
+			
+			if( room && room.neighbors ) for( let n in room.neighbors ) {
+				const neighborRoomId = room.neighbors[n].roomRef;
+				if( !guessSet[neighborRoomId] ) {
+					// Add neighbor to the guess list!
+					guessList.push(neighborRoomId);
+					guessSet[neighborRoomId] = true;
+				} 
+			}
+		}
+		
+		// TODO: Continue on with any other loaded rooms?
+		
 		return undefined;
 	}
 	
-	protected resolveEntityPath(entityPath:EntityPath):EntityPath {
+	/**
+	 * Given an entity path, returns one where room ID is filled in,
+	 * or throws an error if the identified entity couldn't be found anywhere.
+	 */
+	protected fixEntityPathRoomId(entityPath:EntityPath):EntityPath {
 		if( entityPath[0] == ROOMID_FINDENTITY ) {
-			const roomId = this.findEntity(entityPath[1]);
-			if( roomId == undefined ) throw new Error("Failed to resolve entity path "+entityPath.join('/'));
-			return [roomId, ...entityPath.slice(1)];
+			const resolved = this.findEntityInAnyLoadedRoom(entityPath[1]);
+			if( resolved == undefined ) throw new Error("Failed to resolve entity path "+entityPath.join('/'));
+			return [resolved[0], ...entityPath.slice(1)];
 		}
 		return entityPath;
 	}
@@ -1388,19 +805,14 @@ export default class Maze1Simulator {
 		if( typeof entityPath == 'string' ) {
 			entityPath = [ROOMID_FINDENTITY, entityPath];
 		}
-		if( entityPath[0] != ROOMID_FINDENTITY ) {
-			const room = this.rooms[entityPath[0]];
-			if( !room ) {
-				console.warn("No such room as '"+entityPath[0]+"', referenced by entity path");
-				return undefined;
-			}
-			return room.roomEntities[entityPath[1]];
+		let roomId:string|undefined = entityPath[0];
+		if( roomId == ROOMID_FINDENTITY ) {
+			const path = this.findEntityInAnyLoadedRoom(entityPath[1]);
+			if( path == undefined ) return undefined;
+			roomId = path[0];
 		}
-		for( let roomId in this.rooms ) {
-			const room = this.rooms[roomId];
-			if( room.roomEntities[entityPath[1]] ) return room.roomEntities[entityPath[1]];
-		}
-		return undefined;
+		const room = this.gameDataManager.getRoom(roomId);
+		return room.roomEntities[entityPath[1]];
 	}
 	
 	public getRoomEntity(entityPath:string|EntityPath):RoomEntity {
@@ -1464,7 +876,7 @@ export default class Maze1Simulator {
 			return undefined;
 		}
 		
-		pokingEntityPath = this.resolveEntityPath(pokingEntityPath);
+		pokingEntityPath = this.fixEntityPathRoomId(pokingEntityPath);
 		const roomEntity = this.getRoomEntity(pokingEntityPath);
 		const pokedLocation = this.fixLocation({
 			roomRef: pokingEntityPath[0],
@@ -1706,7 +1118,7 @@ export default class Maze1Simulator {
 			return;
 		}
 		if( entityPath[0] == ROOMID_EXTERNAL ) {
-			const dev = this.externalDevices[entityPath[1]];
+			const dev = this.simulator.externalDevices[entityPath[1]];
 			if( dev ) {
 				dev.onMessage(message, replyPath);
 			} else {
@@ -1726,24 +1138,6 @@ export default class Maze1Simulator {
 			break;
 		default:
 			console.warn("Skipping invocation of unsupported action class: "+act.classRef);
-		}
-	}
-	
-	protected doMessageUpdate() {
-		const handlingActions = this.enqueuedActions;
-		this.enqueuedActions = [];
-		for( let ac in handlingActions ) {
-			const act:SimulationAction = handlingActions[ac];
-			this.doAction(act);
-		}
-	}
-	
-	protected messageUpdateLength:number = 1/8192;
-	
-	protected doMessageUpdates(interval:number) {
-		let count = Math.floor(interval/this.messageUpdateLength);
-		for( let i=0; i<count && this.hasPendingMessageUpdates; ++i ) {
-			this.doMessageUpdate();
 		}
 	}
 	
@@ -1779,7 +1173,7 @@ export default class Maze1Simulator {
 			throw new Error('placeItemSomewhereNear not meant to handle '+entityClass.structureType+'-structure-typed things');
 		}
 		const loc = this.findEmptySpaceNear(physBb, roomId, position);
-		const room = this.activeRooms[loc.roomRef];
+		const room = this.gameDataManager.getMutableRoom(loc.roomRef);
 		room.roomEntities[entity.id || newUuidRef()] = {
 			position: loc.position,
 			velocity: velocity,
@@ -1789,7 +1183,7 @@ export default class Maze1Simulator {
 	
 	public killRoomEntity(roomRef:string, entityRef:string) {
 		// TODO: Replace with a energy / morph subsystem
-		const room = this.activeRooms[roomRef];
+		const room = this.gameDataManager.getMutableRoom(roomRef);
 		const roomEntity = room.roomEntities[entityRef];
 		if( roomEntity == undefined ) {
 			console.warn("Can't kill entity "+roomRef+"/"+entityRef+" because that room entity's not found");
@@ -1810,40 +1204,873 @@ export default class Maze1Simulator {
 		delete entity.desiresMaze1AutoActivation; // Otherwise skeleton will steal your dropped keys! 
 	}
 	
-	public update(interval:number=1/16) {
-		this.doMessageUpdates(interval/2);
+	public findRoomEntity( match:string|EntityMatchFunction ):FoundEntity|undefined {
+		const entityPath = this.findEntityInAnyLoadedRoom(match);
+		if( entityPath == undefined ) return undefined;
+		const room = this.gameDataManager.getRoom(entityPath[0]);
 		
-		const phys = new PhysicsUpdate(this, this.activeRoomIds);
-		phys.updateEntities(interval);
-		this.activeRoomIds = phys.activatedRoomIds;
-		
-		this.doMessageUpdates(interval/2);
+		const roomEntity = room.roomEntities[entityPath[1]];
+		const entity = roomEntity.entity;
+		const entityClass = this.gameDataManager.getEntityClass(entity.classRef);
+		return {
+			entityPath,
+			roomRef: entityPath[0],
+			roomEntityId: entityPath[1],
+			roomEntity,
+			entityPosition: roomEntity.position,
+			entity,
+			entityClass
+		};
 	}
 	
-	public flushUpdates():Promise<string> {
-		return this.gameDataManager.flushUpdates();
+	protected makeNewState():SimulationState {
+		return {
+			time: this.logicalStepEndTime,
+			enqueuedActions: this.newlyEnqueuedActions,
+			physicallyActiveRoomIdSet: this.newPhysicallyActiveRoomIdSet,
+			rootRoomIdSet: this.initialSimulationState.rootRoomIdSet,
+		}
 	}
 	
-	public locateRoomEntity( id:string ):FoundEntity|undefined {
-		for( let r in this.rooms ) {
-			const room = this.rooms[r];
+	public abstract doUpdate() : Promise<SimulationState>;
+}
+
+export class LogicUpdate extends SimulationUpdate {
+	public doUpdate() : Promise<SimulationState> {
+		const handlingActions = this.initialSimulationState.enqueuedActions;
+		for( let ac in handlingActions ) {
+			const act:SimulationAction = handlingActions[ac];
+			this.doAction(act);
+		}
+		return Promise.resolve(this.makeNewState());
+	}
+}
+
+export class PhysicsUpdate extends SimulationUpdate {
+	public induceVelocityChange( roomId:string, entityId:string, roomEntity:RoomEntity, dv:Vector3D ):void {
+		if( vectorIsZero(dv) ) return; // Save ourselves a little bit of work
+		this.updateRoomEntity( roomId, entityId, {
+			velocity: addVector(entityVelocity(roomEntity), dv)
+		});
+	}
+	
+	public registerReactionlessImpulse( roomId:string, entityId:string, roomEntity:RoomEntity, impulse:Vector3D ):void {
+		const entityClass = this.gameDataManager.getEntityClass(roomEntity.entity.classRef);
+		const mass = entityMass(entityClass);
+		if( mass == Infinity ) return; // Nothing's going to happen
+		this.induceVelocityChange(roomId, entityId, roomEntity, scaleVector(impulse, -1/mass));
+	}
+	
+	public registerImpulse( eARoomId:string, entityAId:string, entityA:RoomEntity, eBRoomId:string, entityBId:string, entityB:RoomEntity, impulse:Vector3D ):void {
+		if( vectorIsZero(impulse) ) return; // Save ourselves a little bit of work
+		
+		const eAClass = this.gameDataManager.getEntityClass(entityA.entity.classRef);
+		const eBClass = this.gameDataManager.getEntityClass(entityB.entity.classRef);
+		
+		const eAMass = entityMass(eAClass);
+		const eBMass = entityMass(eBClass);
+		
+		if( eAMass == Infinity && eBMass == Infinity ) return; // Nothing's going to happen
+		
+		const eAVel = entityVelocity(entityA);
+		const eBVel = entityVelocity(entityB);
+		
+		let systemMass:number;
+		let aRat:number, bRat:number;
+		//let systemVelocity:Vector3D;
+		if( eAMass == Infinity ) {
+			systemMass = Infinity;
+			aRat = 0; bRat = 1;
+			//systemVelocity = eAVel;
+		} else if( eBMass == Infinity ) {
+			systemMass = Infinity;
+			aRat = 1; bRat = 0;
+			//systemVelocity = eBVel;
+		} else {
+			systemMass = eAMass + eBMass;
+			aRat = (systemMass-eAMass)/systemMass;
+			bRat = (systemMass-eBMass)/systemMass;
+			//systemVelocity = addVector(scaleVector(eAVel, eAMass/systemMass), scaleVector(eBVel, eBMass/systemMass));
+		}
+		
+		const relativeDv = scaleVector(impulse, 1/eBMass + 1/eAMass);
+		//const eADv = scaleVector(impulse, -1/eAMass);
+		
+		if( aRat != 0 ) this.induceVelocityChange(eARoomId, entityAId, entityA, scaleVector(relativeDv, -aRat));
+		if( bRat != 0 ) this.induceVelocityChange(eBRoomId, entityBId, entityB, scaleVector(relativeDv, +bRat));
+	}
+	
+	public drainEnergy( entity:Entity, drain:number ):number {
+		if( entity.storedEnergy == undefined ) return drain;
+		//if( entity.storedEnergy == 0 ) return 0;
+		drain = Math.min(entity.storedEnergy, drain);
+		entity.storedEnergy -= drain;
+		return drain;
+	}
+	
+	public attemptInducedImpulse(
+		eARoomId:string, entityAId:string, entityA:RoomEntity, eBRoomId:string, entityBId:string, entityB:RoomEntity, impulse:Vector3D
+	):boolean {
+		const requiredEnergy = vectorLength(impulse); // TODO: I don't think that's right.
+		const availableEnergy = this.drainEnergy( entityA.entity, requiredEnergy );
+		// TODO: Calculate actual impulse from available energy
+		const adjustedImpulse = normalizeVector(impulse, availableEnergy);
+		this.registerImpulse( eARoomId, entityAId, entityA, eBRoomId, entityBId, entityB, adjustedImpulse );
+		return true;
+	}	
+	
+	protected applyCollisions() {
+		for( let collEntityAId in this.collisions ) {
+			for( let collEntityBId in this.collisions[collEntityAId] ) {
+				const collision:Collision = this.collisions[collEntityAId][collEntityBId];
+				const eAClass = this.gameDataManager.getEntityClass(collision.roomEntityA.entity.classRef);
+				const eBClass = this.gameDataManager.getEntityClass(collision.roomEntityB.entity.classRef);
+				// TODO: Figure out collision physics better?
+				const theBounceFactor = bounceFactor(eAClass, eBClass);
+				const stopImpulse = scaleVector(collision.velocity, Math.min(entityMass(eAClass), entityMass(eBClass)));
+				const bounceImpulse = scaleVector(stopImpulse, theBounceFactor);
+				const eAVel = collision.roomEntityA.velocity || ZERO_VECTOR;
+				const eBVel = collision.roomEntityB.velocity || ZERO_VECTOR;
+				const eAPerpVel = perpendicularPart(eAVel, collision.velocity);
+				const eBPerpVel = perpendicularPart(eBVel, collision.velocity);
+				const frictionImpulse = normalizeVector(subtractVector(eAPerpVel,eBPerpVel),
+					Math.max(eAClass.coefficientOfFriction || 0.25, eBClass.coefficientOfFriction || 0.25) *
+					vectorLength(stopImpulse) *
+					Math.max(0, 1-theBounceFactor)
+				);
+				const totalImpulse = {x:0,y:0,z:0};
+				accumulateVector(stopImpulse, totalImpulse)
+				accumulateVector(bounceImpulse, totalImpulse)
+				accumulateVector(frictionImpulse, totalImpulse)
+				this.registerImpulse(
+					collision.roomAId, collEntityAId, collision.roomEntityA,
+					collision.roomBId, collEntityBId, collision.roomEntityB,
+					totalImpulse
+				);
+			}
+		}
+		this.collisions = {};
+	}
+
+	protected collisions:KeyedList<KeyedList<Collision>>;
+	public registerCollision(
+		roomAId:string, eAId:string, eA:RoomEntity,
+		roomBId:string, eBId:string, eB:RoomEntity, velocity:Vector3D
+	):void {
+		if( eAId > eBId ) {
+			return this.registerCollision( roomBId, eBId, eB, roomAId, eAId, eA, scaleVector(velocity, -1));
+		}
+		
+		if( !this.collisions[eAId] ) this.collisions[eAId] = {};
+		const already = this.collisions[eAId][eBId];
+		
+		if( already && vectorLength(already.velocity) > vectorLength(velocity) ) return;
+		
+		this.collisions[eAId][eBId] = {
+			roomAId: roomAId,
+			roomEntityA: eA,
+			roomBId: roomBId,
+			roomEntityB: eB,
+			velocity: velocity
+		}
+	}
+	
+	protected borderingCuboid( roomRef:string, bb:AABB, dir:Vector3D, gridSize:number ):AABB {
+		let minX = bb.minX, maxX = bb.maxX;
+		let minY = bb.minY, maxY = bb.maxY;
+		let minZ = bb.minZ, maxZ = bb.maxZ;
+		if( dir.x < 0 ) {
+			maxX = minX; minX -= gridSize; 
+		} else if( dir.x > 0 ) {
+			minX = maxX; maxX += gridSize;
+		}
+		if( dir.y < 0 ) {
+			maxY = minY; minY -= gridSize; 
+		} else if( dir.y > 0 ) {
+			minY = maxY; maxY += gridSize;
+		}
+		if( dir.z < 0 ) {
+			maxZ = minZ; minZ -= gridSize; 
+		} else if( dir.z > 0 ) {
+			minZ = maxZ; maxZ += gridSize;
+		}
+		return makeAabb( minX,minY,minZ, maxX,maxY,maxZ );
+	}
+	
+	protected borderingEntities( roomRef:string, pos:Vector3D, bb:AABB, dir:Vector3D, gridSize:number, filter:EntityFilter ):FoundEntity[] {
+		const border = this.borderingCuboid(roomRef, bb, dir, gridSize);
+		return this.entitiesAt( roomRef, pos, border, filter );
+	}
+	
+	protected massivestCollision( collisions:FoundEntity[] ):FoundEntity|undefined {
+		let maxMass = 0;
+		let massivest:FoundEntity|undefined = undefined;
+		for( let c in collisions ) {
+			const coll = collisions[c];
+			const entityClass = this.gameDataManager.getEntityClass(coll.roomEntity.entity.classRef);
+			const mass = entityMass(entityClass);
+			if( mass > maxMass ) {
+				maxMass = mass;
+				massivest = coll;
+			}
+		}
+		return massivest;
+	}
+	
+	/**
+	 * Finds the most massive (interactive, rigid) object in the space specified
+	 */
+	protected massivestBorderingEntity( roomRef:string, pos:Vector3D, bb:AABB, dir:Vector3D, gridSize:number, filter:EntityFilter ):FoundEntity|undefined {
+		return this.massivestCollision( this.borderingEntities(roomRef, pos, bb, dir, gridSize, filter) );
+	}
+	
+	protected neighboringEntities( roomRef:string, pos:Vector3D, bb:AABB, sideMask:number, gridSize:number, filter:EntityFilter ):KeyedList<FoundEntity[]> {
+		const neighbors:KeyedList<FoundEntity[]> = {};
+		for( let d in sideDirections ) {
+			const xyzDir = sideDirections[d];
+			if( ((+xyzDir)&sideMask) == 0 ) continue;
+			const vec = xyzDirectionVectors[xyzDir];
+			neighbors[xyzDir] = this.borderingEntities(roomRef, pos, bb, vec, gridSize, filter);
+		}
+		return neighbors;
+	}
+
+	/**
+	 * What's around the entity?
+	 */
+	protected entityBounceBox( roomRef:string, pos:Vector3D, bb:AABB, sideMask:number, gridSize:number, filter:EntityFilter ):BounceBox {
+		const bounceBox:BounceBox = {};
+		for( let d in sideDirections ) {
+			const xyzDir = sideDirections[d];
+			if( ((+xyzDir)&sideMask) == 0 ) continue;
+			const vec = xyzDirectionVectors[xyzDir];
+			bounceBox[xyzDir] = this.massivestBorderingEntity(roomRef, pos, bb, vec, gridSize, filter);
+		}
+		return bounceBox;
+	}
+	
+	protected snapGridSize = 1/8;
+	
+	/** Call this after you've ensured that all physically active rooms and their neighbors are cached. */
+	protected doUpdate2() : void {
+		const gdm = this.gameDataManager;
+		const simulatedInterval = this.simulatedStepDuration;
+		const gravDv = makeVector(0, 10*simulatedInterval, 0);
+		const maxWalkForce = 450; // ~100 pounds of force?
+		
+		const entitiesToMove:{roomId:string, entityId:string, moveOrder:number}[] = [];
+		const snapGridSize = this.snapGridSize;
+		
+		// Auto pickups!  And door opens.  And death.
+		for( let r in this.initialSimulationState.physicallyActiveRoomIdSet ) {
+			let room = this.gameDataManager.getMutableRoom(r);
+			if( !room ) throw new Error("Somehow room '"+r+"' is in the active room IDs list, but there doesn't seem to be any such room");
 			for( let re in room.roomEntities ) {
-				if( re == id ) {
-					const roomEntity = room.roomEntities[re];
-					const entity = roomEntity.entity;
-					const entityClass = this.gameDataManager.getEntityClass(entity.classRef);
-					return {
-						entityPath: [r, id],
-						roomRef: r,
-						roomEntityId: id,
-						roomEntity,
-						entityPosition: roomEntity.position,
-						entity,
-						entityClass
-					};
+				const roomEntity = room.roomEntities[re];
+				const entity = roomEntity.entity;
+				const reVel = roomEntity.velocity||ZERO_VECTOR;
+				
+				if( entity.classRef == dat.playerEntityClassId && entity.storedEnergy < 1 ) {
+					this.killRoomEntity(r, re);
+				}
+				
+				if( !entity.desiresMaze1AutoActivation ) continue;
+				const entityClass = gdm.getEntityClass(entity.classRef);
+				
+				const pickupFilter:EntityFilter =
+					(roomEntityId:string, roomEntity:RoomEntity, entity:Entity, _entityClass:EntityClass) =>
+						_entityClass.structureType != StructureType.INDIVIDUAL ? undefined :
+						_entityClass.isMaze1AutoPickup || _entityClass.cheapMaze1DoorKeyClassRef != undefined;
+				const eBb = entityClass.physicalBoundingBox;
+				const pickupBb = makeAabb(
+					eBb.minX-snapGridSize, eBb.minY-snapGridSize, eBb.minZ-snapGridSize,
+					eBb.maxX+snapGridSize, eBb.maxY+snapGridSize, eBb.maxZ+snapGridSize
+				)
+				
+				const foundIois = this.entitiesAt(r, roomEntity.position, pickupBb, pickupFilter);
+				checkIois: for( let p in foundIois ) {
+					const foundIoi = foundIois[p];
+					if(
+						foundIoi.roomRef == r &&
+						dotProduct(
+							subtractVector(foundIoi.entityPosition, roomEntity.position),
+							subtractVector(foundIoi.roomEntity.velocity||ZERO_VECTOR,reVel),
+						) > 0
+					) {
+						// If they're moving away from each other, forget it!
+						continue checkIois;
+					}
+					if( foundIoi.entityClass.isMaze1AutoPickup ) {
+						let pickedUp:boolean;
+						if( foundIoi.entityClass.isMaze1Edible ) {
+							entity.storedEnergy += +foundIoi.entityClass.maze1NutritionalValue;
+							pickedUp = true;
+						} else {
+							const inventorySize = entityClass.maze1InventorySize;
+							if( inventorySize == undefined ) continue checkIois;
+							if( entity.maze1Inventory == undefined ) entity.maze1Inventory = {};
+							let currentItemCount = 0;
+							let leastImportantItemKey:string|undefined;
+							let leastImportantItemImportance:number = Infinity;
+							for( let k in entity.maze1Inventory ) {
+								++currentItemCount;
+								const itemClass = gdm.getEntityClass(entity.maze1Inventory[k].classRef);
+								const itemImportance = itemClass.maze1Importance || 0;
+								if( itemImportance < leastImportantItemImportance ) {
+									leastImportantItemImportance = itemImportance;
+									leastImportantItemKey = k;
+								}
+							}
+							if( currentItemCount >= inventorySize ) {
+								if( leastImportantItemKey == undefined ) {
+									console.warn("Can't pick up new item; inventory full and nothing to drop!")
+									continue checkIois;
+								}
+								const foundItemImportance = foundIoi.entityClass.maze1Importance || 0;
+								if( foundItemImportance < leastImportantItemImportance ) {
+									continue checkIois;
+								}
+								const throwDirection = vectorIsZero(reVel) ? {x:1,y:0,z:0} : normalizeVector(reVel, -1);
+								const throwStart = addVector(roomEntity.position, normalizeVector(throwDirection, 0.5));
+								try {
+									this.placeItemSomewhereNear(entity.maze1Inventory[leastImportantItemKey], r, throwStart, throwDirection);
+								} catch( err ) {
+									console.log("Couldn't drop less important item:", err);
+									continue checkIois;
+								}
+								delete entity.maze1Inventory[leastImportantItemKey];
+							}
+							entity.maze1Inventory[foundIoi.roomEntityId] = foundIoi.entity;
+							pickedUp = true;
+						}
+						if( pickedUp ) {
+							this.sendProximalEventMessageToNearbyEntities(r, roomEntity.position, 8, {
+								classRef: "http://ns.nuke24.net/Game21/SimulationMessage/ItemPickedUp",
+								itemClassRef: foundIoi.entity.classRef,
+								pickerPath: [r, re],
+							});
+							this.updateRoomEntity(foundIoi.roomRef, foundIoi.roomEntityId, {destroyed:true});
+						}
+					}
+					doKey: if( foundIoi.entityClass.cheapMaze1DoorKeyClassRef ) {
+						const requiredKeyClass = foundIoi.entityClass.cheapMaze1DoorKeyClassRef;
+						const doorClass = foundIoi.entity.classRef;
+						// Does player have one?
+						if( entity.maze1Inventory ) {
+							for( let k in entity.maze1Inventory ) {
+								if( entity.maze1Inventory[k].classRef == requiredKeyClass ) {
+									this.destroyCheapDoor( foundIoi.roomRef, foundIoi.entityPosition, doorClass );
+									break doKey;
+								}
+							}
+						}
+					}
 				}
 			}
 		}
-		return undefined;
+		
+		// Collect impulses
+		// impulses from previous step are also included.
+		for( let r in this.initialSimulationState.physicallyActiveRoomIdSet ) {
+			let room = this.gameDataManager.getMutableRoom(r);
+			for( let re in room.roomEntities ) {
+				const roomEntity = room.roomEntities[re];
+				const entity = roomEntity.entity;
+				const entityClass = gdm.getEntityClass(entity.classRef);
+				
+				if( entityClass.mass == null || entityClass.mass == Infinity ) {
+					// This thing ain't going anywhere
+					if( entity.desiredMovementDirection == null ) {
+						// Nor is it attempting to apply forces onto anyone else.
+						// So we can skip doing anything with it at all.
+						continue;
+					}
+				}
+				
+				// Room's got a possibly active entity in it,
+				// so add to the active rooms list.
+				//this.markRoomPhysicallyActive(r);
+				
+				// TODO: Don't activate room if entity is settled into an unmoving state
+				// (would require activating neighbor rooms when things at edges change, etc)
+				
+				if( entityClass.isAffectedByGravity && entityClass.mass != null && entityClass.mass != Infinity ) {
+					this.registerReactionlessImpulse(r, re, roomEntity, scaleVector(gravDv, -entityClass.mass));
+				}
+				
+				const otherEntityFilter:EntityFilter =
+					(roomEntityId:string, roomEntity:RoomEntity, entity:Entity, _entityClass:EntityClass) =>
+						roomEntityId != re;
+				
+				const neighbEnts = this.neighboringEntities(
+					r, roomEntity.position, entityClass.physicalBoundingBox, ALL_SIDES, snapGridSize, otherEntityFilter );
+				
+				// TODO: Just use neighbEnts rather than querying again.
+				const solidOtherEntityFilter:EntityFilter =
+					(roomEntityId:string, roomEntity:RoomEntity, entity:Entity, entityClass:EntityClass) =>
+						roomEntityId != re && entityClass.isSolid !== false;
+				
+				const floorCollision = this.massivestBorderingEntity(
+					r, roomEntity.position, entityClass.physicalBoundingBox,
+					xyzDirectionVectors[XYZDirection.POSITIVE_Y], snapGridSize, solidOtherEntityFilter);
+				
+				/*
+				 * Possible forces:
+				 * * Gravity pulls everything down
+				 * - Entities may push directly off any surfaces (jump)
+				 * - Entities may push sideways against surfaces that they are pressed against (e.g. floor)
+				 * - Entities may climb along ladders or other climbable things
+				 */
+				
+				const dmd = entity.desiredMovementDirection;
+				let climbing = false;
+				let walking = false;
+				
+				if( dmd != null && entityClass.climbingSkill && (floorCollision == null || dmd.y != 0) ) {
+					const minClimbability = 1 - entityClass.climbingSkill;
+					let mostClimbable:FoundEntity|undefined;
+					let maxClimbability = 0;
+					for( let dir in neighbEnts ) {
+						const neighbEnts2 = neighbEnts[dir];
+						for( let e in neighbEnts2 ) {
+							const climbability = neighbEnts2[e].entityClass.climbability;
+							if( climbability != null && climbability >= minClimbability && climbability >= maxClimbability ) {
+								// Aw yih we can climb that!
+								// Theoretically we would take direction of movement into account,
+								// so if you wanted to go up you'd prefer a ladder that's itself moving that way.
+								mostClimbable = neighbEnts2[e];
+								maxClimbability = climbability;
+							}
+						}
+					}
+					if( mostClimbable ) {
+						climbing = true;
+						const maxClimbForce = entityClass.maxClimbForce || 0;
+						const currentRv:Vector3D = subtractVector(entityVelocity(roomEntity), entityVelocity(mostClimbable.roomEntity));
+						const maxClimbSpeed = entityClass.normalClimbingSpeed || entityClass.normalWalkingSpeed || 0;
+						const climbImpulse = impulseForAtLeastDesiredVelocity(
+							dmd, currentRv,
+							entityClass.mass, gdm.getEntityClass(mostClimbable.roomEntity.entity.classRef).mass,
+							maxClimbSpeed, simulatedInterval*maxClimbForce, -1
+						);
+						this.attemptInducedImpulse(
+							r, re, roomEntity, mostClimbable.roomRef,
+							mostClimbable.roomEntityId, mostClimbable.roomEntity, climbImpulse);
+					}
+				}
+				
+				let onFloor = false;
+				
+				// TODO: Do this in a generic way for any 'walking' entities
+				walk: if( floorCollision && entityVelocity(roomEntity).y - entityVelocity(floorCollision.roomEntity).y >= 0 ) {
+					onFloor = true;
+					
+					if( dmd == null ) break walk;
+					/** Actual velocity relative to surface */
+					const dvx = entityVelocity(roomEntity).x - entityVelocity(floorCollision.roomEntity).x;
+					/** Desired velocity relative to surface */
+					const targetDvx = (entityClass.normalWalkingSpeed || 0) * oneify(dmd.x);
+					/** Desired velocity change */
+					const attemptDdvx = targetDvx - dvx;
+					// Attempt to change to target velocity in single tick
+					const walkForce = clampAbs( -attemptDdvx*entityClass.mass/simulatedInterval, maxWalkForce );
+					const walkImpulse = {x:walkForce*simulatedInterval, y:0, z:0};
+					this.attemptInducedImpulse(
+						r, re, roomEntity,
+						floorCollision.roomRef, floorCollision.roomEntityId, floorCollision.roomEntity,
+						walkImpulse);
+					
+					if( dmd.y < 0 && entityClass.maxJumpImpulse ) {
+						const jumpImpulse:Vector3D = {x:0, y:entityClass.maxJumpImpulse, z:0};
+						if( this.attemptInducedImpulse(
+							r, re, roomEntity,
+							floorCollision.roomRef, floorCollision.roomEntityId, floorCollision.roomEntity, jumpImpulse)
+						) {
+							this.sendProximalEventMessageToNearbyEntities( r, roomEntity.position, 8, {
+								classRef: "http://ns.nuke24.net/Game21/SimulationMessage/SimpleEventOccurred",
+								eventCode: "jump",
+							});
+						}
+					}
+				} else {
+					if( dmd && dmd.y < 0 && entityClass.maxJumpImpulse ) {
+						//console.log(re+" can't jump; not on floor.", dmd.y);
+					}
+				}
+				
+				if( !climbing && !onFloor && dmd && entityClass.maxFlyingForce ) {
+					this.registerReactionlessImpulse(
+						r, re, roomEntity, scaleVector(dmd, -entityClass.maxFlyingForce*simulatedInterval) );
+				}
+				
+				if( roomEntity.velocity && !vectorIsZero(roomEntity.velocity) ) {
+					const moveOrder = -dotProduct(roomEntity.position, roomEntity.velocity);
+					entitiesToMove.push( {roomId: r, entityId: re, moveOrder} );
+				}
+			}
+		}
+		
+		entitiesToMove.sort( (a,b):number => a.moveOrder - b.moveOrder );
+		
+		// Apply velocity to positions,
+		// do collision detection to prevent overlap and collection collisions
+		this.collisions = {};
+		
+		for( const etm in entitiesToMove ) {
+			const entityToMove = entitiesToMove[etm];
+			const room = this.gameDataManager.getMutableRoom(entityToMove.roomId);
+			const entityId = entityToMove.entityId;
+			{
+				const roomEntity = room.roomEntities[entityId];
+				const velocity:Vector3D|undefined = roomEntity.velocity;
+				if( velocity == null || vectorIsZero(velocity) ) continue;
+				
+				const entity = roomEntity.entity;
+				const entityClass = gdm.getEntityClass(entity.classRef);
+				const entityBb = entityClass.physicalBoundingBox;
+
+				let entityRoomRef = entityToMove.roomId;
+				
+				let displacement = scaleVector( velocity, simulatedInterval );
+
+				const solidOtherEntityFilter:EntityFilter =
+					(roomEntityId:string, roomEntity:RoomEntity, entity:Entity, entityClass:EntityClass) =>
+						roomEntityId != entityId && entityClass.isSolid !== false;
+				
+				// Strategy here is:
+				// figure [remaining] displacement based on velocity*interval
+				// while remaining displacement > 0 {
+				//   move along velocity vector as far as possible without collision
+				//   based on objects in path of remaining displacement, apply impulses,
+				//   calculate remaining displacement along surfaces
+				// }
+				
+				let iter = 0;
+				displacementStep: while( displacement && !vectorIsZero(displacement) ) {
+					const maxDisplacementComponent =
+						Math.max( Math.abs(displacement.x), Math.abs(displacement.y), Math.abs(displacement.z) );
+					// How much of it can we do in a single step?
+					const stepDisplacementRatio = Math.min(snapGridSize, maxDisplacementComponent) / maxDisplacementComponent;
+					
+					// Attempt displacing!
+					const stepDeltaPos = scaleVector( displacement, stepDisplacementRatio ); 
+					const newVelocityLocation = this.fixLocation({
+						roomRef: entityRoomRef,
+						position: addVector(
+							roomEntity.velocityPosition || roomEntity.position,
+							stepDeltaPos
+						)
+					});
+					const newRoomRef = newVelocityLocation.roomRef;
+					const newPosition = roundVectorToGrid(newVelocityLocation.position, snapGridSize);
+					const collisions = this.entitiesAt(newVelocityLocation.roomRef, newPosition, entityBb, solidOtherEntityFilter);
+					if( collisions.length == 0 ) {
+						this.updateRoomEntity(entityRoomRef, entityId, {
+							roomRef: newRoomRef,
+							position: newPosition,
+							velocityPosition: newVelocityLocation.position
+						});
+						entityRoomRef = newRoomRef;
+						if( stepDisplacementRatio == 1 ) break displacementStep; // Shortcut; this should happen anyway
+						// Subtract what we did and go again
+						displacement = addVector(displacement, scaleVector(displacement, -stepDisplacementRatio));
+						continue displacementStep;
+					}
+					
+					// Uh oh, we've collided somehow.
+					// Need to take that into account, zero out part or all of our displacement
+					// based on where the obstacle was, register some impulses
+					
+					{
+						// TODO: Only need bounce box for directions moving in
+						const bounceBox:BounceBox = this.entityBounceBox(
+							entityRoomRef, roomEntity.position, entityBb, ALL_SIDES, snapGridSize, solidOtherEntityFilter );
+						
+						let maxDvx = 0;
+						let maxDvxColl:FoundEntity|undefined;
+						let maxDvy = 0;
+						let maxDvyColl:FoundEntity|undefined;
+						
+						let remainingDx = displacement.x;
+						let remainingDy = displacement.y;
+
+						// Is there a less repetetive way to write this?
+						// Check up/down/left/right to find collisions.
+						// If nothing found, then it must be a diagonal collision!
+						// So then check diagonals.
+						let coll:FoundEntity|undefined;
+						if( displacement.x > 0 && (coll = bounceBox[XYZDirection.POSITIVE_X]) ) {
+							remainingDx = 0;
+							const collVel = entityVelocity(coll.roomEntity);
+							const dvx = velocity.x - collVel.x;
+							if( dvx > maxDvx ) {
+								maxDvx = dvx;
+								maxDvxColl = coll;
+							}
+						}
+						if( displacement.x < 0 && (coll = bounceBox[XYZDirection.NEGATIVE_X]) ) {
+							remainingDx = 0;
+							const collVel = entityVelocity(coll.roomEntity);
+							const dvx = velocity.x - collVel.x;
+							if( dvx < maxDvx ) {
+								maxDvx = dvx;
+								maxDvxColl = coll;
+							}
+						}
+						if( displacement.y > 0 && (coll = bounceBox[XYZDirection.POSITIVE_Y]) ) {
+							remainingDy = 0;
+							const collVel = entityVelocity(coll.roomEntity);
+							const dvy = velocity.y - collVel.y;
+							if( maxDvyColl == null || dvy > maxDvy ) {
+								maxDvy = dvy;
+								maxDvyColl = coll;
+							}
+						}
+						if( displacement.y < 0 && (coll = bounceBox[XYZDirection.NEGATIVE_Y]) ) {
+							remainingDy = 0;
+							const collVel = entityVelocity(coll.roomEntity);
+							const dvy = velocity.y - collVel.y;
+							if( dvy < maxDvy ) {
+								maxDvy = dvy;
+								maxDvyColl = coll;
+							}
+						}
+						
+						if( maxDvxColl ) {
+							this.registerCollision(
+								newRoomRef, entityId, roomEntity,
+								maxDvxColl.roomRef, maxDvxColl.roomEntityId, maxDvxColl.roomEntity, makeVector(maxDvx, 0, 0) 
+							);
+						}
+						if( maxDvyColl ) {
+							this.registerCollision(
+								newRoomRef, entityId, roomEntity,
+								maxDvyColl.roomRef, maxDvyColl.roomEntityId, maxDvyColl.roomEntity, makeVector(0, maxDvy, 0)
+							);
+						}
+						
+						// New displacement = displacement without the components that
+						// would take us into obstacles:
+						if( remainingDx != 0 && remainingDy != 0 ) {
+							// A diagonal hit, probably.
+							// Keep the larger velocity component
+							if( Math.abs(remainingDx) < Math.abs(remainingDy) ) {
+								remainingDx = 0;
+							} else {
+								remainingDy = 0;
+							}
+						}
+						
+						displacement = { x: remainingDx, y: remainingDy, z: 0 };
+						
+						++iter;
+						if( iter > 2 ) {
+							console.log("Too many displacement steps while moving "+entityId+":", roomEntity, "class:", entityClass, "iter:", iter, "velocity:", velocity, "displacement:", displacement, "bounceBox:", bounceBox, "max dvx coll:", maxDvxColl, "max dby coll:", maxDvyColl);
+							break displacementStep;
+						}
+					}
+				}
+			}
+		}
+		
+		this.applyCollisions();
+	}
+	
+	public doUpdate():Promise<SimulationState> {
+		const loadRoomIds:LWSet<RoomID> = {};
+		return this.fullyLoadRoomsAndImmediateNeighbors(loadRoomIds).then( () => {
+			this.doUpdate2();
+			return this.makeNewState()
+		});
+	}
+}
+
+export interface ExternalDevice {
+	onMessage( bm:EntitySystemBusMessage, sourcePath?:EntityPath ):void
+}
+
+interface InternalSystemProgramEvaluationContext {
+	entityPath : EntityPath,
+	entity : Entity,
+	busMessageQueue : EntitySystemBusMessage[],
+	subsystemKey : string;
+	variableValues : KeyedList<any>;
+};
+
+type ISPEC = InternalSystemProgramEvaluationContext;
+
+function evalInternalSystemProgram( expression:esp.ProgramExpression, ctx:ISPEC ):any {
+	switch( expression.classRef ) {
+	case "http://ns.nuke24.net/TOGVM/Expressions/LiteralString":
+	case "http://ns.nuke24.net/TOGVM/Expressions/LiteralNumber":
+	case "http://ns.nuke24.net/TOGVM/Expressions/LiteralBoolean":
+		return expression.literalValue;
+	case "http://ns.nuke24.net/TOGVM/Expressions/ArrayConstruction":
+		const argValues:any[] = [];
+		for( let i=0; i<expression.values.length; ++i ) {
+			argValues.push(evalInternalSystemProgram(expression.values[i], ctx));
+		}
+		return argValues;
+	case "http://ns.nuke24.net/TOGVM/Expressions/Variable":
+		return ctx.variableValues[expression.variableName];
+	case "http://ns.nuke24.net/TOGVM/Expressions/FunctionApplication":
+		{
+			const argValues:any[] = [];
+			for( let i=0; i<expression.arguments.length; ++i ) {
+				argValues.push(evalInternalSystemProgram(expression.arguments[i], ctx));
+			}
+			if( !expression.functionRef ) throw new Error("Oh no dynamic functions not implemented boo");
+			switch( expression.functionRef ) {
+			case "http://ns.nuke24.net/InternalSystemFunctions/Trace":
+				console.debug("Trace from entity subsystem program", argValues, ctx);
+				break;
+			case "http://ns.nuke24.net/InternalSystemFunctions/ProgN":
+				return argValues.length == 0 ? undefined : argValues[argValues.length-1];
+			case "http://ns.nuke24.net/InternalSystemFunctions/SendBusMessage":
+				if( argValues.length == 1 ) { 
+					const bm = argValues[0];
+					if( !Array.isArray(bm) || bm.length < 1 || typeof bm[0] != 'string' ) {
+						throw new Error("Entity message must be an array with string as first element");
+					}
+					ctx.busMessageQueue.push( bm );
+					return null;
+				} else {
+					throw new Error("SendBusMessage given non-1 arguments: "+JSON.stringify(argValues));
+				}
+			default:
+				throw new Error("Call to unsupported function "+expression.functionRef);
+			}
+		}
+		break;
+	default:
+		throw new Error(
+			"Dunno how to evaluate expression classcamp town ladies sing this song, do da, do da, "+
+			"camp town race track five miles long, oh da do da day: "+expression.classRef);
+	}
+}
+
+function fastForward(state:SimulationState, targetTime:number):SimulationState {
+	if( state.time >= targetTime ) return state;
+	return {
+		enqueuedActions: state.enqueuedActions,
+		physicallyActiveRoomIdSet: state.physicallyActiveRoomIdSet,
+		rootRoomIdSet: state.rootRoomIdSet,
+		time: targetTime
+	}
+}
+
+function appendActions(state:SimulationState, newActions:SimulationAction[]):SimulationState {
+	if( newActions.length == 0 ) return state;
+	return {
+		enqueuedActions: state.enqueuedActions.concat(newActions),
+		physicallyActiveRoomIdSet: state.physicallyActiveRoomIdSet,
+		rootRoomIdSet: state.rootRoomIdSet,
+		time: state.time
+	}
+}
+
+type StateUpdater = (sim:Maze1Simulator, state:SimulationState)=>Promise<SimulationState>;
+
+export default class Maze1Simulator {
+	/*
+	 * Updates are done in 'major steps',
+	 * which consist of 0...n logic updates, a physics update,
+	 * and then 0...n more logic updates.
+	 * 
+	 * A 'major state' is a state before and after a major update.
+	 */
+	
+	/** Promise for the latest major state update */
+	protected _currentMajorStatePromise : Promise<SimulationState>;
+	public logger:Logger = console;
+	public externalDevices:KeyedList<ExternalDevice> = {};
+	public registerExternalDevice( name:string, dev:ExternalDevice ):void {
+		this.externalDevices[name] = dev;
+	}
+	
+	protected _enqueuedActions:SimulationAction[] = [];
+	
+	public constructor( public gameDataManager:GameDataManager, protected state:SimulationState ) {
+		this._currentMajorStatePromise = Promise.resolve(state);
+	}
+	
+	protected majorStepDuration:number = 1/16;
+	protected logicStepDuration:number = 1/8192;
+	
+	protected slurpEnqueuedActionsInto(state:SimulationState):SimulationState {
+		if( this._enqueuedActions.length > 0 ) {
+			state = appendActions(state, this._enqueuedActions);
+			this._enqueuedActions = [];
+		}
+		return state;
+	}
+	
+	protected doLogicUpdates(initialState:SimulationState, targetTime:number):Promise<SimulationState> {
+		// Any newly enqueued actions we want to act on ASAP, so:
+		initialState = this.slurpEnqueuedActionsInto(initialState);
+		if( initialState.time >= targetTime || initialState.enqueuedActions.length == 0 ) {
+			return Promise.resolve(fastForward(initialState, targetTime));
+		}
+		
+		const step = new LogicUpdate(this, initialState, initialState.time+this.logicStepDuration, initialState.time, this.logicStepDuration);
+		return step.doUpdate().then( (newState) => this.doLogicUpdates(newState, targetTime) );
+	}
+	
+	protected interStateUpdaters:StateUpdater[] = [];
+	
+	protected doInterStateUpdates(state:SimulationState, i:number=0 ):Promise<SimulationState> {
+		if( i < this.interStateUpdaters.length ) {
+			return this.interStateUpdaters[i](this, state).then( (newState) => this.doInterStateUpdates(newState, i+1) );
+		}
+		return Promise.resolve(state);
+	}
+	
+	public update():Promise<SimulationState> {
+		return this._currentMajorStatePromise = this._currentMajorStatePromise.then( (state0) => {
+			const startTime = state0.time;
+			const midTime = startTime + this.majorStepDuration/2;
+			const endTime = startTime + this.majorStepDuration;
+			return this.doLogicUpdates(state0, midTime).then( (state1) => {
+				// The physics step appears to happen instantaneously, I guess.
+				const physicsStep = new PhysicsUpdate(this, state1, midTime, startTime, endTime-startTime);
+				return physicsStep.doUpdate();
+			}).then( (state2) => {
+				return this.doLogicUpdates(state2, endTime);
+			}).then( (state3) => this.doInterStateUpdates(state3) );
+		});
+	}
+	
+	// A promise representing the new state created or to-be created
+	// by the most recent call to update().
+	// Anything .then()ned on this promise
+	// should in theory run before the next update starts.
+	// (though of course anything started asynchronously from within that
+	// is liable to run in the middle of an update).
+	public get currentStatePromise() : Promise<SimulationState> {
+		return this._currentMajorStatePromise;
+	}
+	
+	public registerRegularInterStateUpdateer( updater:StateUpdater ) {
+		this.interStateUpdaters.push(updater);
+	}
+	
+	public doOneOffInterStateUpdate( updater:StateUpdater ):Promise<SimulationState> { 
+		return this._currentMajorStatePromise = this._currentMajorStatePromise.then( (state) => updater(this,state) );
+	}
+	
+	public enqueueAction( action:SimulationAction ) {
+		this._enqueuedActions.push(action);
+	}
+	
+	public flushUpdates():Promise<HardSimulationState> {
+		return this._currentMajorStatePromise.then( (state):Promise<HardSimulationState> => {
+			return this.gameDataManager.flushUpdates().then( (dataRef):HardSimulationState => ({
+				time: state.time,
+				enqueuedActions: state.enqueuedActions,
+				physicallyActiveRoomIdSet: state.physicallyActiveRoomIdSet,
+				rootRoomIdSet: state.rootRoomIdSet,
+				dataRef
+			}))
+		});
 	}
 }

@@ -35,6 +35,7 @@ import {
 } from './worldutil';
 import {
 	EntityPath,
+	SimulationAction,
 	ROOMID_SIMULATOR,
 	ROOMID_FINDENTITY,
 	ROOMID_EXTERNAL,
@@ -58,6 +59,9 @@ import {
 import EntitySystemBusMessage from './EntitySystemBusMessage';
 import newUuidRef from './newUuidRef';
 import MazeSimulator, {
+	SimulationState,
+	HardSimulationState,
+	SimulationUpdate,
 	ExternalDevice
 } from './Maze1Simulator';
 
@@ -586,20 +590,195 @@ function sExpressionToProgramExpressionRef(sExp:any[], gdm:GameDataManager):stri
 	);
 }
 
+class LevelSetterUpper extends SimulationUpdate {
+	public constructor(sim:MazeSimulator, state:SimulationState, public playerId:string, protected controllerDeviceId:string ) {
+		super(sim, state);
+	}
+	
+	public createNewPlayerEntity(newPlayerId:string):Entity {
+		const pe = {
+			id: newPlayerId,
+			classRef: dat.playerEntityClassId,
+			desiresMaze1AutoActivation: true,
+			storedEnergy: 100000,
+		};
+		this.addPlayerSubsystems(pe);
+		return pe;
+	}
+	
+	public restartLevel():Promise<SimulationState> {
+		const foundExistingPlayer = this.findRoomEntity(this.playerId)
+		if( foundExistingPlayer ) {
+			console.log("Killing existing player "+foundExistingPlayer.roomEntityId);
+			this.killRoomEntity(foundExistingPlayer.roomRef, foundExistingPlayer.roomEntityId);
+		}
+		const newPlayerId = this.playerId = newUuidRef();
+		let playerPlaced = false;
+		
+		const foundSpawnPoint = this.findRoomEntity(
+			(path,entity) => entity.classRef == dat.spawnPointEntityClassId
+		);
+		if( !foundSpawnPoint ) {
+			return Promise.reject("Failed to find spawn point for player!");
+		}
+		
+		const playerEntity = this.createNewPlayerEntity(newPlayerId);
+		try {
+			this.placeItemSomewhereNear( playerEntity, foundSpawnPoint.roomRef, foundSpawnPoint.roomEntity.position );
+		} catch( err ) {
+			return Promise.reject(new Error("Failed to place player at spawn point "+foundSpawnPoint.roomEntityId));
+		}
+		console.log("Player placed near spawn point "+foundSpawnPoint.roomEntityId+", ID "+newPlayerId);
+		playerPlaced = true;
+		
+		return Promise.resolve(this.initialSimulationState);
+	}
+	
+	protected addPlayerSubsystems( entity:Entity ) {
+		this.logger.log("Adding player subsystems to entity "+entity.id+" with uplink to external device "+this.controllerDeviceId);
+		setEntitySubsystem( entity, ESSKEY_PROXIMALEVENTDETECTOR, {
+			classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/ProximalEventDetector",
+			eventDetectedExpressionRef: sExpressionToProgramExpressionRef(
+				['sendBusMessage', ['makeArray', '/controlleruplink/proximalevent', ['var', 'event']]],
+				this.gameDataManager
+			)
+		}, this.gameDataManager );
+		setEntitySubsystem( entity, "rightarm", {
+			classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/Appendage",
+			maxReachDistance: 1,
+		}, this.gameDataManager);
+		setEntitySubsystem( entity, "leftarm", {
+			classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/Appendage",
+			maxReachDistance: 1,
+		}, this.gameDataManager);
+		setEntitySubsystem( entity, "controlleruplink", {
+			classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/InterEntityBusBridge",
+			forwardEntityPath: [ROOMID_EXTERNAL, this.controllerDeviceId],
+		}, this.gameDataManager );
+	}
+	
+	public fixPlayer():Promise<SimulationState> {
+		const playerRoomEntity = this.getRoomEntityOrUndefined(this.playerId);
+		if( playerRoomEntity ) {
+			this.addPlayerSubsystems(playerRoomEntity.entity);
+			return Promise.resolve(this.initialSimulationState);
+		} else {
+			return this.restartLevel();
+		}
+	}
+	
+	public doUpdate():Promise<SimulationState> { throw new Error("Don't call this."); }
+}
+
+class ViewUpdateStep extends SimulationUpdate {
+	public constructor(sim:MazeSimulator, state:SimulationState, protected demo:MazeDemo) {
+		super(sim,state);
+	}
+	
+	public updateView() {
+		// TODO: Have player entity send messages to the UI
+		// instead of mucking around in game state
+		const newViewage:MazeViewage = { visualEntities: [] };
+		
+		const foundPlayer = this.findRoomEntity(this.demo.playerId);
+		const playerLoc = foundPlayer ? { roomRef: foundPlayer.roomRef, position: foundPlayer.entityPosition } : undefined;
+		
+		if( playerLoc ) {
+			const rasterWidth = 41;
+			const rasterHeight = 31;
+			const rasterResolution = 2;
+			const distance = 21;
+			// Line up raster origin so it falls as close as possible to the center of the raster
+			// while lining up edges with world coordinates
+			// TODO: shouldn't need to snap to integer world coords; raster coords would be fine.
+			const rasterOriginX = Math.floor(rasterWidth /rasterResolution/2) + playerLoc.position.x - Math.floor(playerLoc.position.x);
+			const rasterOriginY = Math.floor(rasterHeight/rasterResolution/2) + playerLoc.position.y - Math.floor(playerLoc.position.y);
+			const visibilityRaster   = new ShadeRaster(rasterWidth, rasterHeight, rasterResolution, rasterOriginX, rasterOriginY);
+			let opacityRaster:ShadeRaster|undefined;
+			const seeAll = this.demo.demoMode == DemoMode.EDIT;
+
+			const visibilityDistanceInRasterPixels = rasterResolution*distance;
+			opacityRaster = new ShadeRaster(rasterWidth, rasterHeight, rasterResolution, rasterOriginX, rasterOriginY);
+			const sceneShader = new SceneShader(this.simulator.gameDataManager);
+			sceneShader.sceneOpacityRaster(playerLoc.roomRef, scaleVector(playerLoc.position, -1), opacityRaster);
+			if( isAllZero(opacityRaster.data) ) console.log("Opacity raster is all zero!");
+			if( isAllNonZero(opacityRaster.data) ) console.log("Opacity raster is all nonzero!");
+			if( seeAll ) {
+				sceneShader.initializeVisibilityRaster(opacityRaster, visibilityRaster, VISIBILITY_MIN);
+			} else {
+				sceneShader.initializeVisibilityRaster(opacityRaster, visibilityRaster);
+				// Player eyes (TODO: configure on entity class):
+				sceneShader.opacityTolVisibilityRaster(opacityRaster, (rasterOriginX-1/4)*rasterResolution, rasterOriginY*rasterResolution, visibilityDistanceInRasterPixels, visibilityRaster);
+				sceneShader.opacityTolVisibilityRaster(opacityRaster, (rasterOriginX+1/4)*rasterResolution, rasterOriginY*rasterResolution, visibilityDistanceInRasterPixels, visibilityRaster);
+				sceneShader.growVisibility(visibilityRaster);
+			}
+			sceneToMazeViewage( playerLoc.roomRef, scaleVector(playerLoc.position, -1), this.simulator.gameDataManager, newViewage, visibilityRaster, seeAll );
+			if( seeAll ) newViewage.cameraLocation = playerLoc;
+
+			newViewage.visibility = visibilityRaster;
+			newViewage.opacity = opacityRaster;
+		} else {
+			console.log("Failed to locate player, "+this.demo.playerId);
+		}
+		
+		{
+			const invItems:PaletteItem[] = [];
+			if( foundPlayer ) {
+				const inv = foundPlayer.entity.maze1Inventory || {};
+				for( let k in inv ) {
+					invItems.push({key: k, entity: inv[k]});
+					if( inv[k].classRef == dat.triforceEntityClassId && !this.demo.foundTriforceThisLevel ) {
+						// omg a triforce
+						++this.demo.foundTriforceCount;
+						this.demo.popUpWinDialog("You have found "+this.demo.foundTriforceCount+" triforces!");
+						this.demo.foundTriforceThisLevel = true;
+					}
+				}
+				if( this.demo.energyIndicator ) this.demo.energyIndicator.value = foundPlayer.entity.storedEnergy;
+				if( foundPlayer.entity.storedEnergy < 1 && this.demo.restartDialog && !this.demo.restartDialog.isVisible ) {
+					this.logger.log("You have run out of energy and died. :(");
+					this.demo.restartDialog.message = "You have run out of energy and died.";
+					this.demo.restartDialog.isVisible = true;
+				} 
+			} else {
+				if( this.demo.energyIndicator ) this.demo.energyIndicator.value = undefined;
+			}
+			this.demo.maze1InventoryUi.setAllSlots(invItems);
+		}
+		
+		const locationDiv = document.getElementById('camera-location-box');
+		if( locationDiv ) {
+			let locationNode = locationDiv.firstChild;
+			if( locationNode == null ) locationDiv.appendChild(locationNode = document.createTextNode(""));
+			const cameraLoc = newViewage.cameraLocation;
+			if( cameraLoc ) {
+				const p = cameraLoc.position;
+				locationNode.nodeValue = cameraLoc.roomRef+" @ "+p.x.toFixed(3)+","+p.y.toFixed(3)+","+p.z.toFixed(3);
+			} else {
+				locationNode.nodeValue = "";
+			}
+		}
+		
+		this.demo.view.viewage = newViewage;
+	}
+	
+	public doUpdate():Promise<SimulationState> { throw new Error("Don't call this."); }
+}
+
 export class MazeDemo {
 	public datastore : Datastore<Uint8Array>;
 	public memoryDatastore : MemoryDatastore<Uint8Array>;
 	public exportDatastore : MemoryDatastore<Uint8Array>;
 	public gameDataManager : GameDataManager;
-	public simulator : MazeSimulator;
+	public simulator : MazeSimulator|undefined;
 	public canvas:HTMLCanvasElement;
 	public soundPlayer:SoundPlayer;
 	public view : MazeView;
-	public playerId : string;
+	public playerId : string = 'no-player-id-set';
 	public tabSwitchesMode : boolean = true;
 	public soundEffectsEnabled : boolean = true;
 	protected tickTimerId? : number;
-	protected tickRate = 1/32;
+	protected tickRate = 1/16;
 	protected _demoMode:DemoMode = DemoMode.PLAY;
 	protected deviceId : string = newUuidRef();
 	
@@ -616,7 +795,7 @@ export class MazeDemo {
 	public saveButton:HTMLButtonElement;
 	public foundTriforceCount:number = 0;
 	public currentLevelNumber:number = 0;
-	protected foundTriforceThisLevel:boolean = false;
+	public foundTriforceThisLevel:boolean = false;
 	public logger:Logger;
 	public loadingStatusUpdated:(text:string)=>any = (t)=>{};
 	
@@ -665,106 +844,18 @@ export class MazeDemo {
 			this.tickTimerId = setInterval(this.tick.bind(this), 1000*this.tickRate);
 		}
 	}
-	public stopSimulation() {
+	public stopSimulation():Promise<void> {
 		if( this.tickTimerId != undefined ) {
 			clearInterval(this.tickTimerId);
 			this.tickTimerId = undefined;
 		}
+		return this.simulator ? this.simulator.currentStatePromise.then( () => {} ) : Promise.resolve();
 	}
 	
 	protected tick() {
-		this.simulator.update(this.tickRate);
-		this.updateView();
+		if( this.simulator ) this.simulator.update();
 	}
 
-	public updateView() {
-		// TODO: Have player entity send messages to the UI
-		// instead of mucking around in game state
-		this.maybePaint();
-		const newViewage:MazeViewage = { visualEntities: [] };
-		
-		const foundPlayer = this.simulator.locateRoomEntity(this.playerId);
-		const playerLoc = foundPlayer ? { roomRef: foundPlayer.roomRef, position: foundPlayer.entityPosition } : undefined;
-		
-		if( playerLoc ) {
-			const rasterWidth = 41;
-			const rasterHeight = 31;
-			const rasterResolution = 2;
-			const distance = 21;
-			// Line up raster origin so it falls as close as possible to the center of the raster
-			// while lining up edges with world coordinates
-			// TODO: shouldn't need to snap to integer world coords; raster coords would be fine.
-			const rasterOriginX = Math.floor(rasterWidth /rasterResolution/2) + playerLoc.position.x - Math.floor(playerLoc.position.x);
-			const rasterOriginY = Math.floor(rasterHeight/rasterResolution/2) + playerLoc.position.y - Math.floor(playerLoc.position.y);
-			const visibilityRaster   = new ShadeRaster(rasterWidth, rasterHeight, rasterResolution, rasterOriginX, rasterOriginY);
-			let opacityRaster:ShadeRaster|undefined;
-			const seeAll = this._demoMode == DemoMode.EDIT;
-
-			const visibilityDistanceInRasterPixels = rasterResolution*distance;
-			opacityRaster = new ShadeRaster(rasterWidth, rasterHeight, rasterResolution, rasterOriginX, rasterOriginY);
-			const sceneShader = new SceneShader(this.simulator.gameDataManager);
-			sceneShader.sceneOpacityRaster(playerLoc.roomRef, scaleVector(playerLoc.position, -1), opacityRaster);
-			if( isAllZero(opacityRaster.data) ) console.log("Opacity raster is all zero!");
-			if( isAllNonZero(opacityRaster.data) ) console.log("Opacity raster is all nonzero!");
-			if( seeAll ) {
-				sceneShader.initializeVisibilityRaster(opacityRaster, visibilityRaster, VISIBILITY_MIN);
-			} else {
-				sceneShader.initializeVisibilityRaster(opacityRaster, visibilityRaster);
-				// Player eyes (TODO: configure on entity class):
-				sceneShader.opacityTolVisibilityRaster(opacityRaster, (rasterOriginX-1/4)*rasterResolution, rasterOriginY*rasterResolution, visibilityDistanceInRasterPixels, visibilityRaster);
-				sceneShader.opacityTolVisibilityRaster(opacityRaster, (rasterOriginX+1/4)*rasterResolution, rasterOriginY*rasterResolution, visibilityDistanceInRasterPixels, visibilityRaster);
-				sceneShader.growVisibility(visibilityRaster);
-			}
-			sceneToMazeViewage( playerLoc.roomRef, scaleVector(playerLoc.position, -1), this.simulator.gameDataManager, newViewage, visibilityRaster, seeAll );
-			if( seeAll ) newViewage.cameraLocation = playerLoc;
-
-			newViewage.visibility = visibilityRaster;
-			newViewage.opacity = opacityRaster;
-		} else {
-			console.log("Failed to locate player, "+this.playerId);
-		}
-		
-		{
-			const invItems:PaletteItem[] = [];
-			if( foundPlayer ) {
-				const inv = foundPlayer.entity.maze1Inventory || {};
-				for( let k in inv ) {
-					invItems.push({key: k, entity: inv[k]});
-					if( inv[k].classRef == dat.triforceEntityClassId && !this.foundTriforceThisLevel ) {
-						// omg a triforce
-						++this.foundTriforceCount;
-						this.popUpWinDialog("You have found "+this.foundTriforceCount+" triforces!");
-						this.foundTriforceThisLevel = true;
-					}
-				}
-				if( this.energyIndicator ) this.energyIndicator.value = foundPlayer.entity.storedEnergy;
-				if( foundPlayer.entity.storedEnergy < 1 && this.restartDialog && !this.restartDialog.isVisible ) {
-					this.logger.log("You have run out of energy and died. :(");
-					this.restartDialog.message = "You have run out of energy and died.";
-					this.restartDialog.isVisible = true;
-				} 
-			} else {
-				if( this.energyIndicator ) this.energyIndicator.value = undefined;
-			}
-			this.maze1InventoryUi.setAllSlots(invItems);
-		}
-		
-		const locationDiv = document.getElementById('camera-location-box');
-		if( locationDiv ) {
-			let locationNode = locationDiv.firstChild;
-			if( locationNode == null ) locationDiv.appendChild(locationNode = document.createTextNode(""));
-			const cameraLoc = newViewage.cameraLocation;
-			if( cameraLoc ) {
-				const p = cameraLoc.position;
-				locationNode.nodeValue = cameraLoc.roomRef+" @ "+p.x.toFixed(3)+","+p.y.toFixed(3)+","+p.z.toFixed(3);
-			} else {
-				locationNode.nodeValue = "";
-			}
-		}
-		
-		this.view.viewage = newViewage;
-	}
-	
 	protected picking:boolean = false;
 
 	// TODO: Make the key codes key_ constants
@@ -869,15 +960,9 @@ export class MazeDemo {
 	}
 	
 	public saveGame():Promise<string> {
-		return this.simulator.flushUpdates().then( (gameDataRef) => {
-			const rrf = this.simulator.rootRoomId;
-			if( rrf == null ) return Promise.reject(new Error("Can't save; no root room specified!"));
-			const saveGame:SaveGame = {
-				gameDataRef: gameDataRef,
-				rootRoomId: rrf,
-				playerId: this.playerId
-			};
-			return storeObject<SaveGame>(saveGame, this.datastore);
+		if( !this.simulator ) throw new Error("Nothing to save!");
+		return this.simulator.flushUpdates().then( (state) => {
+			return storeObject<HardSimulationState>(state, this.datastore);
 		});
 	}
 	public saveGame2(note:string):void {
@@ -971,30 +1056,36 @@ export class MazeDemo {
 		}
 	}
 	
-	public loadGame2(gdm:GameDataManager, playerId:string, rootRoomId:string, gameDescription:string):Promise<MazeSimulator> {
-		this.stopSimulation();
-		this.logLoadingStatus("Loading "+gameDescription+"...");
-		this.context = {
-			gameDataManager: gdm,
-			entityImageManager: new EntityImageManager(gdm)
-		};
-		this.gameDataManager = gdm;
-		this.simulator = new MazeSimulator(gdm);
+	public loadGame2(gdm:GameDataManager, simulationState:SimulationState, playerId:string, gameDescription:string):Promise<MazeSimulator> {
+		this.logLoadingStatus('Waiting for current simulation step to complete...');
 		
-		const thisDev:ExternalDevice = {
-			onMessage: this.handleBusMessage.bind(this)
-		}
-		this.simulator.registerExternalDevice( this.deviceId, thisDev );
-		//this.simulator.registerExternalDevice( 'ui', thisDev );
+		const stopPromise = this.stopSimulation().then( () => {
+			this.logLoadingStatus("Loading "+gameDescription+"...");
+			this.context = {
+				gameDataManager: gdm,
+				entityImageManager: new EntityImageManager(gdm)
+			};
+			this.gameDataManager = gdm;
+			this.simulator = new MazeSimulator(gdm, simulationState);
+			this.simulator.registerRegularInterStateUpdateer( (sim,state) => {
+				this.maybePaint();
+				const viewUpdate = new ViewUpdateStep(sim,state,this);
+				viewUpdate.updateView();
+				return Promise.resolve(state);
+			})
+			
+			const thisDev:ExternalDevice = {
+				onMessage: this.handleBusMessage.bind(this)
+			}
+			this.simulator.registerExternalDevice( this.deviceId, thisDev );
+			//this.simulator.registerExternalDevice( 'ui', thisDev );
+		});
 		
-		const loadPromise = gdm.cacheObjects([
+		const loadPromise = stopPromise.then( () => gdm.cacheObjects([
 			dat.basicTileEntityPaletteRef // A thing whose ID tends to be hard coded around
-		]).then(	() =>
-			this.simulator.fullyLoadRooms( rootRoomId )
-		).then( () => {
+		])).then(	() => {
 			this.playerId = playerId;
 			this.fixPlayer();
-			this.updateView();
 			this.startSimulation();
 			return this.simulator;
 		});
@@ -1015,61 +1106,54 @@ export class MazeDemo {
 		this.stopSimulation();
 		if( saveRef.substr(saveRef.length-1) != '#' ) saveRef += "#";
 		this.logLoadingStatus("Loading save "+saveRef+"...");
-		return fetchObject(saveRef, this.datastore, true).then( (save:SaveGame) => {
-			if( !save.gameDataRef ) return Promise.reject(new Error("Oh no, save data all messed up? "+JSON.stringify(save)));
-			const gdm = new GameDataManager(this.datastore, save.gameDataRef);
-			return this.loadGame2(gdm, save.playerId, save.rootRoomId, saveRef );
+		return fetchObject(saveRef, this.datastore, true).then( (state:HardSimulationState&{playerEntityId?:string}) => {
+			if( !state.rootRoomIdSet ) return Promise.reject(new Error("Oh no, save data all messed up? "+JSON.stringify(state)));
+			const gdm = new GameDataManager(this.datastore, state.dataRef);
+			return this.loadGame2(gdm, state, state.playerEntityId || dat.playerEntityId, saveRef);
 		}, (err) => {
 			this.logLoadingStatus("Error loading save "+saveRef+"!", true, err);
 		});
 	}
 	
-	public createNewPlayerEntity(newPlayerId:string):Entity {
-		const pe = {
-			id: newPlayerId,
-			classRef: dat.playerEntityClassId,
-			desiresMaze1AutoActivation: true,
-			storedEnergy: 100000,
-		};
-		this.addPlayerSubsystems(pe);
-		return pe;
-	}
-	
-	protected addPlayerSubsystems( entity:Entity ) {
-		this.logger.log("Adding player subsystems to entity "+entity.id+" with uplink to external device "+this.deviceId);
-		setEntitySubsystem( entity, ESSKEY_PROXIMALEVENTDETECTOR, {
-			classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/ProximalEventDetector",
-			eventDetectedExpressionRef: sExpressionToProgramExpressionRef(
-				['sendBusMessage', ['makeArray', '/controlleruplink/proximalevent', ['var', 'event']]],
-				this.gameDataManager
-			)
-		}, this.gameDataManager );
-		setEntitySubsystem( entity, "rightarm", {
-			classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/Appendage",
-			maxReachDistance: 1,
-		}, this.gameDataManager);
-		setEntitySubsystem( entity, "leftarm", {
-			classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/Appendage",
-			maxReachDistance: 1,
-		}, this.gameDataManager);
-		setEntitySubsystem( entity, "controlleruplink", {
-			classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/InterEntityBusBridge",
-			forwardEntityPath: [ROOMID_EXTERNAL, this.deviceId],
-		}, this.gameDataManager );
+	public restartLevel():void {
+		if( !this.simulator ) {
+			this.logger.warn("Can't restart level; no simulator!")
+			return;
+		}
+		this.simulator.doOneOffInterStateUpdate( (sim,state) => {
+			const lsu = new LevelSetterUpper(sim,state,this.playerId,this.deviceId);
+			return lsu.restartLevel().catch( (err) => {
+				this.logLoadingStatus("No spawn point found!", true);
+				return state;
+			}).then( (state) => {
+				if( this.restartDialog ) this.restartDialog.isVisible = false;
+				this.playerId = lsu.playerId;
+				return state;
+			});
+		});
 	}
 	
 	/**
 	 * If player does not exist, create one at a spawn point.
 	 * 
 	 * Either way, fix up the player entity to have the required subsystems.
-	 **/	
+	 **/
 	protected fixPlayer():void {
-		const playerRoomEntity = this.simulator.getRoomEntityOrUndefined(this.playerId);
-		if( playerRoomEntity ) {
-			this.addPlayerSubsystems(playerRoomEntity.entity);
-		} else {
-			this.restartLevel();
+		if( !this.simulator ) {
+			this.logger.warn("Can't fix player; no simulator!")
+			return;
 		}
+		this.simulator.doOneOffInterStateUpdate( (sim,state) => {
+			const lsu = new LevelSetterUpper(sim,state,this.playerId,this.deviceId);
+			return lsu.fixPlayer().catch( (err) => {
+				this.logLoadingStatus("No spawn point found!", true);
+				return state;
+			}).then( (state) => {
+				if( this.restartDialog ) this.restartDialog.isVisible = false;
+				this.playerId = lsu.playerId;
+				return state;
+			});
+		});
 	}
 	
 	public loadGame(saveGameRef:string):Promise<MazeSimulator> {
@@ -1078,7 +1162,12 @@ export class MazeDemo {
 		const tempGdm = new GameDataManager(this.datastore);
 		
 		if( saveGameRef == 'demo' ) {
-			return dat.initData(tempGdm).then( () => this.loadGame2( tempGdm, dat.playerEntityId, dat.room1Id, "demo maze" ))
+			return dat.initData(tempGdm).then( () => this.loadGame2( tempGdm, {
+				rootRoomIdSet: {[ dat.room1Id]: true},
+				enqueuedActions: [],
+				physicallyActiveRoomIdSet: {[dat.room1Id]: true},
+				time: 0,
+			}, dat.playerEntityId, "demo maze" ))
 		} else if( saveGameRef == '' || saveGameRef == undefined ) {
 			return Promise.resolve().then( () => this.generateAndLoadNewLevel(0))
 		} else if( (levelReMatch = levelRe.exec(saveGameRef)) ) {
@@ -1087,34 +1176,6 @@ export class MazeDemo {
 			return Promise.resolve().then( () => this.generateAndLoadNewLevel(levelNumber))
 		} else {
 			return this.loadGame1(saveGameRef);
-		}
-	}
-	
-	public restartLevel():void {
-		const newPlayerId = this.playerId = newUuidRef();
-		let playerPlaced = false;
-		for( let r in this.simulator.activeRooms ) {
-			const room = this.simulator.activeRooms[r];
-			for( let re in room.roomEntities ) {
-				const roomEntity = room.roomEntities[re];
-				if( !playerPlaced && roomEntity.entity.classRef == dat.spawnPointEntityClassId ) {
-					const playerEntity = this.createNewPlayerEntity(newPlayerId);
-					try {
-						this.simulator.placeItemSomewhereNear( playerEntity, r, roomEntity.position );
-					} catch( err ) {
-						console.warn("Failed to place player at spawn point "+re);
-					}
-					console.log("Player placed near spawn point "+re+", ID "+newPlayerId);
-					playerPlaced = true;
-				}
-				if( re != newPlayerId && roomEntity.entity.classRef == dat.playerEntityClassId ) {
-					this.simulator.killRoomEntity(r, re);
-				}
-			}
-		}
-		if( this.restartDialog ) this.restartDialog.isVisible = false;
-		if( !playerPlaced ) {
-			this.logLoadingStatus("No spawn point found!", true);
 		}
 	}
 	
@@ -1152,7 +1213,12 @@ export class MazeDemo {
 				return worldifier;
 			}).then( (worldifier) => mazeToWorld(worldifier) ).then( ({gdm, playerId, startRoomRef}) => {
 				this.hideDialog(this.winDialog);
-				return this.loadGame2( gdm, playerId, startRoomRef, "generated maze" );
+				return this.loadGame2( gdm, {
+					enqueuedActions: [],
+					physicallyActiveRoomIdSet: {[startRoomRef]:true},
+					rootRoomIdSet: {[startRoomRef]:true},
+					time: 0,
+				}, playerId, "generated maze" );
 			}, (err) => {
 				if( attempts < 50 ) {
 					this.logger.warn("Maze generation failed; trying agin (attempt #"+attempts+"): ", err);
@@ -1200,7 +1266,7 @@ export class MazeDemo {
 	}
 	
 	public inspect(ref:string):Promise<any> {
-		return this.simulator.gameDataManager.fetchObject(ref);
+		return this.gameDataManager.fetchObject(ref);
 	}
 	
 	public exportCachedData() {
@@ -1352,8 +1418,16 @@ export class MazeDemo {
 	public goToCommandHistoryBeginning() { this.goToCommandHistory(0); }
 	public goToCommandHistoryEnd() { this.goToCommandHistory(this.commandHistory.length); }
 	
+	public enqueueAction(act:SimulationAction):void {
+		if( !this.simulator ) {
+			this.logger.warn("Can't enqueue action; no simulation");
+			return;
+		}
+		this.simulator.enqueueAction(act);
+	}
+	
 	public enqueueInternalBusMessage(entityPath:EntityPath, busMessage:EntitySystemBusMessage, replyPath?:EntityPath):void {
-		this.simulator.enqueueAction({
+		this.enqueueAction({
 			classRef: "http://ns.nuke24.net/Game21/SimulationAction/InduceSystemBusMessage",
 			entityPath: entityPath,
 			busMessage,
@@ -1785,7 +1859,7 @@ export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string, loadingSt
 		tpArea.appendChild( invUi.element );
 		tpArea.appendChild( tpUi.element );
 		gameLoaded.then( () => {
-			const entityRenderer = new TileEntityRenderer(demo.simulator.gameDataManager);
+			const entityRenderer = new TileEntityRenderer(demo.gameDataManager);
 			invUi.entityRenderer = tpUi.entityRenderer = (ent:Entity, orientation:Quaternion):Promise<string|null> => {
 				return entityRenderer.entityIcon(ent, orientation).then( (icon) => icon.sheetRef );
 			};
