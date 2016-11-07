@@ -24,8 +24,12 @@
 
 ## Misc to-do items
 
+Figure out why vision refactoring
+(c4791e7db15ba1c8196d9a87c90a0f623ef185fc..84da1e0da789f0565edc030df7a61ea38ca5ce03)
+made everything super slow (FPS on Harold down from 30-32 to 9-15).
+
 Work towards network simulation
-- Vision data forwarded through player
+* Vision data forwarded through player
 - Have a button that sends an OSC message through a physical wire
 Maze1 simulation incremental refactoring
 - Move simulator + physics engine to own file
