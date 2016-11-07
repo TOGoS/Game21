@@ -9,9 +9,10 @@ import TimeTargetted from './TimeTargetted';
 
 import { deepFreeze } from './DeepFreezer';
 
-export type ProtoObjectRef = string;
-export type RoomRef = string;
-export type EntityClassRef = string;
+import { Ref, SoftRef } from './lwtypes';
+
+export type RoomRef = SoftRef;
+export type EntityClassRef = Ref;
 export type EntityState = KeyedList<any>;
 
 export const EMPTY_STATE = deepFreeze({});

@@ -9,9 +9,14 @@ import MinHeap  from './MinHeap';
 // Keys for singleton systems
 
 export const ESSKEY_PROXIMALEVENTDETECTOR = "proximaleventdetector";
+export const ESSKEY_VISION = "vision";
+
+// Commit this change later, ha ha aha.
+export const ESSCR_CONDUCTOR : "http://ns.nuke24.net/Game21/EntitySubsystem/Conductor" = "http://ns.nuke24.net/Game21/EntitySubsystem/Conductor";
+export const ESSCR_VISION : "http://ns.nuke24.net/Game21/EntitySubsystem/Vision" = "http://ns.nuke24.net/Game21/EntitySubsystem/Vision";
 
 export interface Conductor {
-	classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/Conductor";
+	classRef: typeof ESSCR_CONDUCTOR;
 	mediumRef: string; // Same as message transmission mediums, e.g. "http://ns.nuke24.net/Game21/TransmissionMedia/Copper"
 	endpointPositions : Vector3D[];
 }
@@ -62,9 +67,14 @@ export interface Appendage {
 }
 
 export interface Vision {
-	classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/Vision";
+	classRef: typeof ESSCR_VISION;
 	eyePositions: Vector3D[];
-	distance : number;
+	maxViewDistance : number;
+	isEnabled : boolean; /** Do scan at next opportunity */
+	isOmniscient? : boolean;
+	lastScanTime? : number;
+	minScanInterval : number; /** Number of seconds between scans */
+	disableAfterNextScan? : boolean;
 	sceneExpressionRef? : string;
 }
 

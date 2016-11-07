@@ -40,7 +40,12 @@ import {
 	ROOMID_FINDENTITY,
 	ROOMID_EXTERNAL,
 } from './simulationmessaging';
-import EntitySubsystem, { ESSKEY_PROXIMALEVENTDETECTOR } from './EntitySubsystem'
+import EntitySubsystem, {
+	ESSKEY_PROXIMALEVENTDETECTOR,
+	ESSKEY_VISION,
+	ESSCR_VISION,
+} from './EntitySubsystem'
+import ViewScene from './Maze1ViewScene';
 import * as esp from './internalsystemprogram';
 import * as dat from './maze1demodata';
 import * as http from './http';
@@ -58,12 +63,11 @@ import {
 } from './world';
 import EntitySystemBusMessage from './EntitySystemBusMessage';
 import newUuidRef from './newUuidRef';
-import MazeSimulator, {
-	SimulationState,
-	HardSimulationState,
-	SimulationUpdate,
-	ExternalDevice
-} from './Maze1Simulator';
+
+import { SimulationUpdateContext, ExternalDevice } from './maze1simulationstuff'; 
+import SimulationUpdate from './Maze1SimulationUpdate';
+import MazeSimulator from './Maze1Simulator';
+import SimulationState, { HardSimulationState } from './Maze1SimulationState';
 
 import Tokenizer from './lang/Tokenizer';
 import Token, { TokenType } from './lang/Token';
@@ -229,18 +233,6 @@ interface Icon {
 	scaleY : number;
 }
 
-interface MazeViewage {
-	/**
-	 * When in editor mode, this will be a copy
-	 * of the RoomEntities aroound the camera.
-	 * Otherwise this will be a visuals-only representation.
-	 */
-	visualEntities : RoomVisualEntity[];
-	visibility? : ShadeRaster;
-	opacity? : ShadeRaster; // Fer debuggin
-	cameraLocation? : RoomLocation;
-}
-
 class EntityImageManager
 {
 	// Note that this all needs to be completely rewritten
@@ -322,7 +314,7 @@ export class MazeView {
 	protected _entityImageManager:EntityImageManager|undefined;
 	public constructor( public canvas:HTMLCanvasElement ) { }
 	
-	protected _viewage : MazeViewage = { visualEntities: [] };
+	protected _viewage : ViewScene = { visualEntities: [] };
 	public ppm = 16;
 
 	public occlusionFillStyle:string = 'rgba(96,64,64,1)';
@@ -484,9 +476,9 @@ export class MazeView {
 		});
 	}
 	
-	public get viewage() { return this._viewage; }
+	public get viewScene() { return this._viewage; }
 	
-	public set viewage(v:MazeViewage) {
+	public set viewScene(v:ViewScene) {
 		this._viewage = v;
 		this.requestRedraw();
 	}
@@ -495,56 +487,6 @@ export class MazeView {
 		const pdx = x - this.screenCenterX, pdy = y - this.screenCenterY;
 		const ppm = this.ppm;
 		return setVector( dest, pdx/ppm, pdy/ppm, 0 );
-	}
-}
-
-function roomToMazeViewage( roomRef:string, roomPosition:Vector3D, gdm:GameDataManager, viewage:MazeViewage, visibility:ShadeRaster, includeGreatInfo:boolean ):void {
-	const room = gdm.getRoom(roomRef);
-	if( room == null ) throw new Error("Failed to load room "+roomRef);
-	
-	let _entityToMazeViewage = ( entity:Entity, position:Vector3D, orientation:Quaternion  ) => {}
-	_entityToMazeViewage = ( entity:Entity, position:Vector3D, orientation:Quaternion ) => {
-		const entityClass = gdm.getEntityClass(entity.classRef);
-		if( entityClass == null ) throw new Error("Failed to load entity class "+entity.classRef);
-		if( entityClass.visualRef ) {
-			const minVrX = Math.max(0                , Math.floor((position.x+entityClass.visualBoundingBox.minX+visibility.originX)*visibility.resolution));
-			const minVrY = Math.max(0                , Math.floor((position.y+entityClass.visualBoundingBox.minY+visibility.originY)*visibility.resolution));
-			const maxVrX = Math.min(visibility.width , Math.ceil( (position.x+entityClass.visualBoundingBox.maxX+visibility.originX)*visibility.resolution));
-			const maxVrY = Math.min(visibility.height, Math.ceil( (position.y+entityClass.visualBoundingBox.maxY+visibility.originY)*visibility.resolution));
-			//console.log("Visibility bounds: "+minVrX+","+minVrY+" - "+maxVrX+","+maxVrY);
-			let visible = false;
-			isVisibleLoop: for( let vry=minVrY; vry<maxVrY; ++vry ) for( let vrx=minVrX; vrx<maxVrX; ++vrx ) {
-				//console.log("Check bisibility raster@"+vrx+","+vry+"; "+(visibility.width*vry+vrx)+" = "+visibility.data[visibility.width*vry+vrx]);
-				if( visibility.data[visibility.width*vry+vrx] >= VISIBILITY_MIN ) {
-					visible = true;
-					break isVisibleLoop;
-				}
-			}
-			
-			// TODO: Re-use items, visuals
-			if( visible ) viewage.visualEntities.push( {
-				position,
-				orientation: orientation,
-				visualRef: entityClass.visualRef,
-				entity: includeGreatInfo ? entity : undefined,
-			})
-		}
-		eachSubEntity( entity, position, gdm, _entityToMazeViewage );
-	};
-
-	for( let re in room.roomEntities ) {
-		const roomEntity = room.roomEntities[re];
-		const orientation = roomEntity.orientation ? roomEntity.orientation : Quaternion.IDENTITY;
-		_entityToMazeViewage( roomEntity.entity, addVector(roomPosition, roomEntity.position), orientation );
-	}
-}
-function sceneToMazeViewage( roomRef:string, roomPosition:Vector3D, gdm:GameDataManager, viewage:MazeViewage, visibility:ShadeRaster, includeGreatInfo:boolean ):void {
-	const room = gdm.getRoom(roomRef);
-	if( room == null ) throw new Error("Failed to load room "+roomRef);
-	roomToMazeViewage( roomRef, roomPosition, gdm, viewage, visibility, includeGreatInfo );
-	for( let n in room.neighbors ) {
-		const neighb = room.neighbors[n];
-		roomToMazeViewage( neighb.roomRef, addVector(roomPosition, neighb.offset), gdm, viewage, visibility, includeGreatInfo );
 	}
 }
 
@@ -591,7 +533,7 @@ function sExpressionToProgramExpressionRef(sExp:any[], gdm:GameDataManager):stri
 }
 
 class LevelSetterUpper extends SimulationUpdate {
-	public constructor(sim:MazeSimulator, state:SimulationState, public playerId:string, protected controllerDeviceId:string ) {
+	public constructor(sim:SimulationUpdateContext, state:SimulationState, public playerId:string, protected controllerDeviceId:string ) {
 		super(sim, state);
 	}
 	
@@ -650,10 +592,24 @@ class LevelSetterUpper extends SimulationUpdate {
 				classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/Appendage",
 				maxReachDistance: 1,
 			},
+			[ESSKEY_VISION]: {
+				classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/Vision",
+				eyePositions: [
+					makeVector(-1/8, -1/8, 0),
+					makeVector(+1/8, -1/8, 0),
+				],
+				isEnabled: true,
+				maxViewDistance: 32,
+				minScanInterval: 1/60,
+				sceneExpressionRef: sExpressionToProgramExpressionRef(
+					['sendBusMessage', ['makeArray', '/controlleruplink/viewscene', ['var', 'viewScene']]],
+					this.gameDataManager
+				)
+			},
 			"controlleruplink": {
 				classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/InterEntityBusBridge",
 				forwardEntityPath: [ROOMID_EXTERNAL, this.controllerDeviceId],
-			}
+			},
 		}
 	}
 	
@@ -672,103 +628,6 @@ class LevelSetterUpper extends SimulationUpdate {
 	public doUpdate():Promise<SimulationState> { throw new Error("Don't call this."); }
 }
 
-class ViewUpdateStep extends SimulationUpdate {
-	public constructor(sim:MazeSimulator, state:SimulationState, protected demo:MazeDemo) {
-		super(sim,state);
-	}
-	
-	public updateView() {
-		// TODO: Have player entity send messages to the UI
-		// instead of mucking around in game state
-		const newViewage:MazeViewage = { visualEntities: [] };
-		
-		const foundPlayer = this.findRoomEntity(this.demo.playerId);
-		const playerLoc = foundPlayer ? { roomRef: foundPlayer.roomRef, position: foundPlayer.entityPosition } : undefined;
-		
-		if( playerLoc ) {
-			const rasterWidth = 41;
-			const rasterHeight = 31;
-			const rasterResolution = 2;
-			const distance = 21;
-			// Line up raster origin so it falls as close as possible to the center of the raster
-			// while lining up edges with world coordinates
-			// TODO: shouldn't need to snap to integer world coords; raster coords would be fine.
-			const rasterOriginX = Math.floor(rasterWidth /rasterResolution/2) + playerLoc.position.x - Math.floor(playerLoc.position.x);
-			const rasterOriginY = Math.floor(rasterHeight/rasterResolution/2) + playerLoc.position.y - Math.floor(playerLoc.position.y);
-			const visibilityRaster   = new ShadeRaster(rasterWidth, rasterHeight, rasterResolution, rasterOriginX, rasterOriginY);
-			let opacityRaster:ShadeRaster|undefined;
-			const seeAll = this.demo.demoMode == DemoMode.EDIT;
-
-			const visibilityDistanceInRasterPixels = rasterResolution*distance;
-			opacityRaster = new ShadeRaster(rasterWidth, rasterHeight, rasterResolution, rasterOriginX, rasterOriginY);
-			const sceneShader = new SceneShader(this.simulator.gameDataManager);
-			sceneShader.sceneOpacityRaster(playerLoc.roomRef, scaleVector(playerLoc.position, -1), opacityRaster);
-			if( isAllZero(opacityRaster.data) ) console.log("Opacity raster is all zero!");
-			if( isAllNonZero(opacityRaster.data) ) console.log("Opacity raster is all nonzero!");
-			if( seeAll ) {
-				sceneShader.initializeVisibilityRaster(opacityRaster, visibilityRaster, VISIBILITY_MIN);
-			} else {
-				sceneShader.initializeVisibilityRaster(opacityRaster, visibilityRaster);
-				// Player eyes (TODO: configure on entity class):
-				sceneShader.opacityTolVisibilityRaster(opacityRaster, (rasterOriginX-1/4)*rasterResolution, rasterOriginY*rasterResolution, visibilityDistanceInRasterPixels, visibilityRaster);
-				sceneShader.opacityTolVisibilityRaster(opacityRaster, (rasterOriginX+1/4)*rasterResolution, rasterOriginY*rasterResolution, visibilityDistanceInRasterPixels, visibilityRaster);
-				sceneShader.growVisibility(visibilityRaster);
-			}
-			sceneToMazeViewage( playerLoc.roomRef, scaleVector(playerLoc.position, -1), this.simulator.gameDataManager, newViewage, visibilityRaster, seeAll );
-			if( seeAll ) newViewage.cameraLocation = playerLoc;
-
-			newViewage.visibility = visibilityRaster;
-			newViewage.opacity = opacityRaster;
-		} else {
-			console.log("Failed to locate player, "+this.demo.playerId);
-		}
-		
-		{
-			const invItems:PaletteItem[] = [];
-			if( foundPlayer ) {
-				const inv = foundPlayer.entity.maze1Inventory || {};
-				for( let k in inv ) {
-					invItems.push({key: k, entity: inv[k]});
-					if( inv[k].classRef == dat.triforceEntityClassId && !this.demo.foundTriforceThisLevel ) {
-						// omg a triforce
-						++this.demo.foundTriforceCount;
-						this.demo.popUpWinDialog("You have found "+this.demo.foundTriforceCount+" triforces!");
-						this.demo.foundTriforceThisLevel = true;
-					}
-				}
-				if( this.demo.energyIndicator ) this.demo.energyIndicator.value = foundPlayer.entity.storedEnergy;
-				if( foundPlayer.entity.storedEnergy < 1 && this.demo.restartDialog && !this.demo.restartDialog.isVisible ) {
-					this.logger.log("You have run out of energy and died. :(");
-					this.demo.restartDialog.message = "You have run out of energy and died.";
-					this.demo.restartDialog.isVisible = true;
-				} 
-			} else {
-				if( this.demo.energyIndicator ) this.demo.energyIndicator.value = undefined;
-			}
-			this.demo.maze1InventoryUi.setAllSlots(invItems);
-		}
-		
-		const locationDiv = document.getElementById('camera-location-box');
-		if( locationDiv ) {
-			let locationNode = locationDiv.firstChild;
-			if( locationNode == null ) locationDiv.appendChild(locationNode = document.createTextNode(""));
-			const cameraLoc = newViewage.cameraLocation;
-			if( cameraLoc ) {
-				const p = cameraLoc.position;
-				locationNode.nodeValue = cameraLoc.roomRef+" @ "+p.x.toFixed(3)+","+p.y.toFixed(3)+","+p.z.toFixed(3);
-			} else {
-				locationNode.nodeValue = "";
-			}
-		}
-		
-		this.demo.view.viewage = newViewage;
-		
-		this.demo.simulationUpdated( elementCount(this.initialSimulationState.physicallyActiveRoomIdSet) );
-	}
-	
-	public doUpdate():Promise<SimulationState> { throw new Error("Don't call this."); }
-}
-
 export class MazeDemo {
 	public datastore : Datastore<Uint8Array>;
 	public memoryDatastore : MemoryDatastore<Uint8Array>;
@@ -782,7 +641,7 @@ export class MazeDemo {
 	public tabSwitchesMode : boolean = true;
 	public soundEffectsEnabled : boolean = true;
 	protected tickTimerId? : number;
-	protected tickRate = 1/32;
+	protected tickRate = 1/16;
 	protected _demoMode:DemoMode = DemoMode.PLAY;
 	protected deviceId : string = newUuidRef();
 	
@@ -857,12 +716,14 @@ export class MazeDemo {
 	}
 	
 	protected tick() {
-		if( this.simulator ) this.simulator.update();
+		if( this.simulator ) this.simulator.update().then( (newState) => {
+			this.simulationUpdated(newState);
+		});
 	}
 	
 	protected prevUpdateTime:number|undefined = undefined;
 	protected ups = 0;
-	public simulationUpdated( activeRoomCount:number ) {
+	public simulationUpdated( state:SimulationState ) {
 		const currentTime = new Date().valueOf()/1000; 
 		if( this.prevUpdateTime != undefined ) {
 			const interval = currentTime - this.prevUpdateTime;
@@ -871,7 +732,7 @@ export class MazeDemo {
 		}
 		this.prevUpdateTime = currentTime;
 		
-		this.setCounter('physically-active-room', activeRoomCount.toString() )
+		this.setCounter('physically-active-room', elementCount(state.physicallyActiveRoomIdSet || {}).toString() )
 	}
 
 	protected picking:boolean = false;
@@ -1056,6 +917,14 @@ export class MazeDemo {
 		this.soundPlayer.playSoundByRef(f.dataRef, f.volume);
 	}
 	
+	protected died() {
+		if( this.restartDialog && !this.restartDialog.isVisible ) {
+			this.logger.log("You have run out of energy and died. :(");
+			this.restartDialog.message = "You have run out of energy and died.";
+			this.restartDialog.isVisible = true;
+		}
+	}
+	
 	protected handleBusMessage( msg:EntitySystemBusMessage, replyPath?:EntityPath ) {
 		switch( msg[0] ) {
 		case "/proximalevent":
@@ -1068,6 +937,55 @@ export class MazeDemo {
 				this.playSound( this.itemSounds[evt.itemClassRef] );
 				break;
 			}
+			break;
+		case "/dying":
+			this.died();
+			break;
+		case "/viewscene":
+			const viewScene:ViewScene = msg[1];
+			
+			const invItems:PaletteItem[] = [];
+			const selfState = viewScene.viewerState;
+			if( selfState ) {
+				const inv = selfState.maze1Inventory || {};
+				for( let k in inv ) {
+					invItems.push({key: k, entity: inv[k]});
+					if( inv[k].classRef == dat.triforceEntityClassId && !this.foundTriforceThisLevel ) {
+						// omg a triforce
+						++this.foundTriforceCount;
+						this.popUpWinDialog("You have found "+this.foundTriforceCount+" triforces!");
+						this.foundTriforceThisLevel = true;
+					}
+				}
+				if( this.energyIndicator ) this.energyIndicator.value = selfState.storedEnergy;
+				if( selfState.storedEnergy < 1 ) {
+					this.died();
+				}
+			} else {
+				if( this.energyIndicator ) this.energyIndicator.value = undefined;
+			}
+			this.maze1InventoryUi.setAllSlots(invItems);
+			
+			const locationDiv = document.getElementById('camera-location-box');
+			const cameraLoc = viewScene.viewerLocation;
+			if( locationDiv ) {
+				let locationNode = locationDiv.firstChild;
+				if( locationNode == null ) locationDiv.appendChild(locationNode = document.createTextNode(""));
+				if( cameraLoc ) {
+					const p = cameraLoc.position;
+					locationNode.nodeValue = cameraLoc.roomRef+" @ "+p.x.toFixed(3)+","+p.y.toFixed(3)+","+p.z.toFixed(3);
+				} else {
+					locationNode.nodeValue = "";
+				}
+			}
+			
+			if( cameraLoc ) {
+				// Cursor may have moved relative to the world!
+				this.maybePaint();
+			}
+			
+			this.view.viewScene = viewScene;
+			
 			break;
 		default:
 			this.logger.warn("Received unrecognized message from simulation", msg, replyPath)
@@ -1086,12 +1004,6 @@ export class MazeDemo {
 			this.gameDataManager = gdm;
 			this.simulator = new MazeSimulator(gdm, simulationState);
 			this.simulator.majorStepDuration = this.tickRate;
-			this.simulator.registerRegularInterStateUpdateer( (sim,state) => {
-				this.maybePaint();
-				const viewUpdate = new ViewUpdateStep(sim,state,this);
-				viewUpdate.updateView();
-				return Promise.resolve(state);
-			})
 			
 			const thisDev:ExternalDevice = {
 				onMessage: this.handleBusMessage.bind(this)
@@ -1637,7 +1549,7 @@ export class MazeDemo {
 					break;
 				case 'connect-new-room': case 'dig-new-room': case 'dnr':
 					{
-						const currentLocation = this.view.viewage.cameraLocation;
+						const currentLocation = this.view.viewScene.viewerLocation;
 						if( !currentLocation || !currentLocation.roomRef ) {
 							this.logger.error("Can't dig to new room; current room ID not known.");
 							break doCommand;
