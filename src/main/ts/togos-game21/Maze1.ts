@@ -860,7 +860,7 @@ export class MazeDemo {
 		if( this.simulator ) this.simulator.update();
 	}
 	
-	protected prevUpdateTime:number = undefined;
+	protected prevUpdateTime:number|undefined = undefined;
 	protected ups = 0;
 	public simulationUpdated( activeRoomCount:number ) {
 		const currentTime = new Date().valueOf()/1000; 
@@ -1285,7 +1285,7 @@ export class MazeDemo {
 		if( this.gameInterfaceElem ) this.gameInterfaceElem.focus();
 	}
 	
-	protected elementCache:KeyedList<HTMLElement> = {};
+	protected elementCache:KeyedList<HTMLElement|null> = {};
 	
 	protected getHtmlElement(key:string):HTMLElement|undefined|null {
 		if( this.elementCache.hasOwnProperty(key) ) return this.elementCache[key];
