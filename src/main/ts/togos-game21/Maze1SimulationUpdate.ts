@@ -79,6 +79,10 @@ import {
 import SimulationState from './Maze1SimulationState';
 import { SimulationUpdateContext } from './maze1simulationstuff';
 
+/**
+ * Base class for update steps
+ * with a whole bunch of handy functions.
+ */
 abstract class SimulationUpdate {
 	protected gameDataManager:GameDataManager;
 	protected newEnqueuedActions:SimulationAction[];
@@ -175,12 +179,11 @@ abstract class SimulationUpdate {
 		const loadingRoomIdSet:LWSet<RoomID> = {};
 		for( let r in roomIds ) {
 			if( !loadingRoomIdSet[r] ) {
+				loadingRoomIdSet[r] = true;
 				// Due to the nature of primises,
 				// allPromises will first be filled with fully load room + neighbor promises,
 				// then the remaining neighbor ones.
-				const p = this.fullyLoadRoom(r).then( (room) => this.fullyLoadImmediateNeighbors(room, loadingRoomIdSet) );
-				loadingRoomIdSet[r] = true;
-				newPromises.push(p);
+				newPromises.push(this.fullyLoadRoom(r).then( (room) => this.fullyLoadImmediateNeighbors(room, loadingRoomIdSet) ));
 			}
 		}
 		return Promise.all(newPromises).then( () => loadingRoomIdSet );

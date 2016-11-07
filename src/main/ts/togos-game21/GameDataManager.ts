@@ -48,6 +48,7 @@ type Set<T extends string> = Map<T,boolean>; // Or could use booleans like the g
 
 export default class GameDataManager {
 	protected objectMapManager: DistributedBucketMapManager<string>;
+	protected fullyCachedRooms: Set<HardRef> = {};
 	protected objectCache: Map<Ref,any> = {};
 	protected knownStored: Set<HardRef> = {};
 	/**
@@ -273,6 +274,7 @@ export default class GameDataManager {
 		}
 		this.objectCache = newCache;
 		this.knownStored = {};
+		this.fullyCachedRooms = {};
 	}
 	
 	public updateMap( updates:Map<SoftRef,HardRef> ):Promise<string> {
@@ -385,13 +387,23 @@ export default class GameDataManager {
 	}
 	
 	public fullyCacheRoom( roomId:string ):Promise<Room> {
+		// This assumes that a room has no changed to include something
+		// that isn't cached.
+		// But that's not the expected use case for this function, so whatever.
+		// Could change it to only look at hard refs,
+		// which decreases the likelihood of that use case further.
+		if( this.fullyCachedRooms[roomId] ) return Promise.resolve(this.getRoom(roomId));
+		
 		return this.fetchObject<Room>( roomId ).then( (room:Room) => {
 			const itemPromises:Promise<any>[] = [];
 			for( let re in room.roomEntities ) {
 				const roomEntity = room.roomEntities[re];
 				this._fullyCacheEntity(roomEntity.entity, itemPromises);
 			}
-			return Promise.all(itemPromises).then( () => room );
+			return Promise.all(itemPromises).then( () => {
+				this.fullyCachedRooms[roomId] = true;
+				return room;
+			});
 		});
 	}
 }

@@ -24,15 +24,13 @@
 
 ## Misc to-do items
 
-Figure out why vision refactoring
-(c4791e7db15ba1c8196d9a87c90a0f623ef185fc..84da1e0da789f0565edc030df7a61ea38ca5ce03)
-made everything super slow (FPS on Harold down from 30-32 to 9-15).
+Clean up simulation source files
+(they got kind of messy during the recent Maze1SimulationUpdate.ts refactor,
+with some definitions duplicated between files).
 
 Work towards network simulation
-* Vision data forwarded through player
 - Have a button that sends an OSC message through a physical wire
 Maze1 simulation incremental refactoring
-- Move simulator + physics engine to own file
 - Maze1Demo becomes Maze1UI
   - and continue to decouple from simulation
 - Partially immutable game states
@@ -259,3 +257,15 @@ Random maze generation:
 * more decorations
 * Fix: player can occasionally start stuck in a wall
 * cave rooms;
+Maze1 simulation, post-random-maze-contest:
+* Move simulator + physics engine to own file
+* Vision data forwarded through player
+* Figure out why vision refactoring
+  (c4791e7db15ba1c8196d9a87c90a0f623ef185fc..84da1e0da789f0565edc030df7a61ea38ca5ce03)
+  made everything super slow (FPS on Harold down from 30-32 to 9-15).
+  - Chrome's profiler to the rescue! (srsly this made it obvious right away)
+  - fullyCacheTileEntityPalette was taking up a lot of time
+    since each simulation step tries to fully cache all the rooms its going to work on ahead of time.
+  - Made GameDataManager#fillyCacheRoom remember when rooms are already fully cached.
+  - This could be further optimized, but that made a huge difference.
+  Lesson: Use the profiler.

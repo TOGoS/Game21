@@ -641,7 +641,7 @@ export class MazeDemo {
 	public tabSwitchesMode : boolean = true;
 	public soundEffectsEnabled : boolean = true;
 	protected tickTimerId? : number;
-	protected tickRate = 1/16;
+	protected tickRate = 1/32;
 	protected _demoMode:DemoMode = DemoMode.PLAY;
 	protected deviceId : string = newUuidRef();
 	
