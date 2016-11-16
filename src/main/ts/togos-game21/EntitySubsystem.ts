@@ -12,13 +12,24 @@ export const ESSKEY_PROXIMALEVENTDETECTOR = "proximaleventdetector";
 export const ESSKEY_VISION = "vision";
 
 // Commit this change later, ha ha aha.
-export const ESSCR_CONDUCTOR : "http://ns.nuke24.net/Game21/EntitySubsystem/Conductor" = "http://ns.nuke24.net/Game21/EntitySubsystem/Conductor";
+export const ESSCR_CONDUCTOR_NETWORK : "http://ns.nuke24.net/Game21/EntitySubsystem/ConductorNetwork" = "http://ns.nuke24.net/Game21/EntitySubsystem/ConductorNetwork";
 export const ESSCR_VISION : "http://ns.nuke24.net/Game21/EntitySubsystem/Vision" = "http://ns.nuke24.net/Game21/EntitySubsystem/Vision";
 
-export interface Conductor {
-	classRef: typeof ESSCR_CONDUCTOR;
-	mediumRef: string; // Same as message transmission mediums, e.g. "http://ns.nuke24.net/Game21/TransmissionMedia/Copper"
-	endpointPositions : Vector3D[];
+export interface ConductorLink {
+	endpoint0Index : number;
+	endpoint1Index : number;
+	mediumIndex : number;
+	area : number;
+	length : number;
+}
+
+export interface ConductorNetwork {
+	classRef: typeof ESSCR_CONDUCTOR_NETWORK;
+	nodePositions : Vector3D[];
+	mediumRefs : string[];
+	links : ConductorLink[];
+	subNetworks? : ConductorNetwork[];
+	subNetworkPositions? : Vector3D[];
 }
 
 /**
@@ -86,7 +97,7 @@ export interface InterEntityBusBridge {
 export type EntitySubsystem =
 	Appendage |
 	Button |
-	Conductor |
+	ConductorNetwork |
 	EntityMorpher |
 	InterEntityBusBridge |
 	MessageDelayer |

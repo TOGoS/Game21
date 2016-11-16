@@ -10,7 +10,7 @@ import {
 	Room, RoomEntity, Entity, EntityClass, StructureType, TileTree, TileEntityPalette
 } from './world';
 import EntitySystemBusMessage from './EntitySystemBusMessage';
-import EntitySubsystem from './EntitySubsystem';
+import EntitySubsystem, { ESSCR_CONDUCTOR_NETWORK, ConductorNetwork } from './EntitySubsystem';
 import GameDataManager from './GameDataManager';
 import { deepFreeze } from './DeepFreezer';
 import { hash, sha1Urn, base32Encode } from '../tshash/index';
@@ -56,6 +56,8 @@ export function makeTileEntityPaletteRef( palette:any, gdm?:GameDataManager, ali
 	return gdm.tempStoreObject(tilePalette, alias);
 }
 
+// TODO: Update to pass position, bounding box, orientation, entity
+// in a standard order and to the callback in a standard order.
 /**
  * It is safe to pass posBuffer = pos
  * so long as you don't rely on that buffer
@@ -290,4 +292,34 @@ export function getEntitySubsystems(entity:Entity, gdm:GameDataManager):KeyedLis
 		}
 	}
 	return mergedSubsystems;
+}
+
+// "x,y,z"
+type VectorString = string;
+interface ConductorEndpoint {
+	position : Vector3D[];
+	resistance : number; // integral along length of resistivity * length / area
+}
+
+export function mergeConductorNetworks( n0Pos:Vector3D, n0:ConductorNetwork, n1Pos:Vector3D, n1:ConductorNetwork ):ConductorNetwork {
+	throw new Error("Not implemented yet");
+}
+
+export function getConductorNetwork( pos:Vector3D, entity:Entity, gdm:GameDataManager ):ConductorNetwork {
+	const subsystems = getEntitySubsystems(entity, gdm);
+	const subnetworks:ConductorNetwork[] = [];
+	for( let ss in subsystems ) {
+		const subsystem = subsystems[ss];
+		switch( subsystem.classRef ) {
+		case "http://ns.nuke24.net/Game21/EntitySubsystem/ConductorNetwork":
+			subnetworks.push( subsystem );
+			break;
+		}
+	}
+	//eachSubEntity(pos, entity, gdm, (subEnt, subEntPos))
+	throw new Error("Not implemented yet");
+}
+
+export function findConductorEndpoints( network:ConductorNetwork, startPos:Vector3D ):ConductorEndpoint[] {
+	throw new Error("Not implemented yet");
 }
