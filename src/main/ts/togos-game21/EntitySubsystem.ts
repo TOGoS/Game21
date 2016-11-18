@@ -15,6 +15,14 @@ export const ESSKEY_VISION = "vision";
 export const ESSCR_CONDUCTOR_NETWORK : "http://ns.nuke24.net/Game21/EntitySubsystem/ConductorNetwork" = "http://ns.nuke24.net/Game21/EntitySubsystem/ConductorNetwork";
 export const ESSCR_VISION : "http://ns.nuke24.net/Game21/EntitySubsystem/Vision" = "http://ns.nuke24.net/Game21/EntitySubsystem/Vision";
 
+export interface ConductorNode {
+	position : Vector3D;
+	/** True if this node can bind to nodes outside its immediate network */
+	isExternal : boolean;
+	/** Indexes of all links that attach to this node */
+	linkIndexes : number[];
+}
+
 export interface ConductorLink {
 	endpoint0Index : number;
 	endpoint1Index : number;
@@ -25,9 +33,9 @@ export interface ConductorLink {
 
 export interface ConductorNetwork {
 	classRef: typeof ESSCR_CONDUCTOR_NETWORK;
-	nodePositions : Vector3D[];
-	mediumRefs : string[];
-	links : ConductorLink[];
+	mediumRefs : (string|undefined)[];
+	nodes : (ConductorNode|undefined)[];
+	links : (ConductorLink|undefined)[];
 	subNetworks? : ConductorNetwork[];
 	subNetworkPositions? : Vector3D[];
 }
