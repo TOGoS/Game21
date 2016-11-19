@@ -27,7 +27,7 @@ export interface ConductorLink {
 	endpoint0Index : number;
 	endpoint1Index : number;
 	mediumIndex : number;
-	area : number;
+	crossSectionalArea : number;
 	length : number;
 }
 
@@ -36,8 +36,8 @@ export interface ConductorNetwork {
 	mediumRefs : (string|undefined)[];
 	nodes : (ConductorNode|undefined)[];
 	links : (ConductorLink|undefined)[];
-	subNetworks? : ConductorNetwork[];
-	subNetworkPositions? : Vector3D[];
+	//subNetworks? : ConductorNetwork[];
+	//subNetworkPositions? : Vector3D[];
 }
 
 /**
