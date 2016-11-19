@@ -293,33 +293,3 @@ export function getEntitySubsystems(entity:Entity, gdm:GameDataManager):KeyedLis
 	}
 	return mergedSubsystems;
 }
-
-// "x,y,z"
-type VectorString = string;
-interface ConductorEndpoint {
-	position : Vector3D[];
-	resistance : number; // integral along length of resistivity * length / area
-}
-
-export function mergeConductorNetworks( n0Pos:Vector3D, n0:ConductorNetwork, n1Pos:Vector3D, n1:ConductorNetwork ):ConductorNetwork {
-	throw new Error("Not implemented yet");
-}
-
-export function getConductorNetwork( pos:Vector3D, entity:Entity, gdm:GameDataManager ):ConductorNetwork {
-	const subsystems = getEntitySubsystems(entity, gdm);
-	const subnetworks:ConductorNetwork[] = [];
-	for( let ss in subsystems ) {
-		const subsystem = subsystems[ss];
-		switch( subsystem.classRef ) {
-		case "http://ns.nuke24.net/Game21/EntitySubsystem/ConductorNetwork":
-			subnetworks.push( subsystem );
-			break;
-		}
-	}
-	//eachSubEntity(pos, entity, gdm, (subEnt, subEntPos))
-	throw new Error("Not implemented yet");
-}
-
-export function findConductorEndpoints( network:ConductorNetwork, startPos:Vector3D ):ConductorEndpoint[] {
-	throw new Error("Not implemented yet");
-}
