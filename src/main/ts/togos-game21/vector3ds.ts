@@ -42,3 +42,7 @@ export function parseVector(a:any):Vector3D {
 	}
 	return makeVector(+a.x,+a.y,+a.z);
 }
+
+export function vectorsAreEqual(a:Vector3D, b:Vector3D) {
+	return a.x == b.x && a.y == b.y && a.z == b.z;
+}
