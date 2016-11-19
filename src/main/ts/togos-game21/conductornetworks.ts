@@ -157,13 +157,13 @@ export function findConductorNetworkNodes( network:ConductorNetwork, pos:Vector3
 //const copperResistivity = 0.000000017; // Ohm meter (because ohm per distance-over-area)
 const approximateCopperResistivity = 9/4 * Math.pow(2, -27); 
 
-export function findConductorEndpoints( network:ConductorNetwork, startPos:Vector3D ):ConductorEndpoint[] {
+export function findConductorEndpoints( network:ConductorNetwork, startNodeIndexes:number[] ):ConductorEndpoint[] {
 	const pathResistances:(number|undefined)[] = [];
 	const visitQueue:number[] = [];
 	const enqueuedAndUnvisited:(boolean|undefined)[] = [];
-	findConductorNetworkNodes(network, startPos, visitQueue);
-	for( let i=0; i<visitQueue.length; ++i ) {
-		pathResistances[i] = 0;
+	for( let i=0; i<startNodeIndexes.length; ++i ) {
+		visitQueue.push(startNodeIndexes[i]);
+		pathResistances[startNodeIndexes[i]] = 0;
 	}
 	for( let i=0; i<visitQueue.length; ++i ) {
 		const n = visitQueue[i];
@@ -185,8 +185,9 @@ export function findConductorEndpoints( network:ConductorNetwork, startPos:Vecto
 			// least-resistant path.
 			if(
 				pathResistances[otherEndNodeIndex] == undefined ||
-				pathResistances[otherEndNodeIndex] < nextPathResistance
-			)
+				pathResistances[otherEndNodeIndex] <= nextPathResistance
+			) continue;
+			
 			pathResistances[otherEndNodeIndex] = nextPathResistance;
 			if( !enqueuedAndUnvisited[otherEndNodeIndex] ) {
 				visitQueue.push(otherEndNodeIndex);
@@ -210,4 +211,8 @@ export function findConductorEndpoints( network:ConductorNetwork, startPos:Vecto
 		});
 	}
 	return endpoints;
+}
+
+export function findConductorEndpointsFromPosition( network:ConductorNetwork, startPos:Vector3D ):ConductorEndpoint[] {
+	return findConductorEndpoints(network, findConductorNetworkNodes(network, startPos));
 }

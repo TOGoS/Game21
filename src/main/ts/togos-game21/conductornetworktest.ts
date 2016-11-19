@@ -1,4 +1,5 @@
 import { ConductorNetworkBuilder, findConductorEndpoints } from './conductornetworks';
+import { TestResult, registerTestResult } from './testing';
 
 const STD_ETH_X = -3/16;
 const STD_ETH_Y = -3/16;
@@ -22,7 +23,7 @@ const STD_WIRE_LENGTH = 1;
 
 */
 
-{
+registerTestResult( "findConductorEndpoints", new Promise<TestResult>( (resolve,reject) => {
 	const builder = new ConductorNetworkBuilder();
 	
 	const bottomNodePos = {x:STD_ETH_X, y:+0.5     , z:STD_ETH_Z};
@@ -36,8 +37,17 @@ const STD_WIRE_LENGTH = 1;
 	builder.link( bottomNodeIdx, midNodeIdx, {
 		crossSectionalArea: STD_WIRE_CSAREA,
 		length: STD_WIRE_LENGTH,
-	})
+	});
+	builder.link( rightNodeIdx, midNodeIdx, {
+		crossSectionalArea: STD_WIRE_CSAREA,
+		length: STD_WIRE_LENGTH,
+	});
 	
-	// TODO: Test that both external endpoints are found
-	// findConductorEndpoints( builder.network, bottomNodePos )
-}
+	const foundEndpoints = findConductorEndpoints( builder.network, [bottomNodeIdx] );
+	
+	if( foundEndpoints.length != 2 ) {
+		return reject(new Error("Expected to find 2 endpoints, but found only "+JSON.stringify(foundEndpoints)));
+	}
+	
+	return resolve({});
+}));
