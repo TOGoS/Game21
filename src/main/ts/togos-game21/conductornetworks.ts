@@ -22,7 +22,7 @@ export class ConductorNetworkBuilder {
 	
 	protected nodeIndexesByPosition = new Map<Vector3D,number>();
 	
-	public addMediumRef( mRef:string ) {
+	public addMediumRef( mRef:string ):number {
 		for( let i=0; i<this.network.mediumRefs.length; ++i ) {
 			if( this.network.mediumRefs[i] == mRef ) return i;
 		}
@@ -34,6 +34,7 @@ export class ConductorNetworkBuilder {
 		let index = this.nodeIndexesByPosition.get(pos);
 		if( index != undefined ) {
 			const node = this.network.nodes[index];
+			if( node == undefined ) throw new Error("Somehow node "+index+" is undefined even though in the indexesByPosition map!")
 			if( internalizeReUsed ) {
 				node.isExternal = false;
 			} else if( isExternal ) {
@@ -56,10 +57,12 @@ export class ConductorNetworkBuilder {
 		mediumIndex?:number, mediumRef?:string, crossSectionalArea:number, length?:number
 	} ) {
 		const linkIndex = this.network.links.length;
-		if( !this.network.nodes[node0Index] ) throw new Error("No node "+node0Index);
-		if( !this.network.nodes[node1Index] ) throw new Error("No node "+node1Index);
-		this.network.nodes[node0Index].linkIndexes.push(linkIndex);
-		this.network.nodes[node1Index].linkIndexes.push(linkIndex);
+		const node0 = this.network.nodes[node0Index];
+		const node1 = this.network.nodes[node1Index];
+		if( !node0 ) throw new Error("No node "+node0Index);
+		if( !node1 ) throw new Error("No node "+node1Index);
+		node0.linkIndexes.push(linkIndex);
+		node1.linkIndexes.push(linkIndex);
 		this.network.links.push({
 			endpoint0Index: node0Index,
 			endpoint1Index: node1Index,
@@ -70,8 +73,8 @@ export class ConductorNetworkBuilder {
 			crossSectionalArea:
 				linkProps.crossSectionalArea || 1/16384, /* 1/128m square */
 			length: linkProps.length == undefined ? vectorLength(subtractVector(
-				this.network.nodes[node0Index].position,
-				this.network.nodes[node1Index].position,
+				node0.position,
+				node1.position,
 			)) : linkProps.length
 		});
 	}
@@ -85,17 +88,25 @@ export class ConductorNetworkBuilder {
 		const mediumIndexMap:number[] = [];
 		for( let n=0; n<b.nodes.length; ++n ) {
 			const node = b.nodes[n];
+			if( node == undefined ) continue;
 			const n0 = this.addNode(addVector(pos, node.position), node.isExternal, true);
 			nodeIndexMap[n] = n0;
 		}
 		for( let m=0; m<b.mediumRefs.length; ++m ) {
-			mediumIndexMap[m] = this.addMediumRef(b.mediumRefs[m]);
+			const mr = b.mediumRefs[m];
+			if( mr == undefined ) continue;
+			mediumIndexMap[m] = this.addMediumRef(mr);
 		}
 		for( let l=0; l<b.links.length; ++l ) {
 			const link = b.links[l];
+			if( link == undefined ) continue;
+			const n0RemappedIndex = nodeIndexMap[link.endpoint0Index];
+			const n1RemappedIndex = nodeIndexMap[link.endpoint1Index];
+			if( n0RemappedIndex == null ) throw new Error("Link from consumed network references node0 "+link.endpoint0Index+" which somehow doesn't map to a node in the consuming network");
+			if( n1RemappedIndex == null ) throw new Error("Link from consumed network references node1 "+link.endpoint1Index+" which somehow doesn't map to a node in the consuming network");
 			this.link(
-				nodeIndexMap[link.endpoint0Index],
-				nodeIndexMap[link.endpoint1Index],
+				n0RemappedIndex,
+				n1RemappedIndex,
 				{
 					mediumIndex: mediumIndexMap[link.mediumIndex],
 					crossSectionalArea: link.crossSectionalArea,
@@ -135,6 +146,7 @@ export function getConductorNetwork( pos:Vector3D, entity:Entity, gdm:GameDataMa
 export function findConductorNetworkNodes( network:ConductorNetwork, pos:Vector3D, into:number[]=[] ):number[] {
 	for( let i=0; i<network.nodes.length; ++i ) {
 		const node = network.nodes[i];
+		if( node == undefined ) continue;
 		if( vectorsAreEqual(node.position, pos) ) {
 			into.push(i);
 		}
@@ -157,10 +169,12 @@ export function findConductorEndpoints( network:ConductorNetwork, startPos:Vecto
 		const n = visitQueue[i];
 		enqueuedAndUnvisited[n] = false;
 		const node = network.nodes[n];
+		if( node == undefined ) throw new Error("Null node in visit queue! Index = "+n);
 		const pathResistance = pathResistances[n];
-		for( let e in node.linkIndexes ) {
+		for( let e=0; e<node.linkIndexes.length; ++e ) {
 			const l = node.linkIndexes[e];
 			const link = network.links[l];
+			if( link == undefined ) throw new Error("Node "+n+" references nonexistent link "+l);
 			const otherEndNodeIndex = link.endpoint0Index == n ? link.endpoint1Index : link.endpoint0Index;
 			const linkResistance = approximateCopperResistivity * link.length / link.crossSectionalArea;
 			if( otherEndNodeIndex == n ) continue;
@@ -184,13 +198,15 @@ export function findConductorEndpoints( network:ConductorNetwork, startPos:Vecto
 	const endpoints:ConductorEndpoint[] = [];
 	// Okay, paths with lowest resistance found!
 	for( let n=0; n<pathResistances.length; ++n ) {
-		if( pathResistances[n] == undefined ) continue; // Not connected!
+		const pathResistance = pathResistances[n];
+		if( pathResistance == undefined ) continue; // Not connected!
 		const node = network.nodes[n];
+		if( node == undefined ) throw new Error("Path resistances entry references nonexistent node "+n);
 		if( !node.isExternal ) continue; // Don't care!
 		
 		endpoints.push({
 			nodeIndex: n,
-			resistance: pathResistances[n]
+			resistance: pathResistance
 		});
 	}
 	return endpoints;
