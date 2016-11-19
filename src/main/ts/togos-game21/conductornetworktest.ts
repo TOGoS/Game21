@@ -1,4 +1,4 @@
-import { ConductorNetworkBuilder, findConductorEndpoints } from './conductornetworks';
+import { ConductorNetworkBuilder, findConductorEndpoints, approximateCopperResistivity } from './conductornetworks';
 import { TestResult, registerTestResult } from './testing';
 
 const STD_ETH_X = -3/16;
@@ -44,9 +44,25 @@ registerTestResult( "findConductorEndpoints", new Promise<TestResult>( (resolve,
 	});
 	
 	const foundEndpoints = findConductorEndpoints( builder.network, [bottomNodeIdx] );
+	const expectedResistance = approximateCopperResistivity * STD_WIRE_LENGTH*2 / STD_WIRE_CSAREA;
 	
 	if( foundEndpoints.length != 2 ) {
 		return reject(new Error("Expected to find 2 endpoints, but found only "+JSON.stringify(foundEndpoints)));
+	}
+	
+	for( let i=0; i<foundEndpoints.length; ++i ) {
+		if( foundEndpoints[i].nodeIndex == bottomNodeIdx ) {
+			if( foundEndpoints[i].resistance != 0 ) {
+				return reject(new Error("Start node resistance not zero! "+JSON.stringify(foundEndpoints)));
+			}
+		} else {
+			if( foundEndpoints[i].nodeIndex != rightNodeIdx ) {
+				return reject(new Error("Expected non-start node to be #"+rightNodeIdx+"; "+JSON.stringify(foundEndpoints)));
+			}
+			if( foundEndpoints[i].resistance != expectedResistance ) {
+				return reject(new Error("Expected resistance of network to be "+expectedResistance+"; "+JSON.stringify(foundEndpoints)));
+			}
+		}
 	}
 	
 	return resolve({});

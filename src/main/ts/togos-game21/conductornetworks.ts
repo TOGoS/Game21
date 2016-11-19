@@ -155,7 +155,7 @@ export function findConductorNetworkNodes( network:ConductorNetwork, pos:Vector3
 }
 
 //const copperResistivity = 0.000000017; // Ohm meter (because ohm per distance-over-area)
-const approximateCopperResistivity = 9/4 * Math.pow(2, -27); 
+export const approximateCopperResistivity = 9/4 * Math.pow(2, -27); // Close-ish round number
 
 export function findConductorEndpoints( network:ConductorNetwork, startNodeIndexes:number[] ):ConductorEndpoint[] {
 	const pathResistances:(number|undefined)[] = [];
@@ -184,7 +184,7 @@ export function findConductorEndpoints( network:ConductorNetwork, startNodeIndex
 			// with loops.  In this simulation, all electrons will take the single
 			// least-resistant path.
 			if(
-				pathResistances[otherEndNodeIndex] == undefined ||
+				pathResistances[otherEndNodeIndex] != undefined &&
 				pathResistances[otherEndNodeIndex] <= nextPathResistance
 			) continue;
 			
