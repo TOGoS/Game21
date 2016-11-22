@@ -68,7 +68,7 @@ export default class SceneShader {
 	protected destShadeMap:ShadeRaster;
 	protected destBounds:Cuboid = new Cuboid;
 	
-	protected applyObjectToOpacityRaster( ent:Entity, pos:Vector3D, orientation:Quaternion ):void {
+	protected applyObjectToOpacityRaster( pos:Vector3D, orientation:Quaternion, ent:Entity ):void {
 		const proto = <EntityClass>this.gameDataManager.getObject(ent.classRef);
 		if( !proto ) return; // Well, maybe we should just mark everything opaque!
 		const vbb = proto.visualBoundingBox;
@@ -100,7 +100,7 @@ export default class SceneShader {
 			return;
 		}
 		
-		eachSubEntity(ent, pos, this.gameDataManager, this.applyObjectToOpacityRaster, this);
+		eachSubEntity(pos, orientation, ent, this.gameDataManager, this.applyObjectToOpacityRaster, this);
 	}
 	
 	/**
@@ -127,7 +127,7 @@ export default class SceneShader {
 			addVector(pos, re.position, objPosBuf);
 			// If we really cared about orientation (and assuming rooms can have them),
 			// we'd do the same thing to it.
-			this.applyObjectToOpacityRaster( ent, objPosBuf, roomEntityOrientation(re) );
+			this.applyObjectToOpacityRaster( objPosBuf, roomEntityOrientation(re), ent );
 		}
 	}
 	

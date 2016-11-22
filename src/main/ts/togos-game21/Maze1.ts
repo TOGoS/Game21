@@ -1716,7 +1716,7 @@ class TileEntityRenderer {
 			}
 			
 			const renderPromises:Promise<undefined>[] = [];
-			eachSubEntity(entity, position, this.gameDataManager, (subEnt, subPos, subOri) => {
+			eachSubEntity(position, orientation, entity, this.gameDataManager, (subPos, subOri, subEnt) => {
 				renderPromises.push(this.renderEntity(subPos, subOri, ppm, subEnt, ctx));
 			});
 			return Promise.all(renderPromises).then( () => {} );

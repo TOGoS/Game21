@@ -169,7 +169,7 @@ export default class CanvasWorldView {
 	}
 	
 	/** Object's .position should already be taken into account in 'pos' */
-	protected drawEntity( ent:Entity, pos:Vector3D, orientation:Quaternion ):void {
+	protected drawEntity( pos:Vector3D, orientation:Quaternion, ent:Entity ):void {
 		const proto = this.gameDataManager.getObject<EntityClass>(ent.classRef);
 		if( proto == null ) return;
 		
@@ -186,7 +186,7 @@ export default class CanvasWorldView {
 			this.drawIndividualEntity(ent, pos, orientation);
 		}
 		
-		eachSubEntity( ent, pos, this.gameDataManager, this.drawEntity, this, posBuffer0 );
+		eachSubEntity( pos, orientation, ent, this.gameDataManager, this.drawEntity, this, posBuffer0 );
 	}
 	
 	protected drawRoom( room:Room, pos:Vector3D ):void {
@@ -195,7 +195,7 @@ export default class CanvasWorldView {
 			const proto = this.gameDataManager.getObject<EntityClass>(ro.entity.classRef);
 			if( proto == null ) continue;
 			const orientation = ro.orientation ? ro.orientation : Quaternion.IDENTITY;
-			this.drawEntity(ro.entity, addVector(pos, ro.position, posBuffer0), orientation);
+			this.drawEntity(addVector(pos, ro.position, posBuffer0), orientation, ro.entity);
 		}
 	}
 	

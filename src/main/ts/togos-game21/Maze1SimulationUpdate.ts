@@ -1,6 +1,7 @@
 import KeyedList from './KeyedList';
 import Vector3D from './Vector3D';
 import { makeVector, setVector, vectorToString, parseVector, ZERO_VECTOR } from './vector3ds';
+import Quaternion from './Quaternion';
 import AABB from './AABB';
 import {
 	makeAabb, aabbWidth,
@@ -295,7 +296,8 @@ abstract class SimulationUpdate {
 		// still having the outer entity's position when we're
 		// inside the callback
 		const posX = entityPos.x, posY = entityPos.y, posZ = entityPos.z;
-		eachSubEntityIntersectingBb( entity, entityPos, checkPos, checkBb, this.gameDataManager, (subEnt, subEntPos, ori) => {
+		const entityOri:Quaternion = Quaternion.IDENTITY;
+		eachSubEntityIntersectingBb( entityPos, entityOri, entity, checkPos, checkBb, this.gameDataManager, (subEntPos, ori, subEnt) => {
 			const subPath = entityPath.concat([
 				AT_STRUCTURE_OFFSET,
 				(subEntPos.x-posX)+","+(subEntPos.y-posY)+","+(subEntPos.z-posZ)

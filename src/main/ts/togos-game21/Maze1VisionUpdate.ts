@@ -27,8 +27,8 @@ function roomToMazeViewage( roomRef:string, roomPosition:Vector3D, gdm:GameDataM
 	const room = gdm.getRoom(roomRef);
 	if( room == null ) throw new Error("Failed to load room "+roomRef);
 	
-	let _entityToMazeViewage = ( entity:Entity, position:Vector3D, orientation:Quaternion  ) => {}
-	_entityToMazeViewage = ( entity:Entity, position:Vector3D, orientation:Quaternion ) => {
+	let _entityToMazeViewage = ( position:Vector3D, orientation:Quaternion, entity:Entity ) => {}
+	_entityToMazeViewage = ( position:Vector3D, orientation:Quaternion, entity:Entity ) => {
 		const entityClass = gdm.getEntityClass(entity.classRef);
 		if( entityClass == null ) throw new Error("Failed to load entity class "+entity.classRef);
 		if( entityClass.visualRef ) {
@@ -54,13 +54,13 @@ function roomToMazeViewage( roomRef:string, roomPosition:Vector3D, gdm:GameDataM
 				entity: includeGreatInfo ? entity : undefined,
 			})
 		}
-		eachSubEntity( entity, position, gdm, _entityToMazeViewage );
+		eachSubEntity( position, orientation, entity, gdm, _entityToMazeViewage );
 	};
 
 	for( let re in room.roomEntities ) {
 		const roomEntity = room.roomEntities[re];
 		const orientation = roomEntity.orientation ? roomEntity.orientation : Quaternion.IDENTITY;
-		_entityToMazeViewage( roomEntity.entity, addVector(roomPosition, roomEntity.position), orientation );
+		_entityToMazeViewage( addVector(roomPosition, roomEntity.position), orientation, roomEntity.entity );
 	}
 }
 

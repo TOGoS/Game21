@@ -63,13 +63,15 @@ export function makeTileEntityPaletteRef( palette:any, gdm?:GameDataManager, ali
  * so long as you don't rely on that buffer
  * calling eachSubEntity.
  */
-export function eachSubEntityIntersectingBb<T>(
-	entity:Entity, pos:Vector3D,
+export function eachSubEntityIntersectingBb<CallbackThis,CallbackReturn>(
+	pos:Vector3D, orientation:Quaternion, entity:Entity,
 	bbPos:Vector3D, bb:AABB,
 	gdm:GameDataManager,
-	callback:(subEnt:Entity, pos:Vector3D, orientation:Quaternion)=>T|undefined,
-	callbackThis:any=null, posBuffer:Vector3D|undefined=undefined
-):T|undefined {
+	callback:(this:CallbackThis, subEntPos:Vector3D, subEntOrientation:Quaternion, subEnt:Entity)=>CallbackReturn|undefined,
+	callbackThis?:CallbackThis,
+	posBuffer?:Vector3D,
+	oriBuffer?:Quaternion
+):CallbackReturn|undefined {
 	const proto = gdm.getObject<EntityClass>(entity.classRef);
 	if( proto == null ) throw new Error("Failed to get entity class "+entity.classRef);
 	
@@ -112,7 +114,7 @@ export function eachSubEntityIntersectingBb<T>(
 					const subX = x0+cx*xd+halfXd;
 					const tileEntity = tilePalette[tilePaletteIndexes[i]];
 					if( tileEntity != null ) {
-						let v = callback.call( callbackThis, tileEntity.entity, setVector(posBuffer, subX, subY, subZ), tileEntity.orientation );
+						let v = callback.call( callbackThis, setVector(posBuffer, subX, subY, subZ), tileEntity.orientation, tileEntity.entity );
 						if( v != null ) return v;
 					}
 				}
@@ -129,13 +131,14 @@ export function eachSubEntityIntersectingBb<T>(
  * so long as you don't rely on that buffer
  * calling eachSubEntity.
  */
-export function eachSubEntity<T>(
-	entity:Entity, pos:Vector3D, gdm:GameDataManager,
-	callback:(subEnt:Entity, pos:Vector3D, orientation:Quaternion)=>T|undefined,
-	callbackThis:any=null, posBuffer:Vector3D|undefined=undefined
-):T|undefined {
+export function eachSubEntity<CallbackThis,CallbackReturn>(
+	pos:Vector3D, orientation:Quaternion, entity:Entity,
+	gdm:GameDataManager,
+	callback:(this:CallbackThis, pos:Vector3D, orientation:Quaternion, subEnt:Entity)=>CallbackReturn|undefined,
+	callbackThis?:CallbackThis, posBuffer?:Vector3D, oriBuffer?:Quaternion
+):CallbackReturn|undefined {
 	return eachSubEntityIntersectingBb(
-		entity, pos,
+		pos, orientation, entity,
 		ZERO_VECTOR, UNBOUNDED_AABB,
 		gdm, callback, callbackThis, posBuffer
 	);
