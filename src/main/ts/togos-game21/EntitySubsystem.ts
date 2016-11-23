@@ -17,9 +17,13 @@ export const ESSCR_VISION : "http://ns.nuke24.net/Game21/EntitySubsystem/Vision"
 
 export interface ConductorNode {
 	position : Vector3D;
-	/** True if this node can bind to nodes outside its immediate network */
-	isExternal : boolean;
-	/** Indexes of all links that attach to this node */
+	/**
+	 * Manhattan-normalized vector indicating the direction that this node 'points'
+	 * for purposes of linking to nodes on other networks.
+	 * Undefined if this is an entirely internal node.
+	 */
+	externallyFacing? : Vector3D;
+	/** Indexes of all internal links that attach to this node */
 	linkIndexes : number[];
 }
 

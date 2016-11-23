@@ -30,9 +30,9 @@ registerTestResult( "findConductorEndpoints", new Promise<TestResult>( (resolve,
 	const rightNodePos  = {x:+0.5     , y:STD_ETH_Y, z:STD_ETH_Z};
 	const midNodePos    = {x:STD_ETH_X, y:STD_ETH_Y, z:STD_ETH_Z};
 	
-	const bottomNodeIdx = builder.addNode(bottomNodePos, true);
-	const rightNodeIdx  = builder.addNode(rightNodePos , true);
-	const midNodeIdx    = builder.addNode(midNodePos   , false);
+	const bottomNodeIdx = builder.addNode(bottomNodePos, {x:0,y:+1,z:0});
+	const rightNodeIdx  = builder.addNode(rightNodePos , {x:+1,y:0,z:0});
+	const midNodeIdx    = builder.addNode(midNodePos   );
 	
 	builder.link( bottomNodeIdx, midNodeIdx, {
 		crossSectionalArea: STD_WIRE_CSAREA,

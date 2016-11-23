@@ -1,10 +1,14 @@
-import { ConductorNetwork } from './EntitySubsystem';
+import { ESSCR_CONDUCTOR_NETWORK, ConductorNetwork } from './EntitySubsystem';
 import Vector3D from './Vector3D';
-import { vectorsAreEqual } from './vector3ds';
+import { vectorsAreEqual, vectorsAreOpposite } from './vector3ds';
 import { subtractVector, addVector, vectorLength } from './vector3dmath';
+import Quaternion from './Quaternion';
+import TransformationMatrix3D from './TransformationMatrix3D';
 import { Entity } from './world';
 import { getEntitySubsystems } from './worldutil';
 import GameDataManager from './GameDataManager';
+import { resolvedPromise } from './promises';
+import { deepFreeze } from './DeepFreezer';
 
 declare class Map<K,V> {
 	get(k:K):V|undefined;
@@ -19,9 +23,7 @@ export class ConductorNetworkBuilder {
 		links: [],
 		mediumRefs: [],
 	}
-	
-	protected nodeIndexesByPosition = new Map<Vector3D,number>();
-	
+		
 	public addMediumRef( mRef:string ):number {
 		for( let i=0; i<this.network.mediumRefs.length; ++i ) {
 			if( this.network.mediumRefs[i] == mRef ) return i;
@@ -30,26 +32,40 @@ export class ConductorNetworkBuilder {
 		return this.network.mediumRefs.length-1;
 	}
 	
-	public addNode( pos:Vector3D, isExternal:boolean, internalizeReUsed:boolean=false ) {
-		let index = this.nodeIndexesByPosition.get(pos);
-		if( index != undefined ) {
-			const node = this.network.nodes[index];
-			if( node == undefined ) throw new Error("Somehow node "+index+" is undefined even though in the indexesByPosition map!")
-			if( internalizeReUsed ) {
-				node.isExternal = false;
-			} else if( isExternal ) {
-				node.isExternal = true;
+	public addNode( pos:Vector3D, externallyFacing?:Vector3D ):number {
+		const nodes = this.network.nodes;
+		const matchIndexes:number[] = [];
+		for( let i=0; i<nodes.length; ++i ) {
+			const node = nodes[i];
+			if( node == undefined ) continue;
+			if( !vectorsAreEqual(node.position, pos) ) continue;
+			if( externallyFacing ) {
+				if( node.externallyFacing ) {
+					if( vectorsAreOpposite(externallyFacing, node.externallyFacing) ) {
+						// Joined and become internal!
+						node.externallyFacing = undefined;
+					} else {
+						console.warn(
+							"Failed to join conductor network nodes due to conflicting externallyFacing vectors",
+							externallyFacing,
+							node.externallyFacing
+						);
+						continue;
+					}
+				} else {
+					node.externallyFacing = externallyFacing;
+				}
 			}
-			return index;
+			// Otherwise leave externallyFacing alone.
+			return i;
 		}
-		
-		index = this.network.nodes.length;
+
+		const index = this.network.nodes.length;
 		this.network.nodes.push( {
 			position: pos,
-			isExternal,
+			externallyFacing,
 			linkIndexes: [],
 		});
-		this.nodeIndexesByPosition.set(pos, index);
 		return index;
 	}
 	
@@ -83,13 +99,16 @@ export class ConductorNetworkBuilder {
 	 * Add another network into our existing one,
 	 * merging nodes at the same position.
 	 */
-	public addNetwork( b:ConductorNetwork, pos:Vector3D ) {
+	public addNetwork( xf:TransformationMatrix3D, b:ConductorNetwork ) {
 		const nodeIndexMap:number[] = [];
 		const mediumIndexMap:number[] = [];
 		for( let n=0; n<b.nodes.length; ++n ) {
 			const node = b.nodes[n];
 			if( node == undefined ) continue;
-			const n0 = this.addNode(addVector(pos, node.position), node.isExternal, true);
+			const n0 = this.addNode(
+				xf.multiplyVector(node.position),
+				node.externallyFacing ? xf.multiplyVector(node.externallyFacing) : undefined
+			);
 			nodeIndexMap[n] = n0;
 		}
 		for( let m=0; m<b.mediumRefs.length; ++m ) {
@@ -203,7 +222,7 @@ export function findConductorEndpoints( network:ConductorNetwork, startNodeIndex
 		if( pathResistance == undefined ) continue; // Not connected!
 		const node = network.nodes[n];
 		if( node == undefined ) throw new Error("Path resistances entry references nonexistent node "+n);
-		if( !node.isExternal ) continue; // Don't care!
+		if( !node.externallyFacing ) continue; // Don't care!
 		
 		endpoints.push({
 			nodeIndex: n,
@@ -216,3 +235,103 @@ export function findConductorEndpoints( network:ConductorNetwork, startNodeIndex
 export function findConductorEndpointsFromPosition( network:ConductorNetwork, startPos:Vector3D ):ConductorEndpoint[] {
 	return findConductorEndpoints(network, findConductorNetworkNodes(network, startPos));
 }
+
+interface Placed<X> {
+	position : Vector3D;
+	orientation : Quaternion;
+	item : X;
+}
+
+interface WorldConductorNetworkEndpoints {
+	network : ConductorNetwork;
+	endpoints : ConductorEndpoint[];
+}
+
+class EntityConductorNetworkCache
+{
+	public constructor(protected gameDataManager:GameDataManager) { }
+	
+	protected entityClassNetworkPromiseCache = new Map<string,Promise<ConductorNetwork>>();
+	
+	public fetchEntityClassConductorNetwork( classRef:string ):Promise<ConductorNetwork> {
+		const cachedNetworkPromise = this.entityClassNetworkPromiseCache.get(classRef);
+		if( cachedNetworkPromise ) return cachedNetworkPromise;
+		
+		const aggregator = new ConductorNetworkAggregator(this);
+		const prom = aggregator.addEntityNetworks( TransformationMatrix3D.IDENTITY, {classRef} ).then( () => {
+			return aggregator.network;
+		});
+		this.entityClassNetworkPromiseCache.set(classRef, prom);
+		return prom;
+	}
+	
+	public fetchEntityConductorNetwork( entity:Entity ):Promise<ConductorNetwork> {
+		if( entity.subsystems ) {
+			// Need to make sure they're not overriding any of the defaults
+			for( let ssk in entity.subsystems ) {
+				const ss = entity.subsystems[ssk];
+				if( ss == null || ss.classRef == ESSCR_CONDUCTOR_NETWORK ) {
+					// Might be overriding...
+					throw new Error("Entity instance overrides of conductor networks not yet supported");
+				}
+			}
+		}
+		return this.fetchEntityClassConductorNetwork( entity.classRef );
+	}
+}
+
+class ConductorNetworkAggregator {
+	protected builder:ConductorNetworkBuilder;
+	public constructor( protected EntityConductorNetworkCache:EntityConductorNetworkCache ) {
+		this.builder = new ConductorNetworkBuilder();
+	}
+	public addEntityNetworks( xf:TransformationMatrix3D, entity:Entity ):Promise<this> {
+		throw new Error('Not yet implemented');
+	}
+	public get network():ConductorNetwork {
+		return deepFreeze(this.builder.network);
+	}
+}
+
+/*
+function getEntityClassConductorEndpoints(
+	gdm:GameDataManager, classRef:string, startPos:Vector3D, startDir:Vector3D, into:Placed<WorldConductorNetworkEndpoints>[]=[]
+):Placed<WorldConductorNetworkEndpoints>[] {
+	// TODO: cache result base on hard reference to class
+	
+	const entityClass = gdm.getEntityClass(classRef);
+	if( entityClass.defaultSubsystems ) {
+		
+	}
+	const bb = 
+}
+*/
+
+export function getWorldConductorEndpoints( gdm:GameDataManager, roomId:string, pos:Vector3D, dir:Vector3D ):Placed<ConductorNetwork>[] {
+	const room = gdm.getRoom(roomId);
+	const networkBuilder = new ConductorNetworkBuilder();
+	for( let re in room.roomEntities ) {
+		const roomEntity = room.roomEntities[re];
+		let hasCustomConductorNetworks = false;
+		if( roomEntity.entity.subsystems ) for( let ssk in roomEntity.entity.subsystems ) {
+			const ss = roomEntity.entity.subsystems[ssk];
+			if( ss == null ) {
+				// TODO: Only if the thing overridden
+				// was a conductor network
+			} else if( ss.classRef == ESSCR_CONDUCTOR_NETWORK ) {
+				hasCustomConductorNetworks = true;
+			}
+		}
+		if( hasCustomConductorNetworks ) {
+			throw new Error('Oh no, entity has custom conductor networks.');
+		}
+		// TODO:
+	}
+	throw new Error("This doesn't work yet");
+}
+
+/*
+export function findConductorEndpointsFromWorldPosition( gdm:GameDataManager, roomId:string, pos:Vector3D, direction:Vector3D ) {
+	const networks = getWorldConductorNetworks(gdm, roomId, pos, direction);
+}
+*/

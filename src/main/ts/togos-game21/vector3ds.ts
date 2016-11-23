@@ -46,3 +46,7 @@ export function parseVector(a:any):Vector3D {
 export function vectorsAreEqual(a:Vector3D, b:Vector3D) {
 	return a.x == b.x && a.y == b.y && a.z == b.z;
 }
+
+export function vectorsAreOpposite(a:Vector3D, b:Vector3D) {
+	return a.x == -b.x && a.y == -b.y && a.z == -b.z;
+}
