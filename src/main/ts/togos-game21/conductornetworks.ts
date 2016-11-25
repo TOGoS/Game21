@@ -102,12 +102,13 @@ export class ConductorNetworkBuilder {
 	public addNetwork( xf:TransformationMatrix3D, b:ConductorNetwork ) {
 		const nodeIndexMap:number[] = [];
 		const mediumIndexMap:number[] = [];
+		const directionXf = TransformationMatrix3D.withoutTranslation(xf);
 		for( let n=0; n<b.nodes.length; ++n ) {
 			const node = b.nodes[n];
 			if( node == undefined ) continue;
 			const n0 = this.addNode(
 				xf.multiplyVector(node.position),
-				node.externallyFacing ? xf.multiplyVector(node.externallyFacing) : undefined
+				node.externallyFacing ? directionXf.multiplyVector(node.externallyFacing) : undefined
 			);
 			nodeIndexMap[n] = n0;
 		}
