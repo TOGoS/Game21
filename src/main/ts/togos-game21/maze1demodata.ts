@@ -372,7 +372,7 @@ const toggleBoxOnPix = [
 const eighthMeterWirePix = [
 	1,1,1,1
 ]
-const eighthMeterWire2BottomToRight = [
+const eighthMeterWireBottomToRightPix = [
 	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 	0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,
@@ -447,6 +447,9 @@ const latticeColumnImgRef = "bitimg:color1="+rgbaToNumber(192,192,192,255)+","+h
 const latticeColumnBgImgRef = "bitimg:color1="+rgbaToNumber(64,64,64,255)+","+hexEncodeBits(latticeColumnPix);
 const toggleBoxOffImgRef = bitImgRef(0,[96,96,96],toggleBoxOffPix);
 const toggleBoxOnImgRef  = bitImgRef(0,[96,96,96],toggleBoxOnPix );
+const greenToggleBoxOffImgRef = bitImgRef(0,[64,128,64],toggleBoxOffPix);
+const greenToggleBoxOnImgRef  = bitImgRef(0,[64,128,64],toggleBoxOnPix );
+const eighthMeterWireImgRef   = bitImgRef(0,[88,88,88],eighthMeterWirePix);
 
 const playerImgRef        = bitImgRef(0,[224,224,96],playerPix);
 const deadPlayerImgRef    = bitImgRef(0,[112,96,48],deadPlayerPix,16,8,8,6);
@@ -625,8 +628,10 @@ export const latticeColumnLeftBlockEntityClassId = 'urn:uuid:9bee7432-5ad0-4f9d-
 export const latticeColumnBgEntityClassId = 'urn:uuid:b64789e4-023c-49ea-98b5-a9d892688bbb';
 export const latticeColumnBgRightBlockEntityClassId = 'urn:uuid:c447986a-19d2-447a-ab39-afe9df781dbe';
 export const latticeColumnBgLeftBlockEntityClassId = 'urn:uuid:c145afdd-bc60-4c97-bad8-b6fcb3e1846f';
-export const toggleBoxOffEntityClassRef = 'urn:uuid:5f51520a-09c9-4aaa-b0e8-68a03617eaf0';
-export const toggleBoxOnEntityClassRef  = 'urn:uuid:5f51520a-09c9-4aaa-b0e8-68a03617eaf1';
+export const toggleBoxOffEntityClassRef      = 'urn:uuid:5f51520a-09c9-4aaa-b0e8-68a03617eaf0';
+export const toggleBoxOnEntityClassRef       = 'urn:uuid:5f51520a-09c9-4aaa-b0e8-68a03617eaf1';
+export const wiredToggleBoxOffEntityClassRef = 'urn:uuid:5f51520a-09c9-4aaa-b0e8-68a03617eaf2';
+export const wiredToggleBoxOnEntityClassRef  = 'urn:uuid:5f51520a-09c9-4aaa-b0e8-68a03617eaf3';
 
 export const primarySpawnPointEntityId = 'urn:uuid:d42a8340-ec03-482b-ae4c-a1bfdec4ba3a'; 
 export const playerEntityId            = 'urn:uuid:d42a8340-ec03-482b-ae4c-a1bfdec4ba32';
@@ -1181,6 +1186,88 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 		childEntityPaletteRef: makeTileEntityPaletteRef([null, toggleBoxOffEntityClassRef, toggleBoxOnEntityClassRef], gdm),
 		childEntityIndexes: [0,0,0,0, 0,0,0,0, 0,0,0,0, 1,1,1,1],
 	});
+	
+	// TODO: Do onon/onoff action when 1/0 message received from netdown
+	// TODO: Maybe replace morphing with some state variable +
+	//   alternate visual
+	gdm.tempStoreObject<EntityClass>( {
+		debugLabel: "wired toggle box (off)",
+		structureType: StructureType.INDIVIDUAL,
+		tilingBoundingBox: toggleBoxBb,
+		physicalBoundingBox: toggleBoxBb,
+		visualBoundingBox: toggleBoxBb,
+		visualRef: toggleBoxOffImgRef,
+		defaultSubsystems: {
+			"button": {
+				classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/Button",
+				pokedExpressionRef: sExpressionToProgramExpressionRef(
+					['progn',
+						['sendBusMessage', ['makeArray', '/morph', toggleBoxOnEntityClassRef]],
+						['sendBusMessage', ['makeArray', '/onon']],
+						['sendBusMessage', ['makeArray', '/netup/signal', ['makeArray', 1]]]],
+					gdm
+				)
+			},
+			"onon": {
+				classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/SimpleComputer"
+			},
+			"onoff": {
+				classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/SimpleComputer"
+			},
+			"morph": {
+				classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/EntityMorpher",
+			},
+			"netup": {
+				classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/WiredNetworkPort",
+				position: {x:-1/16, y:-1/4, z:-1/16},
+				direction: {x:0, y:-1, z:0},
+			},
+			"netdown": {
+				classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/WiredNetworkPort",
+				position: {x:-1/16, y:+1/4, z:-1/16},
+				direction: {x:0, y:+1, z:0},
+			},
+		}
+	}, wiredToggleBoxOffEntityClassRef);
+	gdm.tempStoreObject<EntityClass>( {
+		debugLabel: "wired toggle box (on)",
+		structureType: StructureType.INDIVIDUAL,
+		tilingBoundingBox: toggleBoxBb,
+		physicalBoundingBox: toggleBoxBb,
+		visualBoundingBox: toggleBoxBb,
+		visualRef: toggleBoxOnImgRef,
+		defaultSubsystems: {
+			"button": {
+				classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/Button",
+				pokedExpressionRef: sExpressionToProgramExpressionRef(
+					['progn',
+						['sendBusMessage', ['makeArray', '/morph', toggleBoxOffEntityClassRef]],
+						['sendBusMessage', ['makeArray', '/onoff']],
+						['sendBusMessage', ['makeArray', '/netup/signal', ['makeArray', 0]]]],
+					gdm
+				)
+			},
+			"onon": {
+				classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/SimpleComputer"
+			},
+			"onoff": {
+				classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/SimpleComputer"
+			},
+			"morph": {
+				classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/EntityMorpher",
+			},
+			"netup": {
+				classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/WiredNetworkPort",
+				position: {x:-1/16, y:-1/4, z:-1/16},
+				direction: {x:0, y:-1, z:0},
+			},
+			"netdown": {
+				classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/WiredNetworkPort",
+				position: {x:-1/16, y:+1/4, z:-1/16},
+				direction: {x:0, y:+1, z:0},
+			},
+		}
+	}, wiredToggleBoxOnEntityClassRef);
 	
 	const keyBoundingBox = makeAabb(-0.25,-0.125,-0.125, +0.25,+0.125,+0.125);
 	const cheapDoorBoundingBox = makeAabb(-0.25,-0.5,-0.5, +0.25,+0.5,+0.5);
