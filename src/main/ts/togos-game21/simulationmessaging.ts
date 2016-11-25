@@ -61,6 +61,7 @@ export interface TransmitWireSignalAction {
 	originPosition: Vector3D;
 	direction: Vector3D;
 	transmissionMediumRef: string;
+	power: number;
 	channelId: number;
 	payload: Uint8Array;
 }

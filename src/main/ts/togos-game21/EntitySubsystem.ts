@@ -13,6 +13,7 @@ export const ESSKEY_VISION = "vision";
 
 // Commit this change later, ha ha aha.
 export const ESSCR_CONDUCTOR_NETWORK : "http://ns.nuke24.net/Game21/EntitySubsystem/ConductorNetwork" = "http://ns.nuke24.net/Game21/EntitySubsystem/ConductorNetwork";
+export const ESSCR_WIRED_NETWORK_PORT : "http://ns.nuke24.net/Game21/EntitySubsystem/WiredNetworkPort" = "http://ns.nuke24.net/Game21/EntitySubsystem/WiredNetworkPort";
 export const ESSCR_VISION : "http://ns.nuke24.net/Game21/EntitySubsystem/Vision" = "http://ns.nuke24.net/Game21/EntitySubsystem/Vision";
 
 export interface ConductorNode {
@@ -42,6 +43,16 @@ export interface ConductorNetwork {
 	links : (ConductorLink|undefined)[];
 	//subNetworks? : ConductorNetwork[];
 	//subNetworkPositions? : Vector3D[];
+}
+
+/**
+ * /<port>/signal <payload:string|array<byte>>
+ */
+export interface WiredNetworkPort {
+	classRef: typeof ESSCR_WIRED_NETWORK_PORT,
+	position: Vector3D,
+	direction: Vector3D,
+	signalRecievedExpressionRef? : string;
 }
 
 /**
@@ -115,6 +126,7 @@ export type EntitySubsystem =
 	MessageDelayer |
 	ProximalEventDetector |
 	SimpleComputer |
-	Vision;
+	Vision |
+	WiredNetworkPort;
 
 export default EntitySubsystem;
