@@ -49,43 +49,20 @@ export interface SpeakTextAction {
 	text: string;
 }
 
-export interface SendAnalogValueAction {
-	classRef: "http://ns.nuke24.net/Game21/SimulationAction/SendAnalogValue";
-	originRoomRef: string;
-	originPosition: Vector3D;
-	direction: Vector3D;
-	transmissionMediumRef: string;
-	channelId: number;
-	value: number;
-}
-
 /**
  * Initiate the simulation of sending a data packet
  * If the packet makes it to an object that can receive it,
  * that object will get a ["/receivedatapacket", <packet data as Uint8Array>] message
  * (reception will not necessarily be implemented using a ReceiveMessageAction).
  */
-export interface SendDataPacketAction {
-	classRef: "http://ns.nuke24.net/Game21/SimulationAction/SendDataPacket";
+export interface TransmitWireSignalAction {
+	classRef: "http://ns.nuke24.net/Game21/SimulationAction/TransmitWireSignalAction";
 	originRoomRef: string;
 	originPosition: Vector3D;
 	direction: Vector3D;
 	transmissionMediumRef: string;
 	channelId: number;
-	data: Uint8Array;
-}
-
-/**
- * Deliver a message directly to some entity
- * without simulating the transport of the message.
- */
-export interface ReceiveMessageAction {
-	classRef: "http://ns.nuke24.net/Game21/SimulationAction/ReceiveMessage";
-	entityPath: EntityPath;
-	message: SimulationMessage;
-	// Do we want entities to be able to be able to reply to messages in certain situations?
-	// Maybe messages aren't that high-level a thing?
-	replyPath?: EntityPath;
+	payload: Uint8Array;
 }
 
 export interface InduceSystemBusMessageAction {
@@ -108,7 +85,5 @@ export interface ModifyEntityAction {
 export type SimulationAction =
 	InduceSystemBusMessageAction |
 	ModifyEntityAction |
-	ReceiveMessageAction |
-	SendAnalogValueAction |
-	SendDataPacketAction |
+	TransmitWireSignalAction |
 	SpeakTextAction;
