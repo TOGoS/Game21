@@ -70,6 +70,7 @@ import {
 import {
 	HardRef, SoftRef, LWSet
 } from './lwtypes';
+import { resolvedPromise, RESOLVED_VOID_PROMISE, isResolved } from './promises';
 
 enum XYZDirection {
 	NONE = 0x00,
@@ -203,15 +204,19 @@ function perpendicularPart( vec:Vector3D, perpendicularTo:Vector3D ):Vector3D {
 	return subtractVector(vec, scaleVector(perpendicularTo, dotProduct(vec,perpendicularTo)/perpendicularLength));
 }
 export class LogicUpdate extends SimulationUpdate {
+	protected doActions( actions:SimulationAction[], start:number ):Promise<void> {
+		for( ; start < actions.length ; ++start ) {
+			const actDone = this.doAction(actions[start]);
+			if( !isResolved(actDone) ) return actDone.then( () => this.doActions(actions, start+1) );
+		}
+		return RESOLVED_VOID_PROMISE;
+	}
+	
 	public doUpdate() : Promise<SimulationState> {
 		this.newEnqueuedActions = []; // We're going to handle the current ones!
 		this.newTime += this.simulator.logicStepDuration;
 		const handlingActions = this.initialSimulationState.enqueuedActions;
-		for( let ac in handlingActions ) {
-			const act:SimulationAction = handlingActions[ac];
-			this.doAction(act);
-		}
-		return Promise.resolve(this.makeNewState());
+		return this.doActions(handlingActions, 0).then( () => this.makeNewState() );
 	}
 }
 

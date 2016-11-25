@@ -69,6 +69,7 @@ import GameDataManager from './GameDataManager';
 import newUuidRef from './newUuidRef';
 import { pickOne } from './graphmaze/picking';
 import { thaw } from './DeepFreezer';
+import { resolvedPromise, RESOLVED_VOID_PROMISE, isResolved } from './promises';
 
 const entityPositionBuffer:Vector3D = makeVector(0,0,0);
 
@@ -1007,13 +1008,14 @@ abstract class SimulationUpdate {
 		});
 	}
 	
-	protected doAction( act:SimulationAction ):void {
+	protected doAction( act:SimulationAction ):Promise<void> {
 		switch( act.classRef ) {
 		case "http://ns.nuke24.net/Game21/SimulationAction/InduceSystemBusMessage":
 			this.induceSystemBusMessage(act.entityPath, act.busMessage, act.replyPath);
-			break;
+			return RESOLVED_VOID_PROMISE;
 		default:
 			console.warn("Skipping invocation of unsupported action class: "+act.classRef);
+			return RESOLVED_VOID_PROMISE;
 		}
 	}
 	

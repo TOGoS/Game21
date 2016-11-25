@@ -14,14 +14,14 @@ const ERRORSYM = Symbol("value");
 
 export const RESOLVED_VOID_PROMISE:Promise<void> = resolvedPromise(undefined);
 
-export function resolvedPromise<T>( value:T ) : Thenable<T> {
+export function resolvedPromise<T>( value:T ) : Promise<T> {
     const p = Promise.resolve(value);
     (<any>p)[VALUESYM] = value;
     (<any>p)[STATESYM] = State.RESOLVED;
     return p;
 }
 
-export function rejectedPromise<T>( error:Error ) : Thenable<T> {
+export function rejectedPromise<T>( error:Error ) : Promise<T> {
     const p = Promise.reject(value);
     (<any>p)[ERRORSYM] = error;
     (<any>p)[STATESYM] = State.REJECTED;
