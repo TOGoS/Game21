@@ -1,5 +1,6 @@
-import { ESSCR_CONDUCTOR_NETWORK, ConductorNetwork } from './EntitySubsystem';
+import KeyedList from './KeyedList';
 import Vector3D from './Vector3D';
+import { ZERO_VECTOR } from './vector3ds';
 import { vectorsAreEqual, vectorsAreOpposite } from './vector3ds';
 import { subtractVector, addVector, vectorLength } from './vector3dmath';
 import Quaternion from './Quaternion';
@@ -7,10 +8,11 @@ import TransformationMatrix3D from './TransformationMatrix3D';
 import { resolvedPromise } from './promises';
 import { deepFreeze } from './DeepFreezer';
 
+import { ESSCR_CONDUCTOR_NETWORK, ConductorNetwork } from './EntitySubsystem';
 import { ConductorNetworkBuilder, ConductorEndpoint } from './conductornetworks';
 
-import { Entity } from './world';
-import { getEntitySubsystems } from './worldutil';
+import { Entity, EntityClass } from './world';
+import { fetchEntitySubsystems, eachSubEntity } from './worldutil';
 import GameDataManager from './GameDataManager';
 
 declare class Map<K,V> {
@@ -40,12 +42,51 @@ export class EntityConductorNetworkCache
 		const cachedNetworkPromise = this.entityClassNetworkPromiseCache.get(classRef);
 		if( cachedNetworkPromise ) return cachedNetworkPromise;
 		
-		const aggregator = new ConductorNetworkAggregator(this);
-		const prom = aggregator.addEntityNetworks( TransformationMatrix3D.IDENTITY, {classRef} ).then( () => {
-			return aggregator.network;
+		const networkPromise = this.fetchEntityConductorNetworks({classRef}).then( (placedNetworks) => {
+			const builder = new ConductorNetworkBuilder();
+			for( let pn in placedNetworks ) {
+				const placedNetwork:Placed<ConductorNetwork> = placedNetworks[pn];
+				const xf = TransformationMatrix3D.multiply(
+					TransformationMatrix3D.translation(placedNetwork.position),
+					TransformationMatrix3D.fromQuaternion(placedNetwork.orientation)
+				);
+				builder.addNetwork(xf, placedNetwork.item);
+			}
+			return deepFreeze(builder.network);
 		});
-		this.entityClassNetworkPromiseCache.set(classRef, prom);
-		return prom;
+		this.entityClassNetworkPromiseCache.set(classRef, networkPromise);
+		return networkPromise;
+	}
+	
+	public fetchEntityConductorNetworks( entity:Entity ):Promise<Placed<ConductorNetwork>[]> {
+		const subNetworkPromises:Promise<Placed<ConductorNetwork>>[] = [];
+		return fetchEntitySubsystems(entity, this.gameDataManager).then( (subsystems) => {
+			for( let ssk in subsystems ) {
+				const subsystem = subsystems[ssk];
+				if( subsystem.classRef == ESSCR_CONDUCTOR_NETWORK ) subNetworkPromises.push(Promise.resolve({
+					position: ZERO_VECTOR,
+					orientation: Quaternion.IDENTITY,
+					item: subsystem
+				}));
+			}
+			
+			return this.gameDataManager.fetchObject<EntityClass>(entity.classRef);
+		}).then( () => {
+			eachSubEntity(
+				ZERO_VECTOR, Quaternion.IDENTITY, entity, this.gameDataManager,
+				(pos:Vector3D, ori:Quaternion, subEnt:Entity) => {
+					subNetworkPromises.push( this.fetchEntityConductorNetwork(subEnt).then( (cn) => {
+						return <Placed<ConductorNetwork>>{
+							position: pos,
+							orientation: ori,
+							item: cn
+						};
+					}))
+				}
+			);
+			
+			return Promise.all(subNetworkPromises);
+		});
 	}
 	
 	public fetchEntityConductorNetwork( entity:Entity ):Promise<ConductorNetwork> {
@@ -60,19 +101,6 @@ export class EntityConductorNetworkCache
 			}
 		}
 		return this.fetchEntityClassConductorNetwork( entity.classRef );
-	}
-}
-
-class ConductorNetworkAggregator {
-	protected builder:ConductorNetworkBuilder;
-	public constructor( protected EntityConductorNetworkCache:EntityConductorNetworkCache ) {
-		this.builder = new ConductorNetworkBuilder();
-	}
-	public addEntityNetworks( xf:TransformationMatrix3D, entity:Entity ):Promise<this> {
-		throw new Error('Not yet implemented');
-	}
-	public get network():ConductorNetwork {
-		return deepFreeze(this.builder.network);
 	}
 }
 

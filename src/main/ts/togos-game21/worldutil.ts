@@ -296,3 +296,9 @@ export function getEntitySubsystems(entity:Entity, gdm:GameDataManager):KeyedLis
 	}
 	return mergedSubsystems;
 }
+
+export function fetchEntitySubsystems(entity:Entity, gdm:GameDataManager):Promise<KeyedList<EntitySubsystem>> {
+	return gdm.cacheObjects([entity.classRef]).then( () => {
+		return getEntitySubsystems(entity, gdm);
+	});
+}
