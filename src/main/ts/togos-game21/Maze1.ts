@@ -659,7 +659,7 @@ export class MazeDemo {
 	public foundTriforceCount:number = 0;
 	public currentLevelNumber:number = 0;
 	public foundTriforceThisLevel:boolean = false;
-	public logger:Logger;
+	public logger:Logger = console;
 	public loadingStatusUpdated:(text:string)=>any = (t)=>{};
 	
 	protected contextListeners:GameContextListener[] = [];
