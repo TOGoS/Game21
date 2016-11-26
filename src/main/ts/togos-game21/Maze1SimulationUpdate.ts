@@ -1238,6 +1238,16 @@ function evalInternalSystemProgram( expression:esp.ProgramExpression, ctx:ISPEC 
 			}
 			if( !expression.functionRef ) throw new Error("Oh no dynamic functions not implemented boo");
 			switch( expression.functionRef ) {
+			case "http://ns.nuke24.net/TOGVM/Functions/AreEqual":
+				for( let i=1; i<argValues.length; ++i ) {
+					if( argValues[i] != argValues[0] ) return false;
+				}
+				return true;
+			case "http://ns.nuke24.net/TOGVM/Functions/AreNotEqual":
+				for( let i=1; i<argValues.length; ++i ) {
+					if( argValues[i] != argValues[0] ) return true;
+				}
+				return false;
 			case "http://ns.nuke24.net/TOGVM/Functions/BooleanNegate":
 				if( argValues.length == 1 ) {
 					return !argValues[0];

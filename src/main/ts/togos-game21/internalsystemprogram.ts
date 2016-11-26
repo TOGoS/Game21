@@ -50,6 +50,8 @@ export type ProgramExpression =
 	IfElseExpression;
 
 export type FunctionRef =
+	"http://ns.nuke24.net/TOGVM/Functions/AreEqual" |
+	"http://ns.nuke24.net/TOGVM/Functions/AreNotEqual" |
 	"http://ns.nuke24.net/TOGVM/Functions/Coalesce" |
 	"http://ns.nuke24.net/TOGVM/Functions/BooleanNegate" |
 	"http://ns.nuke24.net/InternalSystemFunctions/SendBusMessage" |
@@ -64,6 +66,8 @@ export const FUNC_ENTITY_CLASS_REF = "http://ns.nuke24.net/InternalSystemFunctio
 
 const shortToLongFunctionRefs:KeyedList<FunctionRef> = {
 	"!": "http://ns.nuke24.net/TOGVM/Functions/BooleanNegate",
+	"!=": "http://ns.nuke24.net/TOGVM/Functions/AreNotEqual",
+	"=": "http://ns.nuke24.net/TOGVM/Functions/AreEqual",
 	"coalesce": "http://ns.nuke24.net/TOGVM/Functions/Coalesce",
 	"sendBusMessage": "http://ns.nuke24.net/InternalSystemFunctions/SendBusMessage",
 	"progn": "http://ns.nuke24.net/InternalSystemFunctions/ProgN",
