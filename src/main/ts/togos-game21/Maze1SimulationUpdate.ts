@@ -716,8 +716,6 @@ abstract class SimulationUpdate {
 	}
 	
 	protected doPoke( pokingEntityPath:EntityPath, pokingEntity:Entity, pokingSubsystemKey:string, pokingSubsystem:EntitySubsystem, pokeOffset:Vector3D ) {
-		console.log(pokingEntityPath.join('/')+' is trying to poke at '+vectorToString(pokeOffset));
-		
 		// TODO: List all pokable things in Z column, *then* filter by reachability
 		
 		const pokingAppendage:Appendage = <Appendage>pokingSubsystem;
@@ -1139,7 +1137,6 @@ function updateEntity( entity:Entity, update:EntityUpdate ):Entity {
 			newState[k] = update.stateUpdates[k];
 			if( newState[k] == undefined ) delete newState[k];
 		}
-		console.log("Update entity from", entity.state, "to", newState);
 		entity.state = newState;
 	}
 	return entity;
