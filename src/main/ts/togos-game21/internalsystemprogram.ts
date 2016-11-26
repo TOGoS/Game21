@@ -38,25 +38,38 @@ export interface ArrayConstructionExpression extends BaseExpression {
 	classRef : "http://ns.nuke24.net/TOGVM/Expressions/ArrayConstruction";
 	values : ProgramExpression[];
 }
+export interface IfElseExpression extends BaseExpression {
+	classRef : "http://ns.nuke24.net/TOGVM/Expressions/IfElseChain";
+	arguments : ProgramExpression[];
+}
 
 export type ProgramExpression =
 	LiteralString|LiteralNumber|LiteralBoolean|
 	VariableExpression|LetExpression|FunctionApplication|
-	ArrayConstructionExpression;
+	ArrayConstructionExpression|
+	IfElseExpression;
 
-export type FunctionRef = 
+export type FunctionRef =
+	"http://ns.nuke24.net/TOGVM/Functions/Coalesce" |
+	"http://ns.nuke24.net/TOGVM/Functions/BooleanNegate" |
 	"http://ns.nuke24.net/InternalSystemFunctions/SendBusMessage" |
 	"http://ns.nuke24.net/InternalSystemFunctions/EntityClassRef" |
 	"http://ns.nuke24.net/InternalSystemFunctions/ProgN" |
-	"http://ns.nuke24.net/InternalSystemFunctions/Trace";
+	"http://ns.nuke24.net/InternalSystemFunctions/Trace" |
+	"http://ns.nuke24.net/InternalSystemFunctions/GetEntityStateVariable" |
+	"http://ns.nuke24.net/InternalSystemFunctions/SetEntityStateVariable";
 
 export const FUNC_SEND_BUS_MESSAGE = "http://ns.nuke24.net/InternalSystemFunctions/SendBusMessage";
 export const FUNC_ENTITY_CLASS_REF = "http://ns.nuke24.net/InternalSystemFunctions/EntityClassRef";
 
 const shortToLongFunctionRefs:KeyedList<FunctionRef> = {
+	"!": "http://ns.nuke24.net/TOGVM/Functions/BooleanNegate",
+	"coalesce": "http://ns.nuke24.net/TOGVM/Functions/Coalesce",
 	"sendBusMessage": "http://ns.nuke24.net/InternalSystemFunctions/SendBusMessage",
 	"progn": "http://ns.nuke24.net/InternalSystemFunctions/ProgN",
-	"trace": "http://ns.nuke24.net/InternalSystemFunctions/Trace"
+	"trace": "http://ns.nuke24.net/InternalSystemFunctions/Trace",
+	"gesv": "http://ns.nuke24.net/InternalSystemFunctions/GetEntityStateVariable",
+	"sesv": "http://ns.nuke24.net/InternalSystemFunctions/SetEntityStateVariable",
 };
 
 export function sExpressionToProgramExpression(x:any):ProgramExpression {
@@ -78,6 +91,17 @@ export function sExpressionToProgramExpression(x:any):ProgramExpression {
 	} else if( Array.isArray(x) ) {
 		if( x.length == 0 ) throw new Error("S-expression is zero length, which is bad!"); // Unless I decide it means Nil.
 		switch( x[0] ) {
+		case 'if':
+			{
+				const componentExpressions:ProgramExpression[] = [];
+				for( let i=1; i<x.length; ++i ) {
+					componentExpressions.push( sExpressionToProgramExpression(x[i]) );
+				}
+				return <IfElseExpression>{
+					classRef: "http://ns.nuke24.net/TOGVM/Expressions/IfElseChain",
+					arguments: componentExpressions
+				};
+			}
 		case 'makeArray':
 			{
 				const componentExpressions:ProgramExpression[] = [];
@@ -87,7 +111,7 @@ export function sExpressionToProgramExpression(x:any):ProgramExpression {
 				return <ArrayConstructionExpression>{
 					classRef: "http://ns.nuke24.net/TOGVM/Expressions/ArrayConstruction",
 					values: componentExpressions
-				}
+				};
 			}
 		case 'var':
 			{
@@ -98,7 +122,7 @@ export function sExpressionToProgramExpression(x:any):ProgramExpression {
 				return <VariableExpression>{
 					classRef: "http://ns.nuke24.net/TOGVM/Expressions/Variable",
 					variableName: x[1],
-				}
+				};
 			}
 		}
 		
@@ -113,6 +137,8 @@ export function sExpressionToProgramExpression(x:any):ProgramExpression {
 				arguments: argumentExpressions
 			};
 		}
+		
+		throw new Error("Unrecognized function '"+x[0]+"'");
 	}
 	
 	throw new Error("I can't compile this :( "+JSON.stringify(x));
