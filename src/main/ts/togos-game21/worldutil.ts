@@ -7,7 +7,7 @@ import Quaternion from './Quaternion';
 import AABB from './AABB';
 import { makeAabb, aabbWidth, aabbHeight, aabbDepth, UNBOUNDED_AABB } from './aabbs';
 import {
-	Room, RoomEntity, Entity, EntityClass, StructureType, TileTree, TileEntityPalette
+	Room, RoomEntity, TileEntity, Entity, EntityClass, StructureType, TileTree, TileEntityPalette
 } from './world';
 import EntitySystemBusMessage from './EntitySystemBusMessage';
 import EntitySubsystem, { ESSCR_CONDUCTOR_NETWORK, ConductorNetwork } from './EntitySubsystem';
@@ -39,19 +39,22 @@ function entityClassRef( op:any, gdm?:GameDataManager ):string {
  * Palette can either be an ID of a TileEntityPalette,
  * or a list of tile tree entity class refs.
  */
-export function makeTileEntityPaletteRef( palette:any, gdm?:GameDataManager, alias?:string ):string {
+export function makeTileEntityPaletteRef( palette:Array<null|TileEntity|string>, gdm?:GameDataManager, alias?:string ):string {
 	if( typeof palette == 'string' ) return palette;
 	
 	if( gdm == null ) throw new Error("Can't generate palette ref without GameDataManager");
 	
 	if( !Array.isArray(palette) ) throw new Error("Supposed tile palette is not an array; can't reference it: "+JSON.stringify(palette));
 	
-	const tilePalette:TileEntityPalette = palette.map( (obj:any) => obj == null ? null : deepFreeze({
-		orientation: Quaternion.IDENTITY, // For now
-		entity: {
-			classRef: entityClassRef(obj, gdm)
-		},
-	}) );
+	const tilePalette:TileEntityPalette = palette.map( (obj:any) =>
+		obj == null ? null :
+		typeof obj == 'string' ? deepFreeze({
+			orientation: Quaternion.IDENTITY, // For now
+			entity: {
+				classRef: entityClassRef(obj, gdm)
+			},
+		}) : deepFreeze(obj)
+	);
 
 	return gdm.tempStoreObject(tilePalette, alias);
 }

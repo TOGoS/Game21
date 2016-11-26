@@ -51,6 +51,7 @@ function roomToMazeViewage( roomRef:string, roomPosition:Vector3D, gdm:GameDataM
 				position,
 				orientation: orientation,
 				visualRef: entityClass.visualRef,
+				state: entity.state,
 				entity: includeGreatInfo ? entity : undefined,
 			})
 		}
@@ -79,7 +80,7 @@ export default class VisionUpdate extends SimulationUpdate {
 		viewerEntityPath:EntityPath, viewerPosition:Vector3D, viewerEntity:Entity,
 		visionSubsystemKey:string, visionSubsystem:Vision,
 		busMessageQueue:EntitySystemBusMessage[]
-	):Entity {
+	):Entity|null {
 		//console.log("Maybze vizing "+viewerEntityPath[1]+"...");
 		
 		if( visionSubsystem.sceneExpressionRef == undefined ) return viewerEntity;
@@ -136,11 +137,11 @@ export default class VisionUpdate extends SimulationUpdate {
 		}
 		
 		const sceneExpression = this.gameDataManager.getObject<EntitySubsystemProgramExpression>(visionSubsystem.sceneExpressionRef);
-		this.runSubsystemProgram(viewerEntityPath, viewerEntity, visionSubsystemKey, sceneExpression, busMessageQueue, {
+		
+		return this.runSubsystemProgramEtc(viewerEntityPath, viewerEntity, visionSubsystemKey, sceneExpression, busMessageQueue, {
 			"viewScene": newViewage
 		});
 		
-		return viewerEntity;
 		// TODO: set last update time on the subsystem, etc.
 	}
 	

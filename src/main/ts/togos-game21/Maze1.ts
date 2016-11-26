@@ -263,6 +263,14 @@ class EntityImageManager
 	
 	protected iconCache:KeyedList<ImageSlice<HTMLImageElement>> = {};
 	public getIconIfLoaded( visualRef:string, state:KeyedList<any>|undefined, time:number, orientation:Quaternion, preferredResolution:number, initiateFetch:boolean=false ):ImageSlice<HTMLImageElement>|undefined {
+		if( visualRef == dat.wiredToggleBoxVisualRef ) {
+			// Cheating for now!
+			const switchState = state == undefined ? false : !!state['switchState'];
+			visualRef = switchState ?
+				dat.greenToggleBoxOnImgRef :
+				dat.greenToggleBoxOffImgRef;
+		}
+		
 		if( this.iconCache[visualRef] ) return this.iconCache[visualRef];
 		
 		if( initiateFetch ) this.fetchIcon(visualRef, state, time, orientation, preferredResolution);

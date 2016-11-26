@@ -683,11 +683,21 @@ abstract class SimulationUpdate {
 		entityPath:EntityPath, entity:Entity, subsystemKey:string, program:esp.ProgramExpression,
 		busMessageQueue:EntitySystemBusMessage[],
 		variableValues:KeyedList<any>
-	):any {
+	):Entity {
 		const ctx:ISPEC = {
 			entityPath, entity, subsystemKey, busMessageQueue, variableValues
 		};
-		return evalInternalSystemProgram( program, ctx );
+		evalInternalSystemProgram( program, ctx );
+		return ctx.entity;
+	}
+	
+	protected runSubsystemProgramEtc(
+		entityPath:EntityPath, entity:Entity, subsystemKey:string, program:esp.ProgramExpression,
+		busMessageQueue:EntitySystemBusMessage[],
+		variableValues:KeyedList<any>
+	):Entity|null {
+		entity = this.runSubsystemProgram(entityPath, entity, subsystemKey, program, busMessageQueue, variableValues);
+		return this.handleSystemBusMessages(entityPath, entity, busMessageQueue);
 	}
 	
 	protected deliverPoke(entityPath:EntityPath, entity:Entity) {
@@ -698,12 +708,8 @@ abstract class SimulationUpdate {
 			case "http://ns.nuke24.net/Game21/EntitySubsystem/Button":
 				if( subsystem.pokedExpressionRef == undefined ) continue;
 				const expr = this.gameDataManager.getObject<esp.ProgramExpression>(subsystem.pokedExpressionRef);
-				const busMessageQueue:EntitySystemBusMessage[] = [];
-				this.runSubsystemProgram(
-					entityPath, entity,
-					sk, expr, busMessageQueue, {}
-				);
-				this.replaceEntity(entityPath, this.handleSystemBusMessages(entityPath, entity, busMessageQueue));
+				const replacementEntity = this.runSubsystemProgramEtc(entityPath, entity, sk, expr, [], {});
+				this.replaceEntity(entityPath, replacementEntity, entity);
 				break;
 			}
 		}
@@ -751,7 +757,7 @@ abstract class SimulationUpdate {
 	
 	protected handleSubsystemBusMessage(
 		entityPath:EntityPath, entity:Entity, subsystemKey:string, subsystem:EntitySubsystem, message:EntitySystemBusMessage, messageQueue:EntitySystemBusMessage[]
-	):Entity|undefined {
+	):Entity|null {
 		if( message.length < 1 ) {
 			console.warn("Zero-length message passed to subsystem "+subsystemKey, message);
 			return entity;
@@ -809,9 +815,7 @@ abstract class SimulationUpdate {
 				}
 				
 				const program = this.gameDataManager.getObject<esp.ProgramExpression>(subsystem.messageReceivedExpressionRef);
-				// Will need to change something a bit in order to allow
-				// data to be stored on the SimpleComputer
-				this.runSubsystemProgram(entityPath, entity, subsystemKey, program, messageQueue, vars);
+				entity = this.runSubsystemProgram(entityPath, entity, subsystemKey, program, messageQueue, vars);
 			}
 			break;
 		default:
@@ -829,7 +833,7 @@ abstract class SimulationUpdate {
 	 */
 	protected handleSystemBusMessage(
 		entityPath:EntityPath, entity:Entity, message:EntitySystemBusMessage, busMessageQueue:EntitySystemBusMessage[]
-	):Entity|undefined {
+	):Entity|null {
 		if( message.length < 1 ) {
 			console.warn("Zero length system bus message", message);
 			return entity;
@@ -858,9 +862,9 @@ abstract class SimulationUpdate {
 	}
 	
 	protected handleSystemBusMessages(
-		entityPath:EntityPath, entity:Entity|undefined, busMessageQueue:EntitySystemBusMessage[]
-	):Entity|undefined {
-		for( let i=0; i<busMessageQueue.length && entity != undefined; ++i ) {
+		entityPath:EntityPath, entity:Entity|null, busMessageQueue:EntitySystemBusMessage[]
+	):Entity|null {
+		for( let i=0; i<busMessageQueue.length && entity != null; ++i ) {
 			entity = this.handleSystemBusMessage(entityPath, entity, busMessageQueue[i], busMessageQueue);
 		}
 		return entity;
@@ -902,17 +906,17 @@ abstract class SimulationUpdate {
 					// TODO: Clone message, add originPosition data.
 					const fixedMessage = message;
 					const expr = this.gameDataManager.getObject<esp.ProgramExpression>(iSys.eventDetectedExpressionRef);
-					const busMessageQueue:EntitySystemBusMessage[] = []; 
-					this.runSubsystemProgram(
-						[foundEntity.roomRef, foundEntity.roomEntityId], foundEntity.entity,
-						ESSKEY_PROXIMALEVENTDETECTOR, expr, busMessageQueue,
-						{
-							event: fixedMessage
-						}
-					);
+					const busMessageQueue:EntitySystemBusMessage[] = [];
+					
 					this.replaceEntity(
 						foundEntity.entityPath,
-						this.handleSystemBusMessages(foundEntity.entityPath, foundEntity.entity, busMessageQueue),
+						this.runSubsystemProgramEtc(
+							[foundEntity.roomRef, foundEntity.roomEntityId], foundEntity.entity,
+							ESSKEY_PROXIMALEVENTDETECTOR, expr, busMessageQueue,
+							{
+								event: fixedMessage
+							}
+						),
 						foundEntity.entity
 					);
 				}
@@ -920,14 +924,13 @@ abstract class SimulationUpdate {
 		}
 	}
 	
-	protected _mutateEntityAtPath( entity:Entity, entityPath:EntityPath, pathStart:number, mutator:(entity:Entity)=>Entity|undefined ) : Entity|undefined {
+	protected _mutateEntityAtPath( entity:Entity, entityPath:EntityPath, pathStart:number, mutator:(entity:Entity)=>Entity|null ) : Entity|null {
 		if( pathStart == entityPath.length ) {
 			return mutator(entity);
 		}
 		if( entityPath[pathStart] == AT_STRUCTURE_OFFSET ) {
 			const offsetVector:Vector3D = parseVector(entityPath[pathStart+1]);
 			const entityClass = this.gameDataManager.getEntityClass(entity.classRef);
-			console.log(entityPath.join('/')+" offset "+pathStart+"; subdividing entity class "+entity.classRef+", which is structure type "+entityClass.structureType);
 			if( entityClass.structureType == StructureType.TILE_TREE ) {
 				// TODO: allow passing an aabb to rewriteTileTree
 				// so that it skips parts we don't care about at all.
@@ -951,7 +954,7 @@ abstract class SimulationUpdate {
 		throw new Error("Don't know how to do this mutation when next path key is '"+entityPath[pathStart]+"'");
 	}
 	
-	protected mutateEntityAtPath( entityPath:EntityPath, mutator:(entity:Entity)=>Entity|undefined ) : void {
+	protected mutateEntityAtPath( entityPath:EntityPath, mutator:(entity:Entity)=>Entity|null ) : void {
 		this.markRoomVisiblyUpdated(entityPath[0]); // Not necessarily true (since we don't know what the mutation was), but probably
 		const roomEntity = this.getRoomEntityOrUndefined(entityPath);
 		if( roomEntity == undefined ) return undefined;
@@ -963,8 +966,8 @@ abstract class SimulationUpdate {
 		this._mutateEntityAtPath(entity, entityPath, 2, mutator);
 	}
 	
-	protected replaceEntity(entityPath:EntityPath, entity:Entity|undefined, oldVersion?:Entity) {
-		if( oldVersion != undefined && oldVersion === entity ) {
+	protected replaceEntity(entityPath:EntityPath, entity:Entity|null, oldVersion?:Entity) {
+		if( oldVersion !== undefined && oldVersion === entity ) {
 			// Nothing to do, ha ha ha.
 			// Well except for this (assuming entity may have been mutated)
 			this.markRoomVisiblyUpdated(entityPath[0]); // Not necessarily true (since we don't know what the mutation was), but probably
@@ -979,10 +982,10 @@ abstract class SimulationUpdate {
 	 */
 	protected doEntitySubsystemUpdate(
 		entityPath:EntityPath, entity:Entity,
-		update:(entity:Entity, messageQueue:EntitySystemBusMessage)=>Entity|undefined,
+		update:(entity:Entity, messageQueue:EntitySystemBusMessage)=>Entity|null,
 		messageQueue:EntitySystemBusMessage[] = []
 	):void {
-		let newEntity:Entity|undefined = update(entity, messageQueue);
+		let newEntity:Entity|null = update(entity, messageQueue);
 		if( newEntity ) newEntity = this.handleSystemBusMessages(entityPath, newEntity, messageQueue);
 		this.replaceEntity(entityPath, newEntity, entity);
 	}
@@ -1122,6 +1125,30 @@ interface InternalSystemProgramEvaluationContext {
 
 type ISPEC = InternalSystemProgramEvaluationContext;
 
+interface EntityUpdate {
+	stateUpdates?: KeyedList<any>;
+}
+function updateEntity( entity:Entity, update:EntityUpdate ):Entity {
+	entity = thaw(entity);
+	if( update.stateUpdates ) {
+		const newState:KeyedList<any> = {};
+		if( entity.state ) for( let k in entity.state ) {
+			newState[k] = entity.state[k];
+		}
+		for( let k in update.stateUpdates ) {
+			newState[k] = update.stateUpdates[k];
+			if( newState[k] == undefined ) delete newState[k];
+		}
+		console.log("Update entity from", entity.state, "to", newState);
+		entity.state = newState;
+	}
+	return entity;
+}
+
+/**
+ * May update ctx.entity
+ * or add messages to ctx.busMessageQueue
+ */
 function evalInternalSystemProgram( expression:esp.ProgramExpression, ctx:ISPEC ):any {
 	switch( expression.classRef ) {
 	case "http://ns.nuke24.net/TOGVM/Expressions/LiteralString":
@@ -1136,6 +1163,17 @@ function evalInternalSystemProgram( expression:esp.ProgramExpression, ctx:ISPEC 
 		return argValues;
 	case "http://ns.nuke24.net/TOGVM/Expressions/Variable":
 		return ctx.variableValues[expression.variableName];
+	case "http://ns.nuke24.net/TOGVM/Expressions/IfElseChain":
+		{
+			if( (expression.arguments.length % 2) != 1 ) {
+				throw new Error("IfElseChain must have an odd number of arguments!  Got "+expression.arguments.length);
+			}
+			for( let i=0; i<expression.arguments.length; i += 2 ) {
+				const useThisOne = evalInternalSystemProgram(expression.arguments[i], ctx);
+				if( useThisOne ) return evalInternalSystemProgram(expression.arguments[i+1], ctx);
+			}
+			return evalInternalSystemProgram(expression.arguments[expression.arguments.length-1], ctx);
+		}
 	case "http://ns.nuke24.net/TOGVM/Expressions/FunctionApplication":
 		{
 			const argValues:any[] = [];
@@ -1144,6 +1182,17 @@ function evalInternalSystemProgram( expression:esp.ProgramExpression, ctx:ISPEC 
 			}
 			if( !expression.functionRef ) throw new Error("Oh no dynamic functions not implemented boo");
 			switch( expression.functionRef ) {
+			case "http://ns.nuke24.net/TOGVM/Functions/BooleanNegate":
+				if( argValues.length == 1 ) {
+					return !argValues[0];
+				} else {
+					throw new Error("BooleanNegate requires a single argument; given "+argValues.length);
+				}
+			case "http://ns.nuke24.net/TOGVM/Functions/Coalesce":
+				for( let i in argValues ) {
+					if( argValues[i] != undefined ) return argValues[i];
+				}
+				return undefined;
 			case "http://ns.nuke24.net/InternalSystemFunctions/Trace":
 				console.debug("Trace from entity subsystem program", argValues, ctx);
 				break;
@@ -1160,6 +1209,24 @@ function evalInternalSystemProgram( expression:esp.ProgramExpression, ctx:ISPEC 
 				} else {
 					throw new Error("SendBusMessage given non-1 arguments: "+JSON.stringify(argValues));
 				}
+			case "http://ns.nuke24.net/InternalSystemFunctions/GetEntityStateVariable":
+				if( argValues.length == 1 ) {
+					const varName = ""+argValues[0];
+					return ctx.entity.state ? ctx.entity.state[varName] : null;
+				} else {
+					throw new Error("GetEntityStateVariable requires one argument; got "+argValues.length);
+				}
+			case "http://ns.nuke24.net/InternalSystemFunctions/SetEntityStateVariable":
+				if( argValues.length == 2 ) {
+					ctx.entity = updateEntity( ctx.entity, {
+						stateUpdates: {
+							[""+argValues[0]]: argValues[1]
+						}
+					});
+					return null;
+				} else {
+					throw new Error("SetEntityStateVariable requires two arguments; got "+argValues.length);
+				}
 			default:
 				throw new Error("Call to unsupported function "+expression.functionRef);
 			}
@@ -1167,7 +1234,7 @@ function evalInternalSystemProgram( expression:esp.ProgramExpression, ctx:ISPEC 
 		break;
 	default:
 		throw new Error(
-			"Dunno how to evaluate expression classcamp town ladies sing this song, do da, do da, "+
+			"Dunno how to evaluate expression class camp town ladies sing this song, do da, do da, "+
 			"camp town race track five miles long, oh da do da day: "+expression.classRef);
 	}
 }

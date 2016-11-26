@@ -57,12 +57,15 @@ class TileEntityPaletteManager {
 		const pal = this.palette;
 		for( let i=0; i<pal.length; ++i ) {
 			const palE = pal[i];
+			if( palE === te ) return i; // Easy case!
 			if( te == null && palE == null ) return i;
 			if( te != null && palE != null ) {
-				if( palE.entity.classRef == te.entity.classRef ) {
-					// Good enough for now; we'll ignore other properties
-					return i;
-				}
+				if( palE.entity === te.entity ) return i; // Easy case!
+				if( palE.entity.classRef != te.entity.classRef ) continue;
+				if( JSON.stringify(palE.entity.state) != JSON.stringify(te.entity.state) ) continue;
+				
+				// Good enough for now; we'll ignore other properties
+				return i;
 			}
 		}
 		return this.addTileEntity(te);
