@@ -52,6 +52,9 @@ export interface WiredNetworkPort {
 	classRef: typeof ESSCR_WIRED_NETWORK_PORT,
 	position: Vector3D,
 	direction: Vector3D,
+	channelId: number,
+	normalTransmissionPower: number,
+	transmissionMediumRef: string,
 	signalRecievedExpressionRef? : string;
 }
 

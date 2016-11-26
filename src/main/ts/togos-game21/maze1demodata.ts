@@ -13,7 +13,7 @@ import {
 	makeTileEntityPaletteRef,
 	makeTileTreeRef
 } from './worldutil';
-import { ROOMID_FINDENTITY } from './simulationmessaging';
+import { ROOMID_FINDENTITY, CHAN_SNS, XMSN_COPPER } from './simulationmessaging';
 import * as esp from './internalsystemprogram';
 import GameDataManager from './GameDataManager';
 /// <reference path="../Promise.d.ts"/>
@@ -1213,11 +1213,17 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 				classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/WiredNetworkPort",
 				position: {x:-1/16, y:-1/4, z:-1/16},
 				direction: {x:0, y:-1, z:0},
+				channelId: CHAN_SNS,
+				transmissionMediumRef: XMSN_COPPER,
+				normalTransmissionPower: 1, // whatever!
 			},
 			"netdown": {
 				classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/WiredNetworkPort",
 				position: {x:-1/16, y:+1/4, z:-1/16},
 				direction: {x:0, y:+1, z:0},
+				channelId: CHAN_SNS,
+				transmissionMediumRef: XMSN_COPPER,
+				normalTransmissionPower: 1, // whatever!
 			},
 		}
 	}, wiredToggleBoxEntityClassRef);

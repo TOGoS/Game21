@@ -68,6 +68,7 @@ import newUuidRef from './newUuidRef';
 import { pickOne } from './graphmaze/picking';
 import { thaw } from './DeepFreezer';
 import { resolvedPromise, RESOLVED_VOID_PROMISE, isResolved } from './promises';
+import { utf8Encode } from '../tshash/utils';
 
 const entityPositionBuffer:Vector3D = makeVector(0,0,0);
 
@@ -753,6 +754,33 @@ abstract class SimulationUpdate {
 		}
 	}
 	
+	protected locateEntity(entityPath:EntityPath):RoomLocation {
+		let roomRef = entityPath[0];
+		if( roomRef == ROOMID_FINDENTITY ) {
+			this.findEntityInAnyLoadedRoom(entityPath[1]);
+			throw new Error("Haha ha not implemented");
+		}
+		const room = this.getRoom(roomRef);
+		const roomEntity = room.roomEntities[entityPath[1]];
+		if( roomEntity == undefined ) throw new Error(
+			"Ack can't locate; room entity "+entityPath[1]+
+			" doesn't exist in room "+roomRef);
+		let position = roomEntity.position;
+		for( let i=2; i<entityPath.length; ++i ) {
+			if( entityPath[i] == AT_STRUCTURE_OFFSET ) {
+				const offsetVector:Vector3D = parseVector(entityPath[++i]);
+				// TODO: This doesn't take orientation of trees into account!
+				position = addVector(position, offsetVector);
+			} else {
+				break;
+			}
+		}
+		return {
+			roomRef,
+			position,
+		};
+	}
+	
 	protected handleSubsystemBusMessage(
 		entityPath:EntityPath, entity:Entity, subsystemKey:string, subsystem:EntitySubsystem, message:EntitySystemBusMessage, messageQueue:EntitySystemBusMessage[]
 	):Entity|null {
@@ -814,6 +842,37 @@ abstract class SimulationUpdate {
 				
 				const program = this.gameDataManager.getObject<esp.ProgramExpression>(subsystem.messageReceivedExpressionRef);
 				entity = this.runSubsystemProgram(entityPath, entity, subsystemKey, program, messageQueue, vars);
+			}
+			break;
+		case "http://ns.nuke24.net/Game21/EntitySubsystem/WiredNetworkPort":
+			{
+				switch( message[0] ) {
+				case '/signal':
+					let payload:Uint8Array;
+					if( message[1] == null ) {
+						payload = new Uint8Array(0);
+					} else if( typeof message[1] == 'string' ) {
+						payload = utf8Encode(message[1]);
+					} else if( Array.isArray(message[1]) ) {
+						payload = new Uint8Array(message[1]);
+					} else {
+						throw new Error("Don't know how to make byte array from "+JSON.stringify(message[1]));
+					}
+					const loc = this.locateEntity(entityPath);
+					this.enqueueAction({
+						classRef: "http://ns.nuke24.net/Game21/SimulationAction/TransmitWireSignalAction",
+						originRoomRef: entityPath[0],
+						originPosition: addVector(loc.position, subsystem.position),
+						direction: subsystem.direction, // TODO: Take intermediate rotations into account!
+						transmissionMediumRef: subsystem.transmissionMediumRef,
+						power: subsystem.normalTransmissionPower,
+						channelId: subsystem.channelId,
+						payload,
+					});
+					return entity;
+				default:
+					console.warn(subsystem.classRef+" recieved unrecongized message: "+message[0]);
+				}
 			}
 			break;
 		default:

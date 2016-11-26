@@ -33,6 +33,7 @@ export const XMSN_COPPER = "http://ns.nuke24.net/Game21/TransmissionMedia/Copper
 export const CHAN_ANALOG_1 = 1;
 export const CHAN_ANALOG_2 = 2;
 // More analog channels?
+export const CHAN_SNS = 101; // Simple number signaling!  Payload consists of a single byte.
 export const CHAN_ETHERNET = 8023; // Data assumed to be Ethernet Type II frames
 
 
