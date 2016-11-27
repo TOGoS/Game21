@@ -1048,11 +1048,11 @@ abstract class SimulationUpdate {
 	}
 	
 	protected induceSystemBusMessage(entityPath:EntityPath, message:EntitySystemBusMessage, replyPath?:EntityPath):void {
-		if( entityPath[0] == ROOMID_SIMULATOR ) {
+		switch( entityPath[0] ) {
+		case ROOMID_SIMULATOR:
 			this.processSimulatorCommand(message);
 			return;
-		}
-		if( entityPath[0] == ROOMID_EXTERNAL ) {
+		case ROOMID_EXTERNAL:
 			const dev = this.simulator.externalDevices[entityPath[1]];
 			if( dev ) {
 				dev.onMessage(message, replyPath);
@@ -1060,7 +1060,10 @@ abstract class SimulationUpdate {
 				console.warn("Cannot deliver system bus message to nonexistent external device '"+entityPath[1]+"'")
 			}
 			return;
+		case ROOMID_FINDENTITY:
+			entityPath = this.fixEntityPathRoomId(entityPath);
 		}
+		
 		this.mutateEntityAtPath(entityPath, (entity:Entity) => {
 			return this.handleSystemBusMessages(entityPath, entity, [message]);
 		});
