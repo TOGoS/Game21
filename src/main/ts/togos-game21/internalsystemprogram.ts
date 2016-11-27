@@ -94,6 +94,19 @@ export function sExpressionToProgramExpression(x:any):ProgramExpression {
 		};
 	} else if( Array.isArray(x) ) {
 		if( x.length == 0 ) throw new Error("S-expression is zero length, which is bad!"); // Unless I decide it means Nil.
+		
+		if( Array.isArray(x[0]) ) {
+			const funkargs:ProgramExpression[] = [];
+			for( let i=1; i<x.length; ++i ) {
+				funkargs.push(sExpressionToProgramExpression(x[i]));
+			}
+			return <FunctionApplication>{
+				classRef: "http://ns.nuke24.net/TOGVM/Expressions/FunctionApplication",
+				functionExpression: sExpressionToProgramExpression(x[0]),
+				arguments: funkargs
+			};
+		}
+		
 		switch( x[0] ) {
 		case 'if':
 			{
