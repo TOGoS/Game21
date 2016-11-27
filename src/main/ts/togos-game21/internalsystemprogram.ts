@@ -31,7 +31,7 @@ export interface LetExpression extends BaseExpression {
 export interface FunctionApplication extends BaseExpression {
 	classRef : "http://ns.nuke24.net/TOGVM/Expressions/FunctionApplication";
 	functionRef? : FunctionRef;
-	functionExpression? : BaseExpression;
+	functionExpression? : ProgramExpression;
 	arguments : ProgramExpression[];
 }
 export interface ArrayConstructionExpression extends BaseExpression {

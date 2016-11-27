@@ -1225,7 +1225,39 @@ abstract class SimulationUpdate {
 					});
 				}
 			}
-			// TODO: Also check for network ports!
+			
+			const hasNetworkPortsEntityFilter:EntityFilter = (
+				roomEntityId:string, roomEntity:RoomEntity, entity:Entity, entityClass:EntityClass
+			):boolean|undefined => {
+				const subsystems = getEntitySubsystems(entity, this.gameDataManager);
+				for( let sk in subsystems ) {
+					const subsystem = subsystems[sk];
+					switch( subsystem.classRef ) {
+					case "http://ns.nuke24.net/Game21/EntitySubsystem/WiredNetworkPort":
+						return true;
+					}
+				}
+				return undefined;
+			}
+			
+			const foundNpEntities = this.entitiesAt(act.originRoomRef, act.originPosition, pointAabb, hasNetworkPortsEntityFilter);
+			for( let e in foundNpEntities ) {
+				const foundNpEntity = foundNpEntities[e];
+				const subsystems = getEntitySubsystems(foundNpEntity.entity, this.gameDataManager);
+				let entity:Entity|null = foundNpEntity.entity;
+				for( let ssk in subsystems ) {
+					const subsystem = subsystems[ssk];
+					if( subsystem.classRef == "http://ns.nuke24.net/Game21/EntitySubsystem/WiredNetworkPort" ) {
+						if( subsystem.signalReceivedExpressionRef == undefined ) continue;
+						const expr = this.gameDataManager.getObject<esp.ProgramExpression>(subsystem.signalReceivedExpressionRef);
+						entity = this.runSubsystemProgramEtc(foundNpEntity.entityPath, entity, ssk, expr, [], {
+							signalData: act.payload
+						});
+						if( entity == null ) break;
+					}
+				}
+				this.replaceEntity(foundNpEntity.entityPath, entity, foundNpEntity.entity);
+			}
 		});
 	}
 	
@@ -1406,7 +1438,15 @@ function evalInternalSystemProgram( expression:esp.ProgramExpression, ctx:ISPEC 
 			for( let i=0; i<expression.arguments.length; ++i ) {
 				argValues.push(evalInternalSystemProgram(expression.arguments[i], ctx));
 			}
-			if( !expression.functionRef ) throw new Error("Oh no dynamic functions not implemented boo");
+			if( !expression.functionRef && expression.functionExpression ) {
+				let thing = evalInternalSystemProgram(expression.functionExpression, ctx);
+				// For now just assume it's array element lookups
+				for( let i=0; thing != undefined && i<argValues.length; ++i ) {
+					const key = argValues[i];
+					thing = thing[key];
+				}
+				return thing;
+			}
 			switch( expression.functionRef ) {
 			case "http://ns.nuke24.net/TOGVM/Functions/AreEqual":
 				for( let i=1; i<argValues.length; ++i ) {

@@ -55,7 +55,11 @@ export interface WiredNetworkPort {
 	channelId: number,
 	normalTransmissionPower: number,
 	transmissionMediumRef: string,
-	signalRecievedExpressionRef? : string;
+	/**
+	 * Refers to a progra that will be called with vars:
+	 *   payload:Uint8Array
+	 */
+	signalReceivedExpressionRef? : string;
 }
 
 /**
@@ -73,7 +77,7 @@ export interface ProximalEventDetector {
 	eventDetectedExpressionRef? : string;
 }
 
-/** Receives messages and does /something/ */
+/** Receives bus messages and does /something/ */
 export interface SimpleComputer {
 	classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/SimpleComputer";
 	registerVariableNames? : string[];

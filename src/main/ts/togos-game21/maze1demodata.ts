@@ -1253,9 +1253,9 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 				channelId: CHAN_SNS,
 				transmissionMediumRef: XMSN_COPPER,
 				normalTransmissionPower: 1, // whatever!
-				messageReceivedExpressionRef: sExpressionToProgramExpressionRef(
+				signalReceivedExpressionRef: sExpressionToProgramExpressionRef(
 					['sesv', 'switchState',
-						['!=', [['var', 'payload'], 0], 0]],
+						['!=', [['var', 'signalData'], 0], 0]],
 					gdm
 				)
 			},
@@ -1597,14 +1597,14 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 					subsystems: {
 						"onon": {
 							"classRef": "http://ns.nuke24.net/Game21/EntitySubsystem/SimpleComputer",
-							messageReceivedExpressionRef: sExpressionToProgramExpressionRef(
+							signalReceivedExpressionRef: sExpressionToProgramExpressionRef(
 								['sendBusMessage', ['makeArray', '/liftlink/desiredmovementdirection', 0, -1, 0]],
 								gdm
 							)
 						},
 						"onoff": {
 							"classRef": "http://ns.nuke24.net/Game21/EntitySubsystem/SimpleComputer",
-							messageReceivedExpressionRef: sExpressionToProgramExpressionRef(
+							signalReceivedExpressionRef: sExpressionToProgramExpressionRef(
 								['sendBusMessage', ['makeArray', '/liftlink/desiredmovementdirection', 0, +1, 0]],
 								gdm
 							)
