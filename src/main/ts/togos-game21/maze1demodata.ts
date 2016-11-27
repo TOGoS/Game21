@@ -1,3 +1,4 @@
+import Vector3D from './Vector3D';
 import { makeVector } from './vector3ds';
 import AABB from './AABB';
 import { makeAabb } from './aabbs';
@@ -10,9 +11,19 @@ import {
 	TileTree,
 } from './world';
 import {
+	deepFreeze
+} from './DeepFreezer';
+import {
 	makeTileEntityPaletteRef,
 	makeTileTreeRef
 } from './worldutil';
+import {
+	ESSCR_CONDUCTOR_NETWORK,
+	ConductorNetwork
+} from './EntitySubsystem';
+import {
+	ConductorNetworkBuilder
+} from './conductornetworks';
 import { ROOMID_FINDENTITY, CHAN_SNS, XMSN_COPPER } from './simulationmessaging';
 import * as esp from './internalsystemprogram';
 import GameDataManager from './GameDataManager';
@@ -480,8 +491,8 @@ const room1Data = [
 	0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0,13, 0, 0,12,
 	1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0,13, 0, 0,10,
 	1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 2, 0,13, 0, 0,10,
-	1, 0,16, 0, 0, 0, 1, 8, 8, 8, 0, 0,13, 0, 0,10,
-	1, 0,16, 0, 0, 0, 1, 2, 2, 2, 2, 2,11, 0, 0,10,
+	1, 0,16, 0, 0,33, 1, 8, 8, 8, 0, 0,13, 0, 0,10,
+	1, 0,16, 0, 0,32, 1, 2, 2, 2, 2, 2,11, 0, 0,10,
 	1, 0,16, 0, 5,31,30, 0, 5, 0, 0, 0,13, 0, 0,10,
 	1, 0, 2, 2, 5, 1, 1, 2, 5, 1, 1, 1,11, 0, 0,12,
 	1, 0, 2, 1, 5, 0, 1, 2, 5, 1, 0, 2,11, 0, 0,12,
@@ -585,6 +596,7 @@ const doorData = [1,1,1];
 const UNIT_CUBE :AABB = makeAabb(-0.5, -0.5, -0.5, 0.5, 0.5, 0.5); 
 const HUNIT_CUBE:AABB = makeAabb(-0.25, -0.25, -0.25, 0.25, 0.25, 0.25);
 const QUNIT_CUBE:AABB = makeAabb(-0.125, -0.125, -0.125, 0.125, 0.125, 0.125);
+const EUNIT_CUBE:AABB = makeAabb(-1/16, -1/16, -1/16, 1/16, 1/16, 1/16);
 const NORTH_SIDE_BB:AABB = makeAabb(-0.5,-0.5,-0.5, +0.5,+0.5,-0.25);
 const EAST_SIDE_BB:AABB = makeAabb(+0.25,-0.5,-0.5, +0.5,+0.5,+0.5);
 const WEST_SIDE_BB:AABB = makeAabb(-0.5,-0.5,-0.5, -0.25,+0.5,+0.5);
@@ -632,7 +644,8 @@ export const toggleBoxOffEntityClassRef      = 'urn:uuid:5f51520a-09c9-4aaa-b0e8
 export const toggleBoxOnEntityClassRef       = 'urn:uuid:5f51520a-09c9-4aaa-b0e8-68a03617eaf1';
 export const wiredToggleBoxEntityClassRef    = 'urn:uuid:5f51520a-09c9-4aaa-b0e8-68a03617eaf2';
 export const wiredToggleBoxVisualRef         = 'urn:uuid:5f51520a-09c9-4aaa-b0e8-68a03617eaf3';
-export const wiredToggleBoxBlockEntityClassRef = 'urn:uuid:5f51520a-09c9-4aaa-b0e8-68a03617eaf4';
+//export const wiredToggleBoxBlockEntityClassRef = 'urn:uuid:5f51520a-09c9-4aaa-b0e8-68a03617eaf4';
+export const verticalEthernetCableEigthClassRef= 'urn:uuid:33419dc3-f0e2-451c-8c07-50d010ac8ea0'; 
 
 export const primarySpawnPointEntityId = 'urn:uuid:d42a8340-ec03-482b-ae4c-a1bfdec4ba3a'; 
 export const playerEntityId            = 'urn:uuid:d42a8340-ec03-482b-ae4c-a1bfdec4ba32';
@@ -672,6 +685,22 @@ export const keyClassRefs  = [
 	yellowKeyEntityClassId,
 	redKeyEntityClassId,
 ]
+
+function makeEthernetNetwork(
+	pos0:Vector3D, dir0:Vector3D,
+	pos1:Vector3D, dir1:Vector3D
+):ConductorNetwork {
+	const builder = new ConductorNetworkBuilder();
+	const medIdx = builder.addMediumRef(XMSN_COPPER);
+	const n0Idx = builder.addNode(pos0,dir0);
+	const n1Idx = builder.addNode(pos1,dir1);
+	builder.link(n0Idx, n1Idx, {
+		mediumIndex: medIdx,
+		crossSectionalArea: 1/(128*128),
+		length: 1/8,
+	});
+	return deepFreeze(builder.network);
+}
 
 /**
  * Returns a promise for the new game data root node URI
@@ -1211,7 +1240,7 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 			},
 			"netup": {
 				classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/WiredNetworkPort",
-				position: {x:-1/16, y:-1/4, z:-1/16},
+				position: {x:+1/16, y:-1/4, z:-1/16},
 				direction: {x:0, y:-1, z:0},
 				channelId: CHAN_SNS,
 				transmissionMediumRef: XMSN_COPPER,
@@ -1219,40 +1248,82 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 			},
 			"netdown": {
 				classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/WiredNetworkPort",
-				position: {x:-1/16, y:+1/4, z:-1/16},
+				position: {x:+1/16, y:+1/4, z:-1/16},
 				direction: {x:0, y:+1, z:0},
 				channelId: CHAN_SNS,
 				transmissionMediumRef: XMSN_COPPER,
 				normalTransmissionPower: 1, // whatever!
+				messageReceivedExpressionRef: sExpressionToProgramExpressionRef(
+					['sesv', 'switchState',
+						['!=', [['var', 'payload'], 0], 0]],
+					gdm
+				)
 			},
 		}
 	}, wiredToggleBoxEntityClassRef);
-	gdm.tempStoreObject<TileTree>( {
-		debugLabel: "wired toggle box block",
-		structureType: StructureType.TILE_TREE,
-		tilingBoundingBox: UNIT_CUBE,
-		physicalBoundingBox: UNIT_CUBE,
-		visualBoundingBox: UNIT_CUBE,
-		xDivisions: 2,
-		yDivisions: 2,
-		zDivisions: 4,
-		childEntityPaletteRef: makeTileEntityPaletteRef([null, {
+	
+	gdm.tempStoreObject<EntityClass>({
+		tilingBoundingBox:   EUNIT_CUBE,
+		physicalBoundingBox: EUNIT_CUBE,
+		visualBoundingBox:   EUNIT_CUBE,
+		structureType: StructureType.INDIVIDUAL,
+		visualRef: eighthMeterWireImgRef,
+		defaultSubsystems: {
+			"ethcable": makeEthernetNetwork(
+				{x:0,y:-1/16,z:0}, {x:0,y:-1,z:0},
+				{x:0,y:+1/16,z:0}, {x:0,y:+1,z:0}
+			),
+		}
+	}, verticalEthernetCableEigthClassRef);
+	const verticalEthernetQuarterlockRef = makeTileTreeRef(
+		[null, verticalEthernetCableEigthClassRef],
+		2,2,2,[
+			1,0,1,0,
+			0,0,0,0,
+		],gdm);
+	const verticalEthernetHalfBlockRef = makeTileTreeRef(
+		[null, verticalEthernetQuarterlockRef],
+		2,2,2,[
+			0,0,0,0,
+			0,1,0,1,
+		],gdm);
+	const verticalEthernetBlockRef = makeTileTreeRef(
+		[null, verticalEthernetHalfBlockRef],
+		2,2,2,[
+			0,0,0,0,
+			1,0,1,0,
+		],gdm);
+	
+	const wiredTottleBoxBlockPaletteRef = makeTileEntityPaletteRef([
+		null,
+		{
 			entity: {
 				classRef: wiredToggleBoxEntityClassRef,
 				state: {
 					'switchState': false
 				}
 			}
-		},  {
+		},
+		{
 			entity: {
 				classRef: wiredToggleBoxEntityClassRef,
 				state: {
 					'switchState': true
 				}
 			}
-		}], gdm),
-		childEntityIndexes: [0,0,0,0, 0,0,0,0, 0,0,0,0, 1,0,0,0],
-	}, wiredToggleBoxBlockEntityClassRef);
+		},
+		verticalEthernetHalfBlockRef
+	], gdm);
+	const wiredToggleBoxBlockEntityClassRef = makeTileTreeRef(
+		wiredTottleBoxBlockPaletteRef, 2, 2, 4,
+		[0,0,0,0, 0,0,0,0, 0,0,0,0, 1,0,0,0],
+		gdm
+	);
+	const wiredToggleBoxWithBottomCableBlockEntityClassRef = makeTileTreeRef(
+		wiredTottleBoxBlockPaletteRef, 2, 2, 4,
+		[0,0,0,0, 0,0,0,0, 0,0,0,0, 1,0,3,0],
+		gdm
+	);
 	
 	const keyBoundingBox = makeAabb(-0.25,-0.125,-0.125, +0.25,+0.125,+0.125);
 	const cheapDoorBoundingBox = makeAabb(-0.25,-0.5,-0.5, +0.25,+0.5,+0.5);
@@ -1276,7 +1347,7 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 			coefficientOfFriction: 0.65,
 			visualRef: keyVisualRefs[i],
 			maze1Importance: 2,
-		}, keyClassRefs[i])
+		}, keyClassRefs[i]);
 		gdm.tempStoreObject<EntityClass>( {
 			debugLabel: "cheap "+keyColors[i]+"-lock door",
 			structureType: StructureType.INDIVIDUAL,
@@ -1458,6 +1529,8 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 		/* 29 */ tanRox1EntityClassId,
 		/* 30 */ toggleBoxBlockEntityClassRef,
 		/* 31 */ wiredToggleBoxBlockEntityClassRef,
+		/* 32 */ verticalEthernetBlockRef,
+		/* 33 */ wiredToggleBoxWithBottomCableBlockEntityClassRef,
 	], gdm, tileEntityPaletteId);
 	
 	// do this as second step because we need to reference that tile tree palette by ID
