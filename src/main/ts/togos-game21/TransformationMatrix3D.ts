@@ -169,4 +169,12 @@ export default class TransformationMatrix3D {
 			this.zx, this.zy, this.zz, this.z1
 		);
 	}
+	
+	public static translationAndRotation( offset:Vector3D, rot:Quaternion, dest:TransformationMatrix3D=new TransformationMatrix3D() ):TransformationMatrix3D {
+		this.fromQuaternion(rot, dest);
+		dest.x1 = offset.x;
+		dest.y1 = offset.y;
+		dest.z1 = offset.z;
+		return dest;
+	}
 }

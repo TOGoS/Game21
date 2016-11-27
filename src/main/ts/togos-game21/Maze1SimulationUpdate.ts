@@ -2,10 +2,11 @@ import KeyedList from './KeyedList';
 import Vector3D from './Vector3D';
 import { makeVector, setVector, vectorToString, parseVector, ZERO_VECTOR } from './vector3ds';
 import Quaternion from './Quaternion';
+import TransformationMatrix3D from './TransformationMatrix3D';
 import AABB from './AABB';
 import {
 	makeAabb, aabbWidth,
-	aabbContainsVector, aabbIntersectsWithOffset,
+	aabbContainsVector, offsetAabbContainsVector, aabbIntersectsWithOffset,
 	ZERO_AABB,
 } from './aabbs';
 import {
@@ -34,6 +35,14 @@ import {
 	getEntitySubsystems,
 	getEntitySubsystem,
 } from './worldutil';
+import {
+	ConductorEndpoint,
+	findConductorEndpointsFromPosition
+} from './conductornetworks';
+import {
+	EntityConductorNetworkCache,
+	WorldConductorNetworkEndpoints
+} from './entityconductornetworks';
 import {
 	rewriteTileTreeIntersecting
 } from './tiletrees';
@@ -67,10 +76,18 @@ import GameDataManager from './GameDataManager';
 import newUuidRef from './newUuidRef';
 import { pickOne } from './graphmaze/picking';
 import { thaw } from './DeepFreezer';
-import { resolvedPromise, RESOLVED_VOID_PROMISE, isResolved } from './promises';
+import { resolvedPromise, RESOLVED_VOID_PROMISE, voidify, isResolved } from './promises';
 import { utf8Encode } from '../tshash/utils';
 
 const entityPositionBuffer:Vector3D = makeVector(0,0,0);
+const pointAabb = makeAabb(-1/8, -1/8, -1/8, +1/8, +1/8, +1/8);
+
+interface RoomLocated<X> {
+	roomRef : string;
+	position : Vector3D;
+	orientation : Quaternion;
+	item : X;
+}
 
 type EntityMatchFunction = (path:EntityPath,e:Entity)=>boolean;
 
@@ -79,6 +96,15 @@ import {
 } from './lwtypes';
 import SimulationState from './Maze1SimulationState';
 import { SimulationUpdateContext } from './maze1simulationstuff';
+
+function checkObjectIdentifier(ident:string) {
+	switch( ident ) {
+	case ROOMID_EXTERNAL:
+	case ROOMID_FINDENTITY:
+	case ROOMID_SIMULATOR:
+		throw new Error(ident+" passed as if it were a valid identifier!");
+	}
+}
 
 /**
  * Base class for update steps
@@ -115,9 +141,11 @@ abstract class SimulationUpdate {
 	}
 	
 	protected markRoomPhysicallyActive(roomId:RoomID):void {
+		checkObjectIdentifier(roomId);
 		this.newPhysicallyActiveRoomIdSet[roomId] = true;
 	}
 	protected markRoomVisiblyUpdated(roomId:RoomID):void {
+		checkObjectIdentifier(roomId);
 		this.newVisiblyUpdatedRoomIdSet[roomId] = true;
 	}
 	
@@ -130,14 +158,17 @@ abstract class SimulationUpdate {
 	}
 	
 	public getRoom( roomId:string ):Room {
+		checkObjectIdentifier(roomId);
 		return this.gameDataManager.getRoom(roomId);
 	}
 	
 	public fullyCacheRoom( roomId:string ):Promise<Room> {
+		checkObjectIdentifier(roomId);
 		return this.gameDataManager.fullyCacheRoom(roomId);
 	}
 	
 	public fullyLoadRoom( roomId:string ):Promise<Room> {
+		checkObjectIdentifier(roomId);
 		return this.fullyCacheRoom(roomId).then( (room) => {
 			return this.getMutableRoom(roomId);
 		});
@@ -657,6 +688,7 @@ abstract class SimulationUpdate {
 			if( resolved == undefined ) throw new Error("Failed to resolve entity path "+entityPath.join('/'));
 			return [resolved[0], ...entityPath.slice(1)];
 		}
+		checkObjectIdentifier(entityPath[0]);
 		return entityPath;
 	}
 	
@@ -860,7 +892,7 @@ abstract class SimulationUpdate {
 					}
 					const loc = this.locateEntity(entityPath);
 					this.enqueueAction({
-						classRef: "http://ns.nuke24.net/Game21/SimulationAction/TransmitWireSignalAction",
+						classRef: "http://ns.nuke24.net/Game21/SimulationAction/TransmitWireSignal",
 						originRoomRef: entityPath[0],
 						originPosition: addVector(loc.position, subsystem.position),
 						direction: subsystem.direction, // TODO: Take intermediate rotations into account!
@@ -1069,11 +1101,143 @@ abstract class SimulationUpdate {
 		});
 	}
 	
+	//// Transmit wire signal stuff
+	
+	// TODO: This should be cached on GameDataManager or something
+	protected _entityConductorNetworkCache:EntityConductorNetworkCache;
+	protected get entityConductorNetworkCache():EntityConductorNetworkCache {
+		if( this._entityConductorNetworkCache == undefined ) {
+			this._entityConductorNetworkCache = new EntityConductorNetworkCache(this.gameDataManager);
+		}
+		return this._entityConductorNetworkCache;
+	}
+	
+	protected findWireEndpointsInRoom(
+		originRoomRef:string, originPosition:Vector3D, direction:Vector3D, transmissionMediumRef:string,
+		into:RoomLocated<WorldConductorNetworkEndpoints>[]
+	):Promise<void> {
+		return this.fullyLoadRoom(originRoomRef).then( (room) => {
+			const promz:Promise<void>[] = [];
+			for( let re in room.roomEntities ) {
+				const roomEntity = room.roomEntities[re];
+				const entityClass = this.gameDataManager.getEntityClass(roomEntity.entity.classRef);
+				if( !offsetAabbContainsVector(roomEntity.position, entityClass.physicalBoundingBox, originPosition) ) {
+					continue;
+				}
+				promz.push(
+					this.entityConductorNetworkCache.fetchEntityConductorNetwork(roomEntity.entity).then( (cn) => {
+						// TODO: Include orientation in offset transformation
+						// TODO: Rotate input direction by -entity rotation
+						const endpoints = findConductorEndpointsFromPosition(cn, subtractVector(originPosition, roomEntity.position), direction, transmissionMediumRef);
+						into.push({
+							roomRef: originRoomRef,
+							position: roomEntity.position,
+							orientation: roomEntity.orientation || Quaternion.IDENTITY,
+							item: {
+								network: cn,
+								endpoints
+							}
+						});
+					})
+				);
+			}
+			return voidify(Promise.all(promz));
+		});
+	}
+	
+	/**
+	 * Find all endpoints connected to a network
+	 * at the given  
+	 */
+	protected findWireEndpoints(
+		originRoomRef:string, originPosition:Vector3D, direction:Vector3D, transmissionMediumRef:string,
+		into:RoomLocated<WorldConductorNetworkEndpoints>[]
+	):Promise<void> {
+		return this.fullyLoadRoom(originRoomRef).then( (room) => {
+			const promz:Promise<void>[] = [];
+			for( let n in room.neighbors ) {
+				const neighb = room.neighbors[n];
+				if( aabbContainsVector(neighb.bounds, originPosition) ) {
+					promz.push(this.findWireEndpointsInRoom(
+						neighb.roomRef, subtractVector(originPosition, neighb.offset),
+						direction, transmissionMediumRef, into
+					));
+				}
+			}
+			if( aabbContainsVector(room.bounds, originPosition) ) {
+				promz.push(this.findWireEndpointsInRoom(
+					originRoomRef, originPosition,
+					direction, transmissionMediumRef, into
+				));
+			}
+			return voidify(Promise.all(promz));
+		});
+	}
+	
+	protected transmitWireSignal(act:TransmitWireSignalAction):Promise<void> {
+		const foundEndpoints:RoomLocated<WorldConductorNetworkEndpoints>[] = [];
+		console.log("Transmitting wire signal...");
+		return this.findWireEndpoints(
+			act.originRoomRef, act.originPosition, act.direction,	act.transmissionMediumRef, foundEndpoints
+		).then( () => {
+			console.log("Found "+foundEndpoints.length+" network endpoints");
+			for( let n=0; n<foundEndpoints.length; ++n ) {
+				const worldEndpoints = foundEndpoints[n];
+				console.log("Found network to which to transmit signal at "+
+					vectorToString(worldEndpoints.position));
+				for( let e in worldEndpoints.item.endpoints ) {
+					const ep = worldEndpoints.item.endpoints[e];
+					if( ep.isOrigin ) {
+						console.log("One origin node; ignoring");
+						continue;
+					}
+					const remainingPower = act.power - ep.resistance;
+					if( remainingPower < 0 ) {
+						console.log("Resistance > signal power; signal dissipated: "+ep.resistance+" > "+act.power);
+						continue;
+					}
+					const node = worldEndpoints.item.network.nodes[ep.nodeIndex];
+					if( node == undefined ) {
+						console.error("No node "+ep.nodeIndex+" as returned by findWireEndpoints!");
+						continue;
+					}
+					if( !node.externallyFacing ) {
+						console.error("Node "+ep.nodeIndex+" has no externally facing; why was it returned?");
+						continue;
+					}
+					console.log("Node within network at "+vectorToString(node.position)+" facing "+vectorToString(node.externallyFacing));
+					const xf = TransformationMatrix3D.translationAndRotation(worldEndpoints.position, worldEndpoints.orientation)
+					const rotXf = TransformationMatrix3D.fromQuaternion(worldEndpoints.orientation);
+					const fixedEndpointLocation = this.fixLocation({
+						roomRef: worldEndpoints.roomRef,
+						position: xf.multiplyVector(node.position),
+					});
+					console.log("Oh wow, made it through "+ep.resistance+" ohm of wire!  Remaining power = "+remainingPower);
+					this.enqueueAction(<TransmitWireSignalAction>{
+						classRef: "http://ns.nuke24.net/Game21/SimulationAction/TransmitWireSignal",
+						originRoomRef: fixedEndpointLocation.roomRef,
+						originPosition: fixedEndpointLocation.position,
+						direction: rotXf.multiplyVector(node.externallyFacing),
+						transmissionMediumRef: act.transmissionMediumRef,
+						channelId: act.channelId,
+						power: remainingPower,
+						payload: act.payload,
+					});
+				}
+			}
+			// TODO: Also check for network ports!
+		});
+	}
+	
+	////
+	
 	protected doAction( act:SimulationAction ):Promise<void> {
 		switch( act.classRef ) {
 		case "http://ns.nuke24.net/Game21/SimulationAction/InduceSystemBusMessage":
 			this.induceSystemBusMessage(act.entityPath, act.busMessage, act.replyPath);
 			return RESOLVED_VOID_PROMISE;
+		case "http://ns.nuke24.net/Game21/SimulationAction/TransmitWireSignal":
+			return this.transmitWireSignal(act);
 		default:
 			console.warn("Skipping invocation of unsupported action class: "+act.classRef);
 			return RESOLVED_VOID_PROMISE;
@@ -1146,6 +1310,9 @@ abstract class SimulationUpdate {
 	public findRoomEntity( match:string|EntityMatchFunction ):FoundEntity|undefined {
 		const entityPath = this.findEntityInAnyLoadedRoom(match);
 		if( entityPath == undefined ) return undefined;
+		if( entityPath[0] == 'find-entity' ) {
+			throw new Error("findEntity resulted in find-entity!");
+		}
 		const room = this.gameDataManager.getRoom(entityPath[0]);
 		
 		const roomEntity = room.roomEntities[entityPath[1]];

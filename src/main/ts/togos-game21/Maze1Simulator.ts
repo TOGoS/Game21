@@ -42,7 +42,6 @@ import {
 	EntityPath,
 	ModifyEntityAction,
 	SimulationAction,
-	TransmitWireSignalAction,
 	ROOMID_SIMULATOR,
 	ROOMID_FINDENTITY,
 	ROOMID_EXTERNAL,

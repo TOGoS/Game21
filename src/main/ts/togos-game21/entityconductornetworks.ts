@@ -21,13 +21,13 @@ declare class Map<K,V> {
 	set(k:K, v:V):Map<K,V>;
 }
 
-interface Placed<X> {
+export interface Placed<X> {
 	position : Vector3D;
 	orientation : Quaternion;
 	item : X;
 }
 
-interface WorldConductorNetworkEndpoints {
+export interface WorldConductorNetworkEndpoints {
 	network : ConductorNetwork;
 	endpoints : ConductorEndpoint[];
 }
@@ -118,6 +118,7 @@ function getEntityClassConductorEndpoints(
 }
 */
 
+/*
 export function getWorldConductorEndpoints( gdm:GameDataManager, roomId:string, pos:Vector3D, dir:Vector3D ):Placed<ConductorNetwork>[] {
 	const room = gdm.getRoom(roomId);
 	const networkBuilder = new ConductorNetworkBuilder();
@@ -140,6 +141,7 @@ export function getWorldConductorEndpoints( gdm:GameDataManager, roomId:string, 
 	}
 	throw new Error("This doesn't work yet");
 }
+*/
 
 /*
 export function findConductorEndpointsFromWorldPosition( gdm:GameDataManager, roomId:string, pos:Vector3D, direction:Vector3D ) {

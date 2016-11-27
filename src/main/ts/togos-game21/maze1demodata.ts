@@ -1281,6 +1281,12 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 			1,0,1,0,
 			0,0,0,0,
 		],gdm);
+	/* 0.5x0.5x0.25 */
+	const verticalEthernetHalfSlabRef = makeTileTreeRef(
+		[null, verticalEthernetQuarterlockRef],
+		2,2,1,[
+			0,1,0,1,
+		],gdm);
 	const verticalEthernetHalfBlockRef = makeTileTreeRef(
 		[null, verticalEthernetQuarterlockRef],
 		2,2,2,[
@@ -1312,7 +1318,7 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 				}
 			}
 		},
-		verticalEthernetHalfBlockRef
+		verticalEthernetHalfSlabRef
 	], gdm);
 	const wiredToggleBoxBlockEntityClassRef = makeTileTreeRef(
 		wiredTottleBoxBlockPaletteRef, 2, 2, 4,

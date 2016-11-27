@@ -57,7 +57,7 @@ export interface SpeakTextAction {
  * (reception will not necessarily be implemented using a ReceiveMessageAction).
  */
 export interface TransmitWireSignalAction {
-	classRef: "http://ns.nuke24.net/Game21/SimulationAction/TransmitWireSignalAction";
+	classRef: "http://ns.nuke24.net/Game21/SimulationAction/TransmitWireSignal";
 	originRoomRef: string;
 	originPosition: Vector3D;
 	direction: Vector3D;

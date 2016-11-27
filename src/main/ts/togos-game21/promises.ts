@@ -13,6 +13,11 @@ const VALUESYM = Symbol("value");
 const ERRORSYM = Symbol("value");
 
 export const RESOLVED_VOID_PROMISE:Promise<void> = resolvedPromise(undefined);
+export const RESOLVED_VOID_PROMISE_CALLBACK:()=>Promise<void> = () => RESOLVED_VOID_PROMISE;
+
+export function voidify<T>( p:Promise<T> ):Promise<void> {
+    return p.then( RESOLVED_VOID_PROMISE_CALLBACK );
+}
 
 export function resolvedPromise<T>( value:T ) : Promise<T> {
     const p = Promise.resolve(value);

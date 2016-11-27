@@ -1,4 +1,7 @@
 import {
+	XMSN_COPPER
+} from './simulationmessaging';
+import {
 	ConductorNetworkBuilder,
 	findConductorEndpointsFromPosition, findConductorNetworkNodes, findConductorEndpoints,
 	approximateCopperResistivity
@@ -88,7 +91,7 @@ export const networkAB = (() => {
 registerTestResult( "findConductorEndpoints", new Promise<TestResult>( (resolve,reject) => {
 	const bottomNodeIndexes = findConductorNetworkNodes(networkA, BOTTOM_NODE_POS);
 	const rightNodeIndexes = findConductorNetworkNodes(networkA, RIGHT_NODE_POS);
-	const foundEndpoints = findConductorEndpoints( networkA, bottomNodeIndexes );
+	const foundEndpoints = findConductorEndpoints( networkA, bottomNodeIndexes, XMSN_COPPER );
 	const expectedResistance = approximateCopperResistivity * STD_WIRE_LENGTH*2 / STD_WIRE_CSAREA;
 	
 	if( foundEndpoints.length != 2 ) {
@@ -123,7 +126,7 @@ registerTestResult( "joinConductorNetworks", new Promise<TestResult>( (resolve,r
 		throw new Error("Expected to find 1 bottom node; got "+JSON.stringify(bottomNodeIndexes));
 	}
 	const topNodeIndexes    = findConductorNetworkNodes(networkAB, addVector({x:+0.5,y:0,z:0}, TOP_NODE_POS));
-	const foundEndpoints    = findConductorEndpoints( networkAB, bottomNodeIndexes );
+	const foundEndpoints    = findConductorEndpoints( networkAB, bottomNodeIndexes, XMSN_COPPER );
 	if( foundEndpoints.length != 2 ) {
 		return reject(new Error("Expected to find 2 endpoints, but found "+JSON.stringify(foundEndpoints)));
 	}

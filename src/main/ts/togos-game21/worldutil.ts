@@ -117,7 +117,9 @@ export function eachSubEntityIntersectingBb<CallbackThis,CallbackReturn>(
 					const subX = x0+cx*xd+halfXd;
 					const tileEntity = tilePalette[tilePaletteIndexes[i]];
 					if( tileEntity != null ) {
-						let v = callback.call( callbackThis, setVector(posBuffer, subX, subY, subZ), tileEntity.orientation, tileEntity.entity );
+						const tileOrientation:Quaternion = tileEntity.orientation == null ? orientation :
+							Quaternion.multiply(orientation, tileEntity.orientation);
+						let v = callback.call( callbackThis, setVector(posBuffer, subX, subY, subZ), tileOrientation, tileEntity.entity );
 						if( v != null ) return v;
 					}
 				}

@@ -135,6 +135,7 @@ export class ConductorNetworkBuilder {
 // "x,y,z"
 type VectorString = string;
 export interface ConductorEndpoint {
+	isOrigin : boolean; // Was this one of the origin nodes?
 	nodeIndex : number;
 	resistance : number; // integral along length of resistivity * length / area
 }
@@ -160,10 +161,16 @@ export function getConductorNetwork( pos:Vector3D, entity:Entity, gdm:GameDataMa
 }
 */
 
-export function findConductorNetworkNodes( network:ConductorNetwork, pos:Vector3D, into:number[]=[] ):number[] {
+export function findConductorNetworkNodes(
+	network:ConductorNetwork, pos:Vector3D, inputDirection?:Vector3D, into:number[]=[]
+):number[] {
 	for( let i=0; i<network.nodes.length; ++i ) {
 		const node = network.nodes[i];
 		if( node == undefined ) continue;
+		if(
+			inputDirection != undefined &&
+			(node.externallyFacing == undefined || !vectorsAreOpposite(node.externallyFacing, inputDirection))
+		) continue;
 		if( vectorsAreEqual(node.position, pos) ) {
 			into.push(i);
 		}
@@ -174,7 +181,8 @@ export function findConductorNetworkNodes( network:ConductorNetwork, pos:Vector3
 //const copperResistivity = 0.000000017; // Ohm meter (because ohm per distance-over-area)
 export const approximateCopperResistivity = 9/4 * Math.pow(2, -27); // Close-ish round number
 
-export function findConductorEndpoints( network:ConductorNetwork, startNodeIndexes:number[] ):ConductorEndpoint[] {
+export function findConductorEndpoints( network:ConductorNetwork, startNodeIndexes:number[], transmissionMediumRef:string ):ConductorEndpoint[] {
+	// TODO: need to check that nodes or links (?) match transmissionMediumRef
 	const pathResistances:(number|undefined)[] = [];
 	const visitQueue:number[] = [];
 	const enqueuedAndUnvisited:(boolean|undefined)[] = [];
@@ -223,6 +231,7 @@ export function findConductorEndpoints( network:ConductorNetwork, startNodeIndex
 		if( !node.externallyFacing ) continue; // Don't care!
 		
 		endpoints.push({
+			isOrigin: startNodeIndexes.indexOf(n) >= 0,
 			nodeIndex: n,
 			resistance: pathResistance
 		});
@@ -230,6 +239,8 @@ export function findConductorEndpoints( network:ConductorNetwork, startNodeIndex
 	return endpoints;
 }
 
-export function findConductorEndpointsFromPosition( network:ConductorNetwork, startPos:Vector3D ):ConductorEndpoint[] {
-	return findConductorEndpoints(network, findConductorNetworkNodes(network, startPos));
+export function findConductorEndpointsFromPosition(
+	network:ConductorNetwork, startPos:Vector3D, direction:Vector3D, transmissionMediumRef:string
+):ConductorEndpoint[] {
+	return findConductorEndpoints(network, findConductorNetworkNodes(network, startPos, direction), transmissionMediumRef);
 }
