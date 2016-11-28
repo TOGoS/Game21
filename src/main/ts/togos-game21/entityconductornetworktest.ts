@@ -1,6 +1,6 @@
 import { networkA, networkB, networkAB } from './conductornetworktest';
 
-import { registerTestResult, assertEquals, TestResult } from './testing';
+import { registerTestResult, assertEqualsPromise, TestResult } from './testing';
 
 import { UNIT_CUBE } from './aabbs';
 import MemoryDatastore from './MemoryDatastore';
@@ -43,7 +43,8 @@ registerTestResult( "getEntityConductorNetwork", new Promise<TestResult>( (resol
 	
 	const ecnc = new EntityConductorNetworkCache(gdm);
 	const p = ecnc.fetchEntityConductorNetwork( treeEntity ).then( (cn) => {
-		assertEquals( cn, networkAB );
+		return assertEqualsPromise( cn, networkAB );
 	});
+	
 	resolve(p);
 }));

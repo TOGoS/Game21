@@ -6,7 +6,7 @@ import { registerTestResult } from './testing';
 registerTestResult('initData returns', new Promise( (resolve,reject) => {
 	const ds = MemoryDatastore.createSha1Based(0);
 	const gdm = new GameDataManager(ds);
-	return initData(gdm).then( () => {
+	resolve(initData(gdm).then( () => {
 		return {}; // Woo it's all good!
-	});
+	}));
 }));
