@@ -324,6 +324,8 @@ export class MazeView {
 	
 	protected _viewage : ViewScene = { visualEntities: [] };
 	public ppm = 16;
+	public xz = 0;
+	public yz = 0;
 
 	public occlusionFillStyle:string = 'rgba(96,64,64,1)';
 
@@ -448,7 +450,7 @@ export class MazeView {
 		const eim = this._entityImageManager;
 		const cx = this.canvas.width/2;
 		const cy = this.canvas.height/2;
-		const ppm = 16;
+		const ppm = this.ppm, xz = this.xz, yz = this.yz;
 		if( eim ) for( let i in this._viewage.visualEntities ) {
 			const item:RoomVisualEntity = this._viewage.visualEntities[i];
 			const time = 0;
@@ -457,8 +459,9 @@ export class MazeView {
 				item.visualRef, item.state, time, item.orientation || Quaternion.IDENTITY, 16,
 				true);
 			if( icon == null ) continue;
-			const px = item.position.x * ppm + cx;
-			const py = item.position.y * ppm + cy;
+			const z = item.position.z + icon.bounds.minZ;
+			const px = cx + (item.position.x + z * xz) * ppm;
+			const py = cy + (item.position.y + z * yz) * ppm;
 			const iconScale = ppm/icon.resolution;
 			ctx.drawImage(
 				icon.sheet,
@@ -1608,6 +1611,14 @@ export class MazeDemo {
 						break;
 					}
 					this.logger.log("Sound effects are "+(this.soundEffectsEnabled ? "enabled" : "disabled"));
+					break;
+				case 'z-skew':
+					if( tokens.length == 2 ) {
+						const zs = +tokens[1].text.trim();
+						this.view.xz = this.view.yz = zs;
+					} else {
+						this.logger.error("Usage: /z-skew <amount; usually 0 or -1 to +1>");
+					}
 					break;
 				case 'vomit':
 					this.enqueueInternalBusMessage([ROOMID_FINDENTITY, this.playerId], ["/vomit"]);
