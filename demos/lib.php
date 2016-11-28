@@ -180,7 +180,7 @@ function find_ts_test_modules( $reqs=[], $dir='src/main/ts', $modPfx='', array &
 	foreach( $filenames as $fn ) {
 		$path = $dir.'/'.$fn;
 		if( $fn[0] == '.' ) continue;
-		if( preg_match('#^ (.*Test) \.ts$#x',$fn,$bif) ) {
+		if( preg_match('#^ (.*test) \.ts$#ix',$fn,$bif) ) {
 			$modSource = file_get_contents($path);
 			$appEnvs = null;
 			if( preg_match('#^// \s* applicable-environments: \s* (.*) $#mx', $modSource, $baf) and isset($reqs['environment']) ) {
