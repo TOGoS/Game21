@@ -1,5 +1,6 @@
 import Vector3D from './Vector3D';
 import { makeVector } from './vector3ds';
+import { subtractVector, vectorLength } from './vector3dmath';
 import AABB from './AABB';
 import { makeAabb } from './aabbs';
 import {
@@ -426,18 +427,18 @@ const eighthMeterWire2BottomToRightPix = [
 	0,0,0,0,0,0,0,0,
 	0,0,0,0,0,0,0,0,
 	0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,1,
 	0,0,0,0,0,0,1,1,
 	0,0,0,0,0,1,1,1,
 	0,0,0,0,1,1,1,0,
-	0,0,0,1,1,1,0,0,
 ];
 const eighthMeterWire2TopToRightPix = [
-	0,0,0,1,1,0,0,0,
-	0,0,0,1,1,0,0,0,
-	0,0,0,1,1,1,0,0,
+	0,0,0,0,1,1,0,0,
+	0,0,0,0,1,1,0,0,
 	0,0,0,0,1,1,1,0,
 	0,0,0,0,0,1,1,1,
 	0,0,0,0,0,0,1,1,
+	0,0,0,0,0,0,0,1,
 	0,0,0,0,0,0,0,0,
 	0,0,0,0,0,0,0,0,
 ];
@@ -500,7 +501,12 @@ const toggleBoxOffImgRef = bitImgRef(0,[96,96,96],toggleBoxOffPix);
 const toggleBoxOnImgRef  = bitImgRef(0,[96,96,96],toggleBoxOnPix );
 export const greenToggleBoxOffImgRef = bitImgRef(0,[64,128,64],toggleBoxOffPix);
 export const greenToggleBoxOnImgRef  = bitImgRef(0,[64,128,64],toggleBoxOnPix );
-const eighthMeterWireImgRef   = bitImgRef(0,[88,88,88],eighthMeterWirePix);
+const ethCol = [64,80,96];
+const eighthMeterEthernetImgRef   = bitImgRef(0,ethCol,eighthMeterWirePix);
+const bottomToRightEthernetSlabImgRef = bitImgRef(0,ethCol,eighthMeterWire2BottomToRightPix);
+const bottomToLeftEthernetSlabImgRef = bitImgRef(0,ethCol,eighthMeterWire2BottomToLeftPix);
+const topToRightEthernetSlabImgRef = bitImgRef(0,ethCol,eighthMeterWire2TopToRightPix);
+const topToLeftEthernetSlabImgRef = bitImgRef(0,ethCol,eighthMeterWire2TopToLeftPix);
 
 const playerImgRef        = bitImgRef(0,[224,224,96],playerPix);
 const deadPlayerImgRef    = bitImgRef(0,[112,96,48],deadPlayerPix,16,8,8,6);
@@ -527,11 +533,11 @@ export const room2Id = 'urn:uuid:9d424151-1abf-45c1-b581-170c6eec5942';
 export const room3Id = 'urn:uuid:9d424151-1abf-45c1-b581-170c6eec5943';
 
 const room1Data = [
-	1, 1, 1, 1, 5,32, 1, 1, 1, 1, 1, 1,11, 0, 0,10,
+	1, 1, 1, 1, 5,33, 1, 1, 1, 1, 1, 1,11, 0, 0,10,
 	0, 0, 0, 0, 5,32, 1, 1, 1, 0, 0, 0,13, 0, 0,12,
 	1, 1, 0, 0, 5,33, 1, 0, 0, 0, 0, 0,13, 0, 0,10,
-	1, 1, 1, 0, 5,32, 1, 1, 1, 1, 2, 0,13, 0, 0,10,
-	1, 0,16, 0, 5,32, 1, 8, 8, 8, 0, 0,13, 0, 0,10,
+	1, 1, 1, 0, 5,33, 1, 1, 1, 1, 2, 0,13, 0, 0,10,
+	1, 0,16, 0, 5,39, 1, 8, 8, 8, 0, 0,13, 0, 0,10,
 	1, 0,16, 0, 5,32, 1, 2, 2, 2, 2, 2,11, 0, 0,10,
 	1, 0,16, 0, 5,31,30, 0, 5, 0, 0, 0,13, 0, 0,10,
 	1, 0, 2, 2, 5, 1, 1, 2, 5, 1, 1, 1,11, 0, 0,12,
@@ -554,13 +560,13 @@ const room3Data = [
 	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,11, 0, 0,10,
 	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,11, 0, 0,10,
 	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,11, 0, 0,10,
-	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,11, 0, 0,10,
-	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,11, 0, 0,10,
-	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,11, 0, 0,10,
-	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,11, 0, 0,10,
-	1, 1, 0, 0, 0,33, 1, 1, 1, 1, 1, 1,11, 0, 0,10,
-	1, 1, 0, 0, 5,32, 1, 1, 1, 1, 1, 1,11, 0, 0,10,
-	1, 1, 1, 1, 5,32, 1, 1, 1, 1, 1, 1,11, 0, 0,10,
+	1, 5,33, 1, 1, 1, 1, 1, 1, 1, 1, 1,11, 0, 0,10,
+	1, 5,32, 1, 1, 1, 1, 1, 1, 1, 1, 1,11, 0, 0,10,
+	1, 5,37,34,34,36, 1, 1, 1, 1, 1, 1,11, 0, 0,10,
+	1, 5, 1, 1, 1,33, 1, 1, 1, 1, 1, 1,11, 0, 0,10,
+	1, 5, 0, 0, 0,37,36, 1, 1, 1, 1, 1,11, 0, 0,10,
+	1, 5, 0, 0, 5, 0,33, 1, 1, 1, 1, 1,11, 0, 0,10,
+	1, 1, 1, 1, 5,35,38, 1, 1, 1, 1, 1,11, 0, 0,10,
 ];
 const room2Data = [
 	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
@@ -686,11 +692,11 @@ export const wiredToggleBoxEntityClassRef    = 'urn:uuid:5f51520a-09c9-4aaa-b0e8
 export const wiredToggleBoxVisualRef         = 'urn:uuid:5f51520a-09c9-4aaa-b0e8-68a03617eaf3';
 //export const wiredToggleBoxBlockEntityClassRef = 'urn:uuid:5f51520a-09c9-4aaa-b0e8-68a03617eaf4';
 export const verticalEthernetCableEigthClassRef    = 'urn:uuid:33419dc3-f0e2-451c-8c07-50d010ac8ea0';
-export const hoizontalEthernetCableEigthClassRef   = 'urn:uuid:33419dc3-f0e2-451c-8c07-50d010ac8ea1';
-export const topToLeftEthernetCableSlabClassRef    = 'urn:uuid:33419dc3-f0e2-451c-8c07-50d010ac8ea2';
-export const topToRightEthernetCableSlabClassRef   = 'urn:uuid:33419dc3-f0e2-451c-8c07-50d010ac8ea3';
-export const bottomToLeftEthernetCableSlabClassRef = 'urn:uuid:33419dc3-f0e2-451c-8c07-50d010ac8ea4';
-export const bottomToRightEthernetCableSlabClassRef= 'urn:uuid:33419dc3-f0e2-451c-8c07-50d010ac8ea5';
+export const horizontalEthernetCableEigthClassRef  = 'urn:uuid:33419dc3-f0e2-451c-8c07-50d010ac8ea1';
+export const topToLeftEthernetSlabClassRef    = 'urn:uuid:33419dc3-f0e2-451c-8c07-50d010ac8ea2';
+export const topToRightEthernetSlabClassRef   = 'urn:uuid:33419dc3-f0e2-451c-8c07-50d010ac8ea3';
+export const bottomToLeftEthernetSlabClassRef = 'urn:uuid:33419dc3-f0e2-451c-8c07-50d010ac8ea4';
+export const bottomToRightEthernetSlabClassRef= 'urn:uuid:33419dc3-f0e2-451c-8c07-50d010ac8ea5';
 
 export const primarySpawnPointEntityId = 'urn:uuid:d42a8340-ec03-482b-ae4c-a1bfdec4ba3a'; 
 export const playerEntityId            = 'urn:uuid:d42a8340-ec03-482b-ae4c-a1bfdec4ba32';
@@ -742,7 +748,7 @@ function makeEthernetNetwork(
 	builder.link(n0Idx, n1Idx, {
 		mediumIndex: medIdx,
 		crossSectionalArea: 1/(128*128),
-		length: 1/8,
+		length: vectorLength(subtractVector(pos1,pos0)),
 	});
 	return deepFreeze(builder.network);
 }
@@ -1191,14 +1197,15 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 		childEntityIndexes: [1,0,1,0,0,0,0,0,0,0,0,0,1,0,1,0]
 	}, latticeColumnBgLeftBlockEntityClassId );
 	
-	const toggleBoxBb = makeAabb(-1/4,-1/4,-1/8, +1/4,+1/4,+1/8); 
+	/** 0.5x0.5x0.25 */
+	const slabBb = makeAabb(-1/4,-1/4,-1/8, +1/4,+1/4,+1/8); 
 	
 	gdm.tempStoreObject<EntityClass>( {
 		debugLabel: "toggle box (off)",
 		structureType: StructureType.INDIVIDUAL,
-		tilingBoundingBox: toggleBoxBb,
-		physicalBoundingBox: toggleBoxBb,
-		visualBoundingBox: toggleBoxBb,
+		tilingBoundingBox: slabBb,
+		physicalBoundingBox: slabBb,
+		visualBoundingBox: slabBb,
 		visualRef: toggleBoxOffImgRef,
 		defaultSubsystems: {
 			"button": {
@@ -1224,9 +1231,9 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 	gdm.tempStoreObject<EntityClass>( {
 		debugLabel: "toggle box (on)",
 		structureType: StructureType.INDIVIDUAL,
-		tilingBoundingBox: toggleBoxBb,
-		physicalBoundingBox: toggleBoxBb,
-		visualBoundingBox: toggleBoxBb,
+		tilingBoundingBox: slabBb,
+		physicalBoundingBox: slabBb,
+		visualBoundingBox: slabBb,
 		visualRef: toggleBoxOnImgRef,
 		defaultSubsystems: {
 			"button": {
@@ -1260,15 +1267,191 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 		zDivisions: 4,
 		childEntityPaletteRef: makeTileEntityPaletteRef([null, toggleBoxOffEntityClassRef, toggleBoxOnEntityClassRef], gdm),
 		childEntityIndexes: [0,0,0,0, 0,0,0,0, 0,0,0,0, 1,1,1,1],
-	});
+	});	
+	
+	//// Wire blocks
+	
+	// 'slab' refers to a 1/2 x 1/2 x 1/4 meter block.
+	// 'half block' refers to a 1/2 x 1/2 meter block
+	// 'block' refers to a 2 x 1 x 1 meter block
+	
+	gdm.tempStoreObject<EntityClass>({
+		tilingBoundingBox:   EUNIT_CUBE,
+		physicalBoundingBox: EUNIT_CUBE,
+		visualBoundingBox:   EUNIT_CUBE,
+		structureType: StructureType.INDIVIDUAL,
+		visualRef: eighthMeterEthernetImgRef,
+		defaultSubsystems: {
+			"ethcable": makeEthernetNetwork(
+				{x:0,y:-1/16,z:0}, {x:0,y:-1,z:0},
+				{x:0,y:+1/16,z:0}, {x:0,y:+1,z:0}
+			),
+		}
+	}, verticalEthernetCableEigthClassRef);
+	const verticalEthernetQuarterBlockRef = makeTileTreeRef(
+		[null, verticalEthernetCableEigthClassRef],
+		2,2,2,[
+			1,0,1,0,
+			0,0,0,0,
+		],gdm);
+	/* 0.5x0.5x0.25 */
+	const verticalEthernetSlabRef = makeTileTreeRef(
+		[null, verticalEthernetQuarterBlockRef],
+		2,2,1,[
+			0,1,0,1,
+		],gdm);
+	// 0.5x0.5x0.5
+	const verticalEthernetHalfBlockRef = makeTileTreeRef(
+		[null, verticalEthernetQuarterBlockRef],
+		2,2,2,[
+			0,0,0,0,
+			0,1,0,1,
+		],gdm);
+	// 1x1x1
+	const verticalEthernetBlockRef = makeTileTreeRef(
+		[null, verticalEthernetHalfBlockRef],
+		2,2,2,[
+			0,0,0,0,
+			1,0,1,0,
+		],gdm);
+	
+	gdm.tempStoreObject<EntityClass>({
+		tilingBoundingBox:   EUNIT_CUBE,
+		physicalBoundingBox: EUNIT_CUBE,
+		visualBoundingBox:   EUNIT_CUBE,
+		structureType: StructureType.INDIVIDUAL,
+		visualRef: eighthMeterEthernetImgRef,
+		defaultSubsystems: {
+			"ethcable": makeEthernetNetwork(
+				{x:-1/16,y:0,z:0}, {x:-1,y:0,z:0},
+				{x:+1/16,y:0,z:0}, {x:+1,y:0,z:0}
+			),
+		}
+	}, horizontalEthernetCableEigthClassRef);
+	const horizontalEthernetQuarterBlockRef = makeTileTreeRef(
+		[null, horizontalEthernetCableEigthClassRef],
+		2,2,2,[
+			1,1,0,0,
+			0,0,0,0,
+		],gdm);
+	/* 0.5x0.5x0.25 */
+	const horizontalEthernetSlabRef = makeTileTreeRef(
+		[null, horizontalEthernetQuarterBlockRef],
+		2,2,1,[
+			0,0,1,1,
+		],gdm);
+	const horizontalEthernetHalfBlockRef = makeTileTreeRef(
+		[null, horizontalEthernetQuarterBlockRef],
+		2,2,2,[
+			0,0,0,0,
+			0,0,1,1,
+		],gdm);
+	const horizontalEthernetBlockRef = makeTileTreeRef(
+		[null, horizontalEthernetHalfBlockRef],
+		2,2,2,[
+			0,0,0,0,
+			1,1,0,0,
+		],gdm);
+	
+	gdm.tempStoreObject<EntityClass>({
+		tilingBoundingBox:   slabBb,
+		physicalBoundingBox: slabBb,
+		visualBoundingBox:   slabBb,
+		structureType: StructureType.INDIVIDUAL,
+		visualRef: bottomToRightEthernetSlabImgRef,
+		defaultSubsystems: {
+			"ethcable": makeEthernetNetwork(
+				{x:+1/16,y:+1/4 ,z:-1/16}, {x:0,y:+1,z:0},
+				{x:+1/4 ,y:+1/16,z:-1/16}, {x:+1,y:0,z:0}
+			),
+		}
+	}, bottomToRightEthernetSlabClassRef);
+	gdm.tempStoreObject<EntityClass>({
+		tilingBoundingBox:   slabBb,
+		physicalBoundingBox: slabBb,
+		visualBoundingBox:   slabBb,
+		structureType: StructureType.INDIVIDUAL,
+		visualRef: bottomToLeftEthernetSlabImgRef,
+		defaultSubsystems: {
+			"ethcable": makeEthernetNetwork(
+				{x:+1/16,y:+1/4 ,z:-1/16}, {x:0,y:+1,z:0},
+				{x:-1/4 ,y:+1/16,z:-1/16}, {x:-1,y:0,z:0}
+			),
+		}
+	}, bottomToLeftEthernetSlabClassRef);
+	gdm.tempStoreObject<EntityClass>({
+		tilingBoundingBox:   slabBb,
+		physicalBoundingBox: slabBb,
+		visualBoundingBox:   slabBb,
+		structureType: StructureType.INDIVIDUAL,
+		visualRef: topToRightEthernetSlabImgRef,
+		defaultSubsystems: {
+			"ethcable": makeEthernetNetwork(
+				{x:+1/16,y:-1/4 ,z:-1/16}, {x:0,y:-1,z:0},
+				{x:+1/4 ,y:+1/16,z:-1/16}, {x:+1,y:0,z:0}
+			),
+		}
+	}, topToRightEthernetSlabClassRef);
+	gdm.tempStoreObject<EntityClass>({
+		tilingBoundingBox:   slabBb,
+		physicalBoundingBox: slabBb,
+		visualBoundingBox:   slabBb,
+		structureType: StructureType.INDIVIDUAL,
+		visualRef: topToLeftEthernetSlabImgRef,
+		defaultSubsystems: {
+			"ethcable": makeEthernetNetwork(
+				{x:+1/16,y:-1/4 ,z:-1/16}, {x:0,y:-1,z:0},
+				{x:-1/4 ,y:+1/16,z:-1/16}, {x:-1,y:0,z:0}
+			),
+		}
+	}, topToLeftEthernetSlabClassRef);
+	
+	const ethernetSlabPalette = [
+		/* 0 */ null,
+		/* 1 */ verticalEthernetSlabRef,
+		/* 2 */ horizontalEthernetSlabRef,
+		/* 3 */ bottomToRightEthernetSlabClassRef,
+		/* 4 */ bottomToLeftEthernetSlabClassRef,
+		/* 5 */ topToRightEthernetSlabClassRef,
+		/* 6 */ topToLeftEthernetSlabClassRef,
+	];
+	const ethernetSlabPaletteRef = makeTileEntityPaletteRef(ethernetSlabPalette, gdm);
+	
+	const bottomToRightEthernetBlockRef = makeTileTreeRef(
+		ethernetSlabPaletteRef,
+		2,2,4,
+		[0,0,0,0, 0,0,0,0, 0,0,0,0, 3,2,1,0],
+		gdm);
+	const bottomToLeftEthernetBlockRef = makeTileTreeRef(
+		ethernetSlabPaletteRef,
+		2,2,4,
+		[0,0,0,0, 0,0,0,0, 0,0,0,0, 4,0,1,0],
+		gdm);
+	const topToRightEthernetBlockRef = makeTileTreeRef(
+		ethernetSlabPaletteRef,
+		2,2,4,
+		[0,0,0,0, 0,0,0,0, 0,0,0,0, 5,2,0,0],
+		gdm);
+	const topToLeftEthernetBlockRef = makeTileTreeRef(
+		ethernetSlabPaletteRef,
+		2,2,4,
+		[0,0,0,0, 0,0,0,0, 0,0,0,0, 6,0,0,0],
+		gdm);
+	const twistyVerticalEthernetBlockRef = makeTileTreeRef(
+		ethernetSlabPaletteRef,
+		2,2,4,
+		[0,0,0,0, 0,0,0,0, 0,0,0,0, 5,4,3,6],
+		gdm);
+	
+	//// Wired switch blocks
 	
 	// TODO: Do onon/onoff action when 1/0 message received from netdown
 	gdm.tempStoreObject<EntityClass>( {
 		debugLabel: "wired toggle box",
 		structureType: StructureType.INDIVIDUAL,
-		tilingBoundingBox: toggleBoxBb,
-		physicalBoundingBox: toggleBoxBb,
-		visualBoundingBox: toggleBoxBb,
+		tilingBoundingBox: slabBb,
+		physicalBoundingBox: slabBb,
+		visualBoundingBox: slabBb,
 		visualRef: wiredToggleBoxVisualRef,
 		defaultSubsystems: {
 			"button": {
@@ -1307,44 +1490,6 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 		}
 	}, wiredToggleBoxEntityClassRef);
 	
-	gdm.tempStoreObject<EntityClass>({
-		tilingBoundingBox:   EUNIT_CUBE,
-		physicalBoundingBox: EUNIT_CUBE,
-		visualBoundingBox:   EUNIT_CUBE,
-		structureType: StructureType.INDIVIDUAL,
-		visualRef: eighthMeterWireImgRef,
-		defaultSubsystems: {
-			"ethcable": makeEthernetNetwork(
-				{x:0,y:-1/16,z:0}, {x:0,y:-1,z:0},
-				{x:0,y:+1/16,z:0}, {x:0,y:+1,z:0}
-			),
-		}
-	}, verticalEthernetCableEigthClassRef);
-	const verticalEthernetQuarterlockRef = makeTileTreeRef(
-		[null, verticalEthernetCableEigthClassRef],
-		2,2,2,[
-			1,0,1,0,
-			0,0,0,0,
-		],gdm);
-	/* 0.5x0.5x0.25 */
-	const verticalEthernetHalfSlabRef = makeTileTreeRef(
-		[null, verticalEthernetQuarterlockRef],
-		2,2,1,[
-			0,1,0,1,
-		],gdm);
-	const verticalEthernetHalfBlockRef = makeTileTreeRef(
-		[null, verticalEthernetQuarterlockRef],
-		2,2,2,[
-			0,0,0,0,
-			0,1,0,1,
-		],gdm);
-	const verticalEthernetBlockRef = makeTileTreeRef(
-		[null, verticalEthernetHalfBlockRef],
-		2,2,2,[
-			0,0,0,0,
-			1,0,1,0,
-		],gdm);
-	
 	const wiredTottleBoxBlockPaletteRef = makeTileEntityPaletteRef([
 		null,
 		{
@@ -1363,7 +1508,7 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 				}
 			}
 		},
-		verticalEthernetHalfSlabRef
+		verticalEthernetSlabRef
 	], gdm);
 	const wiredToggleBoxBlockEntityClassRef = makeTileTreeRef(
 		wiredTottleBoxBlockPaletteRef, 2, 2, 4,
@@ -1375,7 +1520,7 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 		[0,0,0,0, 0,0,0,0, 0,0,0,0, 1,0,3,0],
 		gdm
 	);
-	
+		
 	const keyBoundingBox = makeAabb(-0.25,-0.125,-0.125, +0.25,+0.125,+0.125);
 	const cheapDoorBoundingBox = makeAabb(-0.25,-0.5,-0.5, +0.25,+0.5,+0.5);
 
@@ -1582,6 +1727,12 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 		/* 31 */ wiredToggleBoxBlockEntityClassRef,
 		/* 32 */ verticalEthernetBlockRef,
 		/* 33 */ wiredToggleBoxWithBottomCableBlockEntityClassRef,
+		/* 34 */ horizontalEthernetBlockRef,
+		/* 35 */ bottomToRightEthernetBlockRef,
+		/* 36 */ bottomToLeftEthernetBlockRef,
+		/* 37 */ topToRightEthernetBlockRef,
+		/* 38 */ topToLeftEthernetBlockRef,
+		/* 39 */ twistyVerticalEthernetBlockRef,
 	], gdm, tileEntityPaletteId);
 	
 	// do this as second step because we need to reference that tile tree palette by ID
