@@ -950,6 +950,10 @@ export default class Maze1Simulator implements SimulationUpdateContext {
 	}
 	
 	protected prevUpdateStart:number = 0;
+	/**
+	 * Enqueue another major update (in addition to any that have already been run or are in progress),
+	 * and returns a promise that resolves when that update has completed.
+	 **/
 	public update():Promise<SimulationState> {
 		return this._currentMajorStatePromise = this._currentMajorStatePromise.then( (state0) => {
 			const realStartTime = new Date().valueOf()/1000;
