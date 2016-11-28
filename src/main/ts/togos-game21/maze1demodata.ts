@@ -1642,14 +1642,14 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 					subsystems: {
 						"onon": {
 							"classRef": "http://ns.nuke24.net/Game21/EntitySubsystem/SimpleComputer",
-							signalReceivedExpressionRef: sExpressionToProgramExpressionRef(
+							messageReceivedExpressionRef: sExpressionToProgramExpressionRef(
 								['sendBusMessage', ['makeArray', '/liftlink/desiredmovementdirection', 0, -1, 0]],
 								gdm
 							)
 						},
 						"onoff": {
 							"classRef": "http://ns.nuke24.net/Game21/EntitySubsystem/SimpleComputer",
-							signalReceivedExpressionRef: sExpressionToProgramExpressionRef(
+							messageReceivedExpressionRef: sExpressionToProgramExpressionRef(
 								['sendBusMessage', ['makeArray', '/liftlink/desiredmovementdirection', 0, +1, 0]],
 								gdm
 							)
