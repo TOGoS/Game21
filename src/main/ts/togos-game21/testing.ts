@@ -107,10 +107,17 @@ export function assertEqualsPromise( a:any, b:any, msg?:string ):Promise<TestRes
 
 export var currentTestName = "(anonymous test)";
 
-export function fail( message:string ):void {
+export function fail( message:string ):never {
 	registerTestResult( currentTestName, Promise.resolve( { failures: [ { message:message} ] } ) );
 	// Don't want to continue!
 	throw new Error(message);
+}
+
+export function assertNotNull<T>( v:T|null|undefined, msg?:string ):v is T|never {
+	if( v == null ) {
+		fail("Assertion failed: "+(msg || "value is null"));
+	}
+	return true;
 }
 
 export function assertEquals( a:any, b:any, msg?:string ):void {
