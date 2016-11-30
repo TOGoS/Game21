@@ -989,6 +989,10 @@ export default class Maze1Simulator implements SimulationUpdateContext {
 		this.interStateUpdaters.push(updater);
 	}
 	
+	/**
+	 * Enqueue a single update to be run once
+	 * after any already enqueued updates.
+	 */
 	public doOneOffInterStateUpdate( updater:StateUpdater ):Promise<SimulationState> { 
 		return this._currentMajorStatePromise = this._currentMajorStatePromise.then( (state) => updater(this,state) );
 	}
