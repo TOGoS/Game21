@@ -697,6 +697,8 @@ export const topToLeftEthernetSlabClassRef    = 'urn:uuid:33419dc3-f0e2-451c-8c0
 export const topToRightEthernetSlabClassRef   = 'urn:uuid:33419dc3-f0e2-451c-8c07-50d010ac8ea3';
 export const bottomToLeftEthernetSlabClassRef = 'urn:uuid:33419dc3-f0e2-451c-8c07-50d010ac8ea4';
 export const bottomToRightEthernetSlabClassRef= 'urn:uuid:33419dc3-f0e2-451c-8c07-50d010ac8ea5';
+export const verticalEthernetSlabClassRef     = 'urn:uuid:33419dc3-f0e2-451c-8c07-50d010ac8ea6';
+export const horizontalEthernetSlabClassRef   = 'urn:uuid:33419dc3-f0e2-451c-8c07-50d010ac8ea7';
 
 export const primarySpawnPointEntityId = 'urn:uuid:d42a8340-ec03-482b-ae4c-a1bfdec4ba3a'; 
 export const playerEntityId            = 'urn:uuid:d42a8340-ec03-482b-ae4c-a1bfdec4ba32';
@@ -1295,11 +1297,11 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 			0,0,0,0,
 		],gdm);
 	/* 0.5x0.5x0.25 */
-	const verticalEthernetSlabRef = makeTileTreeRef(
+	makeTileTreeRef(
 		[null, verticalEthernetQuarterBlockRef],
 		2,2,1,[
 			0,1,0,1,
-		],gdm);
+		],gdm,{},verticalEthernetSlabClassRef);
 	// 0.5x0.5x0.5
 	const verticalEthernetHalfBlockRef = makeTileTreeRef(
 		[null, verticalEthernetQuarterBlockRef],
@@ -1335,11 +1337,11 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 			0,0,0,0,
 		],gdm);
 	/* 0.5x0.5x0.25 */
-	const horizontalEthernetSlabRef = makeTileTreeRef(
+	makeTileTreeRef(
 		[null, horizontalEthernetQuarterBlockRef],
 		2,2,1,[
 			0,0,1,1,
-		],gdm);
+		],gdm,{},horizontalEthernetSlabClassRef);
 	const horizontalEthernetHalfBlockRef = makeTileTreeRef(
 		[null, horizontalEthernetQuarterBlockRef],
 		2,2,2,[
@@ -1408,8 +1410,8 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 	
 	const ethernetSlabPalette = [
 		/* 0 */ null,
-		/* 1 */ verticalEthernetSlabRef,
-		/* 2 */ horizontalEthernetSlabRef,
+		/* 1 */ verticalEthernetSlabClassRef,
+		/* 2 */ horizontalEthernetSlabClassRef,
 		/* 3 */ bottomToRightEthernetSlabClassRef,
 		/* 4 */ bottomToLeftEthernetSlabClassRef,
 		/* 5 */ topToRightEthernetSlabClassRef,
@@ -1508,7 +1510,7 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 				}
 			}
 		},
-		verticalEthernetSlabRef
+		verticalEthernetSlabClassRef
 	], gdm);
 	const wiredToggleBoxBlockEntityClassRef = makeTileTreeRef(
 		wiredToggleBoxBlockPaletteRef, 2, 2, 4,
