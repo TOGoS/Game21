@@ -1184,24 +1184,28 @@ abstract class SimulationUpdate {
 	
 	protected transmitWireSignal(act:TransmitWireSignalAction):Promise<void> {
 		const foundEndpoints:RoomLocated<WorldConductorNetworkEndpoints>[] = [];
-		console.log("Transmitting wire signal...");
+		//console.log("Transmitting wire signal...");
 		return this.findWireEndpoints(
 			act.originRoomRef, act.originPosition, act.direction,	act.transmissionMediumRef, foundEndpoints
 		).then( () => {
-			console.log("Found "+foundEndpoints.length+" network endpoints");
+			//console.log("Found "+foundEndpoints.length+" network endpoints");
 			for( let n=0; n<foundEndpoints.length; ++n ) {
 				const worldEndpoints = foundEndpoints[n];
-				console.log("Found network to which to transmit signal at "+
-					vectorToString(worldEndpoints.position));
+				//console.log("Found network to which to transmit signal at "+
+				//	vectorToString(worldEndpoints.position)+" from origin "+act.originRoomRef+" @ "+
+				//	vectorToString(act.originPosition)+" going "+vectorToString(act.direction));
+				//let epCount = 0;
+				//console.log(JSON.stringify(worldEndpoints, null, "\t"));
 				for( let e in worldEndpoints.item.endpoints ) {
+					//++epCount;
 					const ep = worldEndpoints.item.endpoints[e];
 					if( ep.isOrigin ) {
-						console.log("One origin node; ignoring");
+						//console.log("One origin node; ignoring");
 						continue;
 					}
 					const remainingPower = act.power - ep.resistance;
 					if( remainingPower < 0 ) {
-						console.log("Resistance > signal power; signal dissipated: "+ep.resistance+" > "+act.power);
+						//console.log("Resistance > signal power; signal dissipated: "+ep.resistance+" > "+act.power);
 						continue;
 					}
 					const node = worldEndpoints.item.network.nodes[ep.nodeIndex];
@@ -1213,14 +1217,14 @@ abstract class SimulationUpdate {
 						console.error("Node "+ep.nodeIndex+" has no externally facing; why was it returned?");
 						continue;
 					}
-					console.log("Node within network at "+vectorToString(node.position)+" facing "+vectorToString(node.externallyFacing));
+					//console.log("Node within network at "+vectorToString(node.position)+" facing "+vectorToString(node.externallyFacing));
 					const xf = TransformationMatrix3D.translationAndRotation(worldEndpoints.position, worldEndpoints.orientation)
 					const rotXf = TransformationMatrix3D.fromQuaternion(worldEndpoints.orientation);
 					const fixedEndpointLocation = this.fixLocation({
 						roomRef: worldEndpoints.roomRef,
 						position: xf.multiplyVector(node.position),
 					});
-					console.log("Oh wow, made it through "+ep.resistance+" ohm of wire!  Remaining power = "+remainingPower);
+					//console.log("Oh wow, made it through "+ep.resistance+" ohm of wire!  Remaining power = "+remainingPower);
 					this.enqueueAction(<TransmitWireSignalAction>{
 						classRef: "http://ns.nuke24.net/Game21/SimulationAction/TransmitWireSignal",
 						originRoomRef: fixedEndpointLocation.roomRef,
@@ -1232,6 +1236,7 @@ abstract class SimulationUpdate {
 						payload: act.payload,
 					});
 				}
+				//if( epCount == 0 ) console.log("Checked "+epCount+" endpoints for that network.");
 			}
 			
 			const hasNetworkPortsEntityFilter:EntityFilter = (
@@ -1478,7 +1483,8 @@ function evalInternalSystemProgram( expression:esp.ProgramExpression, ctx:ISPEC 
 				}
 				return undefined;
 			case "http://ns.nuke24.net/InternalSystemFunctions/Trace":
-				console.debug("Trace from entity subsystem program", argValues, ctx);
+				//const logFunc = console.debug || console.log;
+				//logFunc.call(console, "Trace from entity subsystem program", argValues, ctx);
 				break;
 			case "http://ns.nuke24.net/InternalSystemFunctions/ProgN":
 				return argValues.length == 0 ? undefined : argValues[argValues.length-1];
