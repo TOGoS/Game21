@@ -831,6 +831,14 @@ abstract class SimulationUpdate {
 				});
 			}
 			break;
+		case "http://ns.nuke24.net/Game21/EntitySubsystem/Button":
+			switch( message[0] ) {
+			case '/poke':
+				if( !subsystem.pokedExpressionRef ) break;
+				const program = this.gameDataManager.getObject<esp.ProgramExpression>(subsystem.pokedExpressionRef);
+				entity = this.runSubsystemProgram(entityPath, entity, subsystemKey, program, messageQueue, {});
+			}
+			break;
 		case "http://ns.nuke24.net/Game21/EntitySubsystem/Appendage":
 			switch( message[0] ) {
 			case '/poke':

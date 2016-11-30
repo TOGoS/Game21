@@ -86,6 +86,12 @@ export interface SimpleComputer {
 	messageReceivedExpressionRef? : string;
 }
 
+/**
+ * Reacts to the entity being poked.
+ * 
+ * Messages:
+ * - /<button>/poke invoke the poke handler without requiring a 'physical' poke
+ */
 export interface Button {
 	classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/Button";
 	pokedExpressionRef? : string;
