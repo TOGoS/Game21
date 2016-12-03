@@ -7,12 +7,16 @@
   * Load demo data from packfile to avoid a million GETs
   * Hey hey you win item - touch it and it pops up a "You win" box
 * Random maze (entry 21)
-  - submit to contest by Oct 30th
-- Random maze bonus stuff
-  - sound effects
-  - vomit chunks
+  * submit to contest by Oct 30th
+  * sound effects
+  * vomit chunks
+  * keys and switches
   - monsters (maybe just bouncy lightbulbs)
-- Maze with keys and switches
+- In-browser ping-handling network
+- Ping-handling network simulated on server
+- Refactor ShapeSheet to store z, dz/dx, dz/dy instead of corner depths
+- Get tile rendering working again
+- Isometric world rendering
 - Packet truck
 - Image with dynamic (via material map overrides) indicator lights?
 - Small game with signal wires?
@@ -269,3 +273,4 @@ Maze1 simulation, post-random-maze-contest:
   - Made GameDataManager#fillyCacheRoom remember when rooms are already fully cached.
   - This could be further optimized, but that made a huge difference.
   Lesson: Use the profiler.
+* Button send a 1-bit message through a wire
