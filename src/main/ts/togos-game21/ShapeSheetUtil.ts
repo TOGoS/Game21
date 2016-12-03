@@ -19,13 +19,13 @@ import TransformationMatrix3D from './TransformationMatrix3D';
 import Quaternion from './Quaternion';
 import ImageSlice from './ImageSlice';
 
-export type PlottedMaterialIndexFunction = (x:number, y:number, z:number, z0:number, z1:number, z2:number, z3:number)=>number;
+export type PlottedMaterialIndexFunction = (x:number, y:number, z:number)=>number;
 export type PlottedDepthFunction = (x:number, y:number, z:number)=>number;
 export type PlotFunction = (x:number, y:number, z:number, rad:number)=>void;
 type Vector3DBuffer = Vector3D;
 
 export function constantMaterialIndexFunction( v:number ) {
-	return function(x:number,y:number,z:number,z0:number,z1:number,z2:number,z3:number) { return v; };
+	return function(x:number,y:number,z:number) { return v; };
 };
 
 var infiniMinus = function(a:number, b:number):number {
@@ -66,7 +66,7 @@ function reversePointList( points:Array<number> ):Array<number> {
 	return reversed;
 }
 
-export const NOOP_PLOTTED_DEPTH_FUNCTION = (x:number,y:number,z:number):number => z;
+export const NOOP_PLOTTED_DEPTH_FUNCTION:PlottedDepthFunction = (x:number,y:number,z:number):number => z;
 
 const dfDestVectorBuffer = makeVector();
 const dfStartVectorBuffer = makeVector();
@@ -97,7 +97,7 @@ class ShapeSheetUtil {
 	constructor(shapeSheet:ShapeSheet, renderer?:ShapeSheetRenderer) {
 		this._shapeSheet = shapeSheet;
 		this._renderer = renderer;
-		this.plottedMaterialIndexFunction = function(x, y, z, z0, z1, z2, z3) {
+		this.plottedMaterialIndexFunction = function(x, y, z) {
 			return 4 + (Math.random()*4)|0;
 		};
 		this.plottedDepthFunction = NOOP_PLOTTED_DEPTH_FUNCTION;
@@ -107,105 +107,67 @@ class ShapeSheetUtil {
 	get shapeSheet():ShapeSheet { return this._shapeSheet; }
 	get renderer():ShapeSheetRenderer|undefined { return this._renderer; }
 	
-	public getMaxZ(region:RectangularBounds=this.shapeSheet.bounds):number {
-		// TODO: use backside Z buffer when it exists
-		return Infinity;
-	}
-	
-	public getMinZ(region:RectangularBounds=this.shapeSheet.bounds):number {
-		const ss = this.shapeSheet;
-		let minZ = Infinity;
-		const minX = Math.max(0, region.minX), maxX = Math.min(ss.width, region.maxX);
-		const minY = Math.max(0, region.minY), maxY = Math.min(ss.height, region.maxY);
-		for( let y=minY; y<maxY; ++y ) {
-			for( let x=minX, i=x+y*ss.width; x<maxX; ++x ) {
-				minZ = Math.min( minZ,
-					ss.cellCornerDepths[i*4+0],
-					ss.cellCornerDepths[i*4+1],
-					ss.cellCornerDepths[i*4+2],
-					ss.cellCornerDepths[i*4+3],
-				); 
-			}
-		}
-		return minZ;
-	}
-	
 	// TODO: Mind plotMode
-	protected plotPixel(x:number, y:number, z0:number, z1:number, z2:number, z3:number, materialIndex?:number):void {
+	protected plotPixel2(x:number, y:number, frontZ:number, backZ:number|undefined, dzdx:number, dzdy:number, materialIndex?:number):void {
+		if( frontZ == undefined ) throw new Error("FrontZ passed is undefined!");
+		
 		var ss = this.shapeSheet;
-		x = x|0;
-		y = y|0;
 		if( x < 0 ) return;
 		if( y < 0 ) return;
+		x = x|0; // x and y are always positive, so this is 'floor'
+		y = y|0;
 		const width = ss.width;
 		const cellMaterialIndexes = ss.cellMaterialIndexes;
-		const cellCornerDepths = ss.cellCornerDepths;
 		if( x >= width ) return;
 		if( y >= ss.height ) return;
 		
 		if( this.plottedDepthFunction !== NOOP_PLOTTED_DEPTH_FUNCTION ) {
-			z0 = this.plottedDepthFunction(x+0, y+0, z0);
-			z1 = this.plottedDepthFunction(x+1, y+0, z1);
-			z2 = this.plottedDepthFunction(x+0, y+1, z2);
-			z3 = this.plottedDepthFunction(x+1, y+1, z3);
+			frontZ = this.plottedDepthFunction(x, y, frontZ);
+			backZ = this.plottedDepthFunction(x, y, backZ);
 		}
 		
+		if( frontZ == undefined ) throw new Error("FrontZ returned by plotted depth function is undefined!");
+		
 		if( materialIndex == null ) {
-			let avgZ = 0;
-			let nonInfinityCorners = 0;
-			if( z0 != Infinity ) { avgZ += z0; ++nonInfinityCorners; }
-			if( z1 != Infinity ) { avgZ += z1; ++nonInfinityCorners; }
-			if( z2 != Infinity ) { avgZ += z2; ++nonInfinityCorners; }
-			if( z3 != Infinity ) { avgZ += z3; ++nonInfinityCorners; }
-			avgZ = nonInfinityCorners == 0 ? Infinity : avgZ/nonInfinityCorners;
-			materialIndex = (this.plottedMaterialIndexFunction)(x,y,avgZ,z0,z1,z2,z3);
+			materialIndex = (this.plottedMaterialIndexFunction)(x,y,frontZ);
 		}
+		
+		if( materialIndex == null ) return;
+		
+		// TODO: Now that there's a backZ, we can do carving and stuff!
+		// Also will want to take layers other than the front one into account,
+		// if they ever exist.
+		
+		const cellDepths = ss.cellDepths;
 		
 		const
 			idx = x + y*width,
-			oldZ0 = cellCornerDepths[idx*4+0],
-			oldZ1 = cellCornerDepths[idx*4+1],
-			oldZ2 = cellCornerDepths[idx*4+2],
-			oldZ3 = cellCornerDepths[idx*4+3];
+			oldFrontZ = cellDepths[idx];
 		
-		const frontness =
-			((z0 < oldZ0) ? 1 : 0) +
-			((z1 < oldZ1) ? 1 : 0) +
-			((z2 < oldZ2) ? 1 : 0) +
-			((z3 < oldZ3) ? 1 : 0);
-
-		/*
-		if( z0 <= oldZ0 ) cellCornerDepths[idx*4+0] = z0;
-		if( z1 <= oldZ1 ) cellCornerDepths[idx*4+1] = z1;
-		if( z2 <= oldZ2 ) cellCornerDepths[idx*4+2] = z2;
-		if( z3 <= oldZ3 ) cellCornerDepths[idx*4+3] = z3;
-		
-		const ox =
-			infiniMinus(z0, oldZ0) +
-			infiniMinus(z1, oldZ1) +
-			infiniMinus(z2, oldZ2) +
-			infiniMinus(z3, oldZ3);
-		*/
-		const minZ = Math.min(z0, z1, z2, z3);
-		const oldMinZ = Math.min(oldZ0, oldZ1, oldZ2, oldZ3);
-		if( materialIndex && frontness >= 2 ) {
-			// Then our new thing is on average in front of the old thing
-			if( cellMaterialIndexes[idx] == materialIndex ) {
-				// 'weld'
-				cellCornerDepths[idx*4+0] = Math.min(z0, oldZ0);
-				cellCornerDepths[idx*4+1] = Math.min(z1, oldZ1);
-				cellCornerDepths[idx*4+2] = Math.min(z2, oldZ2);
-				cellCornerDepths[idx*4+3] = Math.min(z3, oldZ3);
-			} else {
-				// replace
-				cellMaterialIndexes[idx] = materialIndex;
-				cellCornerDepths[idx*4+0] = z0;
-				cellCornerDepths[idx*4+1] = z1;
-				cellCornerDepths[idx*4+2] = z2;
-				cellCornerDepths[idx*4+3] = z3;
-			}
+		if( frontZ < oldFrontZ ) {
+			cellDepths[idx] = frontZ;
 		}
 	};
+	
+	public plotPixelCorners( x:number, y:number, z0:number, z1:number, z2:number, z3:number, backZ:number=Infinity, materialIndex?:number ):void {
+		// If a whole side is missing, don't try to render it.
+		if( z0 == Infinity && z1 == Infinity ) return;
+		if( z2 == Infinity && z3 == Infinity ) return;
+		if( z0 == Infinity && z2 == Infinity ) return;
+		if( z1 == Infinity && z3 == Infinity ) return;
+		
+		// Otherwise it's just, like, one corner,
+		// so extrapolate from the other corners.
+		if( z0 == Infinity ) z0 = (z1 + (z1-z3) + z2 + (z2-z3))/2;
+		if( z1 == Infinity ) z1 = (z0 + (z0-z2) + z3 + (z3-z2))/2;
+		if( z2 == Infinity ) z2 = (z3 + (z3-z1) + z0 + (z0-z1))/2;
+		if( z3 == Infinity ) z3 = (z2 + (z2-z0) + z1 + (z1-z0))/2;
+		
+		const dzdx = ((z3-z2)+(z1-z0))/2;
+		const dzdy = ((z3-z1)+(z2-z0))/2;
+		const z = (z0+z1+z2+z3)/4;
+		this.plotPixel2(x, y, z, backZ, dzdx, dzdy, materialIndex );
+	}
 	
 	protected dataUpdated(rect:Rectangle) {
 		if( this.renderer ) this.renderer.dataUpdated(rect, true, true);
@@ -220,17 +182,17 @@ class ShapeSheetUtil {
 	shiftZ(diff:number):void {
 		var ss = this.shapeSheet;
 		var i:number;
-		var cellCornerDepths = ss.cellCornerDepths;
+		var cellDepths = ss.cellDepths;
 		
-		for( i=ss.width*ss.height*4-1; i>=0; --i ) {
-			cellCornerDepths[i] += diff;
-		}
-		if( this.renderer ) {
-			var cellAverageDepths = this.renderer.cellAverageDepths;
-			for( i=ss.width*ss.height-1; i>=0; --i ) {
-				cellAverageDepths[i] += diff;
+		if( diff == undefined ) throw new Error("Shift amount is undefined!");
+		if( typeof diff != 'number' ) throw new Error("Shift amount is not a number: "+JSON.stringify(diff));
+		
+		for( let i=cellDepths.length-1; i>=0; --i ) {
+			if( cellDepths[i] < Infinity ) {
+				cellDepths[i] += diff;
 			}
 		}
+		
 		if( this.renderer && this.renderer.shaders.length > 0 ) {
 			this.renderer.dataUpdated(this._shapeSheet.bounds, false, true);
 		}
@@ -264,7 +226,8 @@ class ShapeSheetUtil {
 		const maxY = Math.min(ss.height,Math.round(y2))|0;
 		if( minY >= maxY ) return;
 		
-		var cellCornerDepths = ss.cellCornerDepths;
+		const cellDepths = ss.cellDepths;
+		const cellSlopes = ss.cellSlopes;
 		var cellMaterialIndexes = ss.cellMaterialIndexes;
 		var ssWidth = ss.width;
 		
@@ -289,61 +252,13 @@ class ShapeSheetUtil {
 			return x < min ? min : x > max ? max : x;
 		}
 		
-		if( quadRenderMethod == FlatTBQuadRenderMethod.NORMAL ) {
-			for( let y=minY; y<maxY; ++y ) {
-				const midYRat = (y+0.5-y0)/diffY;
-				const minX = Math.max(0, Math.round( x0 + diffX0*midYRat ))|0;
-				const maxX = Math.min(ss.width, Math.round( x1 + diffX1*midYRat ));
-				for( let x=minX; x<maxX; ++x ) {
-					const pz0 = z0 + (x-x0)*dzdx + (y-y0)*dzdy;
-					this.plotPixel( x, y, pz0, pz0+dzdx, pz0+dzdy, pz0+dzdx+dzdy );
-				}
-			}
-		} else if( quadRenderMethod == FlatTBQuadRenderMethod.CLAMPED_Z ) {
-			const maxZ = Math.max(z0,z1,z2,z3);
-			const minZ = Math.min(z0,z1,z2,z3);
-			
-			for( let y=minY; y<maxY; ++y ) {
-				const midYRat = (y+0.5-y0)/diffY;
-				const minX = Math.max(0, Math.round( x0 + diffX0*midYRat ))|0;
-				const maxX = Math.min(ss.width, Math.round( x1 + diffX1*midYRat ));
-				const rowZ0 = z0 + diffZ0*(y-y0)/diffY;
-				const rowZ1 = z1 + diffZ1*(y-y0)/diffY;
-				const rowZ2 = z0 + diffZ0*(y+1-y0)/diffY;
-				const rowZ3 = z1 + diffZ1*(y+1-y0)/diffY;
-				const rowMinZ = Math.max(minZ, Math.min(rowZ0, rowZ1, rowZ2, rowZ3));
-				const rowMaxZ = Math.min(maxZ, Math.max(rowZ0, rowZ1, rowZ2, rowZ3));
-				for( let x=minX; x<maxX; ++x ) {
-					const _pz0 = z0 + (x-x0)*dzdx + (y-y0)*dzdy;
-					const pz0 = clamp( rowMinZ, _pz0, rowMaxZ );
-					const pz1 = clamp( rowMinZ, _pz0 + dzdx, rowMaxZ );
-					const pz2 = clamp( rowMinZ, _pz0 + dzdy, rowMaxZ );
-					const pz3 = clamp( rowMinZ, _pz0 + dzdx + dzdy, rowMaxZ );
-					this.plotPixel( x, y, pz0, pz1, pz2, pz3 );
-				}
-			}
-		} else {
-			for( let y=minY; y<maxY; ++y ) {
-				const midYRat = (y+0.5-y0)/diffY;
-				//const minX = Math.max(0, Math.round( x0 + diffX0*midYRat ))|0;
-				//const maxX = Math.min(ss.width, Math.round( x1 + diffX1*midYRat ));
-				const rowX0 = x0 + diffX0*(y-y0)/diffY;
-				const rowX1 = x1 + diffX1*(y-y0)/diffY;
-				const rowX2 = x0 + diffX0*(y+1-y0)/diffY;
-				const rowX3 = x1 + diffX1*(y+1-y0)/diffY;
-				const minX = Math.max(0, Math.round( (rowX0+rowX2)/2 ));
-				const maxX = Math.min(ss.width, Math.round( (rowX1+rowX3)/2 ));
-				const rowZ0 = z0 + diffZ0*(y-y0)/diffY;
-				const rowZ1 = z1 + diffZ1*(y-y0)/diffY;
-				const rowZ2 = z0 + diffZ0*(y+1-y0)/diffY;
-				const rowZ3 = z1 + diffZ1*(y+1-y0)/diffY;
-				for( let x=minX; x<maxX; ++x ) {
-					const pz0 = rowZ0 + (rowZ1-rowZ0)*(x  -rowX0)/(rowX1-rowX0);
-					const pz1 = rowZ0 + (rowZ1-rowZ0)*(x+1-rowX0)/(rowX1-rowX0);
-					const pz2 = rowZ2 + (rowZ3-rowZ2)*(x  -rowX2)/(rowX3-rowX2);
-					const pz3 = rowZ2 + (rowZ3-rowZ2)*(x+1-rowX2)/(rowX3-rowX2);
-					this.plotPixel( x, y, pz0, pz1, pz2, pz3 );
-				}
+		for( let y=minY; y<maxY; ++y ) {
+			const midYRat = (y+0.5-y0)/diffY;
+			const minX = Math.max(0, Math.round( x0 + diffX0*midYRat ))|0;
+			const maxX = Math.min(ss.width, Math.round( x1 + diffX1*midYRat ));
+			for( let x=minX; x<maxX; ++x ) {
+				const pz = z0 + (x+0.5-x0)*dzdx + (y+0.5-y0)*dzdy;
+				this.plotPixel2( x, y, pz, undefined, dzdx, dzdy );
 			}
 		}
 		
@@ -384,17 +299,19 @@ class ShapeSheetUtil {
 		const minDy = Math.max(dy0-sx0, Math.max(0, dy0));
 		const maxDx = Math.min(dx0+sss.width -sx0, Math.min(dss.width , dx0+w));
 		const maxDy = Math.min(dy0+sss.height-sy0, Math.min(dss.height, dy0+h));
+		const sLayerSize = sss.width*sss.height;
 		
 		const sMI  = sss.cellMaterialIndexes;
-		const sCCD = sss.cellCornerDepths;
+		const sCD  = sss.cellDepths;
+		const sCS  = sss.cellSlopes;
 		const dMI  = dss.cellMaterialIndexes;
-		const dCCD = dss.cellCornerDepths;
+		const dCD  = dss.cellDepths;
 		const plotMode = this.plotMode;
 		
 		for( let dy=minDy, sy=dy+(sy0-dy0); dy < maxDy; ++dy, ++sy ) for( let dx=minDx, sx=dx+(sx0-dx0), di=dx+dss.width*dy, si=sx+sss.width*sy; dx < maxDx; ++dx, ++di, ++si ) {
 			// I expect it would benefit speed a lot to inline this, but that would be a pain.
 			// So don't do it unless you really need to.
-			this.plotPixel( dx, dy, dz+sCCD[si*4+0], dz+sCCD[si*4+1], dz+sCCD[si*4+2], dz+sCCD[si*4+3], sMI[si] );
+			this.plotPixel2( dx, dy, dz+sCD[si], dz+sCD[sLayerSize+si], sCS[si*2+0], sCS[si*2+1], sMI[si] );
 		}
 		
 		this.dataUpdated(new Rectangle(minDx, minDy, maxDx, maxDy));
@@ -516,18 +433,18 @@ class ShapeSheetUtil {
 
 	plotSphere(centerX:number, centerY:number, centerZ:number, rad:number):void {
 		var i:void;
-		var sphereDepth = function(x:number,y:number):number {
+		var sphereHeight = function(x:number,y:number):number {
 			var sphereX = (x - centerX) / rad;
 			var sphereY = (y - centerY) / rad;
 			var d = sphereX*sphereX + sphereY*sphereY;
-			if( d >  1 ) return Infinity;
+			if( d >  1 ) return -Infinity;
 			if( d == 1 ) return centerZ;
 			
 			// z*z + x*x + y*y = 1
 			// z*z = 1 - (x*x + y*y)
 			// z = Math.sqrt(1 - (x*x+y*y))
 			
-			return centerZ - rad * Math.sqrt(1 - d);
+			return rad * Math.sqrt(1 - d);
 		};
 		
 		const boundingRect:Rectangle = Rectangle.intersection(
@@ -537,25 +454,14 @@ class ShapeSheetUtil {
 		
 		for( let y = boundingRect.minY; y < boundingRect.maxY; ++y ) {
 			for( let x = boundingRect.minX; x < boundingRect.maxX; ++x ) {
-				let z0 = sphereDepth(x+0,y+0);
-				let z1 = sphereDepth(x+1,y+0);
-				let z2 = sphereDepth(x+0,y+1);
-				let z3 = sphereDepth(x+1,y+1);
-				// If a whole side is missing, don't try to render it.
-				if( z0 == Infinity && z1 == Infinity ) continue;
-				if( z2 == Infinity && z3 == Infinity ) continue;
-				if( z0 == Infinity && z2 == Infinity ) continue;
-				if( z1 == Infinity && z3 == Infinity ) continue;
+				const z0 = centerZ - sphereHeight(x+0,y+0);
+				const z1 = centerZ - sphereHeight(x+1,y+0);
+				const z2 = centerZ - sphereHeight(x+0,y+1);
+				const z3 = centerZ - sphereHeight(x+1,y+1);
+				const backZ = centerZ + sphereHeight(x+0.5, y+0.5);
 				
-				// Otherwise it's just, like, one corner,
-				// so extrapolate from the other corners.
-				if( z0 == Infinity ) z0 = (z1 + (z1-z3) + z2 + (z2-z3))/2;
-				if( z1 == Infinity ) z1 = (z0 + (z0-z2) + z3 + (z3-z2))/2;
-				if( z2 == Infinity ) z2 = (z3 + (z3-z1) + z0 + (z0-z1))/2;
-				if( z3 == Infinity ) z3 = (z2 + (z2-z0) + z1 + (z1-z0))/2;
-				
-				this.plotPixel(
-					x, y, z0, z1, z2, z3
+				this.plotPixelCorners(
+					x, y, z0, z1, z2, z3, backZ
 				);
 			}
 		}
@@ -622,7 +528,7 @@ class ShapeSheetUtil {
 				z1 = findSurfaceZ(df, x+1, y+0, minZ, maxZ, maxIterations);
 				z3 = findSurfaceZ(df, x+1, y+1, minZ, maxZ, maxIterations);
 				
-				this.plotPixel(x, y, z0, z1, z2, z3);
+				this.plotPixelCorners(x, y, z0, z1, z2, z3);
 				
 				z0 = z1;
 				z2 = z3;
@@ -644,15 +550,12 @@ class ShapeSheetUtil {
 		let opaqueMaxX = -Infinity;
 		let opaqueMaxY = -Infinity;
 		
-		const cellCornerDepths = ss.cellCornerDepths;
+		const cellDepths = ss.cellDepths;
 		
 		for( let y=minY; y < maxY; ++y ) {
 			for( let x=minX, i=x+ss.width*y; x < maxX; ++x, ++i ) {
 				if(
-					cellCornerDepths[i*4+0] != Infinity ||
-					cellCornerDepths[i*4+1] != Infinity ||
-					cellCornerDepths[i*4+2] != Infinity ||
-					cellCornerDepths[i*4+3] != Infinity
+					cellDepths[i] != Infinity
 				) {
 					opaqueMinX = Math.min(opaqueMinX, x  );
 					opaqueMaxX = Math.max(opaqueMaxX, x+1);

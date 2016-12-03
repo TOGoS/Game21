@@ -26,56 +26,6 @@ function normalizeVect3dToXYUnitSquare(vect:Vector3D):Vector3D {
 	return scaleVector(vect, 1/len);
 };
 
-function calcOpacity4(z0:number, z1:number, z2:number, z3:number):number {
-	var opac = 1;
-	if( z0 === Infinity ) opac -= 0.25;
-	if( z1 === Infinity ) opac -= 0.25;
-	if( z2 === Infinity ) opac -= 0.25;
-	if( z3 === Infinity ) opac -= 0.25;
-	return opac;
-};
-function calcSlope2(z0:number,z1:number):number|null {
-	if( z0 === z1 && (z0 === Infinity || z0 === -Infinity) ) return null; // Indicate to caller not to use this value
-	if( z0 === Infinity ) return -Infinity;
-	if( z1 === Infinity ) return +Infinity;
-	return z1 - z0;
-};
-function calcSlope4(z0:number,z1:number,z2:number,z3:number):number {
-	var s0 = calcSlope2(z0,z1);
-	var s1 = calcSlope2(z2,z3);
-	if( s0 === null && s1 === null ) {
-		return 0; // Should be completely transparent so this won't really matter
-	} else if( s0 === null ) {
-		return s1 === null ? 0 : s1;
-	} else if( s1 === null ) {
-		return s0 === null ? 0 : s0;
-	} else if( s0 === Infinity ) {
-		if( s1 === Infinity ) {
-			return LARGE_NUMBER;
-		} else if( s1 === -Infinity ) {
-			return 0;
-		} else {
-			return s1;
-		}
-	} else if( s0 === -Infinity ) {
-		if( s1 === Infinity ) {
-			return 0;
-		} else if( s1 === -Infinity ) {
-			return -LARGE_NUMBER;
-		} else {
-			return s1;
-		}
-	} else {
-		if( s1 === Infinity ) {
-			return s0;
-		} else if( s1 === -Infinity ) {
-			return s0;
-		} else {
-			return (s1 + s0)/2.0;
-		}
-	}
-};
-
 function processRectangleUpdates(rectangleList:Array<Rectangle>, updater:(rect:Rectangle)=>void) {
 	var i:any;
 	var anythingUpdated = false;
@@ -133,13 +83,11 @@ export default class ShapeSheetRenderer {
 	protected _shadowDistanceOverride:number|undefined;
 	protected _materials:Array<SurfaceMaterial>;
 	protected _lights:KeyedList<DirectionalLight>;
-
+	
 	// Cached information
-	public cellCoverages:Uint8Array;
-	public cellAverageDepths:Float32Array;
 	public cellNormals:Float32Array;
 	public cellColors:Float32Array;
-	public minimumAverageDepth:number;
+	public minimumFrontDepth:number;
 	protected maxShadowDistance:number = Infinity;
 	
 	// Update state
@@ -166,8 +114,6 @@ export default class ShapeSheetRenderer {
 		}
 		
 		const cellCount = shapeSheet.area;
-		this.cellCoverages       = new Uint8Array(cellCount); // coverage based on depth; 0,1,2,3,4 (divide by 4.0 to get opacity factor)
-		this.cellAverageDepths   = new Float32Array(cellCount);
 		this.cellNormals         = new Float32Array(cellCount*3); // normal vector X,Y,Z
 		this.cellColors          = new Float32Array(cellCount*4); // r,g,b,a of each cell after shading
 		
@@ -179,9 +125,7 @@ export default class ShapeSheetRenderer {
 		this.materials = DEFAULT_MATERIAL_MAP;
 		this.lights = DEFAULT_LIGHTS;
 		
-		this.cellCoverages.fill(0);
-		this.minimumAverageDepth = Infinity;
-		this.cellAverageDepths.fill(Infinity);
+		this.minimumFrontDepth = Infinity;
 		
 		// Upon construction, unless the shapesheet happens to be completely blank,
 		// we are out of sync with it, so mark the entire shapesheet as updated.
@@ -229,19 +173,16 @@ export default class ShapeSheetRenderer {
 		this.lightsUpdated();
 	};
 	
-	public getCellInfo(x:number, y?:number) {
+	getCellInfo(x:number, y?:number) {
 		const ss = this.shapeSheet;
 		const idx = y == null ? (x|0) : (y|0)*ss.width + (x|0);
 		if( idx < 0 || idx >= ss.width*ss.height ) return null;
 		return {
 			materialIndex: ss.cellMaterialIndexes[idx],
-			cornerDepths: [
-				ss.cellCornerDepths[idx*4+0],
-				ss.cellCornerDepths[idx*4+1],
-				ss.cellCornerDepths[idx*4+2],
-				ss.cellCornerDepths[idx*4+3]
-			],
-			averageDepth: this.cellAverageDepths[idx],
+			frontDepth: ss.cellDepths[idx],
+			backDepth: ss.cellDepths[idx+ss.width*ss.height],
+			dzDx: ss.cellSlopes[idx*2+0],
+			dzDy: ss.cellSlopes[idx*2+1],
 			color: [
 				this.cellColors[idx*4+0],
 				this.cellColors[idx*4+1],
@@ -259,46 +200,31 @@ export default class ShapeSheetRenderer {
 		const isFullRerender = (minX == 0 && minY == 0 && maxX == ss.width && maxY == ss.height);
 		
 		let i:number, x:number, y:number;
-		const cornerDepths = ss.cellCornerDepths;
-		const averageDepths = this.cellAverageDepths;
-		let minimumAverageDepth = isFullRerender ? Infinity : this.minimumAverageDepth;
+		const cellDepths = ss.cellDepths; // It's front if we only use the first layer.
+		const cellSlopes = ss.cellSlopes;
+		let minimumAverageDepth = isFullRerender ? Infinity : this.minimumFrontDepth;
 		
-		const cellCoverages = this.cellCoverages;
 		const cellNormals = this.cellNormals;
 
 		for( y=minY; y < maxY; ++y ) for( x=minX, i=ss.width*y+x; x < maxX; ++x, ++i ) {
-			let z0 = cornerDepths[i*4+0],
-				z1 = cornerDepths[i*4+1],
-				z2 = cornerDepths[i*4+2],
-				z3 = cornerDepths[i*4+3];
-			
 			let tot = 0, cnt = 0;
-			if( z0 !== Infinity ) { tot += z0; ++cnt; }
-			if( z1 !== Infinity ) { tot += z1; ++cnt; }
-			if( z2 !== Infinity ) { tot += z2; ++cnt; }
-			if( z3 !== Infinity ) { tot += z3; ++cnt; }
-			let avg = averageDepths[i] = (cnt == 0) ? Infinity : tot/cnt;
+			let avg = cellDepths[i] = (cnt == 0) ? Infinity : tot/cnt;
 			if( avg < minimumAverageDepth ) minimumAverageDepth = avg;
 			
-			const opac = calcOpacity4(z0,z1,z2,z3);
-			const dzdx = calcSlope4(z0,z1,z2,z3);
-			const dzdy = calcSlope4(z0,z2,z1,z3);
-			
-			let normalX = dzdx;
-			let normalY = dzdy;
+			let normalX = cellSlopes[i*2+0];
+			let normalY = cellSlopes[i*2+1];
 			let normalZ = -1;
 			const normalLength = Math.sqrt(normalZ*normalZ + normalX*normalX + normalY*normalY);
 			normalX /= normalLength;
 			normalY /= normalLength;
 			normalZ /= normalLength;
 			
-			cellCoverages[i] = opac * 4;
 			cellNormals[i*3+0] = normalX;
 			cellNormals[i*3+1] = normalY;
 			cellNormals[i*3+2] = normalZ;
 		}
 		
-		this.minimumAverageDepth = minimumAverageDepth;
+		this.minimumFrontDepth = minimumAverageDepth;
 	};
 
 	/**
@@ -337,17 +263,25 @@ export default class ShapeSheetRenderer {
 		var i:number, l:string, x:number, y:number, d:number;
 		var stx:number, sty:number, stz:number, stdx:number, stdy:number, stdz:number; // shadow tracing
 		var cellColors = this.cellColors;
-		var cellCoverages = this.cellCoverages;
 		var cellNormals = this.cellNormals;
 		var materials = this.materials;
 		var cellMaterialIndexes = ss.cellMaterialIndexes;
-		var cellCornerDepths = ss.cellCornerDepths;
-		var cellAvgDepths = this.cellAverageDepths;
-		var minAvgDepth = this.minimumAverageDepth;
+		var cellDepths = ss.cellDepths;
+		var minAvgDepth = this.minimumFrontDepth;
 		var lights = this.lights;
 		var shadowsEnabled = this.shadowsEnabled;
 		var light:DirectionalLight;
 		const lightIntensities:KeyedList<number> = {}
+		
+		let anyNonInfinite = false;
+		for( let i=cellDepths.length-1; i>=0; --i ) {
+			if( cellDepths[i] == undefined ) {
+				throw new Error("Undefined cell depth at index "+i);
+			}
+			if( cellDepths[i] != Infinity ) {
+				anyNonInfinite = true;
+			}
+		}
 		
 		const shadowTraceSurfaceOffset = 0; // Set to some negative value to start tracing for shadows from just off the surface
 		
@@ -364,7 +298,7 @@ export default class ShapeSheetRenderer {
 				normalY = cellNormals[i*3+1],
 				normalZ = cellNormals[i*3+2];
 			
-			let r = 0, g = 0, b = 0, a = cellCoverages[i] * 0.25;
+			let r = 0, g = 0, b = 0, a = 1;
 			
 			for( l in lights ) {
 				lightIntensities[l] = 0;
@@ -379,7 +313,7 @@ export default class ShapeSheetRenderer {
 					const traceVec = light.traceVector;
 					stx = x + 0.5;
 					sty = y + 0.5;
-					stz = cellAvgDepths[i] + shadowTraceSurfaceOffset;
+					stz = cellDepths[i] + shadowTraceSurfaceOffset;
 					stdx = traceVec.x;
 					stdy = traceVec.y;
 					stdz = traceVec.z;
@@ -390,18 +324,12 @@ export default class ShapeSheetRenderer {
 						// but I can't tell the difference, so leaving at 0.
 						const sampleDepthFindingMethod = 0;
 						if( sampleDepthFindingMethod == 0 ) {
-							d = cellAvgDepths[(sty|0)*width + (stx|0)];
+							d = cellDepths[(sty|0)*width + (stx|0)];
 						} else {
 							const sampSubX = stx - (stx|0);
 							const sampSubY = sty - (sty|0);
 							const cellIdx = (sty|0)*width + (stx|0);
-							const d0 = cellCornerDepths[cellIdx*4+0];
-							const d1 = cellCornerDepths[cellIdx*4+1];
-							const d2 = cellCornerDepths[cellIdx*4+2];
-							const d3 = cellCornerDepths[cellIdx*4+3];
-							const dTop = d0 + sampSubX*(d1-d0);
-							const dBot = d2 + sampSubX*(d3-d2);
-							d = dTop + sampSubY*(dBot-dTop);
+							d = cellDepths[cellIdx];
 						}
 						if( stz > d ) {
 							// Light let past for 'fuzz'
@@ -475,11 +403,15 @@ export default class ShapeSheetRenderer {
 			cellColors[i*4+1] = g;
 			cellColors[i*4+2] = b;
 			cellColors[i*4+3] = a;
+			// DEBUGGING WHY DOESN'T ANYTHING SHOW UP
+			cellColors[i*4+0] = 1;
+			cellColors[i*4+3] = 1;
 		}
-			
+		
 		var s:any;
 		for( let s in this.shaders ) {
-			this.shaders[s](this, region);
+			// DEBUGGING; MAYBE SHADERS SUX
+			//this.shaders[s](this, region);
 		}
 		if( this.updateRectanglesVisible ) {
 			var fullb = 0.25;
@@ -670,12 +602,12 @@ export default class ShapeSheetRenderer {
 			const {minX, maxX, minY, maxY} = region.assertIntegerBoundaries();
 			const fogR = fogColor.r, fogG = fogColor.g, fogB = fogColor.b, fogA = fogColor.a;
 			var width = ss.width;
-			var cellAverageDepths = ssr.cellAverageDepths;
+			var cellDepths = ss.cellDepths;
 			var cellColors = ssr.cellColors;
 			var x:number, y:number, i:number, d:number, r:number, g:number, b:number, a:number, oMix:number, fMix:number;
 			var fogT = (1-fogA); // Fog transparency; how much of original color to keep at depth = 1 pixel
 			for( y=minY; y < maxY; ++y ) for( x=minX, i=y*width+x; x < maxX; ++x, ++i ) {
-				d = cellAverageDepths[i];
+				d = cellDepths[i];
 				if( d === Infinity ) {
 					cellColors[i*4+0] = fogR;
 					cellColors[i*4+1] = fogG;

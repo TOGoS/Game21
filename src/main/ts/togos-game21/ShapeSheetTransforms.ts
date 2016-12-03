@@ -111,7 +111,8 @@ export default class ShapeSheetTransforms {
 				for( cc=0; cc < 4; ++cc ) {
 					sc = (cornerRot == 0) ? cc : cornerRotList[cc];
 					sc ^= cornerXor;
-					clone.cellCornerDepths[ci*4+cc] = source.cellCornerDepths[si*4+sc];
+					throw new Error("ha ha ha this thing needs some re-work.  Good thing I never use it!");
+					//clone.cellCornerDepths[ci*4+cc] = source.cellCornerDepths[si*4+sc];
 				}
 				clone.cellMaterialIndexes[ci] = source.cellMaterialIndexes[si];
 			}
