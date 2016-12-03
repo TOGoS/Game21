@@ -139,13 +139,17 @@ class ShapeSheetUtil {
 		// if they ever exist.
 		
 		const cellDepths = ss.cellDepths;
+		const cellSlopes = ss.cellSlopes;
 		
 		const
 			idx = x + y*width,
 			oldFrontZ = cellDepths[idx];
 		
 		if( frontZ < oldFrontZ ) {
+			cellMaterialIndexes[idx] = materialIndex;
 			cellDepths[idx] = frontZ;
+			cellSlopes[idx*2+0] = dzdx;
+			cellSlopes[idx*2+1] = dzdy;
 		}
 	};
 	
@@ -227,7 +231,6 @@ class ShapeSheetUtil {
 		if( minY >= maxY ) return;
 		
 		const cellDepths = ss.cellDepths;
-		const cellSlopes = ss.cellSlopes;
 		var cellMaterialIndexes = ss.cellMaterialIndexes;
 		var ssWidth = ss.width;
 		

@@ -202,14 +202,13 @@ export default class ShapeSheetRenderer {
 		let i:number, x:number, y:number;
 		const cellDepths = ss.cellDepths; // It's front if we only use the first layer.
 		const cellSlopes = ss.cellSlopes;
-		let minimumAverageDepth = isFullRerender ? Infinity : this.minimumFrontDepth;
+		let minimumFrontDepth = isFullRerender ? Infinity : this.minimumFrontDepth;
 		
 		const cellNormals = this.cellNormals;
-
+		
 		for( y=minY; y < maxY; ++y ) for( x=minX, i=ss.width*y+x; x < maxX; ++x, ++i ) {
-			let tot = 0, cnt = 0;
-			let avg = cellDepths[i] = (cnt == 0) ? Infinity : tot/cnt;
-			if( avg < minimumAverageDepth ) minimumAverageDepth = avg;
+			let depth = cellDepths[i];
+			if( depth < minimumFrontDepth ) minimumFrontDepth = depth;
 			
 			let normalX = cellSlopes[i*2+0];
 			let normalY = cellSlopes[i*2+1];
@@ -224,7 +223,7 @@ export default class ShapeSheetRenderer {
 			cellNormals[i*3+2] = normalZ;
 		}
 		
-		this.minimumFrontDepth = minimumAverageDepth;
+		this.minimumFrontDepth = minimumFrontDepth;
 	};
 
 	/**
@@ -273,6 +272,7 @@ export default class ShapeSheetRenderer {
 		var light:DirectionalLight;
 		const lightIntensities:KeyedList<number> = {}
 		
+		/*
 		let anyNonInfinite = false;
 		for( let i=cellDepths.length-1; i>=0; --i ) {
 			if( cellDepths[i] == undefined ) {
@@ -282,6 +282,12 @@ export default class ShapeSheetRenderer {
 				anyNonInfinite = true;
 			}
 		}
+		if( !anyNonInfinite ) {
+			// FOR DEBUGGING
+			console.log("Depth is infinite everywhere");
+			return;
+		}
+		*/
 		
 		const shadowTraceSurfaceOffset = 0; // Set to some negative value to start tracing for shadows from just off the surface
 		
@@ -403,15 +409,11 @@ export default class ShapeSheetRenderer {
 			cellColors[i*4+1] = g;
 			cellColors[i*4+2] = b;
 			cellColors[i*4+3] = a;
-			// DEBUGGING WHY DOESN'T ANYTHING SHOW UP
-			cellColors[i*4+0] = 1;
-			cellColors[i*4+3] = 1;
 		}
 		
 		var s:any;
 		for( let s in this.shaders ) {
-			// DEBUGGING; MAYBE SHADERS SUX
-			//this.shaders[s](this, region);
+			this.shaders[s](this, region);
 		}
 		if( this.updateRectanglesVisible ) {
 			var fullb = 0.25;
