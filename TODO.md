@@ -48,6 +48,10 @@ Maze1 simulation incremental refactoring
   - More occasional flushUpdates()
 - enqueueStep() { this.currentStatePromise = this.currentStatePromise.then( (currentState) => this.nextState(currentState, ) }
 
+Rendering - try to unify:
+- immediate (draw what's available as fast as possible) vs promise-based (e.g. for 'offline' rendering)
+- Render to images and blit vs fully ShapeSheet-based rendering
+
 Different random maze generation:
 - wave function collapse-generated rooms
 - big old simplex noise caves
