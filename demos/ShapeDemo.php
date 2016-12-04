@@ -44,6 +44,11 @@ $configProperties = [
 		'defaultValue' => 96,
 		'affects' => 'pageGeneration',
 	],
+	'superSampling' => [
+		'valueType' => 'number',
+		'defaultValue' => 1,
+		'affects' => 'pageGeneration',
+	],
 	'inlineResources' => [
 		'valueType' => 'boolean',
 		'defaultValue' => false,
@@ -266,7 +271,7 @@ canvas.shape-view {
 <script type="text/javascript">
 	require(['togos-game21/ShapeSheetDemo'], function(_ShapeSheetDemo) {
 		var canv = document.getElementById('demo-canvas')
-		var shapeSheetDemo = _ShapeSheetDemo.buildShapeDemo(canv);
+		var shapeSheetDemo = _ShapeSheetDemo.buildShapeDemo(canv, <?php ejsv($superSampling); ?>);
 		var regenForm = document.getElementById('regeneration-form');
 		
 		var configProperties = <?php echo str_replace("\n","\n\t\t", json_encode($configProperties, JSON_PRETTY_PRINT)); ?>;

@@ -385,9 +385,9 @@ class ShapeSheetDemo {
 import SurfaceColor from './SurfaceColor';
 import FPSUpdater from './FPSUpdater';
 
-export function buildShapeDemo(canv:HTMLCanvasElement) {
-	const shapeSheet = new ShapeSheet(canv.width, canv.height);
-	const shapeSheetRenderer = new ShapeSheetRenderer(shapeSheet, canv);
+export function buildShapeDemo(canv:HTMLCanvasElement, superSampling:number=1) {
+	const shapeSheet = new ShapeSheet(canv.width*superSampling, canv.height*superSampling);
+	const shapeSheetRenderer = new ShapeSheetRenderer(shapeSheet, canv, superSampling);
 	shapeSheetRenderer.shaders.push(ShapeSheetRenderer.makeFogShader(0, new SurfaceColor(0, 0, 0, 0.01)));
 	const shapeSheetUtil = new ShapeSheetUtil(shapeSheet, shapeSheetRenderer);
 	const shapeSheetDemo = new ShapeSheetDemo(shapeSheetUtil);
