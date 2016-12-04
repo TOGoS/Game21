@@ -123,7 +123,7 @@ class ShapeSheetUtil {
 		
 		if( this.plottedDepthFunction !== NOOP_PLOTTED_DEPTH_FUNCTION ) {
 			frontZ = this.plottedDepthFunction(x, y, frontZ);
-			backZ = this.plottedDepthFunction(x, y, backZ);
+			if( backZ ) backZ = this.plottedDepthFunction(x, y, backZ);
 		}
 		
 		if( frontZ == undefined ) throw new Error("FrontZ returned by plotted depth function is undefined!");
