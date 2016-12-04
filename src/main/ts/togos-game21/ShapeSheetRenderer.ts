@@ -444,13 +444,23 @@ export default class ShapeSheetRenderer {
 			}
 		}
 	};
-
+	
 	updateCellColors():void {
 		this.updateDepthDerivedData();
 		processRectangleUpdates(this.updatingColorRectangles, this.calculateCellColors.bind(this));
 	};
 	
-	static toUint8Rgba(sourceColors:Float32Array, sourceOffset:number, sourceSpan:number, destRgba:Uint8ClampedArray, destOffset:number, destSpan:number, destCols:number, destRows:number, superSampling:number ):void {
+	static toUint8Rgba(
+		sourceColors:Float32Array, sourceOffset:number, sourceSpan:number,
+		destRgba:Uint8ClampedArray, destOffset:number, destSpan:number,
+		destCols:number, destRows:number, superSampling:number
+	):void {
+		const encodeColorValue = function(i:number):number {
+			var c = Math.pow(i, 0.45);
+			if( c > 1 ) return 255;
+			return (c*255)|0;
+		};
+		
 		const ssArea = superSampling*superSampling;
 		
 		for( let y = 0; y < destRows; ++y ) {
@@ -474,10 +484,10 @@ export default class ShapeSheetRenderer {
 				
 				const avgA = a / ssArea;
 				destRgba[destIdx+3] = avgA * 255;
-				const mult = a == 0 ? 0 : 255 / avgA / ssArea; // Need to un-pre-multiply alpha
-				destRgba[destIdx+0] = r * mult;
-				destRgba[destIdx+1] = g * mult;
-				destRgba[destIdx+2] = b * mult;
+				const mult = a == 0 ? 0 : 1 / avgA / ssArea; // Need to un-pre-multiply alpha
+				destRgba[destIdx+0] = encodeColorValue(r * mult);
+				destRgba[destIdx+1] = encodeColorValue(g * mult);
+				destRgba[destIdx+2] = encodeColorValue(b * mult);
 			}
 		}
 	}
@@ -507,18 +517,17 @@ export default class ShapeSheetRenderer {
 		
 		var ctx = this.canvas.getContext('2d');
 		if( !ctx ) throw new Error("No '2d' context from my canvas!");
-		var encodeColorValue = function(i:number):number {
-			var c = Math.pow(i, 0.45);
-			if( c > 1 ) return 255;
-			return (c*255)|0;
-		};
 		var cellColors = this.cellColors;
 		
 		var imgData = ctx.getImageData(destMinX, destMinY, destW, destH);
 		if( !imgData ) throw new Error("ctx.getImageData returned null");
 		var imgDataData = imgData.data;
 		
-		ShapeSheetRenderer.toUint8Rgba(cellColors, (minY*width+minX)*4, 4*width, imgDataData, (destMinY*destW+destMinX)*4, 4*destW, destMaxX-destMinX, destMaxY-destMinY, sup);
+		ShapeSheetRenderer.toUint8Rgba(
+			cellColors, 4*(minY*width+minX), 4*width,
+			imgDataData, 0, 4*destW,
+			destMaxX-destMinX, destMaxY-destMinY, sup
+		);
 		
 		if( this.updateRectanglesVisible ) {
 			imgDataData[0+0] = 255;
@@ -526,7 +535,7 @@ export default class ShapeSheetRenderer {
 			imgDataData[(w*h*4)-4] = 255;
 			imgDataData[(w*h*4)-3] = 255;
 		}
-		ctx.putImageData(imgData, minX, minY);
+		ctx.putImageData(imgData, destMinX, destMinY);
 	};
 	
 	/**
