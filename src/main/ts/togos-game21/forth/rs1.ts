@@ -127,11 +127,11 @@ export function compileTokens( tokens:Token[], compilation:CompilationContext, s
 	return resolvedPromise(compilation);
 }
 
-export function compileSource( source:string, compilation:CompilationContext, sLoc:SourceLocation ) : Promise<CompilationContext> {
-	const tokenizer = new Tokenizer( (token:Token):void|Thenable<void> => {
+export function compileSource( source:string, compilation:CompilationContext, sLoc:SourceLocation ) : Thenable<CompilationContext> {
+	const tokenizer = new Tokenizer( (token:Token):void|Promise<void> => {
 		const p = compileToken( token, compilation );
-		if( p ) return (<Promise<CompilationContext>>p).then( () => undefined );
-		return undefined;
+		if( p ) return (<Promise<CompilationContext>>p).then( () => {} );
+		return;
 	} );
 	tokenizer.sourceLocation = sLoc;
 	return tokenizer.text( <string>source ).then( () => tokenizer.end() ).then( () => compilation );

@@ -274,7 +274,7 @@ export interface ForthProceduralShapeData extends ScriptProceduralShapeData {
 export class ForthProceduralShapeCompiler {
 	public compileProgram(script:string, sourceLocation:SourceLocation = {
 		filename:'anynymous source', lineNumber:1, columnNumber:1
-	}) : Promise<CompilationContext> {
+	}) : Thenable<CompilationContext> {
 		const ctx : CompilationContext = {
 			sourceLocation: sourceLocation,
 			dictionary: mergeDicts(standardWords, customWords),
@@ -287,7 +287,7 @@ export class ForthProceduralShapeCompiler {
 		return compileSource( script, ctx, sourceLocation );
 	}
 	
-	public compileToShape(script:string):Promise<ForthProceduralShape> {
+	public compileToShape(script:string):Thenable<ForthProceduralShape> {
 		return this.compileProgram(script).then( (ctx) => {
 			return new ForthProceduralShape({
 				languageName: "G21-FPS-1.0", // TODO: parse from headers
