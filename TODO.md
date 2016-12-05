@@ -28,6 +28,18 @@
 
 ## Misc to-do items
 
+Unify rendering (update or replace WorldCanvasView)
+- Render to canvas immediately
+- Render to canvas, waiting for images to load
+- Get image immediately or trigger loading
+- Get image promise
+- Support all image types:
+  - RGBA image
+  - ShapeSheet
+  - ForthProceduralShape
+  - DynamicEntityVisual
+  - CompoundVisual
+
 Clean up simulation source files
 (they got kind of messy during the recent Maze1SimulationUpdate.ts refactor,
 with some definitions duplicated between files).
