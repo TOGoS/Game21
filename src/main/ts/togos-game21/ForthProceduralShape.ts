@@ -5,7 +5,7 @@ import Vector3D from './Vector3D';
 import { makeVector, setVector, ZERO_VECTOR } from './vector3ds';
 import TransformationMatrix3D from './TransformationMatrix3D';
 import ShapeSheetUtil from './ShapeSheetUtil';
-import { AnimationType, animationTypeFromName } from './Animation';
+import { AnimationTypeID, animationTypeFromName } from './Animation';
 import ProceduralShape from './ProceduralShape';
 import Token, { TokenType } from './lang/Token';
 import { isResolved } from './promises';
@@ -261,8 +261,8 @@ const customWords : KeyedList<Word> = {
 }
 
 export interface ScriptProceduralShapeData {
-	animationType : AnimationType;
-	languageName : string; // "G21-FPS-1.0"
+	animationTypeId : AnimationTypeID;
+	languageName : "G21-FPS-1.0";
 	maxRadius? : number;
 	programSource : string;
 }
@@ -291,7 +291,7 @@ export class ForthProceduralShapeCompiler {
 		return this.compileProgram(script).then( (ctx) => {
 			return new ForthProceduralShape({
 				languageName: "G21-FPS-1.0", // TODO: parse from headers
-				animationType: animationTypeFromName("loop"), // TODO: parse from source headers
+				animationTypeId: animationTypeFromName("loop"), // TODO: parse from source headers
 				maxRadius: 8, // TODO: parse from headers
 				programSource: script,
 				program: ctx.program,
@@ -362,14 +362,14 @@ export function fixScriptText(programSource:string, headerValues:KeyedList<Strin
 }
 
 export default class ForthProceduralShape implements ProceduralShape, ForthProceduralShapeData {
-	public animationType : AnimationType;
-	public languageName : string;
+	public animationTypeId : AnimationTypeID;
+	public languageName : "G21-FPS-1.0";
 	public maxRadius? : number;
 	public programSource : string;
 	public program : Program;
 	
 	public constructor( public data:ForthProceduralShapeData ) {
-		this.animationType = data.animationType;
+		this.animationTypeId = data.animationTypeId;
 		this.languageName = data.languageName;
 		this.maxRadius = data.maxRadius;
 		this.programSource = data.programSource;

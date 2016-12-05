@@ -14,7 +14,7 @@ import TransformationMatrix3D from '../TransformationMatrix3D';
 import ShapeSheet from '../ShapeSheet';
 import ShapeSheetRenderer from '../ShapeSheetRenderer';
 import ShapeSheetUtil from '../ShapeSheetUtil';
-import { AnimationType, animationTypeFromName } from '../Animation';
+import { AnimationTypeID, animationTypeFromName } from '../Animation';
 import { DEFAULT_MATERIAL_MAP } from '../surfacematerials';
 import { DEFAULT_LIGHTS } from '../lights';
 import { Program } from '../forth/rs1'
@@ -188,7 +188,7 @@ class ShapeView {
 		t -= Math.floor(t);
 		if( this._t == t ) return;
 		this._t = t;
-		if( this._shape != null && this._shape.animationType != AnimationType.NONE ) this.updated();
+		if( this._shape != null && this._shape.animationTypeId != AnimationTypeID.NONE ) this.updated();
 	}
 	public set transform( xf:TransformationMatrix3D ) {
 		if( this._xf == xf ) return;

@@ -8,13 +8,13 @@ import ShapeSheetRenderer from './ShapeSheetRenderer';
 import ShapeSheetUtil, {constantMaterialIndexFunction, NOOP_PLOTTED_DEPTH_FUNCTION} from './ShapeSheetUtil';
 import ImageSlice from './ImageSlice';
 import ProceduralShape from './ProceduralShape';
-import Animation, { AnimationType } from './Animation';
+import Animation, { AnimationTypeID } from './Animation';
 import ObjectVisual, {ObjectVisualState, ObjectVisualFrame, VisualBasisType} from './ObjectVisual';
 import {DEFAULT_MATERIAL_MAP, IDENTITY_MATERIAL_REMAP} from './surfacematerials';
 import ObjectImageManager, {compressQuaternion, decompressQuaternion} from './ObjectImageManager';
 
 class ArrowShape implements ProceduralShape {
-	animationType = AnimationType.NONE;
+	animationTypeId = AnimationTypeID.NONE;
 	estimateOuterBounds( t:number, xf:TransformationMatrix3D ):Rectangle {
 		const scale = xf.scale;
 		return new Rectangle(-2*scale,-2*scale,2*scale,2*scale);
@@ -58,7 +58,7 @@ export default class QuaternionDemo {
 						orientation: Quaternion.IDENTITY,
 						materialRemap: IDENTITY_MATERIAL_REMAP,
 						animation: {
-							type : AnimationType.NONE,
+							type : AnimationTypeID.NONE,
 							length: Infinity,
 							frames: [this.generateObjectVisualFrame()]
 						}
