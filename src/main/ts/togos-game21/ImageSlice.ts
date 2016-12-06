@@ -6,7 +6,7 @@ export default class ImageSlice<ImageType> {
 	public sheetRef:string;
 	/**
 	 * @param {ShapeSheet} sheet the image or shapesheet (or whatever) that we slice
-	 * @param {Vector3D} position on the sheet (in sheet pixel coordinates)
+	 * @param {Vector3D} origin position on the sheet (in sheet pixel coordinates)
 	 *   corresponding to the slice's center
 	 * @param {number} resolution pixels per world unit (world unit being 'meters')
 	 * @param {AABB} bounds the region of the shapesheet to be drawn in sheet pixel coordinates;
