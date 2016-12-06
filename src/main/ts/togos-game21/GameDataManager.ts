@@ -151,8 +151,8 @@ export default class GameDataManager {
 				return <T>v;
 			});
 		} else {
-			return this.fetching[ref] = this.fetchHardRef(ref).then( (realRef:string) => {
-				return this.fetchObject(realRef).then( (v:any) => {
+			return this.fetching[ref] = this.fetchHardRef(ref).then( (realRef:string):Promise<T> => {
+				return this.fetchObject(realRef).then( (v:any):T => {
 					this.cache(ref, v);
 					delete this.fetching[ref];
 					return <T>v;

@@ -4,7 +4,7 @@ async function pram(k:string, v:string) {
 	return k+'='+v;
 }
 
-async function loopi(things:{[k:string]: string}, callback:(k:string, v:string)=>Promise<string> ) {
+async function loopi(things:{[k:string]: string}, callback:(k:string, v:string)=>Thenable<string> ) {
 	const rez:string[] = [];
 	for( let k in things ) {
 		rez.push(await callback(k, things[k]));
