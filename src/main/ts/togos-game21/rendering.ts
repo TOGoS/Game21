@@ -7,6 +7,10 @@ import GameDataManager from './GameDataManager';
 import { isResolved, value, resolveWrap, shortcutThen } from './promises';
 import { imageFromUrl } from './images';
 
+// TODO:
+// When done, this should obsolete CanvasWorldView and ObjectImageManager.
+// So delete those.
+
 type VisualRef = string;
 
 interface RenderingContext {
