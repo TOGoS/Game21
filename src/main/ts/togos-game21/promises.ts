@@ -26,6 +26,25 @@ export function resolvedPromise<T>( value:T ) : Promise<T> {
     return p;
 }
 
+/**
+ * Add a callback to a promise so that once it resolves
+ * it can be queried immediately.
+ */
+export function resolveWrap<X, T extends Thenable<X>>( thenable:T ):T {
+    const thenableProps:any = thenable;
+    if( thenableProps[STATESYM] == null ) {
+        thenableProps[STATESYM] = State.NORMAL;
+        thenable.then( (v:X) => {
+            thenableProps[STATESYM] = State.RESOLVED;
+            thenableProps[VALUESYM] = v;
+        }, (error:any) => {
+            thenableProps[STATESYM] = State.REJECTED;
+            thenableProps[ERRORSYM] = error;
+        });
+    }
+    return thenable;
+}
+
 export function rejectedPromise<T>( error:Error ) : Promise<T> {
     const p = Promise.reject(value);
     (<any>p)[ERRORSYM] = error;
