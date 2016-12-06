@@ -6,6 +6,7 @@ $demoConfigDefaults = [
 	'scale' => 16,
 	'width' => function($config) { return $config['scale'] * 16; },
 	'height' => function($config) { return $config['scale'] * 16; },
+	'superSampling' => 2,
 ];
 
 $config = config_from_env($demoConfigDefaults);
@@ -51,8 +52,10 @@ canvas.shape-view {
 <?php require_game21_js_libs($inlineResources);; ?>
 <script type="text/javascript">//<![CDATA[
 	require(['togos-game21/RailDemo'], function(RailDemo) {
-		var railDemo = RailDemo.buildDemo();
-		railDemo.scale = <?php ejsv($scale); ?>;
+		const superSampling = <?php ejsv($superSampling); ?>;
+		const scale = <?php ejsv($scale); ?>;
+		var railDemo = RailDemo.buildDemo(superSampling);
+		railDemo.scale = scale*superSampling;;
 		railDemo.run();
 	});
 //]]></script>

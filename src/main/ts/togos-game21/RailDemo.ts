@@ -322,11 +322,11 @@ export default class RailDemo {
 	}
 }
 
-export function buildDemo() {
+export function buildDemo(superSampling:number=1) {
 	var canv = <HTMLCanvasElement>document.getElementById('shaded-preview-canvas');
 	
-	var shapeSheet = new ShapeSheet(canv.width, canv.height);
-	var shapeSheetRenderer = new ShapeSheetRenderer(shapeSheet, canv);
+	var shapeSheet = new ShapeSheet(canv.width*superSampling, canv.height*superSampling);
+	var shapeSheetRenderer = new ShapeSheetRenderer(shapeSheet, canv, superSampling);
 	shapeSheetRenderer.shaders.push(ShapeSheetRenderer.makeFogShader(0, new SurfaceColor(0, 0, 0, 0.01)));
 	var shapeSheetUtil = new ShapeSheetUtil(shapeSheet, shapeSheetRenderer);
 	return new RailDemo(shapeSheetUtil);
