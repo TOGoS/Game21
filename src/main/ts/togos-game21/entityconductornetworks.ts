@@ -1,3 +1,5 @@
+/// <reference path="../Map.d.ts"/>
+
 import KeyedList from './KeyedList';
 import Vector3D from './Vector3D';
 import { ZERO_VECTOR } from './vector3ds';
@@ -14,12 +16,6 @@ import { ConductorNetworkBuilder, ConductorEndpoint } from './conductornetworks'
 import { Entity, EntityClass } from './world';
 import { fetchEntitySubsystems, eachSubEntity } from './worldutil';
 import GameDataManager from './GameDataManager';
-
-declare class Map<K,V> {
-	get(k:K):V|undefined;
-	has(k:K):boolean;
-	set(k:K, v:V):Map<K,V>;
-}
 
 export interface Placed<X> {
 	position : Vector3D;

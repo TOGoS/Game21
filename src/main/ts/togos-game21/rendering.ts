@@ -1,3 +1,5 @@
+/// <reference path="../Map.d.ts"/>
+
 import KeyedList from './KeyedList';
 import DirectionalLight from './DirectionalLight';
 import Quaternion from './Quaternion';

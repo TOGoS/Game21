@@ -5,12 +5,6 @@ import { subtractVector, addVector, vectorLength } from './vector3dmath';
 import Quaternion from './Quaternion';
 import TransformationMatrix3D from './TransformationMatrix3D';
 
-declare class Map<K,V> {
-	get(k:K):V|undefined;
-	has(k:K):boolean;
-	set(k:K, v:V):Map<K,V>;
-}
-
 export class ConductorNetworkBuilder {
 	public network:ConductorNetwork = {
 		classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/ConductorNetwork",
