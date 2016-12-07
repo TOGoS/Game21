@@ -42,7 +42,7 @@ export function parseBitImageVisualRefRegexResult( m:RegExpExecArray ):BitImageV
 		originX: (modVals['originX'] || width /2)|0,
 		originY: (modVals['originY'] || height/2)|0,
 		originZ: (modVals['originZ'] || 0)|0,
-		resolution: 16,
+		resolution,
 	}
 }
 

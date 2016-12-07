@@ -2,7 +2,7 @@ import Quaternion from './Quaternion';
 import Datastore from './Datastore';
 import MemoryDatastore from './MemoryDatastore';
 import GameDataManager from './GameDataManager';
-import { ImageCache } from './rendering';
+import { VisualImageManager } from './rendering';
 import { DEFAULT_LIGHTS } from './lights';
 import { DEFAULT_MATERIAL_PALETTE } from './surfacematerials';
 import * as dat from './maze1demodata'
@@ -29,7 +29,7 @@ export class RenderDemo {
 		ctx.fillStyle = 'rgba(255,255,0,1)';
 		ctx.fillRect(0,0,1,1);
 		
-		const imageCache = new ImageCache({
+		const imageCache = new VisualImageManager({
 			lights: DEFAULT_LIGHTS,
 			materialRefs: DEFAULT_MATERIAL_PALETTE,
 			dictionaryRootRef: "xxx",

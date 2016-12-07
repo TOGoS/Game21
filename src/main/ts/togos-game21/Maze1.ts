@@ -97,6 +97,8 @@ import SimulationMessage, {
 	ProximalSimulationMessage,
 } from './SimulationMessage';
 
+import { VisualImageManager } from './rendering';
+
 // KeyEvent isn't always available, boo.
 const KEY_CTRL = 17;
 const KEY_ESC = 27;
@@ -116,109 +118,6 @@ function base64Encode(data:Uint8Array):string {
 	return btoa(strs.join(""));
 }
 
-function hexVal(charCode:number):number {
-	switch( charCode ) {
-	case 0x30: return 0;
-	case 0x31: return 1;
-	case 0x32: return 2;
-	case 0x33: return 3;
-	case 0x34: return 4;
-	case 0x35: return 5;
-	case 0x36: return 6;
-	case 0x37: return 7;
-	case 0x38: return 8;
-	case 0x39: return 9;
-	case 0x41: case 0x61: return 10;
-	case 0x42: case 0x62: return 11;
-	case 0x43: case 0x63: return 12;
-	case 0x44: case 0x64: return 13;
-	case 0x45: case 0x65: return 14;
-	case 0x46: case 0x66: return 15;
-	default: throw new Error("Invalid hex digit: "+String.fromCharCode(charCode));
-	}
-}
-
-function hexDecodeBits( enc:string ):Array<number> {
-	const arr = new Array<number>(enc.length * 4);
-	for( let i=0; i<enc.length; ++i ) {
-		const n = hexVal(enc.charCodeAt(i));
-		arr[i*4+0] = (n >> 3) & 1;
-		arr[i*4+1] = (n >> 2) & 1;
-		arr[i*4+2] = (n >> 1) & 1;
-		arr[i*4+3] = (n >> 0) & 1;
-	}
-	return arr;
-}
-
-function numberToFillStyle( col:number ):string {
-	return 'rgba('+
-		((col>>24)&0xFF)+','+
-		((col>>16)&0xFF)+','+
-		((col>> 8)&0xFF)+','+
-		(((col>>0)&0xFF)/255)+')';
-}
-
-function parseOneBitImageDataToDataUrl( enc:string, w:number, h:number, color0:number, color1:number ):string {
-	const pixDat = hexDecodeBits(enc);
-	
-	const canv = document.createElement('canvas');
-	canv.width = w;
-	canv.height = h;
-	const ctx = canv.getContext('2d');
-	if( ctx == null ) throw new Error("No ctx from canvas!");
-	let prevColor:number|null = null;
-	for( let i=0, y=0; y < h; ++y ) {
-		for( let x = 0; x < w; ++x, ++i ) {
-			const col = pixDat[i] ? color1 : color0;
-			if( col != prevColor ) ctx.fillStyle = numberToFillStyle(col);
-			ctx.fillRect(x,y,1,1);
-			prevColor = col;
-		}
-	}
-
-	return canv.toDataURL();
-}
-
-interface BitImageInfo {
-	bitstr : string;
-	color0 : number;
-	color1 : number;
-	width  : number;
-	height : number;
-	originX: number;
-	originY: number;
-}
-
-const oneBitImageDataRegex = /^bitimg:([^,]+),([0-9a-f]+)$/;
-function parseBitImg( m:RegExpExecArray ):BitImageInfo {
-	const modStrs = m[1].split(';');
-	const bitStr:string = m[2];
-	const modVals:KeyedList<any> = {}; // Actually strings!  But any makes |0 happy.
-	const length = bitStr.length * 4;
-	const defaultWidth = Math.sqrt(length), defaultHeight = length/defaultWidth;  
-	for( let i = 0; i < modStrs.length; ++i ) {
-		const p = modStrs[i].split('=',2);
-		if( p.length == 2 ) {
-			let v:any = p[1];
-			if( v[0] == '0' && v[1] == 'x' ) {
-				v = parseInt(v.substr(2, 16));
-			}
-			modVals[p[0]] = v;
-		}
-	}
-	const width  = (modVals['width']  || defaultWidth )|0;
-	const height = (modVals['height'] || defaultHeight)|0
-	return {
-		bitstr: bitStr,
-		color0: modVals['color0']|0,
-		color1: modVals['color1']|0,
-		width : width,
-		height: height,
-		originX: (modVals['originX'] || width /2)|0,
-		originY: (modVals['originY'] || height/2)|0,
-	}
-}
-
 // Uhm, hrm, should we use ARGB or RGBA?
 
 interface Icon {
@@ -233,93 +132,9 @@ interface Icon {
 	scaleY : number;
 }
 
-class EntityImageManager
-{
-	// Note that this all needs to be completely rewritten
-	// in order to deal with non-bitimg: icons
-	// and to take state, time, orientation into account
-	
-	public constructor( protected gameDataManager:GameDataManager ) { }
-	
-	// TODO: Use one set of ImageSlices using sheetRef
-	// instead of having one set of ImageSlice<ImageURL>s and one set of ImageSlice<Image>s
-	protected urlishImageCache:KeyedList<ImageSlice<string>> = {};
-	protected getUrlishImage( ref:string ):ImageSlice<string> {
-		if( this.urlishImageCache[ref] ) return this.urlishImageCache[ref];
-		
-		const bitImgRee = oneBitImageDataRegex.exec(ref);
-		let xRef = ref;
-		if( bitImgRee ) {
-			const bitImgInfo = parseBitImg(bitImgRee);
-			xRef = parseOneBitImageDataToDataUrl( bitImgInfo.bitstr, bitImgInfo.width, bitImgInfo.height, bitImgInfo.color0, bitImgInfo.color1 );
-			return this.urlishImageCache[ref] = new ImageSlice(
-				xRef, makeVector(bitImgInfo.originX, bitImgInfo.originY, 0),
-				16, makeAabb(0,0,0, bitImgInfo.width,bitImgInfo.height,0)
-			);
-		} else {
-			throw new Error(ref+" not parse!");
-		}
-	}
-	
-	protected iconCache:KeyedList<ImageSlice<HTMLImageElement>> = {};
-	public getIconIfLoaded( visualRef:string, state:KeyedList<any>|undefined, time:number, orientation:Quaternion, preferredResolution:number, initiateFetch:boolean=false ):ImageSlice<HTMLImageElement>|undefined {
-		if( visualRef == dat.wiredToggleBoxVisualRef ) {
-			// Cheating for now!
-			const switchState = state == undefined ? false : !!state['switchState'];
-			visualRef = switchState ?
-				dat.greenToggleBoxOnImgRef :
-				dat.greenToggleBoxOffImgRef;
-		}
-		
-		if( this.iconCache[visualRef] ) return this.iconCache[visualRef];
-		
-		if( initiateFetch ) this.fetchIcon(visualRef, state, time, orientation, preferredResolution);
-		return undefined;
-	}
-	
-	protected fetchImage( srcRef:string ):Promise<HTMLImageElement> {
-		const img = imageFromUrl(srcRef)
-		if( img.width == 0 ) {
-			return new Promise( (resolve,reject) => {
-				img.addEventListener('load', (loadEvent) => {
-					resolve(img);
-				});
-				setTimeout(() => {reject("Timed out while waiting for image "+srcRef+" to load")}, 2000);
-			});
-		} else {
-			return Promise.resolve(img);
-		}
-	}
-	
-	protected iconPromises:KeyedList<Promise<ImageSlice<HTMLImageElement>>> = {};
-	public fetchIcon( visualRef:string, state:KeyedList<any>|undefined, time:number, orientation:Quaternion, preferredResolution:number ):Promise<ImageSlice<HTMLImageElement>> {
-		if( this.iconPromises[visualRef] ) return this.iconPromises[visualRef];
-		
-		const refSheet = this.getUrlishImage(visualRef);
-		return this.iconPromises[visualRef] = this.fetchImage(refSheet.sheet).then( (img) => {
-			return this.iconCache[visualRef] = {
-				sheetRef: refSheet.sheet,
-				sheet: img,
-				origin: refSheet.origin,
-				resolution: refSheet.resolution,
-				bounds: refSheet.bounds
-			}
-		});
-		
-		//return Promise.resolve(this.getIcon(visualRef, state, time, orientation, preferredResolution));
-	}
-	
-	public fetchEntityIcon( entity:Entity, time:number, orientation:Quaternion, preferredResolution:number ):Promise<ImageSlice<HTMLImageElement>> {
-		return this.gameDataManager.fetchObject<EntityClass>(entity.classRef).then( (entityClass) => {
-			if( !entityClass.visualRef ) return Promise.resolve(EMPTY_IMAGE_SLICE);
-			return this.fetchIcon( entityClass.visualRef, entity.state || {}, time, orientation, preferredResolution);
-		});
-	}
-}
-
 export class MazeView {
 	protected _gameDataManager:GameDataManager|undefined;
-	protected _entityImageManager:EntityImageManager|undefined;
+	protected _visualImageManager:VisualImageManager|undefined;
 	public constructor( public canvas:HTMLCanvasElement ) { }
 	
 	protected _viewage : ViewScene = { visualEntities: [] };
@@ -334,7 +149,11 @@ export class MazeView {
 	
 	public set gameDataManager(gdm:GameDataManager) {
 		this._gameDataManager = gdm;
-		this._entityImageManager = new EntityImageManager(gdm);
+		this._visualImageManager = new VisualImageManager({
+			dictionaryRootRef: "xyz",
+			lights: {},
+			materialRefs: [],
+		},gdm);
 	}
 	
 	public getTileEntityAt( coords:Vector3D, tileSize:number=1 ):TileEntity|undefined {
@@ -384,7 +203,7 @@ export class MazeView {
 		const vrWidth = rast.width, vrHeight = rast.height;
 		const vrData = rast.data;
 		ctx.fillStyle = fillStyle;
-
+		
 		if( borderColor ) {
 			ctx.strokeStyle = borderColor;
 			ctx.strokeRect(
@@ -447,7 +266,7 @@ export class MazeView {
 	protected draw():void {
 		const ctx = this.canvas.getContext('2d');
 		if( !ctx ) return;
-		const eim = this._entityImageManager;
+		const eim = this._visualImageManager;
 		const cx = this.canvas.width/2;
 		const cy = this.canvas.height/2;
 		const ppm = this.ppm, xz = this.xz, yz = this.yz;
@@ -455,9 +274,8 @@ export class MazeView {
 			const item:RoomVisualEntity = this._viewage.visualEntities[i];
 			const time = 0;
 			if( !item.visualRef ) continue;
-			const icon:ImageSlice<HTMLImageElement>|undefined = eim.getIconIfLoaded(
-				item.visualRef, item.state, time, item.orientation || Quaternion.IDENTITY, 16,
-				true);
+			const icon:ImageSlice<HTMLImageElement>|undefined = eim.qetVisualImageSlice(
+				item.visualRef, item.state, time, item.orientation || Quaternion.IDENTITY, 16);
 			if( icon == null ) continue;
 			const z = item.position.z + icon.bounds.minZ;
 			const px = cx + (item.position.x + z * xz) * ppm;
@@ -527,7 +345,7 @@ interface ConsoleDialogBox extends DialogBox {
 
 interface GameContext {
 	gameDataManager : GameDataManager;
-	entityImageManager : EntityImageManager;
+	visualImageManager : VisualImageManager;
 }
 
 interface SoundEffect {
@@ -1010,7 +828,11 @@ export class MazeDemo {
 			this.logLoadingStatus("Loading "+gameDescription+"...");
 			this.context = {
 				gameDataManager: gdm,
-				entityImageManager: new EntityImageManager(gdm)
+				visualImageManager: new VisualImageManager({
+					dictionaryRootRef: "xyz",
+					lights: {},
+					materialRefs: [],
+				}, gdm)
 			};
 			this.gameDataManager = gdm;
 			this.simulator = new MazeSimulator(gdm, simulationState);
@@ -1154,7 +976,7 @@ export class MazeDemo {
 				worldifier.baseRootiness = Math.min(1, level/10) * Math.random()*Math.random()*3;
 				worldifier.themeAreaSize = 4 + Math.random() * 8;
 				return worldifier;
-			}).then( (worldifier) => mazeToWorld(worldifier) ).then( ({gdm, playerId, startRoomRef}) => {
+			}).then( (worldifier:GraphWorldifier) => mazeToWorld(worldifier) ).then( ({gdm, playerId, startRoomRef}) => {
 				this.hideDialog(this.winDialog);
 				return this.loadGame2( gdm, {
 					enqueuedActions: [],
@@ -1711,9 +1533,13 @@ class EventDialogBox extends DialogBox {
 }
 
 class TileEntityRenderer {
-	protected entityImageManager:EntityImageManager;
+	protected visualImageManager:VisualImageManager;
 	public constructor( protected gameDataManager:GameDataManager ) {
-		this.entityImageManager = new EntityImageManager(gameDataManager);
+		this.visualImageManager = new VisualImageManager({
+			dictionaryRootRef: "xyz",
+			lights: {},
+			materialRefs: [],
+		}, gameDataManager);
 	}
 	
 	protected imageCache:KeyedList<ImageSlice<HTMLImageElement>> = {};
@@ -1748,7 +1574,7 @@ class TileEntityRenderer {
 		}
 		return this.gameDataManager.fetchObject<EntityClass>( entityClassRef ).then( (entityClass) => {
 			if( entityClass.visualRef ) {
-				return this.entityImageManager.fetchIcon(entityClass.visualRef, {}, 0, Quaternion.IDENTITY, 32);
+				return this.visualImageManager.fetchVisualImageSlice(entityClass.visualRef, {}, 0, Quaternion.IDENTITY, 32);
 			} else if( entityClass.structureType != StructureType.INDIVIDUAL ) {
 				const canv:HTMLCanvasElement = document.createElement('canvas');
 				const vbb = entityClass.visualBoundingBox;
@@ -2092,7 +1918,7 @@ export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string, loadingSt
 		inventoryDialogElement.style.display = 'none';
 		const ui = new StorageCompartmentContentUI();
 		demo.addContextListener( (ctx) => {
-			ui.entityRenderer = (entity:Entity) => ctx.entityImageManager.fetchEntityIcon(entity, 0, Quaternion.IDENTITY, 32);
+			ui.entityRenderer = (entity:Entity) => ctx.visualImageManager.fetchEntityImageSlice(entity, 0, Quaternion.IDENTITY, 32);
 		});
 		/*
 		// Let's just show /something/ for starts:

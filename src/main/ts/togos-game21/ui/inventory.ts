@@ -8,7 +8,7 @@ function emptyElement(e:HTMLElement) {
 	while( e.firstChild ) e.removeChild(e.firstChild);
 }
 
-type EntityRenderer = (entity:Entity)=>Promise<ImageSlice<any>>;
+type EntityRenderer = (entity:Entity)=>Thenable<ImageSlice<any>>;
 
 interface UIContext {
 	gameDataManager:GameDataManager;
@@ -35,7 +35,7 @@ export class StorageCompartmentContentUI {
 	
 	protected _items:Entity[] = [];
 	protected _selectedItemIndex:number|undefined;
-	protected _itemRenderPromises:Promise<ImageSlice<any>>[] = [];
+	protected _itemRenderPromises:Thenable<ImageSlice<any>>[] = [];
 	protected _itemElements:HTMLDivElement[] = [];
 	protected rebuildUi() {
 		this._itemElements = [];
@@ -93,7 +93,7 @@ export class StorageCompartmentContentUI {
 		this.rebuildUi();
 	}
 	
-	public set entityRenderer(renderer:(entity:Entity)=>Promise<ImageSlice<any>>) {
+	public set entityRenderer(renderer:(entity:Entity)=>Thenable<ImageSlice<any>>) {
 		this._entityRenderer = renderer;
 		this.renderItems();
 	}

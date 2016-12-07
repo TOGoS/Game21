@@ -9,6 +9,8 @@ import GameDataManager from './GameDataManager';
 import { isResolved, resolvedPromise, value, resolveWrap, shortcutThen } from './promises';
 import { imageFromUrlPromise } from './images';
 
+import { Entity, StructureType, EntityClass } from './world';
+
 // TODO:
 // When done, this should obsolete CanvasWorldView and ObjectImageManager.
 // So delete those.
@@ -40,7 +42,7 @@ export function rgbaDataToImageDataUri( rgba:Uint8ClampedArray, width:number, he
 }
 
 export class EntityRenderer {
-	public constructor( protected canvas:HTMLCanvasElement, imageCache:ImageCache ) { }
+	public constructor( protected canvas:HTMLCanvasElement, imageCache:VisualImageManager ) { }
 }
 
 export class WorldRenderer extends EntityRenderer {
@@ -73,7 +75,7 @@ interface VisualMetadata {
 	discreteAnimationStepCount : number;
 }
 
-export class ImageCache {
+export class VisualImageManager {
 	/**
 	 * May use RenderingContext.dictionaryRootRef
 	 * as part of a cache key,
@@ -223,6 +225,7 @@ export class ImageCache {
 					sheet: undefined,
 					origin: rgbaSlice.origin,
 					bounds: rgbaSlice.bounds,
+					resolution: rgbaSlice.resolution,
 				});
 			});
 			
@@ -241,5 +244,26 @@ export class ImageCache {
 			console.log("Not resulved yet; waiting...");
 			return st.then( fixImageSliceImage );
 		} 
+	}
+	
+	/**
+	 * qet means 'Get or enQueue for getting'
+	 */
+	public qetVisualImageSlice( visualRef:VisualRef, state:KeyedList<any>|undefined, time:number, orientation:Quaternion, preferredPpm:number ):ImageSlice<HTMLImageElement>|undefined {
+		const prom = this.fetchVisualImageSlice(visualRef, state, time, orientation, preferredPpm );
+		return isResolved(prom) ? value(prom) : undefined;
+	}
+	
+	/// Entity renderingContext
+	
+	public fetchEntityImageSlice( entity:Entity, time:number, orientation:Quaternion, preferredPpm:number ):Thenable<ImageSlice<HTMLImageElement>> {
+		// If entity is compound, this should include its sub-parts
+		return this.gameDataManager.fetchObject<EntityClass>(entity.classRef).then( (entityClass:EntityClass) => {
+			if( entityClass.structureType == StructureType.INDIVIDUAL ) {
+				return this.fetchVisualImageSlice(entityClass.visualRef, entity.state, time, orientation, preferredPpm);
+			} else {
+				return Promise.reject(new Error("Making images for compound entities not yet implement"));
+			}
+		});
 	}
 }
