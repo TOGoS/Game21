@@ -5,7 +5,7 @@ import MemoryDatastore from './MemoryDatastore';
 import CachingDatastore from './CachingDatastore';
 import BrowserStorageDatastore from './BrowserStorageDatastore';
 import MultiDatastore from './MultiDatastore';
-import { finalmente } from './promises';
+import { finalmente, isResolved, value } from './promises';
 
 import { deepFreeze, thaw, deepThaw, isDeepFrozen } from './DeepFreezer';
 import GameDataManager from './GameDataManager';
@@ -262,8 +262,11 @@ export class MazeView {
 		this.drawRaster( viz, VISIBILITY_VOID, VISIBILITY_NONE, this.occlusionFillStyle, true);
 	}
 	
+	protected needsRedrawAfterStuffLoads:boolean = false;
+	
 	// TODO: Genericize the object draw list from CanvasWorldView and use it.
 	protected draw():void {
+		this.needsRedrawAfterStuffLoads = false;
 		const ctx = this.canvas.getContext('2d');
 		if( !ctx ) return;
 		const eim = this._visualImageManager;
@@ -274,9 +277,22 @@ export class MazeView {
 			const item:RoomVisualEntity = this._viewage.visualEntities[i];
 			const time = 0;
 			if( !item.visualRef ) continue;
-			const icon:ImageSlice<HTMLImageElement>|undefined = eim.qetVisualImageSlice(
+			const iconPromise:Thenable<ImageSlice<HTMLImageElement>> = eim.fetchVisualImageSlice(
 				item.visualRef, item.state, time, item.orientation || Quaternion.IDENTITY, 16);
-			if( icon == null ) continue;
+			
+			if( !isResolved(iconPromise) ) {
+				this.needsRedrawAfterStuffLoads = true;
+				iconPromise.then( () => {
+					// If the previous frame failed to include everything...
+					if( this.needsRedrawAfterStuffLoads ) {
+						//console.log("Requesting redraw now that "+item.visualRef+" has been rendered");
+						this.requestRedraw();
+					}
+				});
+				continue;
+			}
+			
+			const icon = value(iconPromise);
 			const z = item.position.z + icon.bounds.minZ;
 			const px = cx + (item.position.x + z * xz) * ppm;
 			const py = cy + (item.position.y + z * yz) * ppm;
