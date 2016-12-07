@@ -878,6 +878,7 @@ function fastForwardTime(state:SimulationState, targetTime:number):SimulationSta
 	return {
 		enqueuedActions: state.enqueuedActions,
 		physicallyActiveRoomIdSet: state.physicallyActiveRoomIdSet,
+		visiblyUpdatedRoomIdSet: state.visiblyUpdatedRoomIdSet,
 		rootRoomIdSet: state.rootRoomIdSet,
 		time: targetTime,
 	}
@@ -888,6 +889,7 @@ function appendActions(state:SimulationState, newActions:SimulationAction[]):Sim
 	return {
 		enqueuedActions: state.enqueuedActions.concat(newActions),
 		physicallyActiveRoomIdSet: state.physicallyActiveRoomIdSet,
+		visiblyUpdatedRoomIdSet: state.visiblyUpdatedRoomIdSet,
 		rootRoomIdSet: state.rootRoomIdSet,
 		time: state.time,
 	}
