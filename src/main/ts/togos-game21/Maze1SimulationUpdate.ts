@@ -390,6 +390,8 @@ abstract class SimulationUpdate {
 				}
 			}
 		}
+		// This doesn't seem to be needed, though you'd think it would be.  Hmm.
+		//this.markRoomVisiblyUpdated(roomId);
 	}
 	
 	/** @temporary-shortcut */
