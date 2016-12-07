@@ -117,7 +117,6 @@ export class VisualImageManager {
 		
 		md = this.resolveToHardVisualRef(visualRef).then( (hardVisualRef) => {
 			return this.fetchVisual(hardVisualRef).then( (visual:Visual):Promise<VisualMetadata>|VisualMetadata => {
-				console.log("Loaded "+hardVisualRef+"; now we can make its metadata!");
 				switch( visual.classRef ) {
 				case "http://ns.nuke24.net/Game21/BitImageVisual":
 					return {
@@ -162,9 +161,7 @@ export class VisualImageManager {
 	protected generateVisualRgbaSlice(
 		visualRef:VisualRef, state:KeyedList<any>|undefined, time:number, orientation:Quaternion, preferredResolution:number
 	):Thenable<ImageSlice<Uint8ClampedArray>> {
-		console.log("Fetching "+visualRef+" in order to generate RGBA...");
 		return this.fetchVisual(visualRef).then( (visual) => {
-			console.log("Loaded "+visualRef+"; now we can turn it into a picture!");
 			switch( visual.classRef ) {
 			case "http://ns.nuke24.net/Game21/BitImageVisual":
 				const rgbaData = bitImageVisualToRgbaData(visual);
@@ -213,13 +210,11 @@ export class VisualImageManager {
 			sliceProm = this.generateVisualRgbaSlice(
 				visualRef, state, time, orientation, resolution
 			).then( (rgbaSlice):Promise<ImageSlice<HTMLImageElement|undefined>> => {
-				console.log("Made an RGBA slice!  Now we can make it into image data...");
 				if( rgbaSlice.bounds.minX != 0 || rgbaSlice.bounds.minY != 0 ) {
 					// We're assuming that the rgbaSlice corresponds 1-1 with its rgbaData.
 					return Promise.reject(new Error("Ack!"));
 				}
 				const dataUri = rgbaDataToImageDataUri(rgbaSlice.sheet, rgbaSlice.bounds.maxX, rgbaSlice.bounds.maxY );
-				console.log("Made image data!", dataUri);
 				return Promise.resolve(<ImageSlice<HTMLImageElement|undefined>>{
 					sheetRef: dataUri,
 					sheet: undefined,
@@ -241,7 +236,6 @@ export class VisualImageManager {
 			const s = value(st);
 			return s.sheet ? st : fixImageSliceImage(s);
 		} else {
-			console.log("Not resulved yet; waiting...");
 			return st.then( fixImageSliceImage );
 		} 
 	}
