@@ -3,6 +3,8 @@
 require_once 'lib.php';
 
 $demoConfigDefaults = [
+	'title' => 'Render Demo',
+	'inlineResources' => false,
 ];
 
 $config = config_from_env($demoConfigDefaults);
