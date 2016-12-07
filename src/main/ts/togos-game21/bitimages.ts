@@ -95,10 +95,10 @@ function _bitImageVisualToRgbaData( enc:string, w:number, h:number, bitDepth:num
 	for( let i=0, j=0, y=0; y < h; ++y ) {
 		for( let x = 0; x < w; ++x, ++i ) {
 			const col = colors[pixDat[i]];
-			rgbaData[j++] = (col >> 24);
-			rgbaData[j++] = (col >> 16);
-			rgbaData[j++] = (col >>  8);
-			rgbaData[j++] = (col >>  0);
+			rgbaData[j++] = (col >> 24)&0xFF;
+			rgbaData[j++] = (col >> 16)&0xFF;
+			rgbaData[j++] = (col >>  8)&0xFF;
+			rgbaData[j++] = (col >>  0)&0xFF;
 		}
 	}
 	
