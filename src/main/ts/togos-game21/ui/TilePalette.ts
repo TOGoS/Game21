@@ -12,14 +12,14 @@ export interface PaletteItem {
 export default class TilePalette {
 	protected tileEntities:(PaletteItem|undefined)[];
 	protected imageUrls:(string|null)[];
-	protected imageUrlPromises:(Promise<string>|undefined)[];
+	protected imageUrlPromises:(Thenable<string>|undefined)[];
 	protected tileElements:(HTMLElement)[];
 	protected _element:HTMLElement;
 	protected _selectedSlotIndex:number = 0;
 	
 	public constructor(
 		slotCount:number,
-		protected _renderer?:(ent:Entity, orientation:Quaternion)=>Promise<string|null>
+		protected _renderer?:(ent:Entity, orientation:Quaternion)=>Thenable<string|null>
 	) {
 		this.tileEntities = new Array(slotCount);
 		this.imageUrls = new Array(slotCount);
@@ -126,7 +126,7 @@ export default class TilePalette {
 		this.selectListeners.push(then);
 	}
 	
-	public set entityRenderer(renderer:((ent:Entity, orientation:Quaternion)=>Promise<string|null>)|undefined) {
+	public set entityRenderer(renderer:((ent:Entity, orientation:Quaternion)=>Thenable<string|null>)|undefined) {
 		this._renderer = renderer;
 		this.rerenderAll();
 	}
