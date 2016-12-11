@@ -79,12 +79,13 @@ export class EntityRenderer {
 	protected sciAddImageSlice( x:number, y:number, z:number, orientation:Quaternion, scale:number, imageSlice:ImageSlice<HTMLImageElement> ):void {
 		const imageScale = scale / imageSlice.resolution;
 		const bounds = imageSlice.bounds;
+		const origin = imageSlice.origin
 		const width = bounds.maxX-bounds.minX, height = bounds.maxY-bounds.minY;
 		// TODO: Use orientation and stuff
 		this.drawCommandBuffer.addImageDrawCommand(
 			imageSlice.sheet,
 			bounds.minX, bounds.minY, width, height,
-			x + imageScale*bounds.minX, y + imageScale*bounds.minY,
+			x + imageScale*(bounds.minX-origin.x), y + imageScale*(bounds.minY-origin.y),
 			imageScale*width, imageScale*height,
 			z + imageScale*bounds.minZ
 		);
