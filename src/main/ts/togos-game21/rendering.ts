@@ -1,15 +1,21 @@
 /// <reference path="../Map.d.ts"/>
 
 import KeyedList from './KeyedList';
+import Rectangle from './Rectangle';
 import DirectionalLight from './DirectionalLight';
+import Vector3D from './Vector3D';
+import { ZERO_VECTOR } from './vector3ds';
 import Quaternion from './Quaternion';
 import ImageSlice from './ImageSlice';
 import { MaterialPalette } from './surfacematerials';
 import GameDataManager from './GameDataManager';
-import { isResolved, resolvedPromise, value, resolveWrap, shortcutThen } from './promises';
-import { imageFromUrlPromise, EMPTY_IMAGE_SLICE } from './images';
+import { isResolved, resolvedPromise, value, resolveWrap, shortcutThen, voidify } from './promises';
+import { imagePromiseFromUrl, EMPTY_IMAGE_SLICE } from './images';
+
+import DrawCommandBuffer from './DrawCommandBuffer';
 
 import { Entity, StructureType, EntityClass } from './world';
+import { eachSubEntity } from './worldutil';
 
 // TODO:
 // When done, this should obsolete CanvasWorldView and ObjectImageManager.
@@ -41,8 +47,94 @@ export function rgbaDataToImageDataUri( rgba:Uint8ClampedArray, width:number, he
 	return canv.toDataURL();
 }
 
+/**
+ * sc = screen coordinates
+ * wc = world coordinates (relative to the screen center)
+ *  i = immediate
+ *  p = deferred (returning a promise)
+ */
+
 export class EntityRenderer {
-	public constructor( protected canvas:HTMLCanvasElement, imageCache:VisualImageManager ) { }
+	protected drawCommandBuffer:DrawCommandBuffer = new DrawCommandBuffer();
+	public clip:Rectangle;
+	public time:number;
+	
+	public constructor(
+		public canvas:HTMLCanvasElement,
+		protected gameDataManager:GameDataManager,
+		protected imageCache:VisualImageManager,
+		public screenCenterX:number,
+		public screenCenterY:number,
+		public unitPpm:number, // Scale at minimum parallax depth
+		public minParallaxDepth:number
+	) {
+		this.clip = new Rectangle(0, 0, canvas.width, canvas.height);
+	}
+	
+	protected scaleAtDepth( z:number ):number {
+		const mpd = this.minParallaxDepth;
+		return this.unitPpm / 1 + Math.max(0, z - mpd);
+	}
+	
+	protected sciAddImageSlice( x:number, y:number, z:number, orientation:Quaternion, scale:number, imageSlice:ImageSlice<HTMLImageElement> ):void {
+		const imageScale = scale / imageSlice.resolution;
+		const bounds = imageSlice.bounds;
+		const width = bounds.maxX-bounds.minX, height = bounds.maxY-bounds.minY;
+		// TODO: Use orientation and stuff
+		this.drawCommandBuffer.addImageDrawCommand(
+			imageSlice.sheet,
+			bounds.minX, bounds.minY, width, height,
+			x + imageScale*bounds.minX, y + imageScale*bounds.minY,
+			imageScale*width, imageScale*height,
+			z + imageScale*bounds.minZ
+		);
+	}
+	
+	public wcdAddEntity( pos:Vector3D, orientation:Quaternion, entity:Entity ):Promise<void> {
+		return this.gameDataManager.fetchObject<EntityClass>( entity.classRef ).then( (entityClass) => {
+			console.log("wcdDrawEntity class "+entity.classRef);
+			const vbb = entityClass.visualBoundingBox;
+			
+			const backZ = vbb.maxZ + pos.z;
+			if( backZ <= 0 ) return;
+			const backScale = this.scaleAtDepth(backZ);
+			
+			const scx = this.screenCenterX, scy = this.screenCenterY;
+			
+			if( scx + backScale * (vbb.maxX + pos.x) <= this.clip.minX ) return;
+			if( scx + backScale * (vbb.minX + pos.x) >= this.clip.maxX ) return;
+			if( scy + backScale * (vbb.maxY + pos.y) <= this.clip.minY ) return;
+			if( scy + backScale * (vbb.minY + pos.y) >= this.clip.maxY ) return;
+			
+			// guess!
+			const rezo = 1 << Math.ceil( Math.log(this.scaleAtDepth(pos.z))/Math.log(2) );
+			
+			const drawPromises:Thenable<void>[] = [];
+			if( entityClass.visualRef ) {
+				drawPromises.push(this.imageCache.fetchVisualImageSlice(entityClass.visualRef, entity.state, this.time, orientation, rezo ).then( (imageSlice) => {
+					const scale = this.scaleAtDepth(pos.z + imageSlice.bounds.minZ/this.unitPpm);
+					const sx = scx + pos.x*scale;
+					const sy = scy + pos.y*scale;
+					this.sciAddImageSlice(sx, sy, pos.z, orientation, scale, imageSlice);
+					return;
+				}));
+			}
+			eachSubEntity( pos, orientation, entity, this.gameDataManager, (subPos, subOri, subEnt) => {
+				drawPromises.push(this.wcdAddEntity(subPos, subOri, subEnt));
+			}, this );
+			
+			return voidify(Promise.all(drawPromises));
+		});
+	}
+	
+	protected get renderingContext2d():CanvasRenderingContext2D|null {
+		return this.canvas.getContext('2d');
+	}
+	
+	public flush() {
+		const ctx = this.renderingContext2d;
+		if( ctx ) this.drawCommandBuffer.flushDrawCommands(ctx);
+	}
 }
 
 export class WorldRenderer extends EntityRenderer {
@@ -50,7 +142,7 @@ export class WorldRenderer extends EntityRenderer {
 }
 
 function fixImageSliceImage( slice:ImageSlice<HTMLImageElement|undefined> ):Thenable<ImageSlice<HTMLImageElement>> {
-	if( slice.sheet == null ) return shortcutThen( imageFromUrlPromise(slice.sheetRef), (img) => {
+	if( slice.sheet == null ) return shortcutThen( imagePromiseFromUrl(slice.sheetRef), (img) => {
 		slice.sheet = img;
 		return slice;
 	});
@@ -254,15 +346,56 @@ export class VisualImageManager {
 	
 	public fetchEntityImageSlice( entity:Entity, time:number, orientation:Quaternion, preferredPpm:number ):Thenable<ImageSlice<HTMLImageElement>> {
 		// If entity is compound, this should include its sub-parts
-		return this.gameDataManager.fetchObject<EntityClass>(entity.classRef).then( (entityClass:EntityClass) => {
-			if( entityClass.structureType == StructureType.INDIVIDUAL ) {
+		return this.gameDataManager.fetchObject<EntityClass>(entity.classRef).then( (entityClass:EntityClass):Thenable<ImageSlice<HTMLImageElement>> => {
+			switch( entityClass.structureType ) {
+			case StructureType.INDIVIDUAL:
 				if( entityClass.visualRef ) {
 					return this.fetchVisualImageSlice(entityClass.visualRef, entity.state, time, orientation, preferredPpm);
 				} else {
 					return EMPTY_IMAGE_SLICE_PROMISE;
 				}
-			} else {
-				return Promise.reject(new Error("Making images for compound entities not yet implement"));
+			case StructureType.NONE:
+				return EMPTY_IMAGE_SLICE_PROMISE;
+			case StructureType.LIST:
+			case StructureType.STACK:
+			case StructureType.TILE_TREE:
+				if(1 > 2) return Promise.reject(new Error("asd"));
+				
+				// Ignore any visualRef for now because I don't think compound entities will have them anyway.
+				// And if they do, what does that mean?  Draw in addition to or instead of sub-entities?
+				
+				const canv = document.createElement('canvas');
+				const vbb = entityClass.visualBoundingBox;
+				canv.width  = preferredPpm * (vbb.maxX-vbb.minX);
+				canv.height = preferredPpm * (vbb.maxY-vbb.minY);
+				const originX = -preferredPpm*vbb.minX;
+				const originY = -preferredPpm*vbb.minY;
+				const enRen = new EntityRenderer(
+					canv, this.gameDataManager, this,
+					originX, originY, preferredPpm,
+					Infinity
+				);
+				enRen.time = time;
+				return enRen.wcdAddEntity( ZERO_VECTOR, orientation, entity ).then( () => {
+					enRen.flush();
+					const sheetRef = canv.toDataURL();
+					// MAYBEDO: Could crop it, I guess!
+					return imagePromiseFromUrl(sheetRef).then( (sheet:HTMLImageElement):ImageSlice<HTMLImageElement> => {
+						const slice = new ImageSlice(
+							sheet,
+							{x:originX, y:originY, z:0},
+							preferredPpm,
+							{
+								minX: 0, minY: 0,
+								minZ: 0, // ack, not right!
+								maxX: canv.width, maxY: canv.height,
+								maxZ: 0, // ack, not right!
+							}
+						);
+						slice.sheetRef = sheetRef;
+						return slice;
+					});
+				});
 			}
 		});
 	}

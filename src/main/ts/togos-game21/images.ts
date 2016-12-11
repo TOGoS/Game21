@@ -3,7 +3,7 @@ import { resolvedPromise, resolveWrap } from './promises';
 
 export const EMPTY_IMAGE_URL = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
 
-export function imageFromUrlPromise(srcRef:string):Promise<HTMLImageElement> {
+export function imagePromiseFromUrl(srcRef:string):Promise<HTMLImageElement> {
     const img = <HTMLImageElement>document.createElement('img');
     img.src = srcRef;
     if( img.complete ) return resolvedPromise(img);

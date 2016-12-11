@@ -29,7 +29,6 @@ class DrawCommand {
 export default class DrawCommandBuffer {
 	protected drawCommandBuffer : Array<DrawCommand> = [];
 	protected drawCommandCount = 0;
-	protected canvasContext : CanvasRenderingContext2D;
 	
 	protected nextDrawCommand():DrawCommand {
 		const dcb = this.drawCommandBuffer;
@@ -43,18 +42,17 @@ export default class DrawCommandBuffer {
 		return dc;
 	}
 	
-	protected addImageDrawCommand(img:HTMLImageElement, sx:number, sy:number, sw:number, sh:number, dx:number, dy:number, dw:number, dh:number, depth:number):void {
+	public addImageDrawCommand(img:HTMLImageElement, sx:number, sy:number, sw:number, sh:number, dx:number, dy:number, dw:number, dh:number, depth:number):void {
 		this.nextDrawCommand().setImage(img, sx, sy, sw, sh, dx, dy, dw, dh, depth);
 	}
 	
-	protected addSpecialDrawCommand(f:(ctx:CanvasRenderingContext2D)=>void, depth:number):void {
+	public addSpecialDrawCommand(f:(ctx:CanvasRenderingContext2D)=>void, depth:number):void {
 		this.nextDrawCommand().setSpecial(f, depth);
 	}
 	
-	protected flushDrawCommands():void {
+	public flushDrawCommands(ctx:CanvasRenderingContext2D):void {
 		const dcb = this.drawCommandBuffer.slice(0, this.drawCommandCount);
 		dcb.sort( (a:DrawCommand, b:DrawCommand) => b.depth - a.depth);
-		const ctx = this.canvasContext;
 		if( ctx != null ) for( let i in dcb ) {
 			const dc = dcb[i];
 			if( dc.image != null ) {
