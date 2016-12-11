@@ -717,7 +717,8 @@ export default class BeltDemo {
 		requestAnimationFrame(animFrame);
 		
 		if( this.fpsCounterElement ) setInterval( () => {
-			this.fpsCounterElement.firstChild.nodeValue = ""+fps;
+			const tn = this.fpsCounterElement.firstChild;
+			 if( tn ) tn.nodeValue = ""+fps;
 			fps = 0;
 		}, 1000 );
 	}

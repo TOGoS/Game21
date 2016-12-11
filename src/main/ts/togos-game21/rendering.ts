@@ -7,7 +7,7 @@ import ImageSlice from './ImageSlice';
 import { MaterialPalette } from './surfacematerials';
 import GameDataManager from './GameDataManager';
 import { isResolved, resolvedPromise, value, resolveWrap, shortcutThen } from './promises';
-import { imageFromUrlPromise } from './images';
+import { imageFromUrlPromise, EMPTY_IMAGE_SLICE } from './images';
 
 import { Entity, StructureType, EntityClass } from './world';
 
@@ -74,6 +74,8 @@ interface VisualMetadata {
 	animationLength : number;
 	discreteAnimationStepCount : number;
 }
+
+const EMPTY_IMAGE_SLICE_PROMISE = resolvedPromise(EMPTY_IMAGE_SLICE);
 
 export class VisualImageManager {
 	/**
@@ -254,7 +256,11 @@ export class VisualImageManager {
 		// If entity is compound, this should include its sub-parts
 		return this.gameDataManager.fetchObject<EntityClass>(entity.classRef).then( (entityClass:EntityClass) => {
 			if( entityClass.structureType == StructureType.INDIVIDUAL ) {
-				return this.fetchVisualImageSlice(entityClass.visualRef, entity.state, time, orientation, preferredPpm);
+				if( entityClass.visualRef ) {
+					return this.fetchVisualImageSlice(entityClass.visualRef, entity.state, time, orientation, preferredPpm);
+				} else {
+					return EMPTY_IMAGE_SLICE_PROMISE;
+				}
 			} else {
 				return Promise.reject(new Error("Making images for compound entities not yet implement"));
 			}

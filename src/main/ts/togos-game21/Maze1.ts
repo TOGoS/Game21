@@ -1060,7 +1060,7 @@ export class MazeDemo {
 		const counter = this.getHtmlElement(counterElemId);
 		if( counter ) {
 			if( !counter.firstChild ) counter.appendChild(document.createTextNode(""));
-			counter.firstChild.nodeValue = value;
+			counter.firstChild!.nodeValue = value;
 		}
 	}
 	
@@ -1596,12 +1596,15 @@ export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string, loadingSt
 		});
 		tpArea.appendChild( invUi.element );
 		tpArea.appendChild( tpUi.element );
-		gameLoaded.then( () => {
+		demo.addContextListener( (ctx) => {
+			const vim = ctx.visualImageManager;
 			invUi.entityRenderer = tpUi.entityRenderer = (ent:Entity, orientation:Quaternion):Thenable<string|null> => {
-				return demo.visualImageManager.fetchEntityImageSlice(ent, 0, orientation, 32).then( (imageSlice) => {
+				return vim.fetchEntityImageSlice(ent, 0, orientation, 32).then( (imageSlice) => {
 					return imageSlice.sheetRef;
 				});
 			};
+		});
+		gameLoaded.then( () => {
 			const initialPaletteEntityClassRefs:(string|null)[] = [
 				null, dat.brikEntityClassId, dat.bigBrikEntityClassId,
 				dat.bigYellowBrikEntityClassId, dat.vines1EntityClassId,
@@ -1878,8 +1881,8 @@ export function startDemo(canv:HTMLCanvasElement, saveGameRef?:string, loadingSt
 	
 	const energyBarElement = document.getElementById('energy-bar');
 	const energyCounterElement = document.getElementById('energy-counter');
-	const energyCounterTextNode:Node|undefined = energyCounterElement && energyCounterElement.firstChild.nodeType == Node.TEXT_NODE ?
-		energyCounterElement.firstChild : undefined;
+	const energyCounterTextNode:Node|undefined =
+		(energyCounterElement && energyCounterElement.firstChild && energyCounterElement.firstChild.nodeType && energyCounterElement.firstChild) || undefined;
 	if( energyBarElement ) {
 		demo.energyIndicator = {
 			set value(v:number|undefined) {
