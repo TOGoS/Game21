@@ -134,7 +134,12 @@ export class EntityRenderer {
 	
 	public flush() {
 		const ctx = this.renderingContext2d;
-		if( ctx ) this.drawCommandBuffer.flushDrawCommands(ctx);
+		if( !ctx ) return;
+		ctx.mozImageSmoothingEnabled = false;
+		ctx.webkitImageSmoothingEnabled = false;
+		ctx.msImageSmoothingEnabled = false;
+		ctx.oImageSmoothingEnabled = false;
+		this.drawCommandBuffer.flushDrawCommands(ctx);
 	}
 }
 
