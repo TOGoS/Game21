@@ -36,7 +36,8 @@ export interface FunctionApplication extends BaseExpression {
 }
 export interface ArrayConstructionExpression extends BaseExpression {
 	classRef : "http://ns.nuke24.net/TOGVM/Expressions/ArrayConstruction";
-	values : ProgramExpression[];
+	valueExpressions : ProgramExpression[];
+}
 }
 export interface IfElseExpression extends BaseExpression {
 	classRef : "http://ns.nuke24.net/TOGVM/Expressions/IfElseChain";
@@ -127,7 +128,7 @@ export function sExpressionToProgramExpression(x:any):ProgramExpression {
 				}
 				return <ArrayConstructionExpression>{
 					classRef: "http://ns.nuke24.net/TOGVM/Expressions/ArrayConstruction",
-					values: componentExpressions
+					valueExpressions: componentExpressions
 				};
 			}
 		case 'var':

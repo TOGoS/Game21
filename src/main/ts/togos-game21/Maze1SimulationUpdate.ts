@@ -1430,8 +1430,8 @@ function evalInternalSystemProgram( expression:esp.ProgramExpression, ctx:ISPEC 
 		return expression.literalValue;
 	case "http://ns.nuke24.net/TOGVM/Expressions/ArrayConstruction":
 		const argValues:any[] = [];
-		for( let i=0; i<expression.values.length; ++i ) {
-			argValues.push(evalInternalSystemProgram(expression.values[i], ctx));
+		for( let i=0; i<expression.valueExpressions.length; ++i ) {
+			argValues.push(evalInternalSystemProgram(expression.valueExpressions[i], ctx));
 		}
 		return argValues;
 	case "http://ns.nuke24.net/TOGVM/Expressions/Variable":
