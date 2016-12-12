@@ -38,17 +38,26 @@ export interface ArrayConstructionExpression extends BaseExpression {
 	classRef : "http://ns.nuke24.net/TOGVM/Expressions/ArrayConstruction";
 	valueExpressions : ProgramExpression[];
 }
+export interface AssociativeArrayConstructionExpression extends BaseExpression {
+	classRef : "http://ns.nuke24.net/TOGVM/Expressions/AssociativeArrayConstruction";
+	pairExpressions : ProgramExpression[];
 }
 export interface IfElseExpression extends BaseExpression {
 	classRef : "http://ns.nuke24.net/TOGVM/Expressions/IfElseChain";
 	arguments : ProgramExpression[];
+}
+export interface SplatExpression extends BaseExpression {
+	classRef : "http://ns.nuke24.net/TOGVM/Expressions/Splat";
+	valueExpression : ProgramExpression[];
 }
 
 export type ProgramExpression =
 	LiteralString|LiteralNumber|LiteralBoolean|
 	VariableExpression|LetExpression|FunctionApplication|
 	ArrayConstructionExpression|
-	IfElseExpression;
+	AssociativeArrayConstructionExpression|
+	IfElseExpression|
+	SplatExpression;
 
 export type FunctionRef =
 	"http://ns.nuke24.net/TOGVM/Functions/AreEqual" |
