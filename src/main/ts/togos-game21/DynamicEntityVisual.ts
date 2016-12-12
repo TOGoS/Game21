@@ -3,8 +3,18 @@ import TransformationMatrix3D from './TransformationMatrix3D';
 
 /** properties expression input */
 interface EntityVisualPropertiesContext {
-	entityClassRef:string;
+	// entityClassRef:string; // That would be kind of redundant,
+	// since the class indicates the visual, right?
 	entityState:KeyedList<any>;
+	// When generating a still frame,
+	// animationTime/Phase will be set to the time
+	// in the *middle* of the frame.
+	// If there is only one frame, animationPhase will be 0.5.
+	animationLength:number;
+	animationFrameCount:number; // Infinity for continuous animations
+	animationFrameNumber:number; // 0..frameCount-1 ; NaN for continuous animations
+	animationTime:number; // Time since beginning of animation
+	animationPhase:number; // Animation time / length
 }
 
 /** properties expression result */
@@ -13,7 +23,7 @@ interface EntityVisualProperties {
 	materialRefOverrides:(string|undefined)[];
 	/**
 	 * Any additional material remapping
-	 * (applies after material ref overrides) 
+	 * (applies after material ref overrides)
 	 */
 	materialRemap:number[];
 	/** Any additional transform to be applied to the visual */
@@ -44,6 +54,11 @@ interface DynamicEntityVisual {
 	 * be animated, potentially at a different rate.
 	 */
 	discreteAnimationStepCount:number;
+	/**
+	 * References an expression that will be evaluated
+	 * with a EntityVisualPropertiesContext as variables
+	 * and returns a EntityVisualProperties.
+	 */
 	propertiesExpressionRef:string;
 }
 
