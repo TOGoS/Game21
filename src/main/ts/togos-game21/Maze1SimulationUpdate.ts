@@ -1429,11 +1429,35 @@ function evalInternalSystemProgram( expression:esp.ProgramExpression, ctx:ISPEC 
 	case "http://ns.nuke24.net/TOGVM/Expressions/LiteralBoolean":
 		return expression.literalValue;
 	case "http://ns.nuke24.net/TOGVM/Expressions/ArrayConstruction":
-		const argValues:any[] = [];
-		for( let i=0; i<expression.valueExpressions.length; ++i ) {
-			argValues.push(evalInternalSystemProgram(expression.valueExpressions[i], ctx));
+		{
+			const argValues:any[] = [];
+			for( let i=0; i<expression.valueExpressions.length; ++i ) {
+				const valExp = expression.valueExpressions[i];
+				if( valExp.classRef == "http://ns.nuke24.net/TOGVM/Expressions/Splat" ) {
+					const toSlurp = evalInternalSystemProgram(valExp, ctx);
+					for( let k in toSlurp ) argValues.push(toSlurp[k]);
+				} else {
+					argValues.push(evalInternalSystemProgram(valExp, ctx));
+				}
+			}
+			return argValues;
 		}
-		return argValues;
+	case "http://ns.nuke24.net/TOGVM/Expressions/AssociativeArrayConstruction":
+		{
+			const argValues:any = {};
+			for( let i=0; i<expression.pairExpressions.length; ++i ) {
+				const keyExp = expression.pairExpressions[i];
+				if( keyExp.classRef == "http://ns.nuke24.net/TOGVM/Expressions/Splat" ) {
+					const toSlurp = evalInternalSystemProgram(keyExp, ctx);
+					for( let k in toSlurp ) argValues[k] = toSlurp[k];
+				} else {
+					const valExp = expression.pairExpressions[++i];
+					const key = evalInternalSystemProgram(keyExp, ctx);
+					argValues[key] = evalInternalSystemProgram(valExp, ctx);
+				}
+			}
+			return argValues;
+		}
 	case "http://ns.nuke24.net/TOGVM/Expressions/Variable":
 		return ctx.variableValues[expression.variableName];
 	case "http://ns.nuke24.net/TOGVM/Expressions/IfElseChain":
