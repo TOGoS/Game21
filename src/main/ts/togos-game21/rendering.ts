@@ -365,8 +365,6 @@ export class VisualImageManager {
 			case StructureType.LIST:
 			case StructureType.STACK:
 			case StructureType.TILE_TREE:
-				if(1 > 2) return Promise.reject(new Error("asd"));
-				
 				// Ignore any visualRef for now because I don't think compound entities will have them anyway.
 				// And if they do, what does that mean?  Draw in addition to or instead of sub-entities?
 				
