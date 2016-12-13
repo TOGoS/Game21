@@ -720,9 +720,10 @@ abstract class SimulationUpdate {
 		variableValues:KeyedList<any>
 	):Entity {
 		const ctx:ISPEC = {
-			entityPath, entity, subsystemKey, busMessageQueue, variableValues
+			entityPath, entity, subsystemKey, busMessageQueue, variableValues,
+			functions: entitySystemFunctions
 		};
-		evalInternalSystemProgram( program, ctx );
+		esp.evaluateExpression( program, ctx );
 		return ctx.entity;
 	}
 	
@@ -1389,7 +1390,7 @@ abstract class SimulationUpdate {
 	public abstract doUpdate() : Promise<SimulationState>;
 }
 
-interface InternalSystemProgramEvaluationContext {
+interface InternalSystemProgramEvaluationContext extends esp.StandardEvaluationContext {
 	entityPath : EntityPath,
 	entity : Entity,
 	busMessageQueue : EntitySystemBusMessage[],
@@ -1418,141 +1419,43 @@ function updateEntity( entity:Entity, update:EntityUpdate ):Entity {
 	return entity;
 }
 
-/**
- * May update ctx.entity
- * or add messages to ctx.busMessageQueue
- */
-function evalInternalSystemProgram( expression:esp.ProgramExpression, ctx:ISPEC ):any {
-	switch( expression.classRef ) {
-	case "http://ns.nuke24.net/TOGVM/Expressions/LiteralString":
-	case "http://ns.nuke24.net/TOGVM/Expressions/LiteralNumber":
-	case "http://ns.nuke24.net/TOGVM/Expressions/LiteralBoolean":
-		return expression.literalValue;
-	case "http://ns.nuke24.net/TOGVM/Expressions/ArrayConstruction":
-		{
-			const argValues:any[] = [];
-			for( let i=0; i<expression.valueExpressions.length; ++i ) {
-				const valExp = expression.valueExpressions[i];
-				if( valExp.classRef == "http://ns.nuke24.net/TOGVM/Expressions/Splat" ) {
-					const toSlurp = evalInternalSystemProgram(valExp, ctx);
-					for( let k in toSlurp ) argValues.push(toSlurp[k]);
-				} else {
-					argValues.push(evalInternalSystemProgram(valExp, ctx));
-				}
+const entitySystemFunctions:KeyedList<(this:ISPEC, ...argValues:any[])=>any> = {
+	"http://ns.nuke24.net/Game21/InternalSystemFunctions/SendBusMessage": function(this:ISPEC, ...argValues:any[]) {
+		if( argValues.length == 1 ) { 
+			const bm = argValues[0];
+			if( !Array.isArray(bm) || bm.length < 1 || typeof bm[0] != 'string' ) {
+				throw new Error("Entity message must be an array with string as first element");
 			}
-			return argValues;
+			this.busMessageQueue.push( bm );
+			return null;
+		} else {
+			throw new Error("SendBusMessage given non-1 arguments: "+JSON.stringify(argValues));
 		}
-	case "http://ns.nuke24.net/TOGVM/Expressions/AssociativeArrayConstruction":
-		{
-			const argValues:any = {};
-			for( let i=0; i<expression.pairExpressions.length; ++i ) {
-				const keyExp = expression.pairExpressions[i];
-				if( keyExp.classRef == "http://ns.nuke24.net/TOGVM/Expressions/Splat" ) {
-					const toSlurp = evalInternalSystemProgram(keyExp, ctx);
-					for( let k in toSlurp ) argValues[k] = toSlurp[k];
-				} else {
-					const valExp = expression.pairExpressions[++i];
-					const key = evalInternalSystemProgram(keyExp, ctx);
-					argValues[key] = evalInternalSystemProgram(valExp, ctx);
-				}
-			}
-			return argValues;
+	},
+	"http://ns.nuke24.net/Game21/InternalSystemFunctions/GetEntityStateVariable": function(this:ISPEC, ...argValues:any[]) {
+		if( argValues.length == 1 ) {
+			const varName = ""+argValues[0];
+			return this.entity.state ? this.entity.state[varName] : null;
+		} else {
+			throw new Error("GetEntityStateVariable requires one argument; got "+argValues.length);
 		}
-	case "http://ns.nuke24.net/TOGVM/Expressions/Variable":
-		return ctx.variableValues[expression.variableName];
-	case "http://ns.nuke24.net/TOGVM/Expressions/IfElseChain":
-		{
-			if( (expression.arguments.length % 2) != 1 ) {
-				throw new Error("IfElseChain must have an odd number of arguments!  Got "+expression.arguments.length);
-			}
-			for( let i=0; i<expression.arguments.length; i += 2 ) {
-				const useThisOne = evalInternalSystemProgram(expression.arguments[i], ctx);
-				if( useThisOne ) return evalInternalSystemProgram(expression.arguments[i+1], ctx);
-			}
-			return evalInternalSystemProgram(expression.arguments[expression.arguments.length-1], ctx);
+	},
+	"http://ns.nuke24.net/Game21/InternalSystemFunctions/SetEntityStateVariable": function(this:ISPEC, ...argValues:any[]) {
+		if( argValues.length == 2 ) {
+			this.entity = updateEntity( this.entity, {
+				stateUpdates: {
+					[""+argValues[0]]: argValues[1]
+				}
+			});
+			return null;
+		} else {
+			throw new Error("SetEntityStateVariable requires two arguments; got "+argValues.length);
 		}
-	case "http://ns.nuke24.net/TOGVM/Expressions/FunctionApplication":
-		{
-			const argValues:any[] = [];
-			for( let i=0; i<expression.arguments.length; ++i ) {
-				argValues.push(evalInternalSystemProgram(expression.arguments[i], ctx));
-			}
-			if( !expression.functionRef && expression.functionExpression ) {
-				let thing = evalInternalSystemProgram(expression.functionExpression, ctx);
-				// For now just assume it's array element lookups
-				for( let i=0; thing != undefined && i<argValues.length; ++i ) {
-					const key = argValues[i];
-					thing = thing[key];
-				}
-				return thing;
-			}
-			switch( expression.functionRef ) {
-			case "http://ns.nuke24.net/TOGVM/Functions/AreEqual":
-				for( let i=1; i<argValues.length; ++i ) {
-					if( argValues[i] != argValues[0] ) return false;
-				}
-				return true;
-			case "http://ns.nuke24.net/TOGVM/Functions/AreNotEqual":
-				for( let i=1; i<argValues.length; ++i ) {
-					if( argValues[i] != argValues[0] ) return true;
-				}
-				return false;
-			case "http://ns.nuke24.net/TOGVM/Functions/BooleanNegate":
-				if( argValues.length == 1 ) {
-					return !argValues[0];
-				} else {
-					throw new Error("BooleanNegate requires a single argument; given "+argValues.length);
-				}
-			case "http://ns.nuke24.net/TOGVM/Functions/Coalesce":
-				for( let i in argValues ) {
-					if( argValues[i] != undefined ) return argValues[i];
-				}
-				return undefined;
-			case "http://ns.nuke24.net/InternalSystemFunctions/Trace":
-				//const logFunc = console.debug || console.log;
-				//logFunc.call(console, "Trace from entity subsystem program", argValues, ctx);
-				break;
-			case "http://ns.nuke24.net/InternalSystemFunctions/ProgN":
-				return argValues.length == 0 ? undefined : argValues[argValues.length-1];
-			case "http://ns.nuke24.net/InternalSystemFunctions/SendBusMessage":
-				if( argValues.length == 1 ) { 
-					const bm = argValues[0];
-					if( !Array.isArray(bm) || bm.length < 1 || typeof bm[0] != 'string' ) {
-						throw new Error("Entity message must be an array with string as first element");
-					}
-					ctx.busMessageQueue.push( bm );
-					return null;
-				} else {
-					throw new Error("SendBusMessage given non-1 arguments: "+JSON.stringify(argValues));
-				}
-			case "http://ns.nuke24.net/InternalSystemFunctions/GetEntityStateVariable":
-				if( argValues.length == 1 ) {
-					const varName = ""+argValues[0];
-					return ctx.entity.state ? ctx.entity.state[varName] : null;
-				} else {
-					throw new Error("GetEntityStateVariable requires one argument; got "+argValues.length);
-				}
-			case "http://ns.nuke24.net/InternalSystemFunctions/SetEntityStateVariable":
-				if( argValues.length == 2 ) {
-					ctx.entity = updateEntity( ctx.entity, {
-						stateUpdates: {
-							[""+argValues[0]]: argValues[1]
-						}
-					});
-					return null;
-				} else {
-					throw new Error("SetEntityStateVariable requires two arguments; got "+argValues.length);
-				}
-			default:
-				throw new Error("Call to unsupported function "+expression.functionRef);
-			}
-		}
-		break;
-	default:
-		throw new Error(
-			"Dunno how to evaluate expression class camp town ladies sing this song, do da, do da, "+
-			"camp town race track five miles long, oh da do da day: "+expression.classRef);
 	}
+};
+
+for( let k in esp.standardFunctions ) {
+	entitySystemFunctions[k] = esp.standardFunctions[k];
 }
 
 export default SimulationUpdate;

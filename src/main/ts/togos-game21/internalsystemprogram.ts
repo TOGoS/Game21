@@ -64,12 +64,12 @@ export type FunctionRef =
 	"http://ns.nuke24.net/TOGVM/Functions/AreNotEqual" |
 	"http://ns.nuke24.net/TOGVM/Functions/Coalesce" |
 	"http://ns.nuke24.net/TOGVM/Functions/BooleanNegate" |
-	"http://ns.nuke24.net/InternalSystemFunctions/SendBusMessage" |
-	"http://ns.nuke24.net/InternalSystemFunctions/EntityClassRef" |
-	"http://ns.nuke24.net/InternalSystemFunctions/ProgN" |
-	"http://ns.nuke24.net/InternalSystemFunctions/Trace" |
-	"http://ns.nuke24.net/InternalSystemFunctions/GetEntityStateVariable" |
-	"http://ns.nuke24.net/InternalSystemFunctions/SetEntityStateVariable";
+	"http://ns.nuke24.net/Game21/InternalSystemFunctions/SendBusMessage" |
+	"http://ns.nuke24.net/Game21/InternalSystemFunctions/EntityClassRef" |
+	"http://ns.nuke24.net/Game21/InternalSystemFunctions/ProgN" |
+	"http://ns.nuke24.net/Game21/InternalSystemFunctions/Trace" |
+	"http://ns.nuke24.net/Game21/InternalSystemFunctions/GetEntityStateVariable" |
+	"http://ns.nuke24.net/Game21/InternalSystemFunctions/SetEntityStateVariable";
 
 export const FUNC_SEND_BUS_MESSAGE = "http://ns.nuke24.net/InternalSystemFunctions/SendBusMessage";
 export const FUNC_ENTITY_CLASS_REF = "http://ns.nuke24.net/InternalSystemFunctions/EntityClassRef";
@@ -79,11 +79,11 @@ const shortToLongFunctionRefs:KeyedList<FunctionRef> = {
 	"!=": "http://ns.nuke24.net/TOGVM/Functions/AreNotEqual",
 	"=": "http://ns.nuke24.net/TOGVM/Functions/AreEqual",
 	"coalesce": "http://ns.nuke24.net/TOGVM/Functions/Coalesce",
-	"sendBusMessage": "http://ns.nuke24.net/InternalSystemFunctions/SendBusMessage",
-	"progn": "http://ns.nuke24.net/InternalSystemFunctions/ProgN",
-	"trace": "http://ns.nuke24.net/InternalSystemFunctions/Trace",
-	"gesv": "http://ns.nuke24.net/InternalSystemFunctions/GetEntityStateVariable",
-	"sesv": "http://ns.nuke24.net/InternalSystemFunctions/SetEntityStateVariable",
+	"sendBusMessage": "http://ns.nuke24.net/Game21/InternalSystemFunctions/SendBusMessage",
+	"progn": "http://ns.nuke24.net/Game21/InternalSystemFunctions/ProgN",
+	"trace": "http://ns.nuke24.net/Game21/InternalSystemFunctions/Trace",
+	"gesv": "http://ns.nuke24.net/Game21/InternalSystemFunctions/GetEntityStateVariable",
+	"sesv": "http://ns.nuke24.net/Game21/InternalSystemFunctions/SetEntityStateVariable",
 };
 
 export function sExpressionToProgramExpression(x:any):ProgramExpression {
@@ -170,3 +170,118 @@ export function sExpressionToProgramExpression(x:any):ProgramExpression {
 	
 	throw new Error("I can't compile this :( "+JSON.stringify(x));
 }
+
+export interface StandardEvaluationContext {
+	variableValues: KeyedList<any>;
+	functions: KeyedList<(this:this, ...args:any[]) => any>;
+}
+
+export function evaluateExpression<Context extends StandardEvaluationContext>(
+	expression:ProgramExpression, ctx:Context
+):any {
+	switch( expression.classRef ) {
+	case "http://ns.nuke24.net/TOGVM/Expressions/LiteralString":
+	case "http://ns.nuke24.net/TOGVM/Expressions/LiteralNumber":
+	case "http://ns.nuke24.net/TOGVM/Expressions/LiteralBoolean":
+		return expression.literalValue;
+	case "http://ns.nuke24.net/TOGVM/Expressions/ArrayConstruction":
+		{
+			const argValues:any[] = [];
+			for( let i=0; i<expression.valueExpressions.length; ++i ) {
+				const valExp = expression.valueExpressions[i];
+				if( valExp.classRef == "http://ns.nuke24.net/TOGVM/Expressions/Splat" ) {
+					const toSlurp = evaluateExpression(valExp, ctx);
+					for( let k in toSlurp ) argValues.push(toSlurp[k]);
+				} else {
+					argValues.push(evaluateExpression(valExp, ctx));
+				}
+			}
+			return argValues;
+		}
+	case "http://ns.nuke24.net/TOGVM/Expressions/AssociativeArrayConstruction":
+		{
+			const argValues:any = {};
+			for( let i=0; i<expression.pairExpressions.length; ++i ) {
+				const keyExp = expression.pairExpressions[i];
+				if( keyExp.classRef == "http://ns.nuke24.net/TOGVM/Expressions/Splat" ) {
+					const toSlurp = evaluateExpression(keyExp, ctx);
+					for( let k in toSlurp ) argValues[k] = toSlurp[k];
+				} else {
+					const valExp = expression.pairExpressions[++i];
+					const key = evaluateExpression(keyExp, ctx);
+					argValues[key] = evaluateExpression(valExp, ctx);
+				}
+			}
+			return argValues;
+		}
+	case "http://ns.nuke24.net/TOGVM/Expressions/Variable":
+		return ctx.variableValues[expression.variableName];
+	case "http://ns.nuke24.net/TOGVM/Expressions/IfElseChain":
+		{
+			if( (expression.arguments.length % 2) != 1 ) {
+				throw new Error("IfElseChain must have an odd number of arguments!  Got "+expression.arguments.length);
+			}
+			for( let i=0; i<expression.arguments.length; i += 2 ) {
+				const useThisOne = evaluateExpression(expression.arguments[i], ctx);
+				if( useThisOne ) return evaluateExpression(expression.arguments[i+1], ctx);
+			}
+			return evaluateExpression(expression.arguments[expression.arguments.length-1], ctx);
+		}
+	case "http://ns.nuke24.net/TOGVM/Expressions/FunctionApplication":
+		{
+			const argValues:any[] = [];
+			for( let i=0; i<expression.arguments.length; ++i ) {
+				argValues.push(evaluateExpression(expression.arguments[i], ctx));
+			}
+			if( !expression.functionRef && expression.functionExpression ) {
+				let thing = evaluateExpression(expression.functionExpression, ctx);
+				// For now just assume it's array element lookups
+				for( let i=0; thing != undefined && i<argValues.length; ++i ) {
+					const key = argValues[i];
+					thing = thing[key];
+				}
+				return thing;
+			}
+			
+			const func = ctx.functions[<string>expression.functionRef];
+			if( func ) {
+				return func.apply(ctx, argValues);
+			} else {
+				throw new Error("Call to unsupported function "+expression.functionRef);
+			}
+		}
+	default:
+		throw new Error(
+			"Dunno how to evaluate expression class camp town ladies sing this song, do da, do da, "+
+			"camp town race track five miles long, oh da do da day: "+expression.classRef);
+	}
+}
+
+export const standardFunctions:KeyedList<(...argValues:any[])=>any> = {
+	"http://ns.nuke24.net/TOGVM/Functions/AreEqual": (...argValues:any[]) => {
+		for( let i=1; i<argValues.length; ++i ) {
+			if( argValues[i] != argValues[0] ) return false;
+		}
+		return true;
+	},
+	"http://ns.nuke24.net/TOGVM/Functions/AreNotEqual": (...argValues:any[]) => {
+		for( let i=1; i<argValues.length; ++i ) {
+			if( argValues[i] != argValues[0] ) return true;
+		}
+		return false;
+	},
+	"http://ns.nuke24.net/TOGVM/Functions/BooleanNegate": (v:any) => !v,
+	"http://ns.nuke24.net/TOGVM/Functions/Coalesce": (...argValues:any[]) => {
+		for( let i in argValues ) {
+			if( argValues[i] != undefined ) return argValues[i];
+		}
+		return undefined;
+	},
+	"http://ns.nuke24.net/Game21/InternalSystemFunctions/Trace": () => {
+		//const logFunc = console.debug || console.log;
+		//logFunc.call(console, "Trace from entity subsystem program", argValues, ctx);
+	},
+	"http://ns.nuke24.net/Game21/InternalSystemFunctions/ProgN": (...argValues:any[]) => {
+		return argValues.length == 0 ? undefined : argValues[argValues.length-1];
+	},
+};
