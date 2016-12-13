@@ -186,6 +186,13 @@ export interface Entity {
 	
 	attachmentZones? : KeyedList<AttachmentZone>;
 	storedEnergy? : number;
+	
+	/**
+	 * World time at which the current visual's animation starts.
+	 * Useful for one-off animations.
+	 * Undefined means zero.
+	 */
+	animationStartTime? : number;
 }
 
 /**
@@ -211,6 +218,12 @@ export interface RoomVisualEntity {
 	// If entity is unset, you may still be able to get visual info from: 
 	state? : KeyedList<any>;
 	visualRef? : string;
+	/**
+	 * World time at which the current visual's animation starts.
+	 * Useful for one-off animations.
+	 * Undefined means zero.
+	 */
+	animationStartTime? : number;
 }
 
 /**
