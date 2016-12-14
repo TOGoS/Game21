@@ -23,7 +23,7 @@ html, body {
 	width: 100%;
 	height: 100%;
 	margin: 0;
-	box-model: border-box;
+	box-sizing: border-box;
 }
 .preview-region {
 	width: 100%;
