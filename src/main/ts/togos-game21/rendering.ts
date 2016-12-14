@@ -93,7 +93,6 @@ export class EntityRenderer {
 	
 	public wcdAddEntity( pos:Vector3D, orientation:Quaternion, entity:Entity ):Promise<void> {
 		return this.gameDataManager.fetchObject<EntityClass>( entity.classRef ).then( (entityClass) => {
-			console.log("wcdDrawEntity class "+entity.classRef);
 			const vbb = entityClass.visualBoundingBox;
 			
 			const backZ = vbb.maxZ + pos.z;
@@ -199,14 +198,13 @@ export class VisualImageManager {
 		let prom = this.visualCache.get(visualRef);
 		if( prom ) return prom;
 		
-		prom = new Promise<Visual>( (resolve,reject) => {
+		prom = resolveWrap(new Promise<Visual>( (resolve,reject) => {
 			const bitImgRer = isBitImageVisualRef(visualRef);
 			if( bitImgRer ) return resolve(parseBitImageVisualRefRegexResult(bitImgRer));
 			
 			return reject(new Error("Unsupported visual ref "+visualRef));
-		});
+		}));
 		
-		resolveWrap(prom);
 		this.visualCache.set(visualRef, prom);
 		return prom;
 	}
@@ -215,7 +213,7 @@ export class VisualImageManager {
 		let md = this.visualMetadataCache.get(visualRef);
 		if( md ) return md;
 		
-		md = this.resolveToHardVisualRef(visualRef).then( (hardVisualRef) => {
+		md = resolveWrap(this.resolveToHardVisualRef(visualRef).then( (hardVisualRef) => {
 			return this.fetchVisual(hardVisualRef).then( (visual:Visual):Promise<VisualMetadata>|VisualMetadata => {
 				switch( visual.classRef ) {
 				case "http://ns.nuke24.net/Game21/BitImageVisual":
@@ -229,9 +227,8 @@ export class VisualImageManager {
 					return Promise.reject("Lolz not implemented to extract metadata from a "+visual.classRef);
 				}
 			});
-		});
+		}));
 		
-		resolveWrap(md);
 		this.visualMetadataCache.set(visualRef, md);
 		return md;
 	}
