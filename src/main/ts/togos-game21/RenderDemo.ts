@@ -14,67 +14,71 @@ function sleep(interval:number):Promise<void> {
 	});
 }
 
+function leMod( num:number, modBy:number ) {
+	return num - modBy*Math.floor(num / modBy);
+}
+
 export class RenderDemo {
 	protected gameDataManager:GameDataManager;
 	protected datastore:Datastore<Uint8Array>;
+	protected imageManager:VisualImageManager;
 	
 	public constructor(protected canvas:HTMLCanvasElement) {
 		this.datastore = MemoryDatastore.createSha1Based(0);
 		this.gameDataManager = new GameDataManager(this.datastore);
-	}
-	
-	public run():void {
-		const ctx = this.canvas.getContext('2d');
-		if( ctx == null ) throw new Error("No 2d context");
-		ctx.fillStyle = 'rgba(255,255,0,1)';
-		ctx.fillRect(0,0,1,1);
-		
-		const imageCache = new VisualImageManager({
+		this.imageManager = new VisualImageManager({
 			lights: DEFAULT_LIGHTS,
 			materialRefs: DEFAULT_MATERIAL_PALETTE,
 			dictionaryRootRef: "xxx",
 		}, this.gameDataManager);
-		
-		{
-			const imgSliceProm = imageCache.fetchVisualImageSlice(dat.greenToggleBoxOnImgRef, {}, 0, Quaternion.IDENTITY, 16); 
-			if( isResolved(imgSliceProm) ) {
-				console.log("Pre-resolved promise, woo!");
-			} else {
-				console.log("Not pre-resolved ;(");
-			}
-			
-			imgSliceProm.then( (slice) => {
-				console.log("Image got, drawing!", slice.sheetRef);
-				const ctx2 = this.canvas.getContext('2d');
-				if( ctx2 == undefined ) return Promise.reject(new Error("No 2d context"));
-				ctx2.drawImage(slice.sheet, 0, 0);
-				return Promise.resolve();
-			}).catch( (err) => {
-				console.error("Failed to fetch visual image slice", err);
-			});
+	}
+	
+	protected frameNumber:number = 0;
+	
+	protected drawFrame() {
+		const ctx = this.canvas.getContext('2d');
+		if( ctx == null ) {
+			console.error("No 2d context");
+			return;
 		}
 		
-		sleep(10).then( () => {
-			console.log("Sleeping for a bit...");
-		}).then( () => sleep(100) ).then( () => {
-			console.log("FETCHING AGAIN!");
-			const imgSliceProm = imageCache.fetchVisualImageSlice(dat.greenToggleBoxOnImgRef, {}, 0, Quaternion.IDENTITY, 16); 
-			if( isResolved(imgSliceProm) ) {
-				console.log("Pre-resolved promise, woo!");
-			} else {
-				console.log("Not pre-resolved ;(");
+		const fn = this.frameNumber;
+		
+		const orientation:Quaternion = Quaternion.fromXYZAxisAngle( 1,1,0, leMod(fn, 16) * Math.PI*2 );
+		const entityState = {
+			switchState: leMod(this.frameNumber, 14) < 7
+		};
+		
+		ctx.fillStyle = 'rgba(255,255,0,1)';
+		ctx.fillRect(0,0,1,1);
+		
+		const imgSliceProm = this.imageManager.fetchVisualImageSlice(dat.wiredToggleBoxVisualRef, entityState, 0, Quaternion.IDENTITY, 16); 
+		/* if( isResolved(imgSliceProm) ) {
+			console.log("Pre-resolved promise, woo!");
+		} else {
+			console.log("Not pre-resolved ;(");
+		} */
+		
+		imgSliceProm.then( (slice) => {
+			if( fn != this.frameNumber ) {
+				console.log("Image got, but too late for frame "+fn);				
 			}
-			
-			imgSliceProm.then( (slice) => {
-				console.log("Image got, drawing!", slice.sheetRef);
-				const ctx2 = this.canvas.getContext('2d');
-				if( ctx2 == undefined ) return Promise.reject(new Error("No 2d context"));
-				ctx2.drawImage(slice.sheet, 16, 0);
-				return Promise.resolve();
-			}).catch( (err) => {
-				console.error("Failed to fetch visual image slice", err);
-			});
-		})
+			const ctx2 = this.canvas.getContext('2d');
+			if( ctx2 == undefined ) return Promise.reject(new Error("No 2d context"));
+			ctx2.drawImage(slice.sheet, 0, 0);
+			return Promise.resolve();
+		}).catch( (err) => {
+			console.error("Failed to fetch visual image slice", err);
+		});
+	}
+	
+	public run():void {
+		dat.initData(this.gameDataManager).then( () => {
+			setInterval( () => {
+				++this.frameNumber;
+				this.drawFrame();
+			}, 100 );
+		});
 	}
 }
 

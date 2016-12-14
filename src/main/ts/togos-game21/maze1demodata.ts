@@ -755,6 +755,8 @@ function makeEthernetNetwork(
 	return deepFreeze(builder.network);
 }
 
+import DynamicEntityVisual from './DynamicEntityVisual';
+
 /**
  * Returns a promise for the new game data root node URI
  */
@@ -773,6 +775,18 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 		null,
 		platformSegmentEntityClassId,
 	], gdm);
+	
+	gdm.tempStoreObject<DynamicEntityVisual>( {
+		classRef: "http://ns.nuke24.net/Game21/DynamicEntityVisual",
+		animationLength: 0,
+		discreteAnimationStepCount: 0,
+		propertiesExpressionRef: gdm.tempStoreObject(esp.sExpressionToProgramExpression(
+			['if',
+				[['var','entityState'], 'switchState'],
+				['makeAssociativeArray', 'visualRef', greenToggleBoxOnImgRef],
+				['makeAssociativeArray', 'visualRef', greenToggleBoxOffImgRef]]
+		))
+	}, wiredToggleBoxVisualRef);
 	
 	gdm.tempStoreObject<EntityClass>( {
 		structureType: StructureType.INDIVIDUAL,

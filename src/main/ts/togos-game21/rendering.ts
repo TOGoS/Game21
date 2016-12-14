@@ -21,11 +21,16 @@ import { eachSubEntity } from './worldutil';
 // When done, this should obsolete CanvasWorldView and ObjectImageManager.
 // So delete those.
 
-import DynamicEntityVisual from './DynamicEntityVisual';
+import DynamicEntityVisual, {
+	EntityVisualPropertiesContext,
+	fixEntityVisualProperties
+} from './DynamicEntityVisual';
 import CompoundVisual from './CompoundVisual';
 import BitImageVisual from './BitImageVisual';
 
 import { isBitImageVisualRef, parseBitImageVisualRefRegexResult, bitImageVisualToRgbaData } from './bitimages';
+
+import { ProgramExpression, evaluateExpression, standardFunctions } from './internalsystemprogram';
 
 type Visual = BitImageVisual|CompoundVisual|DynamicEntityVisual;
 
@@ -166,13 +171,19 @@ function imageParamsKey( visualRef:VisualRef, state:KeyedList<any>|undefined, ti
 }
 
 interface VisualMetadata {
+	/** Hash-based URN of the visual object */
 	hardVisualRef : string;
+	/** Whether state affects this visual at all */
 	variesBasedOnState : boolean;
+	/** Total animation length, taking into account that frames may themselves be visuals */
 	animationLength : number;
+	
 	discreteAnimationStepCount : number;
 }
 
 const EMPTY_IMAGE_SLICE_PROMISE = resolvedPromise(EMPTY_IMAGE_SLICE);
+
+const objectRefRegex = /^urn:.*/;
 
 export class VisualImageManager {
 	/**
@@ -201,6 +212,10 @@ export class VisualImageManager {
 		prom = resolveWrap(new Promise<Visual>( (resolve,reject) => {
 			const bitImgRer = isBitImageVisualRef(visualRef);
 			if( bitImgRer ) return resolve(parseBitImageVisualRefRegexResult(bitImgRer));
+			
+			if( objectRefRegex.exec(visualRef) ) {
+				return resolve(this.gameDataManager.fetchObject<Visual>(visualRef));
+			}
 			
 			return reject(new Error("Unsupported visual ref "+visualRef));
 		}));
@@ -278,6 +293,29 @@ export class VisualImageManager {
 						minZ: 0,
 						maxZ: 0,
 					},
+				});
+			case "http://ns.nuke24.net/Game21/DynamicEntityVisual":
+				return this.gameDataManager.fetchObject<ProgramExpression>(visual.propertiesExpressionRef).then( (expr) => {
+					const animationLength = visual.animationLength == 0 ? 1 : visual.animationLength;
+					const animationTime  = animationLength == 0 ? 0 : time - animationLength * Math.floor(time / animationLength);
+					const animationPhase = animationTime / animationLength;
+					return fixEntityVisualProperties(evaluateExpression(expr, {
+						functions: standardFunctions,
+						variableValues: <EntityVisualPropertiesContext>{
+							entityState: state,
+							// TODO: Make sure these get set right for infinite animations, etc
+							animationFrameCount: visual.discreteAnimationStepCount,
+							animationLength: visual.animationLength,
+							animationTime,
+							animationFrameNumber: Math.floor(animationPhase * visual.discreteAnimationStepCount),
+							animationPhase,
+						}
+					}), visual.propertiesExpressionRef);
+				}).then( (props) => {
+					// TODO: allow material overrides
+					return this.generateVisualRgbaSlice(
+						props.visualRef, {}, time, orientation, preferredResolution
+					);
 				});
 			default:
 				return Promise.reject(new Error("Don't yet know how to generateVisualRgbaSlice a"+visual.classRef));

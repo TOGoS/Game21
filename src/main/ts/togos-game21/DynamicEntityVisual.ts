@@ -2,7 +2,7 @@ import KeyedList from './KeyedList';
 import TransformationMatrix3D from './TransformationMatrix3D';
 
 /** properties expression input */
-interface EntityVisualPropertiesContext {
+export interface EntityVisualPropertiesContext {
 	// entityClassRef:string; // That would be kind of redundant,
 	// since the class indicates the visual, right?
 	entityState:KeyedList<any>;
@@ -18,7 +18,7 @@ interface EntityVisualPropertiesContext {
 }
 
 /** properties expression result */
-interface EntityVisualProperties {
+export interface EntityVisualProperties {
 	/** Any explicit material settings */
 	materialRefOverrides:(string|undefined)[];
 	/**
@@ -38,6 +38,24 @@ interface EntityVisualProperties {
 }
 
 /**
+ * Take the result of a visual properties exression
+ * and mash it into something that's definitely a
+ */
+export function fixEntityVisualProperties(inProps:any, sourceRef:string):EntityVisualProperties {
+	let materialRefOverrides:string[] = [];
+	let materialRemap:number[] = [];
+	let transformation:TransformationMatrix3D = TransformationMatrix3D.IDENTITY;
+	let visualRef:string = "(DynamicEntityVisual expression "+sourceRef+" is broken)";
+	
+	return {
+		materialRefOverrides,
+		materialRemap,
+		transformation,
+		visualRef
+	}
+}
+
+/**
  * A visual that uses a TOGVM expression
  * to determine its appearance
  */
@@ -52,6 +70,8 @@ interface DynamicEntityVisual {
 	 * 
 	 * The visual referenced by returned properties may itself
 	 * be animated, potentially at a different rate.
+	 * 
+	 * For non-animated things, this should be 1.
 	 */
 	discreteAnimationStepCount:number;
 	/**

@@ -140,6 +140,17 @@ export function sExpressionToProgramExpression(x:any):ProgramExpression {
 					valueExpressions: componentExpressions
 				};
 			}
+		case 'makeAssociativeArray':
+			{
+				const componentExpressions:ProgramExpression[] = [];
+				for( let i=1; i<x.length; ++i ) {
+					componentExpressions.push( sExpressionToProgramExpression(x[i]) );
+				}
+				return <AssociativeArrayConstructionExpression>{
+					classRef: "http://ns.nuke24.net/TOGVM/Expressions/AssociativeArrayConstruction",
+					pairExpressions: componentExpressions
+				};
+			}
 		case 'var':
 			{
 				if( x.length != 2 ) throw new Error("Var expression requires exactly one argument; gave: "+JSON.stringify(x));
