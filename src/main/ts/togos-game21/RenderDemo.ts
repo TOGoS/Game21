@@ -49,8 +49,8 @@ export class RenderDemo {
 			switchState: leMod(this.frameNumber, 14) < 7
 		};
 		
-		ctx.fillStyle = 'rgba(255,255,0,1)';
-		ctx.fillRect(0,0,1,1);
+		ctx.fillStyle = 'rgba(0,0,0,1)';
+		ctx.fillRect(0,0,ctx.canvas.width,ctx.canvas.height);
 		
 		const imgSliceProm = this.imageManager.fetchVisualImageSlice(dat.wiredToggleBoxVisualRef, entityState, 0, Quaternion.IDENTITY, 16); 
 		/* if( isResolved(imgSliceProm) ) {
