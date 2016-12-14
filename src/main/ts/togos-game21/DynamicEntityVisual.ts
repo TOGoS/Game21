@@ -47,6 +47,12 @@ export function fixEntityVisualProperties(inProps:any, sourceRef:string):EntityV
 	let transformation:TransformationMatrix3D = TransformationMatrix3D.IDENTITY;
 	let visualRef:string = "(DynamicEntityVisual expression "+sourceRef+" is broken)";
 	
+	if( inProps.visualRef != undefined ) {
+		visualRef = ""+inProps.visualRef;
+	}
+	
+	// TODO: Copy over other stuffs
+	
 	return {
 		materialRefOverrides,
 		materialRemap,

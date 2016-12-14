@@ -238,6 +238,18 @@ export class VisualImageManager {
 						animationLength: 0,
 						discreteAnimationStepCount: 1,
 					};
+				case "http://ns.nuke24.net/Game21/DynamicEntityVisual":
+					{
+						// TODO: analyze the expression to see if it uses state.
+						const variesBasedOnState = true;
+						
+						return {
+							hardVisualRef,
+							variesBasedOnState,
+							animationLength: visual.animationLength,
+							discreteAnimationStepCount: visual.discreteAnimationStepCount,
+						};
+					}
 				default:
 					return Promise.reject("Lolz not implemented to extract metadata from a "+visual.classRef);
 				}
