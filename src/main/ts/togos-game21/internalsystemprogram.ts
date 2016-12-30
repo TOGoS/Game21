@@ -220,6 +220,9 @@ export function evaluateExpression<Context extends StandardEvaluationContext>(
 				} else {
 					const valExp = expression.pairExpressions[++i];
 					const key = evaluateExpression(keyExp, ctx);
+					if( valExp == undefined ) {
+						throw new Error("AssociativeArrayConstruction: Missing value expression for key "+key+" at index "+i);
+					}
 					argValues[key] = evaluateExpression(valExp, ctx);
 				}
 			}
