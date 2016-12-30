@@ -232,7 +232,7 @@ export function evaluateExpression<Context extends StandardEvaluationContext>(
 			if( (expression.arguments.length % 2) != 1 ) {
 				throw new Error("IfElseChain must have an odd number of arguments!  Got "+expression.arguments.length);
 			}
-			for( let i=0; i<expression.arguments.length; i += 2 ) {
+			for( let i=0; i<expression.arguments.length-2; i += 2 ) {
 				const useThisOne = evaluateExpression(expression.arguments[i], ctx);
 				if( useThisOne ) return evaluateExpression(expression.arguments[i+1], ctx);
 			}
