@@ -14,7 +14,7 @@ import { imagePromiseFromUrl, EMPTY_IMAGE_SLICE } from './images';
 
 import DrawCommandBuffer from './DrawCommandBuffer';
 
-import { Entity, StructureType, EntityClass } from './world';
+import { Entity, StructureType, EntityClass, EMPTY_STATE } from './world';
 import { eachSubEntity } from './worldutil';
 
 // TODO:
@@ -55,8 +55,8 @@ export function rgbaDataToImageDataUri( rgba:Uint8ClampedArray, width:number, he
 /**
  * sc = screen coordinates
  * wc = world coordinates (relative to the screen center)
- *  i = immediate
- *  p = deferred (returning a promise)
+ *  i = immediate (skips rendering unavailable components)
+ *  p = deferred (waits for components, returning a promise)
  */
 
 export class EntityRenderer {
@@ -103,6 +103,25 @@ export class EntityRenderer {
 		);
 	}
 	
+	public wcdAddEntityVisualRef( pos:Vector3D, orientation:Quaternion, visualRef:string, entityState:KeyedList<any>, animationTime:number ):Thenable<void> {
+		// guess!  (there may be a better way to determine what resolution to ask for)
+		const rezo = 1 << Math.ceil( Math.log(this.scaleAtDepth(pos.z))/Math.log(2) );
+		
+		return this.imageCache.fetchVisualImageSlice(visualRef, entityState, animationTime, orientation, rezo ).then( (imageSlice:ImageSlice<HTMLImageElement>) => {
+			const scx = this.screenOriginX, scy = this.screenOriginY;
+			const scale = this.scaleAtDepth(pos.z + imageSlice.bounds.minZ/this.unitPpm);
+			const sx = scx + pos.x*scale;
+			const sy = scy + pos.y*scale;
+			this.sciAddImageSlice(sx, sy, pos.z, orientation, scale, imageSlice);
+			return;
+		});
+	}
+	
+	public wciAddEntityVisualRef( pos:Vector3D, orientation:Quaternion, visualRef:string, entityState:any, animationTime:number ):void {
+		// May need to replace with a more specialized implement
+		this.wcdAddEntityVisualRef(pos, orientation, visualRef, entityState, animationTime);
+	}
+	
 	public wcdAddEntity( pos:Vector3D, orientation:Quaternion, entity:Entity ):Promise<void> {
 		return this.gameDataManager.fetchObject<EntityClass>( entity.classRef ).then( (entityClass) => {
 			const vbb = entityClass.visualBoundingBox;
@@ -118,18 +137,12 @@ export class EntityRenderer {
 			if( scy + backScale * (vbb.maxY + pos.y) <= this.clip.minY ) return;
 			if( scy + backScale * (vbb.minY + pos.y) >= this.clip.maxY ) return;
 			
-			// guess!
-			const rezo = 1 << Math.ceil( Math.log(this.scaleAtDepth(pos.z))/Math.log(2) );
-			
 			const drawPromises:Thenable<void>[] = [];
 			if( entityClass.visualRef ) {
-				drawPromises.push(this.imageCache.fetchVisualImageSlice(entityClass.visualRef, entity.state, this.time, orientation, rezo ).then( (imageSlice) => {
-					const scale = this.scaleAtDepth(pos.z + imageSlice.bounds.minZ/this.unitPpm);
-					const sx = scx + pos.x*scale;
-					const sy = scy + pos.y*scale;
-					this.sciAddImageSlice(sx, sy, pos.z, orientation, scale, imageSlice);
-					return;
-				}));
+				drawPromises.push(this.wcdAddEntityVisualRef(
+					pos, orientation, entityClass.visualRef, entity.state||EMPTY_STATE,
+					this.time - (entity.animationStartTime||0)
+				));
 			}
 			eachSubEntity( pos, orientation, entity, this.gameDataManager, (subPos, subOri, subEnt) => {
 				drawPromises.push(this.wcdAddEntity(subPos, subOri, subEnt));

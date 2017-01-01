@@ -17,6 +17,7 @@ interface ViewScene {
 	
 	// For omniscient ones
 	simulationState? : SimulationState;
+	worldTime : number;
 	viewerLocation? : RoomLocation;
 }
 

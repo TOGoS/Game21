@@ -87,7 +87,7 @@ export default class VisionUpdate extends SimulationUpdate {
 		
 		//console.log("Definitely vizing "+viewerEntityPath[1]+"...");
 				
-		const newViewage:ViewScene = { visualEntities: [] };
+		const newViewage:ViewScene = { visualEntities: [], worldTime: this.newTime };
 		
 		const viewerRoomRef = viewerEntityPath[0];
 		

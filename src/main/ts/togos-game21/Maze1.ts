@@ -56,6 +56,7 @@ import {
 	RoomVisualEntity,
 	Entity,
 	EntityClass,
+	EMPTY_STATE,
 	TileTree,
 	TileEntity,
 	StructureType,
@@ -97,7 +98,7 @@ import SimulationMessage, {
 	ProximalSimulationMessage,
 } from './SimulationMessage';
 
-import { VisualImageManager } from './rendering';
+import { WorldRenderer, VisualImageManager } from './rendering';
 
 // KeyEvent isn't always available, boo.
 const KEY_CTRL = 17;
@@ -135,9 +136,10 @@ interface Icon {
 export class MazeView {
 	protected _gameDataManager:GameDataManager|undefined;
 	protected _visualImageManager:VisualImageManager|undefined;
+	protected _worldRenderer:WorldRenderer|undefined;
 	public constructor( public canvas:HTMLCanvasElement ) { }
 	
-	protected _viewage : ViewScene = { visualEntities: [] };
+	protected _viewage : ViewScene = { visualEntities: [], worldTime: 0 };
 	public ppm = 16;
 	public xz = 0;
 	public yz = 0;
@@ -154,6 +156,11 @@ export class MazeView {
 			lights: {},
 			materialRefs: [],
 		},gdm);
+		this._worldRenderer = new WorldRenderer(
+			this.canvas, gdm, this._visualImageManager,
+			this.canvas.width/2, this.canvas.height/2,
+			this.ppm, 1
+		)
 	}
 	
 	public getTileEntityAt( coords:Vector3D, tileSize:number=1 ):TileEntity|undefined {
@@ -266,44 +273,24 @@ export class MazeView {
 	
 	// TODO: Genericize the object draw list from CanvasWorldView and use it.
 	protected draw():void {
-		this.needsRedrawAfterStuffLoads = false;
-		const ctx = this.canvas.getContext('2d');
-		if( !ctx ) return;
-		const eim = this._visualImageManager;
-		const cx = this.canvas.width/2;
-		const cy = this.canvas.height/2;
-		const ppm = this.ppm, xz = this.xz, yz = this.yz;
-		if( eim ) for( let i in this._viewage.visualEntities ) {
-			const item:RoomVisualEntity = this._viewage.visualEntities[i];
-			const time = 0;
-			if( !item.visualRef ) continue;
-			const iconPromise:Thenable<ImageSlice<HTMLImageElement>> = eim.fetchVisualImageSlice(
-				item.visualRef, item.state, time, item.orientation || Quaternion.IDENTITY, 16);
-			
-			if( !isResolved(iconPromise) ) {
-				this.needsRedrawAfterStuffLoads = true;
-				iconPromise.then( () => {
-					// If the previous frame failed to include everything...
-					if( this.needsRedrawAfterStuffLoads ) {
-						//console.log("Requesting redraw now that "+item.visualRef+" has been rendered");
-						this.requestRedraw();
-					}
-				});
-				continue;
+		const veList = this.viewScene.visualEntities;
+		const wrend = this._worldRenderer;
+		if( wrend ) {
+			if( veList ) for( let ve in veList ) {
+				const visualEntity = veList[ve];
+				// TODO: This is a bit off!
+				// - Needs to draw /immediately/ or not at all
+				// - If some images not available, schedule redraw after they become available
+				if( visualEntity.entity ) {
+					wrend.wcdAddEntity(visualEntity.position, visualEntity.orientation||Quaternion.IDENTITY, visualEntity.entity);
+				} else if( visualEntity.visualRef ) {
+					wrend.wcdAddEntityVisualRef(
+						visualEntity.position, visualEntity.orientation||Quaternion.IDENTITY,
+						visualEntity.visualRef, visualEntity.state||EMPTY_STATE, this.viewScene.worldTime - visualEntity.animationStartTime
+					);
+				}
 			}
-			
-			const icon = value(iconPromise);
-			const z = item.position.z + icon.bounds.minZ;
-			const px = cx + (item.position.x + z * xz) * ppm;
-			const py = cy + (item.position.y + z * yz) * ppm;
-			const iconScale = ppm/icon.resolution;
-			ctx.drawImage(
-				icon.sheet,
-				icon.bounds.minX, icon.bounds.minY, aabbWidth(icon.bounds), aabbHeight(icon.bounds),
-				px + iconScale*(icon.bounds.minX - icon.origin.x),
-				py + iconScale*(icon.bounds.minY - icon.origin.y),
-				iconScale * aabbWidth(icon.bounds), iconScale * aabbHeight(icon.bounds),
-			);
+			wrend.flush();
 		}
 		if(this._viewage.visibility) this.drawOcclusionFog(this._viewage.visibility);
 	}
