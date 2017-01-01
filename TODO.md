@@ -28,6 +28,8 @@
 
 ## Misc to-do items
 
+Fix: Not drawing everything in edit mode.
+
 Unify rendering (update or replace WorldCanvasView)
 - Render to canvas immediately
 - Render to canvas, waiting for images to load
@@ -39,6 +41,7 @@ Unify rendering (update or replace WorldCanvasView)
   - ForthProceduralShape
   - DynamicEntityVisual
   - CompoundVisual
+  - BitImage
 
 Clean up simulation source files
 (they got kind of messy during the recent Maze1SimulationUpdate.ts refactor,

@@ -68,9 +68,16 @@ export class EntityRenderer {
 		public canvas:HTMLCanvasElement,
 		protected gameDataManager:GameDataManager,
 		protected imageCache:VisualImageManager,
-		public screenCenterX:number,
-		public screenCenterY:number,
-		public unitPpm:number, // Scale at minimum parallax depth
+		/** origin in screen pixel coordinates corresponding to 'world' 0,0,x */
+		public screenOriginX:number, public screenOriginY:number,
+		/** Scale at minimum parallax depth */
+		public unitPpm:number,
+		/**
+		 * Anything at this depth or closer will be drawn at scale of unitPpm.
+		 * Scale beyond = unitPpm / (1 + z - maxParallaxDepth),
+		 * so e.g. 1/2 @ maxParallaxDepth+1, 1/3 @ maxParallaxDepth+2, etc.
+		 * Set to 1 for 'realistic' rendering (for things at or beyond z=1, at least).
+		 */
 		public minParallaxDepth:number
 	) {
 		this.clip = new Rectangle(0, 0, canvas.width, canvas.height);
@@ -104,7 +111,7 @@ export class EntityRenderer {
 			if( backZ <= 0 ) return;
 			const backScale = this.scaleAtDepth(backZ);
 			
-			const scx = this.screenCenterX, scy = this.screenCenterY;
+			const scx = this.screenOriginX, scy = this.screenOriginY;
 			
 			if( scx + backScale * (vbb.maxX + pos.x) <= this.clip.minX ) return;
 			if( scx + backScale * (vbb.minX + pos.x) >= this.clip.maxX ) return;
