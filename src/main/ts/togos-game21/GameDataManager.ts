@@ -7,7 +7,7 @@ import KeyedList from './KeyedList';
 import { DistributedBucketMapManager } from './DistributedBucketMap';
 import { utf8Encode } from '../tshash/utils';
 import { identifyObject, fetchObject, storeObject, fastStoreObject } from './JSONObjectDatastore';
-import { resolvedPromise, shortcutThen, value as promiseValue } from './promises';
+import { resolvedPromise, resolveWrap, shortcutThen, value as promiseValue } from './promises';
 import { Room, RoomEntity, Entity, EntityClass, StructureType, TileTree, TileEntityPalette, TileEntity } from './world';
 
 const refKeyRegex = /.*Ref$/;
@@ -53,6 +53,7 @@ export default class GameDataManager {
 	 * Stuff that we know the backing datastore already has,
 	 * either because that's where we got it from or because we put it there.
 	 * When saving, we won't bother storing knownStored things again.
+	 * This only makes sense for hard refs.
 	 */
 	protected knownStored: Set<HardRef> = {};
 	/**
@@ -100,15 +101,15 @@ export default class GameDataManager {
 	}
 	
 	public getObjectIfLoaded<T>( ref:string, initiateFetch:boolean=false ):T|undefined {
-		let v = this.mutableObjects[ref];
+		const v = this.mutableObjects[ref];
 		if( v != null ) return v;
 		
 		const p = this.cache[ref];
 		if( p ) return promiseValue(p);
 		
-		if( initiateFetch ) this.fetchObject(ref);
+		if( initiateFetch ) return promiseValue(this.fetchObject<T>(ref));
 		
-		return v;
+		return undefined;
 	}
 	
 	public getMutableObject<T>( ref:string ):T {
@@ -155,14 +156,14 @@ export default class GameDataManager {
 		if( this.cache[ref] ) return this.cache[ref];
 		
 		if( isHashUrn(ref) ) {
-			return this.cache[ref] = fetchObject(ref, this.datastore, true).then( (v:any) => {
+			return this.cache[ref] = resolveWrap(fetchObject(ref, this.datastore, true).then( (v:any) => {
 				this.knownStored[ref] = true;
 				return <T>v;
-			});
+			}));
 		} else {
-			return this.cache[ref] = this.fetchHardRef(ref).then( (realRef:string):Promise<T> => {
+			return this.cache[ref] = resolveWrap(this.fetchHardRef(ref).then( (realRef:string):Promise<T> => {
 				return this.fetchObject(realRef);
-			});
+			}));
 		}
 	}
 	
@@ -303,22 +304,24 @@ export default class GameDataManager {
 	public storeObject<T>( obj:T, _name?:string ):Promise<string> {
 		obj = deepFreeze(obj);
 		const prom = resolvedPromise(obj);
-		const urnProm = storeObject( obj, this.datastore ).then( (storedAs) => {
-			this.knownStored[storedAs] = true;
-			return storedAs;
-		});
 		const name = _name; // Make it const so later references check out
+		// If they gave it a name we can associate it with that right away!
 		if( name ) {
 			assertNameNotHashUrn(name);
 			this.cache[name] = prom;
 			this.storing[name] = true;
-			return urnProm.then( (urn) => {
-				return this.updateMap({[name]: urn}).then( (newMapUrn) => {
-					delete this.storing[name];
-					return urn;
-				});
+		}
+		const urnProm = storeObject( obj, this.datastore ).then( (urn) => {
+			this.cache[urn] = prom;
+			this.knownStored[urn] = true;
+			return urn;
+		});
+		return name ? urnProm.then( (urn) => {
+			return this.updateMap({[name]: urn}).then( (newMapUrn) => {
+				delete this.storing[name];
+				return urn;
 			});
-		} else return urnProm;
+		}) : urnProm;
 	}
 	
 	public fastStoreObject<T>( obj:T, _name?:string ):string {
