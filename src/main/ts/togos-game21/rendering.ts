@@ -9,7 +9,7 @@ import Quaternion from './Quaternion';
 import ImageSlice from './ImageSlice';
 import { MaterialPalette } from './surfacematerials';
 import GameDataManager from './GameDataManager';
-import { isResolved, resolvedPromise, value, resolveWrap, shortcutThen, voidify } from './promises';
+import { isResolved, resolvedPromise, value, resolveWrap, shortcutThen, voidify, RESOLVED_VOID_PROMISE } from './promises';
 import { imagePromiseFromUrl, EMPTY_IMAGE_SLICE } from './images';
 
 import DrawCommandBuffer from './DrawCommandBuffer';
@@ -50,6 +50,28 @@ export function rgbaDataToImageDataUri( rgba:Uint8ClampedArray, width:number, he
 	if( !ctx ) throw new Error("Failed to get 2d context on temporary canvas to rgbaDataToImageDataUri");
 	ctx.putImageData(new ImageData(rgba, width, height), 0, 0);
 	return canv.toDataURL();
+}
+
+/**
+ * Indicates whether drawing is allowed to be deferred.
+ * See quankize for usage.
+ */
+enum Quank {
+	NEVER=0,
+	ALWAYS=1,
+	UNLESS_DEFERRED=2,
+}
+
+/** See implementation for description. */
+function quankize<T,R>( promise:Thenable<T>, quank:Quank, callback:(v:T, quank:Quank)=>Thenable<R> ):Thenable<R> {
+	if( isResolved(promise) ) {
+		// No deferral!  quank gets passed to callback un-translated.
+		return callback(value(promise), quank);
+	} else {
+		// It's deferred, so UNLESS_DEFERRED gets translated to NEVER.
+		if( quank == Quank.UNLESS_DEFERRED ) quank = Quank.NEVER;
+		return promise.then( (v) => callback(v, quank) );
+	}
 }
 
 /**
@@ -96,32 +118,35 @@ export class EntityRenderer {
 		);
 	}
 	
-	public wcdAddEntity( pos:Vector3D, orientation:Quaternion, entity:Entity ):Promise<void> {
-		return this.gameDataManager.fetchObject<EntityClass>( entity.classRef ).then( (entityClass) => {
+	public wcdAddEntity( pos:Vector3D, orientation:Quaternion, entity:Entity, quank:Quank=Quank.ALWAYS ):Thenable<void> {
+		return quankize(this.gameDataManager.fetchObject<EntityClass>( entity.classRef ), quank, (entityClass,quank) => {
 			const vbb = entityClass.visualBoundingBox;
 			
 			const backZ = vbb.maxZ + pos.z;
-			if( backZ <= 0 ) return;
+			if( backZ <= 0 ) return RESOLVED_VOID_PROMISE;
+			
 			const backScale = this.scaleAtDepth(backZ);
 			
 			const scx = this.screenCenterX, scy = this.screenCenterY;
 			
-			if( scx + backScale * (vbb.maxX + pos.x) <= this.clip.minX ) return;
-			if( scx + backScale * (vbb.minX + pos.x) >= this.clip.maxX ) return;
-			if( scy + backScale * (vbb.maxY + pos.y) <= this.clip.minY ) return;
-			if( scy + backScale * (vbb.minY + pos.y) >= this.clip.maxY ) return;
+			if(
+				scx + backScale * (vbb.maxX + pos.x) <= this.clip.minX ||
+				scx + backScale * (vbb.minX + pos.x) >= this.clip.maxX ||
+				scy + backScale * (vbb.maxY + pos.y) <= this.clip.minY ||
+				scy + backScale * (vbb.minY + pos.y) >= this.clip.maxY
+			) return RESOLVED_VOID_PROMISE;
 			
 			// guess!
 			const rezo = 1 << Math.ceil( Math.log(this.scaleAtDepth(pos.z))/Math.log(2) );
 			
 			const drawPromises:Thenable<void>[] = [];
 			if( entityClass.visualRef ) {
-				drawPromises.push(this.imageCache.fetchVisualImageSlice(entityClass.visualRef, entity.state, this.time, orientation, rezo ).then( (imageSlice) => {
+				drawPromises.push(quankize(this.imageCache.fetchVisualImageSlice(entityClass.visualRef, entity.state, this.time, orientation, rezo ), quank, (imageSlice,quank) => {
 					const scale = this.scaleAtDepth(pos.z + imageSlice.bounds.minZ/this.unitPpm);
 					const sx = scx + pos.x*scale;
 					const sy = scy + pos.y*scale;
 					this.sciAddImageSlice(sx, sy, pos.z, orientation, scale, imageSlice);
-					return;
+					return RESOLVED_VOID_PROMISE;
 				}));
 			}
 			eachSubEntity( pos, orientation, entity, this.gameDataManager, (subPos, subOri, subEnt) => {
