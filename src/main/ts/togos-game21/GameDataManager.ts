@@ -7,7 +7,7 @@ import KeyedList from './KeyedList';
 import { DistributedBucketMapManager } from './DistributedBucketMap';
 import { utf8Encode } from '../tshash/utils';
 import { identifyObject, fetchObject, storeObject, fastStoreObject } from './JSONObjectDatastore';
-import { shortcutThen, value as promiseValue } from './promises';
+import { resolvedPromise, resolveWrap, shortcutThen, value as promiseValue } from './promises';
 import { Room, RoomEntity, Entity, EntityClass, StructureType, TileTree, TileEntityPalette, TileEntity } from './world';
 
 const refKeyRegex = /.*Ref$/;
@@ -49,7 +49,12 @@ type Set<T extends string> = Map<T,boolean>; // Or could use booleans like the g
 export default class GameDataManager {
 	protected objectMapManager: DistributedBucketMapManager<string>;
 	protected fullyCachedRooms: Set<HardRef> = {};
-	protected objectCache: Map<Ref,any> = {};
+	/**
+	 * Stuff that we know the backing datastore already has,
+	 * either because that's where we got it from or because we put it there.
+	 * When saving, we won't bother storing knownStored things again.
+	 * This only makes sense for hard refs.
+	 */
 	protected knownStored: Set<HardRef> = {};
 	/**
 	 * Stuff we're currently storing.
@@ -58,13 +63,21 @@ export default class GameDataManager {
 	 * returning an outdated value!
 	 */
 	protected storing: Set<Ref> = {};
-	protected fetching: Map<Ref,Promise<any>> = {};
-	
+	/**
+	 * Promises of things that we are fetching or have fetched.
+	 * Objects in here should be treated as immutable.
+	 */
+	protected cache: Map<Ref,Promise<any>> = {};
+	/*
+	 * Mutable objects.
+	 * Anything in here should *not* be in cache.
+	 */
 	protected mutableObjects: Map<SoftRef,any> = {};
+	
 	/**
 	 * Immutable URNs of objects that have been 'temp stored'
 	 * and should be saved to the backing datastore on flushUpdates
-	 * if they are still referenced from the root nodes.
+	 * _if_ they are still referenced from the root nodes.
 	 */
 	protected tempObjectUrns:Set<HardRef> = {};
 	/** Name => data name mappings that haven't yet been saved */
@@ -88,10 +101,15 @@ export default class GameDataManager {
 	}
 	
 	public getObjectIfLoaded<T>( ref:string, initiateFetch:boolean=false ):T|undefined {
-		let v = this.mutableObjects[ref];
-		if( v == null ) v = this.objectCache[ref];
-		if( v == null && initiateFetch && !this.fetching[ref] ) this.fetchObject(ref);
-		return v;
+		const v = this.mutableObjects[ref];
+		if( v != null ) return v;
+		
+		const p = this.cache[ref];
+		if( p ) return promiseValue(p);
+		
+		if( initiateFetch ) return promiseValue(this.fetchObject<T>(ref));
+		
+		return undefined;
 	}
 	
 	public getMutableObject<T>( ref:string ):T {
@@ -106,8 +124,7 @@ export default class GameDataManager {
 	}
 	
 	public putMutableObject<T>( ref:string, obj:T ):void {
-		// Make sure it's not also in the regular cache!
-		delete this.objectCache[ref];
+		delete this.cache[ref];
 		this.mutableObjects[ref] = obj;
 	}
 	
@@ -133,31 +150,20 @@ export default class GameDataManager {
 	
 	public getRoom( ref:string ):Room { return this.getObject<Room>(ref); }
 	public getEntityClass( ref:string, initiateFetch:boolean=false ):EntityClass { return this.getObject<EntityClass>(ref, initiateFetch); }
-	
-	protected cache<T>( k:string, v:T ):void {
-		this.objectCache[k] = v;
-	}
-	
+		
 	public fetchObject<T>( ref:string ):Promise<T> {
 		if( ref == null ) throw new Error("Null ref passed to fetchObject");
-		if( this.objectCache[ref] ) return Promise.resolve(this.objectCache[ref]);
-		if( this.fetching[ref] ) return this.fetching[ref];
+		if( this.cache[ref] ) return this.cache[ref];
 		
 		if( isHashUrn(ref) ) {
-			return this.fetching[ref] = fetchObject(ref, this.datastore, true).then( (v:any) => {
-				this.cache(ref, v);
+			return this.cache[ref] = resolveWrap(fetchObject(ref, this.datastore, true).then( (v:any) => {
 				this.knownStored[ref] = true;
-				delete this.fetching[ref];
 				return <T>v;
-			});
+			}));
 		} else {
-			return this.fetching[ref] = this.fetchHardRef(ref).then( (realRef:string):Promise<T> => {
-				return this.fetchObject(realRef).then( (v:any):T => {
-					this.cache(ref, v);
-					delete this.fetching[ref];
-					return <T>v;
-				});
-			});
+			return this.cache[ref] = resolveWrap(this.fetchHardRef(ref).then( (realRef:string):Promise<T> => {
+				return this.fetchObject(realRef);
+			}));
 		}
 	}
 	
@@ -263,16 +269,21 @@ export default class GameDataManager {
 	 * No data should ever be lost due to a cache clear (unless something has happened to the backing store).
 	 */
 	public clearCache() {
-		const oldCache:KeyedList<any> = this.objectCache;
-		const newCache:KeyedList<any> = {};
+		const oldCache:KeyedList<Promise<any>> = this.cache;
+		const newCache:KeyedList<Promise<any>> = {};
 		for( let urn in this.tempObjectUrns ) {
-			const tempObj = oldCache[urn];
-			if( !tempObj ) {
-				console.warn("Temp object "+urn+" isn't in the cache!");
+			const tempProm = oldCache[urn];
+			if( !tempProm ) {
+				console.warn("Temp object, '"+urn+"', isn't in the cache!");
 			}
-			newCache[urn] = tempObj;
+			newCache[urn] = tempProm;
 		}
-		this.objectCache = newCache;
+		for( let urn in this.storing ) {
+			const savingProm = oldCache[urn];
+			if( !savingProm ) console.error("Object being saved, '"+urn+"', not in the cache!");
+			newCache[urn] = savingProm;
+		}
+		this.cache = newCache;
 		this.knownStored = {};
 		this.fullyCachedRooms = {};
 	}
@@ -281,10 +292,10 @@ export default class GameDataManager {
 		for( let k in updates ) {
 			// Any overrides are no longer valid!
 			delete this.tempNameMap[k];
-			delete this.objectCache[k];
-			if( this.objectCache[updates[k]] ) {
+			delete this.cache[k];
+			if( this.cache[updates[k]] ) {
 				// If everything's already in memory, make sure immediate gets will still work.
-				this.objectCache[k] = this.objectCache[updates[k]];
+				this.cache[k] = this.cache[updates[k]];
 			}
 		}
 		return this.objectMapManager.storeValues( updates );
@@ -292,33 +303,37 @@ export default class GameDataManager {
 	
 	public storeObject<T>( obj:T, _name?:string ):Promise<string> {
 		obj = deepFreeze(obj);
-		const urnProm = storeObject( obj, this.datastore ).then( (storedAs) => {
-			this.knownStored[storedAs] = true;
-			return storedAs;
-		});
+		const prom = resolvedPromise(obj);
 		const name = _name; // Make it const so later references check out
+		// If they gave it a name we can associate it with that right away!
 		if( name ) {
 			assertNameNotHashUrn(name);
-			this.objectCache[name] = obj;
+			this.cache[name] = prom;
 			this.storing[name] = true;
-			return urnProm.then( (urn) => {
-				return this.updateMap({[name]: urn}).then( (newMapUrn) => {
-					delete this.storing[name];
-					return urn;
-				});
+		}
+		const urnProm = storeObject( obj, this.datastore ).then( (urn) => {
+			this.cache[urn] = prom;
+			this.knownStored[urn] = true;
+			return urn;
+		});
+		return name ? urnProm.then( (urn) => {
+			return this.updateMap({[name]: urn}).then( (newMapUrn) => {
+				delete this.storing[name];
+				return urn;
 			});
-		} else return urnProm;
+		}) : urnProm;
 	}
 	
 	public fastStoreObject<T>( obj:T, _name?:string ):string {
 		obj = deepFreeze(obj);
+		const prom = resolvedPromise(obj);
 		const urn = fastStoreObject( obj, this.datastore );
-		this.objectCache[urn] = obj;
+		this.cache[urn] = prom;
 		// Uhm, how can we set this.storing[urn] and then have it get cleared, uhm
 		const name = _name;
 		if( name ) {
 			assertNameNotHashUrn(name);
-			this.objectCache[name] = obj;
+			this.cache[name] = prom;
 			this.storing[name] = true;
 			this.updateMap({[name]: urn}).then( (newMapUrn) => {
 				delete this.storing[name];
@@ -331,17 +346,16 @@ export default class GameDataManager {
 	 * Store the given object (and optionally a name mapping)
 	 * in a local memory datastore without committing the data
 	 * to the backing datastore.
-	 * 
-	 * Only data that is referenced by a name and 
 	 */
 	public tempStoreObject<T>( obj:T, _name?:string ):string {
 		obj = deepFreeze(obj);
 		const urn = identifyObject( obj, this.datastore.identify );
-		this.objectCache[urn] = obj;
+		const prom = resolvedPromise(obj);
+		this.cache[urn] = prom;
 		this.tempObjectUrns[urn] = true;
 		if( _name ) {
 			assertNameNotHashUrn(_name);
-			this.objectCache[_name] = obj;
+			this.cache[_name] = prom;
 			this.tempNameMap[_name] = urn;
 		}
 		return urn;

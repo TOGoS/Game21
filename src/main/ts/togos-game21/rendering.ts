@@ -9,7 +9,7 @@ import Quaternion from './Quaternion';
 import ImageSlice from './ImageSlice';
 import { MaterialPalette } from './surfacematerials';
 import GameDataManager from './GameDataManager';
-import { isResolved, resolvedPromise, value, resolveWrap, shortcutThen, voidify } from './promises';
+import { isResolved, resolvedPromise, value, resolveWrap, shortcutThen, voidify, RESOLVED_VOID_PROMISE } from './promises';
 import { imagePromiseFromUrl, EMPTY_IMAGE_SLICE } from './images';
 
 import DrawCommandBuffer from './DrawCommandBuffer';
@@ -50,6 +50,28 @@ export function rgbaDataToImageDataUri( rgba:Uint8ClampedArray, width:number, he
 	if( !ctx ) throw new Error("Failed to get 2d context on temporary canvas to rgbaDataToImageDataUri");
 	ctx.putImageData(new ImageData(rgba, width, height), 0, 0);
 	return canv.toDataURL();
+}
+
+/**
+ * Indicates whether drawing is allowed to be deferred.
+ * See quankize for usage.
+ */
+enum Quank {
+	NEVER=0,
+	ALWAYS=1,
+	UNLESS_DEFERRED=2,
+}
+
+/** See implementation for description. */
+function quankize<T,R>( promise:Thenable<T>, quank:Quank, callback:(v:T, quank:Quank)=>Thenable<R> ):Thenable<R> {
+	if( isResolved(promise) ) {
+		// No deferral!  quank gets passed to callback un-translated.
+		return callback(value(promise), quank);
+	} else {
+		// It's deferred, so UNLESS_DEFERRED gets translated to NEVER.
+		if( quank == Quank.UNLESS_DEFERRED ) quank = Quank.NEVER;
+		return promise.then( (v) => callback(v, quank) );
+	}
 }
 
 /**
@@ -103,17 +125,18 @@ export class EntityRenderer {
 		);
 	}
 	
-	public wcdAddEntityVisualRef( pos:Vector3D, orientation:Quaternion, visualRef:string, entityState:KeyedList<any>, animationTime:number ):Thenable<void> {
+	public wcdAddEntityVisualRef( pos:Vector3D, orientation:Quaternion, visualRef:string, entityState:KeyedList<any>, animationTime:number, quank:Quank=Quank.ALWAYS ):Thenable<void> {
 		// guess!  (there may be a better way to determine what resolution to ask for)
 		const rezo = 1 << Math.ceil( Math.log(this.scaleAtDepth(pos.z))/Math.log(2) );
 		
-		return this.imageCache.fetchVisualImageSlice(visualRef, entityState, animationTime, orientation, rezo ).then( (imageSlice:ImageSlice<HTMLImageElement>) => {
+		return quankize(this.imageCache.fetchVisualImageSlice(visualRef, entityState, animationTime, orientation, rezo ), quank, (imageSlice:ImageSlice<HTMLImageElement>, quank:Quank) => {
+			if( quank == Quank.NEVER ) return RESOLVED_VOID_PROMISE;
 			const scx = this.screenOriginX, scy = this.screenOriginY;
 			const scale = this.scaleAtDepth(pos.z + imageSlice.bounds.minZ/this.unitPpm);
 			const sx = scx + pos.x*scale;
 			const sy = scy + pos.y*scale;
 			this.sciAddImageSlice(sx, sy, pos.z, orientation, scale, imageSlice);
-			return;
+			return RESOLVED_VOID_PROMISE;
 		});
 	}
 	
@@ -122,26 +145,30 @@ export class EntityRenderer {
 		this.wcdAddEntityVisualRef(pos, orientation, visualRef, entityState, animationTime);
 	}
 	
-	public wcdAddEntity( pos:Vector3D, orientation:Quaternion, entity:Entity ):Promise<void> {
-		return this.gameDataManager.fetchObject<EntityClass>( entity.classRef ).then( (entityClass) => {
+	public wcdAddEntity( pos:Vector3D, orientation:Quaternion, entity:Entity, quank:Quank=Quank.ALWAYS ):Thenable<void> {
+		return quankize(this.gameDataManager.fetchObject<EntityClass>( entity.classRef ), quank, (entityClass, quank):Thenable<void> => {
 			const vbb = entityClass.visualBoundingBox;
 			
 			const backZ = vbb.maxZ + pos.z;
-			if( backZ <= 0 ) return;
+			if( backZ <= 0 ) return RESOLVED_VOID_PROMISE;
+			
 			const backScale = this.scaleAtDepth(backZ);
 			
 			const scx = this.screenOriginX, scy = this.screenOriginY;
 			
-			if( scx + backScale * (vbb.maxX + pos.x) <= this.clip.minX ) return;
-			if( scx + backScale * (vbb.minX + pos.x) >= this.clip.maxX ) return;
-			if( scy + backScale * (vbb.maxY + pos.y) <= this.clip.minY ) return;
-			if( scy + backScale * (vbb.minY + pos.y) >= this.clip.maxY ) return;
+			if(
+				scx + backScale * (vbb.maxX + pos.x) <= this.clip.minX ||
+				scx + backScale * (vbb.minX + pos.x) >= this.clip.maxX ||
+				scy + backScale * (vbb.maxY + pos.y) <= this.clip.minY ||
+				scy + backScale * (vbb.minY + pos.y) >= this.clip.maxY
+			) return RESOLVED_VOID_PROMISE;
 			
 			const drawPromises:Thenable<void>[] = [];
 			if( entityClass.visualRef ) {
 				drawPromises.push(this.wcdAddEntityVisualRef(
 					pos, orientation, entityClass.visualRef, entity.state||EMPTY_STATE,
-					this.time - (entity.animationStartTime||0)
+					this.time - (entity.animationStartTime||0),
+					quank
 				));
 			}
 			eachSubEntity( pos, orientation, entity, this.gameDataManager, (subPos, subOri, subEnt) => {
