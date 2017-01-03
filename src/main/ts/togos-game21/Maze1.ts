@@ -282,9 +282,9 @@ export class MazeView {
 				// - Needs to draw /immediately/ or not at all
 				// - If some images not available, schedule redraw after they become available
 				if( visualEntity.entity ) {
-					wrend.wcdAddEntity(visualEntity.position, visualEntity.orientation||Quaternion.IDENTITY, visualEntity.entity);
+					wrend.wciAddEntity(visualEntity.position, visualEntity.orientation||Quaternion.IDENTITY, visualEntity.entity);
 				} else if( visualEntity.visualRef ) {
-					wrend.wcdAddEntityVisualRef(
+					wrend.wciAddEntityVisualRef(
 						visualEntity.position, visualEntity.orientation||Quaternion.IDENTITY,
 						visualEntity.visualRef, visualEntity.state||EMPTY_STATE, this.viewScene.worldTime - visualEntity.animationStartTime
 					);

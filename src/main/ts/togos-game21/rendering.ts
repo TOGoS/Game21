@@ -142,7 +142,7 @@ export class EntityRenderer {
 	
 	public wciAddEntityVisualRef( pos:Vector3D, orientation:Quaternion, visualRef:string, entityState:any, animationTime:number ):void {
 		// May need to replace with a more specialized implement
-		this.wcdAddEntityVisualRef(pos, orientation, visualRef, entityState, animationTime);
+		this.wcdAddEntityVisualRef(pos, orientation, visualRef, entityState, animationTime, Quank.UNLESS_DEFERRED);
 	}
 	
 	public wcdAddEntity( pos:Vector3D, orientation:Quaternion, entity:Entity, quank:Quank=Quank.ALWAYS ):Thenable<void> {
@@ -177,6 +177,11 @@ export class EntityRenderer {
 			
 			return voidify(Promise.all(drawPromises));
 		});
+	}
+	
+	public wciAddEntity( pos:Vector3D, orientation:Quaternion, entity:Entity ):void {
+		// May need to replace with a more specialized implement
+		this.wcdAddEntity(pos, orientation, entity, Quank.UNLESS_DEFERRED);
 	}
 	
 	protected get renderingContext2d():CanvasRenderingContext2D|null {
