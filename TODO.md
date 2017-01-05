@@ -39,9 +39,9 @@ Unify rendering (update or replace WorldCanvasView)
   - RGBA image
   - ShapeSheet
   - ForthProceduralShape
-  - DynamicEntityVisual
-  - CompoundVisual
-  - BitImage
+  * DynamicEntityVisual
+  * CompoundVisual
+  * BitImage
 
 Clean up simulation source files
 (they got kind of messy during the recent Maze1SimulationUpdate.ts refactor,

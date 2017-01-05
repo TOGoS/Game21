@@ -381,6 +381,12 @@ const toggleBoxOnPix = [
 	1,0,1,1,1,1,1,0,
 	1,0,0,0,0,0,0,0,
 ]
+const toggleBoxLightPix = [
+	0,0,0,0,
+	0,1,1,0,
+	0,1,1,0,
+	0,0,0,0,
+]
 const eighthMeterWirePix = [
 	1,1,1,1
 ]
@@ -499,6 +505,7 @@ const latticeColumnImgRef = "bitimg:color1="+rgbaToNumber(192,192,192,255)+","+h
 const latticeColumnBgImgRef = "bitimg:color1="+rgbaToNumber(64,64,64,255)+","+hexEncodeBits(latticeColumnPix);
 const toggleBoxOffImgRef = bitImgRef(0,[96,96,96],toggleBoxOffPix);
 const toggleBoxOnImgRef  = bitImgRef(0,[96,96,96],toggleBoxOnPix );
+const toggleBoxWhiteLightImgRef = bitImgRef([128,128,128],[255,255,255],toggleBoxLightPix); 
 export const greenToggleBoxOffImgRef = bitImgRef(0,[64,128,64],toggleBoxOffPix);
 export const greenToggleBoxOnImgRef  = bitImgRef(0,[64,128,64],toggleBoxOnPix );
 const ethCol = [64,80,96];
@@ -756,6 +763,8 @@ function makeEthernetNetwork(
 }
 
 import DynamicEntityVisual from './DynamicEntityVisual';
+import CompoundVisual from './CompoundVisual';
+import TransformationMatrix3D from './TransformationMatrix3D';
 
 /**
  * Returns a promise for the new game data root node URI
@@ -776,6 +785,20 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 		platformSegmentEntityClassId,
 	], gdm);
 	
+	const greenToggleBoxOnWhiteImgRef = gdm.tempStoreObject<CompoundVisual>({
+		classRef: "http://ns.nuke24.net/Game21/CompoundVisual",
+		components: [
+			{
+				transformation: TransformationMatrix3D.IDENTITY,
+				visualRef: greenToggleBoxOffImgRef,
+			},
+			{
+				transformation: TransformationMatrix3D.IDENTITY,
+				visualRef: toggleBoxWhiteLightImgRef,
+			},
+		]
+	});
+	
 	gdm.tempStoreObject<DynamicEntityVisual>( {
 		classRef: "http://ns.nuke24.net/Game21/DynamicEntityVisual",
 		animationLength: 0,
@@ -783,7 +806,7 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 		propertiesExpressionRef: gdm.tempStoreObject(esp.sExpressionToProgramExpression(
 			['if',
 				[['var','entityState'], 'switchState'],
-				['makeAssociativeArray', 'visualRef', greenToggleBoxOnImgRef],
+				['makeAssociativeArray', 'visualRef', greenToggleBoxOnWhiteImgRef],
 				['makeAssociativeArray', 'visualRef', greenToggleBoxOffImgRef]]
 		))
 	}, wiredToggleBoxVisualRef);

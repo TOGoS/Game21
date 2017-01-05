@@ -129,14 +129,32 @@ export class EntityRenderer {
 		// guess!  (there may be a better way to determine what resolution to ask for)
 		const rezo = 1 << Math.ceil( Math.log(this.scaleAtDepth(pos.z))/Math.log(2) );
 		
-		return quankize(this.imageCache.fetchVisualImageSlice(visualRef, entityState, animationTime, orientation, rezo ), quank, (imageSlice:ImageSlice<HTMLImageElement>, quank:Quank) => {
-			if( quank == Quank.NEVER ) return RESOLVED_VOID_PROMISE;
-			const scx = this.screenOriginX, scy = this.screenOriginY;
-			const scale = this.scaleAtDepth(pos.z + imageSlice.bounds.minZ/this.unitPpm);
-			const sx = scx + pos.x*scale;
-			const sy = scy + pos.y*scale;
-			this.sciAddImageSlice(sx, sy, pos.z, orientation, scale, imageSlice);
-			return RESOLVED_VOID_PROMISE;
+		return quankize(this.imageCache.fetchVisual(visualRef), quank, (visual:Visual, quank:Quank) => {
+			/*
+			if( visual.classRef == "http://ns.nuke24.net/Game21/CompoundVisual" ) {
+				// Ignore transform for now....
+				let prams:Thenable<void>[]|null = null;
+				for( let c in visual.components ) {
+					const comp = visual.components[c];
+					const prem = this.wcdAddEntityVisualRef(pos, orientation, comp.visualRef, entityState, animationTime, quank );
+					if( !isResolved(prem) ) {
+						if( prams == null ) prams = [];
+						prams.push(prem);
+					}
+				}
+				return prams == null ? RESOLVED_VOID_PROMISE : voidify(Promise.all(prams));
+			}
+			*/
+			
+			return quankize(this.imageCache.fetchVisualImageSlice(visualRef, entityState, animationTime, orientation, rezo ), quank, (imageSlice:ImageSlice<HTMLImageElement>, quank:Quank) => {
+				if( quank == Quank.NEVER ) return RESOLVED_VOID_PROMISE;
+				const scx = this.screenOriginX, scy = this.screenOriginY;
+				const scale = this.scaleAtDepth(pos.z + imageSlice.bounds.minZ/this.unitPpm);
+				const sx = scx + pos.x*scale;
+				const sy = scy + pos.y*scale;
+				this.sciAddImageSlice(sx, sy, pos.z, orientation, scale, imageSlice);
+				return RESOLVED_VOID_PROMISE;
+			});
 		});
 	}
 	
@@ -237,6 +255,23 @@ const EMPTY_IMAGE_SLICE_PROMISE = resolvedPromise(EMPTY_IMAGE_SLICE);
 
 const objectRefRegex = /^urn:.*/;
 
+function canvasToRgbaSlice(canv:HTMLCanvasElement, origin:Vector3D, resolution:number ):ImageSlice<Uint8ClampedArray> {
+	const ctx = canv.getContext('2d');
+	if( ctx == null ) throw new Error("No 2d context!");
+	const sheet = ctx.getImageData(0,0,canv.width,canv.height).data;
+	return new ImageSlice<Uint8ClampedArray>(
+		sheet,
+		origin,
+		resolution,
+		{
+			minX: 0, minY: 0,
+			minZ: 0, // ack, not right!
+			maxX: canv.width, maxY: canv.height,
+			maxZ: 0, // ack, not right!
+		}
+	);
+}
+
 export class VisualImageManager {
 	/**
 	 * May use RenderingContext.dictionaryRootRef
@@ -257,7 +292,7 @@ export class VisualImageManager {
 	
 	protected visualCache = new Map<VisualRef, Thenable<Visual>>();
 	
-	protected fetchVisual( visualRef:VisualRef ):Thenable<Visual> {
+	public fetchVisual( visualRef:VisualRef ):Thenable<Visual> {
 		let prom = this.visualCache.get(visualRef);
 		if( prom ) return prom;
 		
@@ -276,7 +311,7 @@ export class VisualImageManager {
 		return prom;
 	}
 	
-	protected fetchVisualMetadata( visualRef:string ):Thenable<VisualMetadata> {
+	public fetchVisualMetadata( visualRef:string ):Thenable<VisualMetadata> {
 		let md = this.visualMetadataCache.get(visualRef);
 		if( md ) return md;
 		
@@ -337,7 +372,7 @@ export class VisualImageManager {
 	protected generateVisualRgbaSlice(
 		visualRef:VisualRef, state:KeyedList<any>|undefined, time:number, orientation:Quaternion, preferredResolution:number
 	):Thenable<ImageSlice<Uint8ClampedArray>> {
-		return this.fetchVisual(visualRef).then( (visual) => {
+		return this.fetchVisual(visualRef).then( (visual:Visual):Thenable<ImageSlice<Uint8ClampedArray>> => {
 			switch( visual.classRef ) {
 			case "http://ns.nuke24.net/Game21/BitImageVisual":
 				const rgbaData = bitImageVisualToRgbaData(visual);
@@ -381,8 +416,33 @@ export class VisualImageManager {
 						props.visualRef, {}, time, orientation, preferredResolution
 					);
 				});
+			case "http://ns.nuke24.net/Game21/CompoundVisual":
+				{
+					const canv = document.createElement('canvas');
+					// TODO: Need a better way to come up with vbb
+					const vbb = {minX:-0.5, minY:-0.5, minZ:-0.5, maxX:0.5, maxY:0.5, maxZ:0.5};
+					const originX = -preferredResolution*vbb.minX;
+					const originY = -preferredResolution*vbb.minY;
+					const enRen = new EntityRenderer(
+						canv, this.gameDataManager, this,
+						originX, originY, preferredResolution,
+						Infinity
+					);					
+					const compz = visual.components;
+					const promz:Thenable<void>[] = [];
+					for( let c=0; c<compz.length; ++c ) {
+						const comp = compz[c];
+						const xform = comp.transformation;
+						const pos = {x:xform.x1, y:xform.y1, z:xform.z1};
+						promz.push(enRen.wcdAddEntityVisualRef(pos, Quaternion.IDENTITY, comp.visualRef, state||{}, time));
+					}
+					return Promise.all(promz).then( () => {
+						enRen.flush();
+						return canvasToRgbaSlice(canv, {x:originX, y:originY, z:0}, preferredResolution)
+					});
+				}
 			default:
-				return Promise.reject(new Error("Don't yet know how to generateVisualRgbaSlice a"+visual.classRef));
+				return Promise.reject(new Error("Don't yet know how to generateVisualRgbaSlice "+visual!.classRef));
 			}
 		});
 	}
