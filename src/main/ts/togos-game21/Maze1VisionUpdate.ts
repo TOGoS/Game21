@@ -102,8 +102,9 @@ export default class VisionUpdate extends SimulationUpdate {
 		const rasterOriginY = Math.floor(rasterHeight/rasterResolution/2) + viewerPosition.y - Math.floor(viewerPosition.y);
 		const visibilityRaster   = new ShadeRaster(rasterWidth, rasterHeight, rasterResolution, rasterOriginX, rasterOriginY);
 		let opacityRaster:ShadeRaster|undefined;
-		const seeAll = !!visionSubsystem.isOmniscient;
-
+		const seeAll = !!visionSubsystem.isOmniscient && (
+			visionSubsystem.scanMode == undefined || visionSubsystem.scanMode == "all");
+		
 		const visibilityDistanceInRasterPixels = rasterResolution*distance;
 		opacityRaster = new ShadeRaster(rasterWidth, rasterHeight, rasterResolution, rasterOriginX, rasterOriginY);
 		const sceneShader = new SceneShader(this.simulator.gameDataManager);

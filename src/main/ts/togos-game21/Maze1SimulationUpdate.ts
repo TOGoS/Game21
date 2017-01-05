@@ -918,6 +918,23 @@ abstract class SimulationUpdate {
 				}
 			}
 			break;
+		case "http://ns.nuke24.net/Game21/EntitySubsystem/Vision":
+			if( !entity ) break;
+			
+			switch( message[0] ) {
+			case '/scanmode':
+				subsystem = thaw(subsystem);
+				subsystem.scanMode = message[1];
+				entity = setEntitySubsystem(entity, subsystemKey, subsystem, this.gameDataManager);
+				break;
+			case '/enabled':
+				subsystem = thaw(subsystem);
+				subsystem.isEnabled = !!message[1];
+				entity = setEntitySubsystem(entity, subsystemKey, subsystem, this.gameDataManager);
+				break;
+			}
+			
+			break;
 		default:
 			console.warn(subsystem.classRef+" recieved bus message, but handling of it is not implemented:", message);
 			break;

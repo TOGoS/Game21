@@ -113,12 +113,16 @@ export interface Appendage {
 	maxReachDistance?: number;
 }
 
+export type VisionScanMode = "line-of-sight"|"all";
+
 export interface Vision {
 	classRef: typeof ESSCR_VISION;
 	eyePositions: Vector3D[];
 	maxViewDistance : number;
 	isEnabled : boolean; /** Do scan at next opportunity */
-	isOmniscient? : boolean;
+	isOmniscient? : boolean; // Is 'all' scan mode available?
+	/** omniscient vision systems can go into line-of-sight mode if they choose to */
+	scanMode?: VisionScanMode;
 	lastScanTime? : number;
 	minScanInterval : number; /** Number of seconds between scans */
 	disableAfterNextScan? : boolean;

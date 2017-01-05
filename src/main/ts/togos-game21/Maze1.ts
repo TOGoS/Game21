@@ -435,6 +435,8 @@ class LevelSetterUpper extends SimulationUpdate {
 					makeVector(+1/8, -1/8, 0),
 				],
 				isEnabled: true,
+				isOmniscient: true,
+				scanMode: "line-of-sight",
 				maxViewDistance: 32,
 				minScanInterval: 1/60,
 				sceneExpressionRef: sExpressionToProgramExpressionRef(
@@ -528,13 +530,21 @@ export class MazeDemo {
 		mode = mode % 2;
 		if( mode == this._demoMode ) return;
 		this._demoMode = mode;
+		let visionMode;
 		if( this._demoMode == DemoMode.EDIT ) {
 			this.tilePaletteUi.element.style.display = "";
 			this.maze1InventoryUi.element.style.display = "none";
+			visionMode = "all";
 		} else {
 			this.tilePaletteUi.element.style.display = "none";
 			this.maze1InventoryUi.element.style.display = "";
+			visionMode = "line-of-sight";
 		}
+		if( this.simulator && this.playerId ) this.simulator.enqueueAction({
+			classRef: "http://ns.nuke24.net/Game21/SimulationAction/InduceSystemBusMessage",
+			entityPath: [ROOMID_FINDENTITY, this.playerId],
+			busMessage: ["/"+ESSKEY_VISION+"/scanmode", visionMode],
+		});
 	}
 	public switchToNextMode() {
 		this.demoMode += 1;
