@@ -5,7 +5,7 @@ import MemoryDatastore from './MemoryDatastore';
 import CachingDatastore from './CachingDatastore';
 import BrowserStorageDatastore from './BrowserStorageDatastore';
 import MultiDatastore from './MultiDatastore';
-import { finalmente, isResolved, value } from './promises';
+import { finalmente, isResolved, value, RESOLVED_VOID_PROMISE } from './promises';
 
 import { deepFreeze, thaw, deepThaw, isDeepFrozen } from './DeepFreezer';
 import GameDataManager from './GameDataManager';
@@ -269,8 +269,6 @@ export class MazeView {
 		this.drawRaster( viz, VISIBILITY_VOID, VISIBILITY_NONE, this.occlusionFillStyle, true);
 	}
 	
-	protected needsRedrawAfterStuffLoads:boolean = false;
-	
 	// TODO: Genericize the object draw list from CanvasWorldView and use it.
 	protected draw():void {
 		const veList = this.viewScene.visualEntities;
@@ -278,16 +276,22 @@ export class MazeView {
 		if( wrend ) {
 			if( veList ) for( let ve in veList ) {
 				const visualEntity = veList[ve];
+				let addPromise:Thenable<void>;
 				// TODO: This is a bit off!
 				// - Needs to draw /immediately/ or not at all
 				// - If some images not available, schedule redraw after they become available
 				if( visualEntity.entity ) {
-					wrend.wciAddEntity(visualEntity.position, visualEntity.orientation||Quaternion.IDENTITY, visualEntity.entity);
+					addPromise = wrend.wciAddEntity(visualEntity.position, visualEntity.orientation||Quaternion.IDENTITY, visualEntity.entity);
 				} else if( visualEntity.visualRef ) {
-					wrend.wciAddEntityVisualRef(
+					addPromise = wrend.wciAddEntityVisualRef(
 						visualEntity.position, visualEntity.orientation||Quaternion.IDENTITY,
 						visualEntity.visualRef, visualEntity.state||EMPTY_STATE, this.viewScene.worldTime - visualEntity.animationStartTime
 					);
+				} else {
+					addPromise = RESOLVED_VOID_PROMISE;
+				}
+				if( !isResolved(addPromise) ) {
+					addPromise.then( () => this.requestRedraw() );
 				}
 			}
 			wrend.flush();

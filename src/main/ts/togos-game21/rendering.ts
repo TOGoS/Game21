@@ -158,9 +158,9 @@ export class EntityRenderer {
 		});
 	}
 	
-	public wciAddEntityVisualRef( pos:Vector3D, orientation:Quaternion, visualRef:string, entityState:any, animationTime:number ):void {
+	public wciAddEntityVisualRef( pos:Vector3D, orientation:Quaternion, visualRef:string, entityState:any, animationTime:number ):Thenable<void> {
 		// May need to replace with a more specialized implement
-		this.wcdAddEntityVisualRef(pos, orientation, visualRef, entityState, animationTime, Quank.UNLESS_DEFERRED);
+		return this.wcdAddEntityVisualRef(pos, orientation, visualRef, entityState, animationTime, Quank.UNLESS_DEFERRED);
 	}
 	
 	public wcdAddEntity( pos:Vector3D, orientation:Quaternion, entity:Entity, quank:Quank=Quank.ALWAYS ):Thenable<void> {
@@ -197,9 +197,9 @@ export class EntityRenderer {
 		});
 	}
 	
-	public wciAddEntity( pos:Vector3D, orientation:Quaternion, entity:Entity ):void {
+	public wciAddEntity( pos:Vector3D, orientation:Quaternion, entity:Entity ):Thenable<void> {
 		// May need to replace with a more specialized implement
-		this.wcdAddEntity(pos, orientation, entity, Quank.UNLESS_DEFERRED);
+		return this.wcdAddEntity(pos, orientation, entity, Quank.UNLESS_DEFERRED);
 	}
 	
 	protected get renderingContext2d():CanvasRenderingContext2D|null {
