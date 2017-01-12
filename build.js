@@ -226,14 +226,27 @@ function build( targetName, stackTrace ) {
 	return buildPromises[targetName] = buildTarget(targ, targetName, stackTrace);
 }
 
-let buildList = process.argv.slice(2);
-let buildProms = [];
-if( buildList.length == 0 ) buildList = ['default'];
-for( let i in buildList ) {
-	buildProms.push(build(buildList[i], ["argv["+i+"]"]));
+let buildList = [];
+let operation = 'build';
+for( let i=2; i<process.argv.length; ++i ) {
+	let arg = process.argv[i];
+	if( arg == '--list-targets' ) operation = 'list-targets';
+	else {
+		buildList.push(arg);
+	}
 }
-Promise.all(buildProms).catch( (err) => {
-	console.error("Error!", err);
-	console.error("Build failed!");
-	process.exit(1);
-});
+
+if( operation == 'list-targets' ) {
+	for( let t in targets ) console.log(t);
+} else if( operation == 'build' ) {
+	if( buildList.length == 0 ) buildList.push('default');
+	let buildProms = [];
+	for( let i in buildList ) {
+		buildProms.push(build(buildList[i], ["argv["+i+"]"]));
+	}
+	Promise.all(buildProms).catch( (err) => {
+		console.error("Error!", err.message, err.stack);
+		console.error("Build failed!");
+		process.exit(1);
+	});
+}
