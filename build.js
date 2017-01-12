@@ -67,12 +67,22 @@ function doCmd( args ) {
 	});
 }
 
+// To support pre-...syntax node
+function append(arr1, arr2) {
+	for( let i=0; i<arr2.length; ++i ) arr1.push(arr2[i]);
+	return arr1;
+}
+
+function concat(arr1, arr2) {
+	return append(append([], arr1), arr2);
+}
+
 function npm( args ) {
-	return doCmd(["node", "C:/apps/nodejs/node_modules/npm/bin/npm-cli.js", ...args]);
+	return doCmd(concat(["node", "C:/apps/nodejs/node_modules/npm/bin/npm-cli.js"], args));
 }
 
 function tsc( args ) {
-	return doCmd(["node","node_modules/typescript/bin/tsc", ...args])
+	return doCmd(concat(["node","node_modules/typescript/bin/tsc"], args));
 }
 
 const targets = {
