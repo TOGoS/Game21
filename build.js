@@ -77,8 +77,31 @@ function concat(arr1, arr2) {
 	return append(append([], arr1), arr2);
 }
 
+function _getNpmCommand(attempts, start) {
+	if( start >= attempts.length ) return Promise.reject("Couldn't figure out how to run npm!");
+	let npmVCommand = concat(attempts[0], ['-v']);
+	return doCmd(npmVCommand).then( () => {
+		return attempts[0];
+	}, (err) => {
+		console.warn("Yarr, "+argsToShellCommand(npmVCommand)+" didn't work; will try something else...")
+		return _getNpmCommand(attempts, start+1);
+	})
+}
+
+let npmCommandPromise = undefined;
+function figureNpmCommand() {
+	if( npmCommandPromise ) return npmCommandPromise;
+	
+	let attempts = [
+		['npm'],
+		["node", "C:/apps/nodejs/node_modules/npm/bin/npm-cli.js"]
+	];
+	
+	return _getNpmCommand(attempts, 0);
+}
+
 function npm( args ) {
-	return doCmd(concat(["node", "C:/apps/nodejs/node_modules/npm/bin/npm-cli.js"], args));
+	return figureNpmCommand().then( (npmCmd) => doCmd(concat(npmCmd, args)) );
 }
 
 function tsc( args ) {
