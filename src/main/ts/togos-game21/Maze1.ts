@@ -269,7 +269,6 @@ export class MazeView {
 		this.drawRaster( viz, VISIBILITY_VOID, VISIBILITY_NONE, this.occlusionFillStyle, true);
 	}
 	
-	// TODO: Genericize the object draw list from CanvasWorldView and use it.
 	protected draw():void {
 		const veList = this.viewScene.visualEntities;
 		const wrend = this._worldRenderer;
