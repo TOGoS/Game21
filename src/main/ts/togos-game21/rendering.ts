@@ -125,6 +125,23 @@ export class EntityRenderer {
 		);
 	}
 	
+	protected wciAddImageSlice( pos:Vector3D, orientation:Quaternion, imageSlice:ImageSlice<HTMLImageElement> ):void {
+		// Warning: world-screen position code is duplicated!
+		const scx = this.screenOriginX, scy = this.screenOriginY;
+		const scale = this.scaleAtDepth(pos.z + imageSlice.bounds.minZ/this.unitPpm);
+		const sx = scx + pos.x*scale;
+		const sy = scy + pos.y*scale;
+		this.sciAddImageSlice(sx, sy, pos.z, orientation, scale, imageSlice);
+	}
+	
+	// Caches to shortcut rendering for static, stateless visuals
+	// TODO: Right now these assume image being drawn at unitPpm;
+	// no other resolution is stored.
+	protected simpleEntityVisualRefImageSliceCache =
+		new Map<string,ImageSlice<HTMLImageElement>>();
+	protected simpleEntityClassRefImageSliceCache =
+		new Map<string,undefined|ImageSlice<HTMLImageElement>>();
+	
 	public wcdAddEntityVisualRef( pos:Vector3D, orientation:Quaternion, visualRef:string, entityState:KeyedList<any>, animationTime:number, quank:Quank=Quank.ALWAYS ):Thenable<void> {
 		// guess!  (there may be a better way to determine what resolution to ask for)
 		const rezo = 1 << Math.ceil( Math.log(this.scaleAtDepth(pos.z))/Math.log(2) );
@@ -147,18 +164,27 @@ export class EntityRenderer {
 			*/
 			
 			return quankize(this.imageCache.fetchVisualImageSlice(visualRef, entityState, animationTime, orientation, rezo ), quank, (imageSlice:ImageSlice<HTMLImageElement>, quank:Quank) => {
+				this.imageCache.fetchVisualMetadata(visualRef).then( (visualMetadata) => {
+					// TODO: probably should pay some attention to resolution, here
+					if( !visualMetadata.variesBasedOnState && visualMetadata.animationLength == 0 ) {
+						this.simpleEntityVisualRefImageSliceCache.set(visualRef, imageSlice);
+					}
+				});
+				
 				if( quank == Quank.NEVER ) return RESOLVED_VOID_PROMISE;
-				const scx = this.screenOriginX, scy = this.screenOriginY;
-				const scale = this.scaleAtDepth(pos.z + imageSlice.bounds.minZ/this.unitPpm);
-				const sx = scx + pos.x*scale;
-				const sy = scy + pos.y*scale;
-				this.sciAddImageSlice(sx, sy, pos.z, orientation, scale, imageSlice);
+				this.wciAddImageSlice(pos, orientation, imageSlice);
 				return RESOLVED_VOID_PROMISE;
 			});
 		});
 	}
 	
 	public wciAddEntityVisualRef( pos:Vector3D, orientation:Quaternion, visualRef:string, entityState:any, animationTime:number ):Thenable<void> {
+		const imgSlice = this.simpleEntityVisualRefImageSliceCache.get(visualRef);
+		if( imgSlice ) {
+			this.wciAddImageSlice(pos, orientation, imgSlice);
+			return RESOLVED_VOID_PROMISE;
+		}
+		
 		// May need to replace with a more specialized implement
 		return this.wcdAddEntityVisualRef(pos, orientation, visualRef, entityState, animationTime, Quank.UNLESS_DEFERRED);
 	}
@@ -189,6 +215,21 @@ export class EntityRenderer {
 					quank
 				));
 			}
+			if( !this.simpleEntityClassRefImageSliceCache.has(entity.classRef) ) {
+				this.simpleEntityClassRefImageSliceCache.set(entity.classRef, undefined);
+				
+				if( entityClass.structureType == StructureType.INDIVIDUAL && entityClass.visualRef ) {
+					const visualRef = entityClass.visualRef;
+					this.imageCache.fetchVisualMetadata(visualRef).then( (visualMetadata) => {
+						if( !visualMetadata.variesBasedOnState && visualMetadata.animationLength == 0 ) {
+							// Goes in the simple cache!
+							this.imageCache.fetchVisualImageSlice(visualRef, {}, 0, Quaternion.IDENTITY, this.unitPpm).then( (imageSlice) => {
+								this.simpleEntityClassRefImageSliceCache.set(entity.classRef, imageSlice);
+							});
+						}
+					});
+				}
+			}
 			eachSubEntity( pos, orientation, entity, this.gameDataManager, (subPos, subOri, subEnt) => {
 				drawPromises.push(this.wcdAddEntity(subPos, subOri, subEnt));
 			}, this );
@@ -198,6 +239,12 @@ export class EntityRenderer {
 	}
 	
 	public wciAddEntity( pos:Vector3D, orientation:Quaternion, entity:Entity ):Thenable<void> {
+		const imgSlice = this.simpleEntityClassRefImageSliceCache.get(entity.classRef);
+		if( imgSlice ) {
+			this.wciAddImageSlice(pos, orientation, imgSlice);
+			return RESOLVED_VOID_PROMISE;
+		}
+		
 		// May need to replace with a more specialized implement
 		return this.wcdAddEntity(pos, orientation, entity, Quank.UNLESS_DEFERRED);
 	}
@@ -245,7 +292,10 @@ interface VisualMetadata {
 	hardVisualRef : string;
 	/** Whether state affects this visual at all */
 	variesBasedOnState : boolean;
-	/** Total animation length, taking into account that frames may themselves be visuals */
+	/**
+	 * Total animation length, taking into account that frames may themselves be visuals
+	 * Should be zero for non-animated things.
+	 */
 	animationLength : number;
 	
 	discreteAnimationStepCount : number;
