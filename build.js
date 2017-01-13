@@ -3,13 +3,19 @@
 const child_process = require('child_process');
 const fs = require('fs');
 
+/**
+ * Escape program arguments to represent as a command
+ * that could be run at the shell.
+ * For displaying to humans.
+ * Don't actually run at the shell because escaping is probably imperfect.
+ */
 function argsToShellCommand( args ) {
 	if( typeof args === 'string' ) return args;
 	let escaped = [];
 	for( let i in args ) {
 		let arg = args[i];
 		if( arg.match(/^[a-zA-Z0-9\/\.\+_\-]+$/) ) escaped.push(arg);
-		else escaped.push( '"'+arg.replace(/["\$]/,'\\\\\\0')+'"');
+		else escaped.push( '"'+arg.replace(/["\$\\]/g,'\\$&')+'"');
 	}
 	return escaped.join(' ');
 }
