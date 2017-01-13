@@ -4,7 +4,14 @@ const child_process = require('child_process');
 const fs = require('fs');
 
 function argsToShellCommand( args ) {
-	return args.join(' ');
+	if( typeof args === 'string' ) return args;
+	let escaped = [];
+	for( let i in args ) {
+		let arg = args[i];
+		if( arg.match(/^[a-zA-Z0-9\/\.\+_\-]+$/) ) escaped.push(arg);
+		else escaped.push( '"'+arg.replace(/["\$]/,'\\\\\\0')+'"');
+	}
+	return escaped.join(' ');
 }
 
 function readDir( dir ) {
