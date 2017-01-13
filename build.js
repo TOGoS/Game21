@@ -3,6 +3,10 @@
 const child_process = require('child_process');
 const fs = require('fs');
 
+let logger = {
+	log: () => {}
+};
+
 /**
  * Escape program arguments to represent as a command
  * that could be run at the shell.
@@ -64,7 +68,7 @@ function mtime( fileOrDir ) {
 }
 
 function touch( fileOrDir ) {
-	console.log("Touching "+fileOrDir);
+	logger.log("Touching "+fileOrDir);
 	let curTime = Date.now()/1000;
 	return new Promise( (resolve,reject) => {
 		fs.utimes(fileOrDir, curTime, curTime, (err) => {
@@ -84,20 +88,23 @@ function processCmd( args ) {
 	}
 }
 
-function doCmd( args ) {
+function doCmd( args, opts ) {
+	if( !opts ) opts = {};
+	let stdio = opts.stdio || 'inherit';
+	
 	return processCmd(args).then( (args) => {
 		let argStr = argsToShellCommand(args);
-		console.log("+ "+argStr);
+		logger.log("+ "+argStr);
 		return new Promise( (resolve,reject) => {
 			let cproc;
 			if( typeof args === 'string' ) {
 				cproc = child_process.spawn( args, [], {
 					shell: true,
-					stdio: 'inherit' // For now!
+					stdio
 				} );
 			} else {
 				cproc = child_process.spawn( args[0], args.slice(1), {
-					stdio: 'inherit' // For now!
+					stdio
 				} );
 			}
 			cproc.on('error', reject);
@@ -145,7 +152,7 @@ function figureShellCommand() {
 function _getNpmCommand(attempts, start) {
 	if( start >= attempts.length ) return Promise.reject("Couldn't figure out how to run npm!");
 	let npmVCommand = concat(attempts[0], ['-v']);
-	return doCmd(npmVCommand).then( () => {
+	return doCmd(npmVCommand, {stdio:'ignore'}).then( () => {
 		return attempts[0];
 	}, (err) => {
 		console.warn("Yarr, "+argsToShellCommand(npmVCommand)+" didn't work; will try something else...")
@@ -274,7 +281,12 @@ function getTargetPrereqSet( target ) {
 
 function buildTarget( target, targetName, stackTrace ) {
 	let targetMtimePromise = mtime(targetName);
-	let prereqNames = target.prereqs || []; // TODO: should use the same logic as 
+	let prereqNames = target.prereqs || []; // TODO: should use the same logic as
+	if( prereqNames.length == 0 ) {
+		logger.log(targetName+" has no prerequisites");
+	} else {
+		logger.log(targetName+" has "+prereqNames.length+" prerequisites: "+prereqNames.join(', '));
+	}
 	let prereqSet = getTargetPrereqSet(target);
 	let prereqStackTrace = stackTrace.concat( targetName )
 	let latestPrereqMtime = undefined;
@@ -289,7 +301,7 @@ function buildTarget( target, targetName, stackTrace ) {
 		return Promise.all(prereqAndMtimePromz).then( (prereqsAndMtimes) => {
 			let needRebuild;
 			if( targetMtime == undefined ) {
-				console.log("Mtime of "+targetName+" is undefined; need rebuild!");
+				logger.log("Mtime of "+targetName+" is undefined; need rebuild!");
 				needRebuild = true;
 			} else {
 				needRebuild = false;
@@ -298,15 +310,15 @@ function buildTarget( target, targetName, stackTrace ) {
 					let prereqName = prereqAndMtime[0];
 					let prereqMtime = prereqAndMtime[1];
 					if( prereqMtime == undefined || targetMtime == undefined || prereqMtime > targetMtime ) {
-						console.log(prereqName+" is newer than "+targetName+"; need to rebuild ("+prereqMtime+" > "+targetMtime+")");
+						logger.log(prereqName+" is newer than "+targetName+"; need to rebuild ("+prereqMtime+" > "+targetMtime+")");
 						needRebuild = true;
 					} else {
-						console.log(prereqName+" not newer than "+targetName+" ("+prereqName+" !> "+targetMtime+")");
+						logger.log(prereqName+" not newer than "+targetName+" ("+prereqName+" !> "+targetMtime+")");
 					}
 				}
 			}
 			if( needRebuild ) {
-				console.log("Building "+targetName+"...");
+				logger.log("Building "+targetName+"...");
 				if( target.invoke ) {
 					let prom = target.invoke({
 						prereqNames,
@@ -315,10 +327,10 @@ function buildTarget( target, targetName, stackTrace ) {
 					if( target.isDirectory ) prom = prom.then( () => touch(targetName) );
 					return prom;
 				} else {
-					console.log(targetName+" has no build rule; assuming up-to-date");
+					logger.log(targetName+" has no build rule; assuming up-to-date");
 				}
 			} else {
-				console.log(targetName+" is already up-to-date");
+				logger.log(targetName+" is already up-to-date");
 				return Promise.resolve();
 			}
 		});
@@ -337,7 +349,7 @@ function build( targetName, stackTrace ) {
 					if( err ) {
 						reject(targetName+" does not exist and I don't know how to build it.");
 					} else {
-						console.log(targetName+" exists but has no build rule; assuming up-to-date");
+						logger.log(targetName+" exists but has no build rule; assuming up-to-date");
 						resolve();
 					}
 				});
@@ -350,12 +362,20 @@ function build( targetName, stackTrace ) {
 
 let buildList = [];
 let operation = 'build';
+let verbosity = 100;
 for( let i=2; i<process.argv.length; ++i ) {
 	let arg = process.argv[i];
-	if( arg == '--list-targets' ) operation = 'list-targets';
-	else {
+	if( arg == '--list-targets' ) {
+		operation = 'list-targets';
+	} else if( arg == '-v' ) {
+		verbosity = 200;
+	} else {
 		buildList.push(arg);
 	}
+}
+
+if( verbosity >= 200 ) {
+	logger.log = console.log;
 }
 
 if( operation == 'list-targets' ) {
@@ -369,7 +389,7 @@ if( operation == 'list-targets' ) {
 		buildProms.push(build(buildList[i], ["argv["+i+"]"]));
 	}
 	Promise.all(buildProms).then( () => {
-		console.log("Build completed");
+		logger.log("Build completed");
 	}, (err) => {
 		console.error("Error!", err.message, err.stack);
 		console.error("Build failed!");
