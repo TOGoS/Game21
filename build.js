@@ -20,13 +20,14 @@ function mtime( fileOrDir ) {
 	return new Promise( (resolve,reject) => {
 		fs.stat( fileOrDir, (err, stats) => {
 			if( err ) {
-				if( err.code == 'ENOENT' ) return resolve(undefined);
-				return reject(new Error("Failed to stat "+fileOrDir+": "+JSON.stringify(err)));
+				if( err.code == 'ENOENT' ) resolve(undefined);
+				else reject(new Error("Failed to stat "+fileOrDir+": "+JSON.stringify(err)));
+				return;
 			}
 			if( stats.isFile() ) {
-				return resolve( stats.mtime );
+				resolve( stats.mtime );
 			} else if( stats.isDirectory() ) {
-				return readDir(fileOrDir).then( (files) => {
+				resolve(readDir(fileOrDir).then( (files) => {
 					let mtimePromz = [];
 					for( let f in files ) {
 						let fullPath = fileOrDir+"/"+files[f];
@@ -41,7 +42,7 @@ function mtime( fileOrDir ) {
 						}
 						return maxMtime;
 					});
-				});
+				}));
 			} else {
 				reject(new Error(fileOrDir+" is neither a regular file or a directory!"));
 			}
