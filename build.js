@@ -68,15 +68,37 @@ function touch( fileOrDir ) {
 	});
 }
 
+function processCmd( args ) {
+	if( typeof args === 'string' ) {
+		return figureShellCommand().then( (prefix) => {
+			return concat(prefix, [args]);
+		});
+	} else {
+		return Promise.resolve(args);
+	}
+}
+
 function doCmd( args ) {
-	console.log("+ "+argsToShellCommand(args));
-	return new Promise( (resolve,reject) => {
-		const cproc = child_process.spawn( args[0], args.slice(1), {
-			stdio: 'inherit' // For now!
-		} );
-		cproc.on('close', (exitCode) => {
-			if( exitCode == 0 ) resolve();
-			else reject(new Error("Process exited with code "+exitCode+": "+args.join(' ')));
+	return processCmd(args).then( (args) => {
+		let argStr = argsToShellCommand(args);
+		console.log("+ "+argStr);
+		return new Promise( (resolve,reject) => {
+			let cproc;
+			if( typeof args === 'string' ) {
+				cproc = child_process.spawn( args, [], {
+					shell: true,
+					stdio: 'inherit' // For now!
+				} );
+			} else {
+				cproc = child_process.spawn( args[0], args.slice(1), {
+					stdio: 'inherit' // For now!
+				} );
+			}
+			cproc.on('error', reject);
+			cproc.on('close', (exitCode) => {
+				if( exitCode == 0 ) resolve();
+				else reject(new Error("Process exited with code "+exitCode+": "+argStr));
+			});
 		});
 	});
 }
@@ -89,6 +111,29 @@ function append(arr1, arr2) {
 
 function concat(arr1, arr2) {
 	return append(append([], arr1), arr2);
+}
+
+function _getShellCommand(attempts, start) {
+	if( start >= attempts.length ) return Promise.reject("Couldn't figure out how to run shell!");
+	let shellCommand = concat(attempts[0], ['exit 0']);
+	return doCmd(shellCommand).then( () => {
+		return attempts[0];
+	}, (err) => {
+		console.warn("Yarr, "+argsToShellCommand(shellCommand)+" didn't work; will try something else...")
+		return _getShellCommand(attempts, start+1);
+	})
+}
+
+let shellCommandPromise = undefined;
+function figureShellCommand() {
+	if( shellCommandPromise ) return shellCommandPromise;
+	
+	let attempts = [
+		['sh', '-c'],
+		['cmd.exe', '/c']
+	];
+	
+	return shellCommandPromise = _getShellCommand(attempts, 0);
 }
 
 function _getNpmCommand(attempts, start) {
@@ -111,7 +156,7 @@ function figureNpmCommand() {
 		["node", "C:/apps/nodejs/node_modules/npm/bin/npm-cli.js"]
 	];
 	
-	return _getNpmCommand(attempts, 0);
+	return npmCommandPromise = _getNpmCommand(attempts, 0);
 }
 
 function npm( args ) {
@@ -139,21 +184,53 @@ const targets = {
 	},
 	"target/cjs": {
 		prereqs: ["src", "node_modules"],
-		invoke: () => tsc(["-p","src/main/ts/game21libs.cjs.es5.tsconfig.json","--outDir","target/cjs"]),
+		invoke: (ctx) => tsc(["-p","src/main/ts/game21libs.cjs.es5.tsconfig.json","--outDir",ctx.targetName]),
+		isDirectory: true,
+	},
+	"target/game21libs.amd.es5.js": {
+		prereqs: ["src", "node_modules"],
+		invoke: (ctx) => tsc(["-p","src/main/ts/game21libs.amd.es5.tsconfig.json","--outFile",ctx.targetName]),
 		isDirectory: true,
 	},
 	"js-libs": {
 		isFile: false,
 		prereqs: ["target/cjs", "target/game21libs.amd.es5.js"]
-	},
-	"foo.txt": {
-		prereqs: ["bar.txt"],
-		invoke: () => doCmd(["cp","bar.txt","foo.txt"])
 	}
 }
 
-function getTarget( targetName ) {
-	return targets[targetName];
+function fetchGeneratedTargets() {
+	let generatedTargets = {};
+	return readDir('demos').then( (demoFiles) => {
+		for( let f in demoFiles ) {
+			let file = 'demos/'+demoFiles[f];
+			if( file.substr(file.length-4) == '.php' ) {
+				generatedTargets[file.substr(0,file.length-4)+'.html'] = {
+					isFile: true,
+					prereqs: ["target/game21libs.amd.es5.js", "demos/lib.php"],
+					invoke: (ctx) => {
+						return doCmd("php "+ctx.prereqNames[0]+" > "+ctx.targetName);
+					}
+				}
+			}
+		}
+		return generatedTargets;
+	});
+}
+
+let allTargetsPromise = undefined;
+function fetchAllTargets() {
+	if( allTargetsPromise ) return allTargetsPromise;
+	
+	const allTargets = {};
+	for( let n in targets ) allTargets[n] = targets[n];
+	return allTargetsPromise = fetchGeneratedTargets().then( (generatedTargets) => {
+		for( let n in generatedTargets ) allTargets[n] = generatedTargets[n];
+		return allTargets;
+	});
+}
+
+function fetchTarget( targetName ) {
+	return fetchAllTargets().then( (targets) => targets[targetName] );
 }
 
 function toSet( arr, into ) {
@@ -163,14 +240,16 @@ function toSet( arr, into ) {
 }
 
 function getTargetPrereqSet( target ) {
-	let set = {"build.js": "build.js"};
+	let set = {}
 	if( target.prereqs ) toSet(target.prereqs, set);
 	if( target.getPrereqs ) toSet(target.getPrereqs(), set);
+	set["build.js"] = "build.js";
 	return set;
 }
 
 function buildTarget( target, targetName, stackTrace ) {
 	let targetMtimePromise = mtime(targetName);
+	let prereqNames = target.prereqs || []; // TODO: should use the same logic as 
 	let prereqSet = getTargetPrereqSet(target);
 	let prereqStackTrace = stackTrace.concat( targetName )
 	let latestPrereqMtime = undefined;
@@ -183,7 +262,6 @@ function buildTarget( target, targetName, stackTrace ) {
 	
 	return targetMtimePromise.then( (targetMtime) => {
 		return Promise.all(prereqAndMtimePromz).then( (prereqsAndMtimes) => {
-			console.log("Oh hey look "+targetName+" has "+prereqsAndMtimes.length+" prereqs");
 			let needRebuild;
 			if( targetMtime == undefined ) {
 				console.log("Mtime of "+targetName+" is undefined; need rebuild!");
@@ -204,7 +282,10 @@ function buildTarget( target, targetName, stackTrace ) {
 			}
 			if( needRebuild ) {
 				if( target.invoke ) {
-					let prom = target.invoke();
+					let prom = target.invoke({
+						prereqNames,
+						targetName,
+					});
 					if( target.isDirectory ) prom = prom.then( () => touch(targetName) );
 					return prom;
 				} else {
@@ -224,19 +305,25 @@ function build( targetName, stackTrace ) {
 	if( buildPromises[targetName] ) return buildPromises[targetName];
 	
 	console.log("Building "+targetName+"...");
-	let targ = getTarget(targetName);
-	if( targ == null ) {
-		return new Promise( (resolve,reject) => {
-			fs.stat(targetName, (err,stats) => {
-				if( err ) reject(targetName+" does not exist and I don't know how to build it.");
-				else {
-					console.log(targetName+" exists but has no build rule; assuming up-to-date");
-					resolve();
-				}
+	return fetchTarget(targetName).then( (targ) => {
+		let buildProm;
+		if( targ == null ) {
+			buildProm = new Promise( (resolve,reject) => {
+				fs.stat(targetName, (err,stats) => {
+					if( err ) {
+						reject(targetName+" does not exist and I don't know how to build it.");
+					} else {
+						console.log(targetName+" exists but has no build rule; assuming up-to-date");
+						resolve();
+					}
+				});
 			});
-		});
-	}
-	return buildPromises[targetName] = buildTarget(targ, targetName, stackTrace);
+		} else {
+			console.log("Oh hey we might have to build "+targetName+"!");
+			buildProm = buildTarget(targ, targetName, stackTrace);
+		}
+		return buildPromises[targetName] = buildProm;
+	});
 }
 
 let buildList = [];
@@ -250,14 +337,18 @@ for( let i=2; i<process.argv.length; ++i ) {
 }
 
 if( operation == 'list-targets' ) {
-	for( let t in targets ) console.log(t);
+	fetchAllTargets().then( (targets) => {
+		for( let n in targets ) console.log(n);
+	});
 } else if( operation == 'build' ) {
 	if( buildList.length == 0 ) buildList.push('default');
 	let buildProms = [];
 	for( let i in buildList ) {
 		buildProms.push(build(buildList[i], ["argv["+i+"]"]));
 	}
-	Promise.all(buildProms).catch( (err) => {
+	Promise.all(buildProms).then( () => {
+		console.log("Build completed");
+	}, (err) => {
 		console.error("Error!", err.message, err.stack);
 		console.error("Build failed!");
 		process.exit(1);
