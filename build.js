@@ -198,6 +198,10 @@ const targets = {
 		invoke: (ctx) => tsc(["-p","src/main/ts/game21libs.amd.es5.tsconfig.json","--outFile",ctx.targetName]),
 		isDirectory: true,
 	},
+	"demos/RandomMazes.html": {
+		prereqs: ["demos/Maze1.php","target/game21libs.amd.es5.js"],
+		invoke: (ctx) => doCmd("php demos/Maze1.php tabSwitchesMode=false --inline-resources > "+ctx.targetName)
+	},
 	"run-unit-tests": {
 		isFile: false,
 		prereqs: ["target/cjs"],
