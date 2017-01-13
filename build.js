@@ -306,6 +306,7 @@ function buildTarget( target, targetName, stackTrace ) {
 				}
 			}
 			if( needRebuild ) {
+				console.log("Building "+targetName+"...");
 				if( target.invoke ) {
 					let prom = target.invoke({
 						prereqNames,
@@ -329,11 +330,9 @@ let buildPromises = {};
 function build( targetName, stackTrace ) {
 	if( buildPromises[targetName] ) return buildPromises[targetName];
 	
-	console.log("Building "+targetName+"...");
-	return fetchTarget(targetName).then( (targ) => {
-		let buildProm;
+	return buildPromises[targetName] = fetchTarget(targetName).then( (targ) => {
 		if( targ == null ) {
-			buildProm = new Promise( (resolve,reject) => {
+			return new Promise( (resolve,reject) => {
 				fs.stat(targetName, (err,stats) => {
 					if( err ) {
 						reject(targetName+" does not exist and I don't know how to build it.");
@@ -344,10 +343,8 @@ function build( targetName, stackTrace ) {
 				});
 			});
 		} else {
-			console.log("Oh hey we might have to build "+targetName+"!");
-			buildProm = buildTarget(targ, targetName, stackTrace);
+			return buildTarget(targ, targetName, stackTrace);
 		}
-		return buildPromises[targetName] = buildProm;
 	});
 }
 
