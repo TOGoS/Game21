@@ -7,6 +7,15 @@ function argsToShellCommand( args ) {
 	return args.join(' ');
 }
 
+function readDir( dir ) {
+	return new Promise( (resolve,reject) => {
+		fs.readdir( dir, (err,files) => {
+			if( err ) return reject(err);
+			return resolve(files);
+		});
+	});
+}
+
 function mtime( fileOrDir ) {
 	return new Promise( (resolve,reject) => {
 		fs.stat( fileOrDir, (err, stats) => {
@@ -17,16 +26,13 @@ function mtime( fileOrDir ) {
 			if( stats.isFile() ) {
 				return resolve( stats.mtime );
 			} else if( stats.isDirectory() ) {
-				fs.readdir( fileOrDir, (err, files) => {
-					if( err ) {
-						return reject("Failed to readdir("+fileOrDir+")");
-					}
+				return readDir(fileOrDir).then( (files) => {
 					let mtimePromz = [];
 					for( let f in files ) {
 						let fullPath = fileOrDir+"/"+files[f];
 						mtimePromz.push(mtime(fullPath));
 					}
-					resolve(Promise.all(mtimePromz).then( (mtimes) => {
+					return Promise.all(mtimePromz).then( (mtimes) => {
 						let maxMtime = stats.mtime;
 						for( let m in mtimes ) {
 							if( mtimes[m] != undefined && mtimes[m] > maxMtime ) { 
@@ -34,8 +40,8 @@ function mtime( fileOrDir ) {
 							}
 						}
 						return maxMtime;
-					}));
-				})
+					});
+				});
 			} else {
 				reject(new Error(fileOrDir+" is neither a regular file or a directory!"));
 			}
