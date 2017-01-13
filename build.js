@@ -198,6 +198,21 @@ const targets = {
 		invoke: (ctx) => tsc(["-p","src/main/ts/game21libs.amd.es5.tsconfig.json","--outFile",ctx.targetName]),
 		isDirectory: true,
 	},
+	"run-unit-tests": {
+		isFile: false,
+		prereqs: ["target/cjs"],
+		invoke: (ctx) => doCmd("find target/cjs -name \"*Test.js\" | xargs -n 1 node")
+	},
+	"run-unit-tests-verbosely": {
+		isFile: false,
+		prereqs: ["target/cjs"],
+		invoke: (ctx) => doCmd("find target/cjs -name \"*Test.js\" | xargs -n 1 -I\"{}\" node \"{}\" -v")
+	},
+	"run-router": {
+		isFile: false,
+		prereqs: ["target/cjs"],
+		invoke: (ctx) => doCmd("node target/cjs/togos-game21/Router.js"),
+	},
 	"js-libs": {
 		isFile: false,
 		prereqs: ["target/cjs", "target/game21libs.amd.es5.js"]
