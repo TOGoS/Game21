@@ -123,8 +123,7 @@ const targets = {
 		invoke: () => doCmd(['rm','-rf','node_modules'])
 	},
 	"clean": {
-		prereqs: ["sortaclean"],
-		invoke: () => Promise.resolve()
+		invoke: () => doCmd(['rm','-rf','node_modules','target'])
 	},
 	"node_modules": {
 		prereqs: ["package.json"],
