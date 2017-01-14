@@ -246,7 +246,7 @@ Builder.prototype.figureShellCommand = function() {
 		['cmd.exe', '/c'] // Windoze!
 	];
 	
-	return this.shellCommandPromise = this._findWorkingProgram(attempts, ['exit 0']);
+	return this.shellCommandPromise = this._findWorkingProgram(alternatives, ['exit 0']);
 }
 
 Builder.prototype.npmCommandPromise = undefined;
