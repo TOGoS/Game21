@@ -3,6 +3,7 @@
 const _builder = require('./src/build/js/Builder');
 const builder = new _builder.Builder();
 const readDir = _builder.readDir;
+const cpRReplacing = _builder.cpRReplacing;
 
 builder.targets = {
 	"default": {
@@ -17,6 +18,15 @@ builder.targets = {
 	"node_modules": {
 		prereqs: ["package.json"],
 		invoke: (ctx) => ctx.builder.npm(["install"]),
+		isDirectory: true,
+	},
+	"src/main/ts/tshash": {
+		prereqs: ["node_modules"],
+		invoke: (ctx) => cpRReplacing("node_modules/tshash/src/main/ts/tshash", ctx.targetName),
+		isDirectory: true,
+	},
+	"src": {
+		prereqs: ["src/main/ts/tshash"],
 		isDirectory: true,
 	},
 	"target/cjs": {
