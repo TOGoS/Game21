@@ -138,14 +138,15 @@ Builder.prototype.doCmd = function( args, opts ) {
 	});
 }
 
-Builder.prototype._getShellCommand = function(attempts, start) {
-	if( start >= attempts.length ) return Promise.reject("Couldn't figure out how to run shell!");
-	let shellCommand = concat(attempts[0], ['exit 0']);
-	return this.doCmd(shellCommand).then( () => {
-		return attempts[0];
+Builder.prototype._findWorkingProgram = function(alternatives, testPostfix, start) {
+	if( start == undefined ) start = 0;
+	if( start >= alternatives.length ) return Promise.reject("Couldn't figure out how to run shell!");
+	let testCommand = concat(alternatives[start], testPostfix);
+	return this.doCmd(testCommand).then( () => {
+		return alternatives[start];
 	}, (err) => {
-		this.logger.log(argsToShellCommand(shellCommand)+" didn't work; will try something else...")
-		return _getShellCommand(attempts, start+1);
+		this.logger.log(argsToShellCommand(testCommand)+" didn't work; will try something else...")
+		return this._findWorkingProgram(alternatives, testPostfix, start+1);
 	})
 }
 
@@ -153,37 +154,26 @@ Builder.prototype.shellCommandPromise = undefined;
 Builder.prototype.figureShellCommand = function() {
 	if( this.shellCommandPromise ) return this.shellCommandPromise;
 	
-	let attempts = [
+	let alternatives = [
 		['sh', '-c'], // Unix!
 		['cmd.exe', '/c'] // Windoze!
 	];
 	
-	return this.shellCommandPromise = this._getShellCommand(attempts, 0);
-}
-
-Builder.prototype._getNpmCommand = function(attempts, start) {
-	if( start >= attempts.length ) return Promise.reject("Couldn't figure out how to run npm!");
-	let npmVCommand = concat(attempts[0], ['-v']);
-	return this.doCmd(npmVCommand, {stdio:'ignore'}).then( () => {
-		return attempts[0];
-	}, (err) => {
-		this.logger.log(argsToShellCommand(npmVCommand)+" didn't work; will try something else...")
-		return this._getNpmCommand(attempts, start+1);
-	})
+	return this.shellCommandPromise = this._findWorkingProgram(attempts, ['exit 0']);
 }
 
 Builder.prototype.npmCommandPromise = undefined;
 Builder.prototype.figureNpmCommand = function() {
 	if( this.npmCommandPromise ) return this.npmCommandPromise;
 	
-	let attempts = [
+	let alternatives = [
 		['npm'],
 		// TODO: Replace with more generic 'look at path' approach;
 		// this is the configuration that works for my own computer. :P
 		["node", "C:/apps/nodejs/node_modules/npm/bin/npm-cli.js"]
 	];
 	
-	return this.npmCommandPromise = this._getNpmCommand(attempts, 0);
+	return this.npmCommandPromise = this._findWorkingProgram(alternatives, ['-v']);
 }
 
 Builder.prototype.npm = function( args ) {
