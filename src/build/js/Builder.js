@@ -404,7 +404,7 @@ Builder.prototype.processCommandLine = function(argv) {
 	}
 	
 	if( operation == 'list-targets' ) {
-		fetchAllTargets().then( (targets) => {
+		return this.fetchAllTargets().then( (targets) => {
 			for( let n in targets ) console.log(n);
 		});
 	} else if( operation == 'build' ) {
