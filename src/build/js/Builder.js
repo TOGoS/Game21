@@ -419,7 +419,7 @@ Builder.prototype.processCommandLine = function(argv) {
 
 Builder.prototype.processCommandLineAndExit = function(argv) {
 	this.processCommandLine(argv).then( () => {
-		logger.log("Build completed");
+		this.logger.log("Build completed");
 	}, (err) => {
 		console.error("Error!", err.message, err.stack);
 		console.error("Build failed!");
