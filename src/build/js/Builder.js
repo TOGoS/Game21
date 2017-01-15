@@ -4,6 +4,8 @@ module.exports = (function() {
 
 const child_process = require('child_process');
 const fs = require('fs');
+const fsutil = require('./FSUtil');
+const mtimeR = fsutil.mtimeR;
 
 // To support pre-...syntax node
 function append(arr1, arr2) {
@@ -36,136 +38,6 @@ function toSet( arr, into ) {
 	if( into == undefined ) into = {};
 	for( let x in arr ) into[arr[x]] = arr[x];
 	return into;
-}
-
-function stat( file ) {
-	return new Promise( (resolve,reject) => {
-		fs.stat(file, (err,stats) => {
-			if( err ) reject(err);
-			else resolve(stats);
-		})
-	});
-}
-
-function readDir( dir ) {
-	return new Promise( (resolve,reject) => {
-		fs.readdir( dir, (err,files) => {
-			if( err ) return reject(err);
-			return resolve(files);
-		});
-	});
-}
-
-function rmDir( dir ) {
-	return new Promise( (resolve,reject) => {
-		fs.rmdir(dir, (err) => {
-			if( err ) reject(err);
-			else resolve();
-		})
-	});
-}
-
-function unlink( file ) {
-	return new Promise( (resolve,reject) => {
-		fs.unlink(file, (err) => {
-			if( err ) reject(err);
-			else resolve();
-		})
-	});
-}
-
-function rmRf( fileOrDir ) {
-	return stat(fileOrDir).then( (stats) => {
-		if( stats.isDirectory() ) {
-			return readDir(fileOrDir).then( (files) => {
-				let promz = [];
-				for( let i in files ) {
-					promz.push(rmRf( fileOrDir+"/"+files[i] ));
-				}
-				return Promise.all(promz);
-			}).then( () => rmDir(fileOrDir) );
-		} else {
-			return unlink(fileOrDir);
-		}
-	}, (err) => {
-		if( err.code === 'ENOENT' ) return;
-		else return Promise.reject(err);
-	});	
-}
-
-function cp( src, dest ) {
-	return new Promise( (resolve,reject) => {
-		let rd = fs.createReadStream(src);
-		rd.on('error', reject);
-		let wr = fs.createWriteStream(dest);
-		wr.on('error', reject);
-		wr.on('close', () => resolve() );
-		rd.pipe(wr);
-	});
-}
-
-function mkdir( dir ) {
-	return new Promise( (resolve,reject) => {
-		fs.mkdir( dir, (err) => {
-			if( err && err.code !== 'EEXIST' ) {
-				reject(err);
-			} else {
-				resolve();
-			}
-		});
-	});
-}
-
-function cpR( src, dest ) {
-	return stat(src).then( (srcStat) => {
-		if( srcStat.isDirectory() ) {
-			let cpPromise = mkdir(dest);
-			return readDir(src).then( (files) => {
-				for( let f in files ) {
-					cpPromise = cpPromise.then( () => {
-						cpR( src+"/"+files[f], dest+"/"+files[f] );
-					});
-				};
-				return cpPromise;
-			});
-		} else {
-			return cp( src, dest );
-		}
-	});
-}
-
-function cpRReplacing( src, dest ) {
-	return rmRf( dest ).then( () => cpR(src,dest) );
-}
-
-function mtime( fileOrDir ) {
-	return stat(fileOrDir).then( (stats) => {
-		if( stats.isFile() ) {
-			return stats.mtime;
-		} else if( stats.isDirectory() ) {
-			return readDir(fileOrDir).then( (files) => {
-				let mtimePromz = [];
-				for( let f in files ) {
-					let fullPath = fileOrDir+"/"+files[f];
-					mtimePromz.push(mtime(fullPath));
-				}
-				return Promise.all(mtimePromz).then( (mtimes) => {
-					let maxMtime = stats.mtime;
-					for( let m in mtimes ) {
-						if( mtimes[m] != undefined && mtimes[m] > maxMtime ) {
-							maxMtime = mtimes[m];
-						}
-					}
-					return maxMtime;
-				});
-			});
-		} else {
-			return Promise.reject(new Error(fileOrDir+" is neither a regular file or a directory!"));
-		}
-	}, (err) => {
-		if( err.code == 'ENOENT' ) return undefined;
-		return Promise.reject(new Error("Failed to stat "+fileOrDir+": "+JSON.stringify(err)));
-	});
 }
 
 // Object-Oriented Yeahhhh!!!!
@@ -299,7 +171,7 @@ Builder.prototype.getTargetPrereqSet = function( target ) {
 }
 
 Builder.prototype.buildTarget = function( target, targetName, stackTrace ) {
-	let targetMtimePromise = mtime(targetName);
+	let targetMtimePromise = mtimeR(targetName);
 	let prereqNames = target.prereqs || []; // TODO: should use the same logic as
 	if( prereqNames.length == 0 ) {
 		this.logger.log(targetName+" has no prerequisites");
@@ -312,7 +184,7 @@ Builder.prototype.buildTarget = function( target, targetName, stackTrace ) {
 	let prereqAndMtimePromz = [];
 	for( let prereq in prereqSet ) {
 		prereqAndMtimePromz.push(this.build( prereq, prereqStackTrace ).then( () => {
-			return mtime(prereq).then( (mt) => [prereq, mt] );
+			return mtimeR(prereq).then( (mt) => [prereq, mt] );
 		}));
 	}
 	
@@ -430,13 +302,6 @@ Builder.prototype.processCommandLineAndExit = function(argv) {
 return {
 	default: Builder,
 	Builder,
-	// Maybe these should go in a separate 'file' module or something
-	stat,
-	readDir,
-	rmRf,
-	cp,
-	cpR,
-	cpRReplacing,
 };
 
 })();

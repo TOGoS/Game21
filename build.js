@@ -2,8 +2,10 @@
 
 const _builder = require('./src/build/js/Builder');
 const builder = new _builder.Builder();
-const readDir = _builder.readDir;
-const cpRReplacing = _builder.cpRReplacing;
+const _fsutil = require('./src/build/js/FSUtil');
+const readDir = _fsutil.readDir;
+const rmRf = _fsutil.rmRf;
+const cpRReplacing = _fsutil.cpRReplacing;
 
 builder.targets = {
 	"default": {
@@ -13,7 +15,7 @@ builder.targets = {
 		invoke: (ctx) => ctx.builder.doCmd(['rm','-rf','node_modules'])
 	},
 	"clean": {
-		invoke: (ctx) => ctx.builder.doCmd(['rm','-rf','node_modules','target'])
+		invoke: (ctx) => ctx.builder.doCmd(['rm','-rf','node_modules','target','src/main/ts/tshash'])
 	},
 	"node_modules": {
 		prereqs: ["package.json"],
