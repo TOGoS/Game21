@@ -125,15 +125,31 @@ Builder.prototype.npmCommandPromise = undefined;
 Builder.prototype.figureNpmCommand = function() {
 	if( this.npmCommandPromise ) return this.npmCommandPromise;
 	
+	// Most non-Windows systems will look at the path for us,
+	// so 'npm' should be sufficient.
+	if( process.platform != 'win32' ) return this.npmCommandPromise = Promse.ressolve(['npm']); 
+	
+	// Not so on windows!
+	// We'll look for npm-cli.js by iterating over everything in %Path%
+	
 	let alternatives = [
 		['npm'],
-		// TODO: Replace with more generic 'look at path' approach;
-		// this is the configuration that works for my own computer. :P
-		// Maybe use something like https://github.com/paulcbetts/xvfb-maybe/blob/master/src/find-actual-executable.js
-		["node", "C:/apps/nodejs/node_modules/npm/bin/npm-cli.js"]
 	];
 	
-	return this.npmCommandPromise = this._findWorkingProgram(alternatives, ['-v']);
+	let envPath = process.env.Path;
+	let envPaths = (envPath != '' && envPath != undefined) ? envPath.split(';') : [];
+	let leftToCheck = envPaths.length;
+	let findNpmCliJsPromises = leftToCheck == 0 ? Promise.resolve() : new Promise( (resolve,reject) => {
+		for( let p in envPaths ) {
+			let npmCliJsPath = envPaths[p]+'/node_modules/npm/bin/npm-cli.js';
+			fs.stat(npmCliJsPath, (err,stats) => {
+				if( !err ) alternatives.push( ['node', npmCliJsPath] );
+				if( --leftToCheck == 0 ) resolve();
+			});
+		}
+	});
+	
+	return this.npmCommandPromise = findNpmCliJsPromises.then( () => this._findWorkingProgram(alternatives, ['-v']) );
 }
 
 Builder.prototype.npm = function( args ) {
