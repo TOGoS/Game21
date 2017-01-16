@@ -12,10 +12,10 @@ builder.targets = {
 		prereqs: ["js-libs"]
 	},
 	"sortaclean": {
-		invoke: (ctx) => ctx.builder.doCmd(['rm','-rf','node_modules'])
+		invoke: (ctx) => rmRf('node_modules')
 	},
 	"clean": {
-		invoke: (ctx) => ctx.builder.doCmd(['rm','-rf','node_modules','target','src/main/ts/tshash'])
+		invoke: (ctx) => rmRf(['node_modules','target','src/main/ts/tshash'])
 	},
 	"node_modules": {
 		prereqs: ["package.json"],

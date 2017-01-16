@@ -41,6 +41,9 @@ function unlink( file ) {
 }
 
 function rmRf( fileOrDir ) {
+	if( typeof fileOrDir == 'object' ) {
+		return Promise.all(fileOrDir.map(rmRf));
+	}
 	return stat(fileOrDir).then( (stats) => {
 		if( stats.isDirectory() ) {
 			return readDir(fileOrDir).then( (files) => {
