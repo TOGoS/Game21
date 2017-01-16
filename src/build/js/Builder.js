@@ -129,6 +129,7 @@ Builder.prototype.figureNpmCommand = function() {
 		['npm'],
 		// TODO: Replace with more generic 'look at path' approach;
 		// this is the configuration that works for my own computer. :P
+		// Maybe use something like https://github.com/paulcbetts/xvfb-maybe/blob/master/src/find-actual-executable.js
 		["node", "C:/apps/nodejs/node_modules/npm/bin/npm-cli.js"]
 	];
 	
@@ -215,6 +216,11 @@ Builder.prototype.buildTarget = function( target, targetName, stackTrace ) {
 						builder: this,
 						prereqNames,
 						targetName,
+					});
+					prom.then( () => {
+						this.logger.log("Build "+targetName+" complete!");
+					}, (err) => {
+						console.error("Error trace: "+stackTrace.join(' > ')+" > "+targetName);
 					});
 					if( target.isDirectory ) prom = prom.then( () => this.touch(targetName) );
 					return prom;
