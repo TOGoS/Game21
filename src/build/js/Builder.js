@@ -127,7 +127,7 @@ Builder.prototype.figureNpmCommand = function() {
 	
 	// Most non-Windows systems will look at the path for us,
 	// so 'npm' should be sufficient.
-	if( process.platform != 'win32' ) return this.npmCommandPromise = Promse.ressolve(['npm']); 
+	if( process.platform != 'win32' ) return this.npmCommandPromise = Promise.ressolve(['npm']); 
 	
 	// Not so on windows!
 	// We'll look for npm-cli.js by iterating over everything in %Path%
