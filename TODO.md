@@ -28,8 +28,6 @@
 
 ## Misc to-do items
 
-Fix: Not drawing everything in edit mode.
-
 Unify rendering (update or replace WorldCanvasView)
 - Render to canvas immediately
 - Render to canvas, waiting for images to load
