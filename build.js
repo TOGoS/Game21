@@ -6,6 +6,11 @@ const _fsutil = require('./src/build/js/FSUtil');
 const readDir = _fsutil.readDir;
 const rmRf = _fsutil.rmRf;
 
+const amdComponentFiles = [
+	"node_modules/tshash/target/tshash.amd.es5.js",
+	"target/game21libs.amd.es5.js"
+];
+
 builder.targets = {
 	"default": {
 		prereqs: ["js-libs"]
@@ -35,10 +40,16 @@ builder.targets = {
 	"target/game21libs.amd.es5.js": {
 		prereqs: ["src", "node_modules"],
 		invoke: (ctx) => ctx.builder.tsc(["-p","src/main/ts/game21libs.amd.es5.tsconfig.json","--outFile",ctx.targetName]),
-		isDirectory: true,
+		isDirectory: false,
+	},
+	"target/alllibs.amd.es5.js": {
+		prereqs: amdComponentFiles,
+		// Stupid TypeScript emits amd files without a newline at the end,
+		// so we can't just use cat; sed -e '$s/$/\\n/' adds one.
+		invoke: (ctx) => ctx.builder.doCmd("sed -e '$s/$/\\n/' "+ctx.prereqNames.join(' ')+" > "+ctx.targetName),
 	},
 	"demos/RandomMazes.html": {
-		prereqs: ["demos/Maze1.php","target/game21libs.amd.es5.js","node_modules/tshash/target/tshash.amd.es5.js"],
+		prereqs: ["demos/Maze1.php","target/alllibs.amd.es5.js"],
 		invoke: (ctx) => ctx.builder.doCmd("php demos/Maze1.php tabSwitchesMode=false --inline-resources > "+ctx.targetName)
 	},
 	"run-unit-tests": {

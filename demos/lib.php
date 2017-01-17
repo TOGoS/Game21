@@ -115,8 +115,7 @@ function require_game21_js_libs( $inline=false, $requireModuleNames=null ) {
 	global $wrp;
 	$rp = $inline ? $rrp : $wrp;
 	$libsFiles = [
-		$rp.'/target/game21libs.amd.es5.js',
-		$rp.'/node_modules/tshash/target/tshash.amd.es5.js'
+		$rp.'/target/alllibs.amd.es5.js'
 	];
 	if( $inline and $requireModuleNames !== null ) {
 		foreach( $libsFiles as $libsFile ) {
