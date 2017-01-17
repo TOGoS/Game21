@@ -1,4 +1,4 @@
-import { sha1Urn, utf8Encode, utf8Decode } from '../tshash/index';
+import { sha1Urn, utf8Encode, utf8Decode } from 'tshash';
 import Datastore from './Datastore';
 import HTTPHashDatastore from './HTTPHashDatastore';
 import MemoryDatastore from './MemoryDatastore';
@@ -28,7 +28,7 @@ import {
 import Quaternion from './Quaternion';
 import TransformationMatrix3D from './TransformationMatrix3D';
 import SceneShader, { ShadeRaster, VISIBILITY_VOID, VISIBILITY_NONE, VISIBILITY_MIN } from './SceneShader';
-import { uuidUrn, newType4Uuid } from '../tshash/uuids';
+import { uuidUrn, newType4Uuid } from 'tshash/uuids';
 import {
 	makeTileTreeRef, makeTileEntityPaletteRef, eachSubEntity, eachSubEntityIntersectingBb, connectRooms,
 	getEntitySubsystem, setEntitySubsystem, getEntitySubsystems

@@ -1,4 +1,4 @@
-import { hexEncode } from '../../tshash/utils';
+import { hexEncode } from 'tshash/utils';
 import { assertEqualsPromise, registerTestResult, assertEquals } from '../testing';
 import { parseIp6Address } from './IP6Address'
 import {

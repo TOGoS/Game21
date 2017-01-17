@@ -1933,7 +1933,7 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 	return Promise.resolve();
 }
 
-import { sha1Urn } from '../tshash/index';
+import { sha1Urn } from 'tshash';
 import Datastore from './Datastore';
 import HTTPHashDatastore from './HTTPHashDatastore';
 

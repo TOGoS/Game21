@@ -1,5 +1,5 @@
 import KeyedList from '../KeyedList';
-import { hexEncode } from '../../tshash/utils';
+import { hexEncode } from 'tshash/utils';
 import IPAddress, { clearNonPrefixBits } from './IPAddress';
 
 interface Route<Iface> {

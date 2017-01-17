@@ -9,7 +9,8 @@
 		"noImplicitThis": true,
 		"strictNullChecks": true,
 		"rootDir": ".",
-		"outFile": "../../../target/game21libs.amd.es5.js"
+		"outFile": "../../../target/game21libs.amd.es5.js",
+		"moduleResolution": "node"
 	},
 	"exclude": [
 		"node_modules"

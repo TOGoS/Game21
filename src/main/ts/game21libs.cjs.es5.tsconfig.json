@@ -9,7 +9,8 @@
 		"noImplicitThis": true,
 		"strictNullChecks": true,
 		"rootDir": ".",
-		"outDir": "../../../target/cjs"
+		"outDir": "../../../target/cjs",
+		"moduleResolution": "node"
 	},
 	"exclude": [
 		"node_modules"

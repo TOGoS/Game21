@@ -1,7 +1,7 @@
 import { deepFreeze } from './DeepFreezer';
 import Datastore from './Datastore';
 import ErrorInfo from './ErrorInfo';
-import { utf8Encode, utf8Decode } from '../tshash/utils';
+import { utf8Encode, utf8Decode } from 'tshash/utils';
 import PrettierJSONEncoder from './PrettierJSONEncoder';
 
 function stringify(v:any):string {

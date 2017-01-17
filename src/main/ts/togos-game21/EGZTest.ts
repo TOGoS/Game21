@@ -1,4 +1,4 @@
-import { utf8Encode, sha1Urn } from '../tshash/index';
+import { utf8Encode, sha1Urn } from 'tshash';
 import { assertEquals } from './testing';
 
 const data = '{\n'+

@@ -20,7 +20,7 @@ import GameDataManager from '../GameDataManager';
 import {
 	newType4Uuid,
 	uuidUrn,
-} from '../../tshash/uuids';
+} from 'tshash/uuids';
 
 import AABB from '../AABB';
 import { makeAabb } from '../aabbs';
@@ -865,7 +865,7 @@ export default class GraphWorldifier {
 	}
 }
 
-import { sha1Urn } from '../../tshash/index';
+import { sha1Urn } from 'tshash';
 import Datastore from '../Datastore';
 import HTTPHashDatastore from '../HTTPHashDatastore';
 import { SaveGame } from '../Maze1';

@@ -13,8 +13,8 @@ import EntitySystemBusMessage from './EntitySystemBusMessage';
 import EntitySubsystem, { ESSCR_CONDUCTOR_NETWORK, ConductorNetwork } from './EntitySubsystem';
 import GameDataManager from './GameDataManager';
 import { deepFreeze } from './DeepFreezer';
-import { hash, sha1Urn, base32Encode } from '../tshash/index';
-import SHA1 from '../tshash/SHA1';
+import { hash, sha1Urn, base32Encode } from 'tshash';
+import SHA1 from 'tshash/SHA1';
 import { coalesce2 } from './util';
 
 const posBuffer0:Vector3D = makeVector();

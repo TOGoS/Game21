@@ -2,7 +2,7 @@ import KeyedList from './KeyedList';
 import ErrorInfo from './ErrorInfo';
 import Datastore from './Datastore';
 
-import { utf8Encode, utf8Decode, hexEncode, hexDecode } from '../tshash/utils';
+import { utf8Encode, utf8Decode, hexEncode, hexDecode } from 'tshash/utils';
 
 export default class BrowserStorageDatastore implements Datastore<Uint8Array> {
 	public constructor(protected _identify:(v:Uint8Array)=>string, protected browserStorage:Storage) { }

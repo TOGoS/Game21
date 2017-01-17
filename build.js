@@ -5,7 +5,6 @@ const builder = new _builder.Builder();
 const _fsutil = require('./src/build/js/FSUtil');
 const readDir = _fsutil.readDir;
 const rmRf = _fsutil.rmRf;
-const cpRReplacing = _fsutil.cpRReplacing;
 
 builder.targets = {
 	"default": {
@@ -15,20 +14,17 @@ builder.targets = {
 		invoke: (ctx) => rmRf('node_modules')
 	},
 	"clean": {
-		invoke: (ctx) => rmRf(['node_modules','target','src/main/ts/tshash'])
+		invoke: (ctx) => rmRf(['node_modules','target'])
 	},
 	"node_modules": {
 		prereqs: ["package.json"],
-		invoke: (ctx) => ctx.builder.npm(["install"]),
-		isDirectory: true,
+		invoke: (ctx) => ctx.builder.npm(["install"])
 	},
-	"src/main/ts/tshash": {
+	"node_modules/tshash/target/tshash.amd.es5.js": {
 		prereqs: ["node_modules"],
-		invoke: (ctx) => cpRReplacing("node_modules/tshash/src/main/ts/tshash", ctx.targetName),
-		isDirectory: true,
+		invoke: (ctx) => ctx.builder.doCmd("make -C node_modules/tshash target/tshash.amd.es5.js")
 	},
 	"src": {
-		prereqs: ["src/main/ts/tshash"],
 		isDirectory: true,
 	},
 	"target/cjs": {
@@ -42,7 +38,7 @@ builder.targets = {
 		isDirectory: true,
 	},
 	"demos/RandomMazes.html": {
-		prereqs: ["demos/Maze1.php","target/game21libs.amd.es5.js"],
+		prereqs: ["demos/Maze1.php","target/game21libs.amd.es5.js","node_modules/tshash/target/tshash.amd.es5.js"],
 		invoke: (ctx) => ctx.builder.doCmd("php demos/Maze1.php tabSwitchesMode=false --inline-resources > "+ctx.targetName)
 	},
 	"run-unit-tests": {

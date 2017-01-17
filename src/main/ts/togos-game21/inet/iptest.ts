@@ -1,10 +1,10 @@
-import { hexEncode } from '../../tshash/utils';
+import { hexEncode } from 'tshash/utils';
 import { assertEqualsPromise, registerTestResult } from '../testing';
 import { parseIp6Address } from './IP6Address'
 import {
 	IP6Message, IPMessage, assembleIpPacket, disassembleIpPacket
 } from './ip';
-import { utf8Encode } from '../../tshash/utils';
+import { utf8Encode } from 'tshash/utils';
 
 function debug( obj:any ):any {
 	if( typeof(obj) === 'object' ) {

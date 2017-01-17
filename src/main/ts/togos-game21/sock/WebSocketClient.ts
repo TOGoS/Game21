@@ -24,7 +24,7 @@ import {
 	LinkID
 } from '../inet/Router';
 import { compareByteArrays } from '../util';
-import { hexDecode } from '../../tshash/utils';
+import { hexDecode } from 'tshash/utils';
 import Logger from '../Logger';
 
 declare class WebSocket implements WebSocketLike {

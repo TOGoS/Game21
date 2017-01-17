@@ -1,4 +1,4 @@
-import { sha1Urn } from '../tshash/index';
+import { sha1Urn } from 'tshash';
 import Datastore from './Datastore';
 import MemoryDatastore from './MemoryDatastore';
 import HTTPHashDatastore from './HTTPHashDatastore';

@@ -77,7 +77,7 @@ import newUuidRef from './newUuidRef';
 import { pickOne } from './graphmaze/picking';
 import { thaw } from './DeepFreezer';
 import { resolvedPromise, RESOLVED_VOID_PROMISE, voidify, isResolved } from './promises';
-import { utf8Encode } from '../tshash/utils';
+import { utf8Encode } from 'tshash/utils';
 
 const entityPositionBuffer:Vector3D = makeVector(0,0,0);
 const pointAabb = makeAabb(-1/8, -1/8, -1/8, +1/8, +1/8, +1/8);

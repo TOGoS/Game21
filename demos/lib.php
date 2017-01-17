@@ -114,23 +114,30 @@ function require_game21_js_libs( $inline=false, $requireModuleNames=null ) {
 	global $rrp;
 	global $wrp;
 	$rp = $inline ? $rrp : $wrp;
-	$libsFile = $rp.'/target/game21libs.amd.es5.js';
+	$libsFiles = [
+		$rp.'/target/game21libs.amd.es5.js',
+		$rp.'/node_modules/tshash/target/tshash.amd.es5.js'
+	];
 	if( $inline and $requireModuleNames !== null ) {
-		if( !file_exists($libsFile) ) throw new Exception("'$libsFile' no existy!");
+		foreach( $libsFiles as $libsFile ) {
+			if( !file_exists($libsFile) ) throw new Exception("'$libsFile' no existy!");
+		}
 		$tempDir = $rrp.'/temp';
 		if( !is_dir($tempDir) ) if( !mkdir($tempDir, 0777, true) ) {
 			throw new Exception("Failed to mkdir('$tempDir')");
 		}
 		$squishFile = $tempDir.'/'.hash('sha1', implode(',', $requireModuleNames).'-'.filemtime($libsFile));
-		$squishCmd = "$rp/bin/pruneamd -m ".escapeshellarg(implode(',', $requireModuleNames))." < $libsFile > $squishFile";
+		$squishCmd = "cat ".implode(' ',$libsFiles).
+					  " | $rp/bin/pruneamd -m ".escapeshellarg(implode(',', $requireModuleNames))." > $squishFile";
 		//fwrite(STDERR, "$ $squishCmd\n");
 		system($squishCmd, $pruneStatus);
 		if( $pruneStatus !== 0 ) {
 			throw new Exception("Failed to run pruner!");
 		}
-		$libsFile = $squishFile;
+		$libsFiles = [$squishFile];
 	}
-	require_js([$rp.'/fakerequire.js', $libsFile], $inline);
+	$requireFiles = array_merge([$rp.'/fakerequire.js'], $libsFiles);
+	require_js($requireFiles, $inline);
 }
 
 function parse_bool($b, $emptyValue=false) {

@@ -1,11 +1,11 @@
 import Datastore from './Datastore';
 import ErrorInfo from './ErrorInfo';
 import {registerTestResult, TestResult} from './testing';
-import {utf8Decode} from '../tshash/utils';
+import {utf8Decode} from 'tshash/utils';
 
 // Test!
 
-import { utf8Encode } from '../tshash/index';
+import { utf8Encode } from 'tshash';
 
 const expectedUrnRegex = /^urn:(sha1|bitprint):SQ5HALIG6NCZTLXB7DNI56PXFFQDDVUZ/;
 

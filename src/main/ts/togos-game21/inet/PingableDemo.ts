@@ -2,7 +2,7 @@
 
 /// <reference path="../../node.d.ts"/>
 
-import { hexEncode } from '../../tshash/utils';
+import { hexEncode } from 'tshash/utils';
 import {
 	IPMessage, IP6Message, disassembleIpPacket, assembleIpPacket
 } from './ip';

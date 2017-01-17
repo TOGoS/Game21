@@ -1,6 +1,6 @@
 import RoutingTable from './RoutingTable';
 import { registerTestResult, assertEqualsPromise } from '../testing';
-import { hexDecode } from '../../tshash/utils';
+import { hexDecode } from 'tshash/utils';
 
 const rt = new RoutingTable<string>();
 

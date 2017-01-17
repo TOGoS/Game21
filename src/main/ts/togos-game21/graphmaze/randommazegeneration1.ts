@@ -429,7 +429,7 @@ import {
 import {
 	newType4Uuid,
 	uuidUrn,
-} from '../../tshash/uuids';
+} from 'tshash/uuids';
 import * as dat from '../maze1demodata';
 
 function fill(tileIndexes:number[], x0:number, y0:number, x1:number, y1:number, tileIndex:number):void {
@@ -567,7 +567,7 @@ function mazeToRooms(mg:MazeGraph, gdm:GameDataManager, tileEntityPaletteRef:str
 	return Promise.resolve(mg);
 }
 
-import { sha1Urn } from '../../tshash/index';
+import { sha1Urn } from 'tshash';
 import Datastore from '../Datastore';
 import HTTPHashDatastore from '../HTTPHashDatastore';
 import { SaveGame } from '../Maze1';

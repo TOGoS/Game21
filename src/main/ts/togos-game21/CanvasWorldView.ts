@@ -20,7 +20,7 @@ import ObjectImageManager from './ObjectImageManager';
 import {DEFAULT_LIGHTS} from './lights';
 import {DEFAULT_MATERIAL_MAP, IDENTITY_MATERIAL_REMAP, makeRemap, remap} from './surfacematerials';
 import Rectangle from './Rectangle';
-import { newType4Uuid, uuidUrn } from '../tshash/uuids';
+import { newType4Uuid, uuidUrn } from 'tshash/uuids';
 import { Room, Entity, EntityState, EntityClass, EMPTY_STATE } from './world';
 import GameDataManager from './GameDataManager';
 import { eachSubEntity } from './worldutil';

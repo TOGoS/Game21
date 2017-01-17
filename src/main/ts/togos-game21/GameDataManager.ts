@@ -5,7 +5,7 @@ import Datastore from './Datastore';
 import MemoryDatastore from './MemoryDatastore';
 import KeyedList from './KeyedList';
 import { DistributedBucketMapManager } from './DistributedBucketMap';
-import { utf8Encode } from '../tshash/utils';
+import { utf8Encode } from 'tshash/utils';
 import { identifyObject, fetchObject, storeObject, fastStoreObject } from './JSONObjectDatastore';
 import { resolvedPromise, resolveWrap, shortcutThen, value as promiseValue } from './promises';
 import { Room, RoomEntity, Entity, EntityClass, StructureType, TileTree, TileEntityPalette, TileEntity } from './world';

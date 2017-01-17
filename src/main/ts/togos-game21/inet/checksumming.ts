@@ -1,4 +1,4 @@
-import { InternetChecksumming } from '../../tshash/InternetChecksum';
+import { InternetChecksumming } from 'tshash/InternetChecksum';
 
 type IP6Address = Uint8Array;
 type IPPayload = Uint8Array;

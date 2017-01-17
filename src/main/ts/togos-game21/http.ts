@@ -4,7 +4,7 @@
 import ErrorInfo from './ErrorInfo';
 import KeyedList from './KeyedList';
 import { IncomingMessage } from 'http';
-import { utf8Encode } from '../tshash/utils';
+import { utf8Encode } from 'tshash/utils';
 
 /**
  * HTTP abstraction layer.

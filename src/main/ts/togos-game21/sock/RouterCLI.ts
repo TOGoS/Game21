@@ -29,7 +29,7 @@ import { WebSocket, Server as WebSocketServer } from 'ws';
 import { parse as parseUrl } from 'url';
 import { ReadLine } from 'readline';
 
-import { utf8Encode } from '../../tshash/utils';
+import { utf8Encode } from 'tshash/utils';
 import Router, { LinkID, Link, PacketHandler } from '../inet/Router';
 import {
 	parseIp6Address,

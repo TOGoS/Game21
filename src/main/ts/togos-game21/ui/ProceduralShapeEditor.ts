@@ -19,7 +19,7 @@ import { DEFAULT_MATERIAL_MAP } from '../surfacematerials';
 import { DEFAULT_LIGHTS } from '../lights';
 import { Program } from '../forth/rs1'
 import { fixScriptText, ForthProceduralShapeCompiler } from '../ForthProceduralShape';
-import { utf8Encode, utf8Decode } from '../../tshash/index';
+import { utf8Encode, utf8Decode } from 'tshash';
 import { getQueryStringValues } from './windowutils';
 import Logger from '../Logger';
 import MultiLogger from '../MultiLogger';

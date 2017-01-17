@@ -4,7 +4,7 @@ import KeyedList from './KeyedList';
 import ErrorInfo from './ErrorInfo';
 import Datastore from './Datastore';
 
-import { sha1Urn } from '../tshash/index';
+import { sha1Urn } from 'tshash';
 
 export default class MemoryDatastore<T> implements Datastore<T> {
 	protected _values:KeyedList<T> = {};

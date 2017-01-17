@@ -1,6 +1,6 @@
 import ErrorInfo from './ErrorInfo';
 import Datastore from './Datastore';
-import { sha1Urn } from '../tshash/index';
+import { sha1Urn } from 'tshash';
 import http from './http';
 
 export default class HTTPHashDatastore implements Datastore<Uint8Array> {

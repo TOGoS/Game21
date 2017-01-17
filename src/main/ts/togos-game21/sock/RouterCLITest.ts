@@ -23,7 +23,7 @@ import {
 	assembleIcmp6Packet,
 	disassembleIcmp6Packet
 } from '../inet/icmp6';
-import { hexEncode, hexDecode } from '../../tshash/utils';
+import { hexEncode, hexDecode } from 'tshash/utils';
 import { registerTestResult } from '../testing';
 import { compareByteArrays } from '../util';
 

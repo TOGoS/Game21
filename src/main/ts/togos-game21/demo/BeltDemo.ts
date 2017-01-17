@@ -1,7 +1,7 @@
 import KeyedList, {keyedListIsEmpty} from '../KeyedList';
 import LightColor from '../LightColor';
 import Vector3D from '../Vector3D';
-import { uuidUrn, newType4Uuid } from '../../tshash/uuids';
+import { uuidUrn, newType4Uuid } from 'tshash/uuids';
 
 type BeltSegmentID = string;
 
