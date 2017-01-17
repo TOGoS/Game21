@@ -51,13 +51,17 @@ function flushSect() {
 const MODOPEN_RE = /^define\(("[^"]+"), (\[[^\]]+\]), function (.*) {$/;
 
 rl.on('line', (line) => {
+   if( /^\/\/# sourceMappingURL=.*/.exec(line) ) return; // They won't make sense after we're done!
    if( state == "module" ) {
-      if( /^\/\/# sourceMappingURL=.*/.exec(line) ) return; // They won't make sense after we're done!
       csect.lines.push(line);
-      if( line == '});' ) flushSect();
+      if( line == '});' ) {
+          flushSect();
+          state = 'global';
+      }
    } else {
       let modMatch = MODOPEN_RE.exec(line);
       if( modMatch ) {
+	 state = 'module';
 	 let modName = JSON.parse(modMatch[1]);
 	 let dependencies = JSON.parse(modMatch[2].replace(/'/g,'"'));
 	 flushSect();
@@ -95,7 +99,7 @@ rl.on('close', () => {
       for( let s in sections ) {
 	 let sect = sections[s];
 	 if( sect.type == 'global' ) {
-	    emitSection(sect);
+            emitSection(sect);
 	 } else if( sect.type == "module" ) {
 	    if( usedModuleNames[sect.moduleName] ) emitSection(sect);
 	 }
