@@ -29,7 +29,6 @@
 ## Misc to-do items
 
 Building:
-- Have .tsconfig.json files inherit from a common one
 - Automatically remove failed build targets
 
 Unify rendering (update or replace WorldCanvasView)
@@ -245,6 +244,7 @@ Boring code stuff:
 * strictNullChecks: true
 Build system:
 * Build a single alllibs.amd.es5.js so lib.php doesn't have to know them all
+* Have .tsconfig.json files inherit from a common one
 Maze1:
 * Decentish quantized physics (overlaps not allowed)
 * Platform physics (good enough for now)

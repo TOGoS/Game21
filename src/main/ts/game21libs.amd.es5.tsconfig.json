@@ -1,18 +1,9 @@
 {
+	"extends": "./game21libs.tsconfig.json",
 	"compilerOptions": {
 		"target": "es5",
 		"module": "amd",
 		"sourceMap": true,
-		"noFallthroughCasesInSwitch": true,
-		"noImplicitAny": true,
-		"noImplicitReturns": true,
-		"noImplicitThis": true,
-		"strictNullChecks": true,
-		"rootDir": ".",
-		"outFile": "../../../target/game21libs.amd.es5.js",
-		"moduleResolution": "node"
-	},
-	"exclude": [
-		"node_modules"
-	]
+		"outFile": "../../../target/game21libs.amd.es5.js"
+	}
 }

@@ -1,0 +1,14 @@
+{
+	"compilerOptions": {
+		"noFallthroughCasesInSwitch": true,
+		"noImplicitAny": true,
+		"noImplicitReturns": true,
+		"noImplicitThis": true,
+		"strictNullChecks": true,
+		"rootDir": ".",
+		"moduleResolution": "node"
+	},
+	"exclude": [
+		"node_modules"
+	]
+}
