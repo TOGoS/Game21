@@ -311,13 +311,13 @@ Builder.prototype.processCommandLine = function(argv) {
 	}
 }
 
-Builder.prototype.processCommandLineAndExit = function(argv) {
+Builder.prototype.processCommandLineAndSetExitCode = function(argv) {
 	this.processCommandLine(argv).then( () => {
 		this.logger.log("Build completed");
 	}, (err) => {
 		console.error("Error!", err.message, err.stack);
 		console.error("Build failed!");
-		process.exit(1);
+		process.exitCode = 1;
 	});
 };
 

@@ -95,4 +95,4 @@ builder.fetchGeneratedTargets = function() {
 // If build.js has changed, assume everything else is out of date!
 builder.globalPrereqs = ['build.js', 'src/build/js/Builder.js'];
 
-builder.processCommandLineAndExit(process.argv.slice(2));
+builder.processCommandLineAndSetExitCode(process.argv.slice(2));
