@@ -23,7 +23,8 @@ builder.targets = {
 	},
 	"node_modules": {
 		prereqs: ["package.json"],
-		invoke: (ctx) => ctx.builder.npm(["install"])
+		invoke: (ctx) => ctx.builder.npm(["install"]),
+		isDirectory: true,
 	},
 	"node_modules/tshash/target/tshash.amd.es5.js": {
 		prereqs: ["node_modules"],

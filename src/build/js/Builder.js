@@ -6,6 +6,7 @@ const child_process = require('child_process');
 const fs = require('fs');
 const fsutil = require('./FSUtil');
 const mtimeR = fsutil.mtimeR;
+const rmRf = fsutil.rmRf;
 
 // To support pre-...syntax node
 function append(arr1, arr2) {
@@ -218,10 +219,10 @@ Builder.prototype.buildTarget = function( target, targetName, stackTrace ) {
 					let prereqName = prereqAndMtime[0];
 					let prereqMtime = prereqAndMtime[1];
 					if( prereqMtime == undefined || targetMtime == undefined || prereqMtime > targetMtime ) {
-						this.logger.log(prereqName+" is newer than "+targetName+"; need to rebuild ("+prereqMtime+" > "+targetMtime+")");
+						this.logger.log("OUT-OF-DATE: "+prereqName+" is newer than "+targetName+"; need to rebuild ("+prereqMtime+" > "+targetMtime+")");
 						needRebuild = true;
 					} else {
-						this.logger.log(prereqName+" not newer than "+targetName+" ("+prereqName+" !> "+targetMtime+")");
+						this.logger.log(prereqName+" not newer than "+targetName+" ("+prereqMtime+" !> "+targetMtime+")");
 					}
 				}
 			}
@@ -232,13 +233,18 @@ Builder.prototype.buildTarget = function( target, targetName, stackTrace ) {
 						builder: this,
 						prereqNames,
 						targetName,
-					});
-					prom.then( () => {
+					}).then( () => {
 						this.logger.log("Build "+targetName+" complete!");
+						if( target.isDirectory ) {
+							return this.touch(targetName);
+						}
 					}, (err) => {
 						console.error("Error trace: "+stackTrace.join(' > ')+" > "+targetName);
+						if( !target.keepOnFailure ) {
+							console.error("Removing "+targetName);
+							return rmRf(targetName);
+						}
 					});
-					if( target.isDirectory ) prom = prom.then( () => this.touch(targetName) );
 					return prom;
 				} else {
 					this.logger.log(targetName+" has no build rule; assuming up-to-date");
