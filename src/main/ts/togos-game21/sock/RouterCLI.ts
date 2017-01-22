@@ -86,7 +86,10 @@ class WebSocketLink implements Link {
 
 	public send( packet:Uint8Array ) {
 		try {
-			this.conn.send( packet );
+			if( packet.byteOffset != 0 || packet.byteLength != packet.buffer.byteLength ) {
+				throw new Error("Arr; packet's array does not match 1-1 it's backing buffer")
+			}
+			this.conn.send( packet.buffer );
 		} catch( e ) {
 			this._logger.log("Failed to send packet");
 			// TODO: refactor so that links can disconnect themselves.
