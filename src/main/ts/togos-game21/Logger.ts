@@ -38,4 +38,11 @@ export class LevelFilteringLogger implements Logger {
 	}
 }
 
+export const NULL_LOGGER:Logger = {
+	error(message?: any, ...optionalParams: any[]): void { },
+	warn(message?: any, ...optionalParams: any[]): void { },
+	log(message?: any, ...optionalParams: any[]): void { },
+	debug(message?: string, ...optionalParams: any[]): void { },
+}
+
 export default Logger;

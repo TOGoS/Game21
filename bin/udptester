@@ -1,0 +1,53 @@
+#!/usr/bin/env node
+"use strict";
+
+// Sends and receives UDP packets
+// containing "Hello"+some number
+
+let dgram = require('dgram')
+
+let send = true;
+let receive = true;
+let localPort = 1235;
+let localAddr = "";
+let sendToAddr = "localhost";
+let sendToPort = 1234;
+let messagePrefix = "Hello";
+
+for( let i=2; i<process.argv.length; ++i ) {
+	let m;
+	const arg = process.argv[i];
+	if( (m = /^--bind=(?:(.*):)?(\d+)$/.exec(arg)) ) {
+		localAddr = m[1] || "";
+		localPort = parseInt(m[2]);
+	} else if( (m = /^--remote=(.*):(\d+)$/.exec(arg)) ) {
+		sendToAddr = m[1] || "";
+		sendToPort = parseInt(m[2]);
+	} else if( (m = /^--message-prefix=(.*)$/.exec(arg)) ) {
+		messagePrefix = m[1];
+	} else if( arg == '-?' || arg == '-h' || arg == '--help' ) {
+		console.log("Usage: "+process.argv[1]+" [--bind=[<host>:]<port>] [--remote=<host>:<port>]");
+		return;
+	} else {
+		console.error("Unrecognized argument: "+arg);
+		console.error("Try "+process.argv[1]+" --help");
+		process.exitCode = 1;
+		return;
+	}
+}
+
+
+let sock = dgram.createSocket("udp4", (packet, rInfo) => {
+	console.log(packet+" < "+rInfo.address+":"+rInfo.port);
+});
+sock.bind(localPort, localAddr);
+
+let messageNumber = 0;
+
+setInterval( () => {
+	let msg = messagePrefix+messageNumber;
+	let buffer = new Buffer(msg);
+	console.log(msg+" > "+sendToAddr+":"+sendToPort);
+	sock.send( buffer, 0, buffer.byteLength, sendToPort, sendToAddr );
+	++messageNumber;
+}, 1000);

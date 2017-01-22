@@ -10,18 +10,20 @@ import EntitySystemBusMessage from '../EntitySystemBusMessage';
  * Logical simulation layers:
  *   Runner (CLI, browser-based)
  *   Shell (this thing; manages connections, timing; separates 'pure' simulation from rest of the program)
- *   Simulator (defines behavior, response to events)
+ *   Simulator (implements behavior, response to events in shell-agnostic way)
  *   State (actual data)
  */
-class NetworkDeviceShell<Device,Message> {
+export default class NetworkDeviceShell<Device,Message> {
 	protected links:KeyedList<MessageLink<Message>> = {};
 	protected nextLinkId = 1;
+	protected device : Device;
 	protected busMessageQueue:EntitySystemBusMessage[] = [];
 	
 	public constructor(
 		protected simulator : NetworkDeviceSimulator<Device,Message>,
-		protected device : Device
+		device? : Device
 	) {
+		this.device = device || simulator.createDevice({});
 	}
 	
 	protected processQueuedMessages() {
@@ -43,8 +45,12 @@ class NetworkDeviceShell<Device,Message> {
 		this.device = this.simulator.update(this.device, time, this.busMessageQueue);
 	}
 	
-	addLink( link:MessageLink<Message>, linkPath?:string ) {
-		if( !linkPath ) linkPath = "/link"+(this.nextLinkId++);
+	public start() {
+		// Need to call update in a loop or something
+	}
+	
+	addLink( link:MessageLink<Message>, _linkPath?:string ) {
+		const linkPath = _linkPath || "/link"+(this.nextLinkId++);
 		this.device = this.simulator.linkAdded(this.device, linkPath, this.busMessageQueue);
 		link.setUp( (message) => this.receivePacket(linkPath, message) );
 		this.links[linkPath] = link;
