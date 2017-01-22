@@ -158,6 +158,11 @@ declare var Buffer: {
      * The same as buf1.compare(buf2).
      */
     compare(buf1: Buffer, buf2: Buffer): number;
+    /**
+     * Available in node >v5.10.0
+     * Create a buffer that's a view of the given ArrayBuffer.
+     */
+    from?(arrayBuffer:ArrayBuffer, offset?:number, length?:number):Buffer;
 };
 
 /************************************************

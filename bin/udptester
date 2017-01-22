@@ -38,16 +38,22 @@ for( let i=2; i<process.argv.length; ++i ) {
 
 
 let sock = dgram.createSocket("udp4", (packet, rInfo) => {
-	console.log(packet+" < "+rInfo.address+":"+rInfo.port);
+	try {
+		console.log(packet+" < "+rInfo.address+":"+rInfo.port);
+	} catch( err ) {
+		console.warn("Error dumping incoming packet", err);
+	}
 });
 sock.bind(localPort, localAddr);
 
 let messageNumber = 0;
 
+const util = require('../target/cjs/togos-game21/util');
+
 setInterval( () => {
 	let msg = messagePrefix+messageNumber;
 	let buffer = new Buffer(msg);
-	console.log(msg+" > "+sendToAddr+":"+sendToPort);
+	console.log(buffer+" > "+sendToAddr+":"+sendToPort);
 	sock.send( buffer, 0, buffer.byteLength, sendToPort, sendToAddr );
 	++messageNumber;
 }, 1000);

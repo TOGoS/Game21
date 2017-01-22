@@ -18,7 +18,7 @@ import EntitySystemBusMessage from '../EntitySystemBusMessage';
  */
 interface NetworkDeviceSimulator<Device,Packet> {
 	createDevice(options:{[k:string]: any}):Device;
-	linkAdded(device:Device, linkPath:string, busMessageQueue:EntitySystemBusMessage[]):Device;
+	linkAdded(device:Device, linkPath:string, linkOptions:{[k:string]:any}, busMessageQueue:EntitySystemBusMessage[]):Device;
 	linkRemoved(device:Device, linkPath:string, busMessageQueue:EntitySystemBusMessage[]):Device;
 	packetReceived(device:Device, linkPath:string, packet:Packet, busMessageQueue:EntitySystemBusMessage[]):Device;
 	update(device:Device, time:number, busMessageQueue:EntitySystemBusMessage[]):Device;

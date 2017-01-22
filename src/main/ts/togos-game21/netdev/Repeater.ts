@@ -7,14 +7,14 @@ interface Repeater {
 }
 
 type Device = Repeater;
-type Packet = Uint8Array;
 
-export class RepeaterSimulator implements NetworkDeviceSimulator<Repeater,Uint8Array> {
+export class RepeaterSimulator<Packet> implements NetworkDeviceSimulator<Repeater,Packet> {
 	createDevice():Device {
 		return { linkPaths: [] };
 	}
 	linkAdded(device:Device, linkPath:string, busMessageQueue:EntitySystemBusMessage[]):Device {
 		device = thaw(device);
+		//console.log("Repeater: new link! "+linkPath);
 		device.linkPaths = device.linkPaths.concat(linkPath);
 		return device;
 	}
@@ -24,9 +24,13 @@ export class RepeaterSimulator implements NetworkDeviceSimulator<Repeater,Uint8A
 		return device;
 	}
 	packetReceived(device:Device, linkPath:string, packet:Packet, busMessageQueue:EntitySystemBusMessage[]):Device {
+		//console.log("Repeater: packet from "+linkPath);
 		for( let i in device.linkPaths ) {
-			const p = device.linkPaths[i];
-			if( p != linkPath ) busMessageQueue.push( [p, packet] );
+			const destLinkPath = device.linkPaths[i];
+			if( destLinkPath !== linkPath ) {
+				//console.log("Repeater: forwarding packet to "+destLinkPath);
+				busMessageQueue.push( [destLinkPath, packet] );
+			}
 		}
 		return device;
 	}

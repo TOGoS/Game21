@@ -1,7 +1,8 @@
 /// <reference path="../../Promise.d.ts"/>
 import KeyedList from '../KeyedList';
 import MessageLink from './MessageLink';
-import Repeater, { RepeaterSimulator } from '../netdev/Repeater';
+import { RepeaterSimulator } from '../netdev/Repeater';
+import { JunkSpammerSimulator } from '../netdev/JunkSpammer';
 import NetworkDeviceShell from '../netdev/NetworkDeviceShell';
 import Logger, { NULL_LOGGER } from '../Logger';
 
@@ -12,10 +13,14 @@ interface MessageCodec<A,B> {
 	decode( b:B ):Thenable<A>;
 }
 
-const NOOP_CODEC = {
-	encode: <T>(x:T):T => x,
-	decode: <T>(x:T):T => x,
+function makeNoopCodec<T>():MessageCodec<T,T> {
+	return {
+		encode: <T>(x:T):Thenable<T> => Promise.resolve(x),
+		decode: <T>(x:T):Thenable<T> => Promise.resolve(x),
+	}
 }
+
+const NOOP_CODEC = makeNoopCodec<any>();
 
 interface LinkPair<MessageA,MessageB> {
 	linkA: MessageLink<MessageA>;
@@ -94,6 +99,7 @@ import {
 	Socket as DgramSocket,
 	RemoteInfo
 } from 'dgram';
+import { toNodeBuffer } from '../util';
 
 class UDPLinkServer implements LinkGenerator<Uint8Array> {
 	protected linkFactory? : () => MessageLink<Uint8Array>;
@@ -113,7 +119,7 @@ class UDPLinkServer implements LinkGenerator<Uint8Array> {
 		});
 	}
 	
-	stop() {
+	public stop() {
 		this.sock.close();
 	}
 	
@@ -133,8 +139,11 @@ class UDPLinkServer implements LinkGenerator<Uint8Array> {
 			const link = this.linkFactory();
 			this.logger.log("New UDP link from "+addr+":"+port);
 			link.setUp( (p:Uint8Array) => {
-				this.sock.send(<Buffer>p, p.byteOffset, p.byteLength, port, addr, (err,bytes) => {
+				const buf = toNodeBuffer(p);
+				//this.logger.log("UDP: Forwarding "+buf.byteLength+"-byte packet from internal link to "+addr+":"+port, buf);
+				this.sock.send(buf, 0, buf.byteLength, port, addr, (err,bytes) => {
 					if( err ) console.error("Error sending some bytes to "+addr+":"+port, err);
+					//this.logger.log("UDP: Sent "+bytes+" bytes to "+addr+":"+port);
 				});
 			});
 			this.linksByAddressAndPort[addr][port] = link;
@@ -218,6 +227,12 @@ export default class AdvancedNetworkDeviceShell<Device,Message> {
 				className: "DeviceChainTerminal",
 				alias,
 				device: new NetworkDeviceShell(new RepeaterSimulator())
+			};
+		} else if( devClassName == "junk-spammer" ) {
+			terminal = {
+				className: "DeviceChainTerminal",
+				alias,
+				device: new NetworkDeviceShell(new JunkSpammerSimulator())
 			};
 		} else {
 			throw new Error("Unrecognized device or device generator string: '"+devClassName+"'");

@@ -15,3 +15,19 @@ export function compareByteArrays( a:Uint8Array, b:Uint8Array ):number {
 	if( a.length > b.length ) return +1;
 	return 0;
 }
+
+export function toNodeBuffer( a:Buffer|Uint8Array ):Buffer {
+	if( a instanceof Buffer ) return a;
+	if( Buffer.from ) try {
+		return Buffer.from(a.buffer, a.byteOffset, a.byteLength);
+	} catch( err ) {
+		// For mysterious reasons, that will sometimes result in
+		// TypeError: 0 is not a function.
+		// In which case we'll continue on and make one by copying.
+	}
+	const buf = new Buffer(a.byteLength);
+	for( let i=0; i<a.length; ++i ) {
+		buf[i] = a[i];
+	}
+	return buf;
+}

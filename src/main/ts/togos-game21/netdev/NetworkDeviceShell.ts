@@ -37,34 +37,56 @@ export default class NetworkDeviceShell<Device,Message> {
 	}
 	
 	protected receivePacket(linkPath:string, packet:Message) {
-		this.device = this.simulator.packetReceived(this.device, linkPath, packet, this.busMessageQueue);
-		this.processQueuedMessages();
+		this.updateDevice( (device, busMessageQueue) => {
+			return this.simulator.packetReceived(device, linkPath, packet, busMessageQueue);
+		});
 	}
 	
-	protected update(time:number) {
-		this.device = this.simulator.update(this.device, time, this.busMessageQueue);
-	}
-	
-	public start() {
+	protected updateTimerId:NodeJS.Timer;
+	protected updateTimerTime:number = Infinity;
+	protected fixUpdateTimer(currentTime:number) {
+		let nextAutoUpdateTime = this.simulator.getNextAutoUpdateTime(this.device);
+		if( nextAutoUpdateTime != this.updateTimerTime ) {
+			if( this.updateTimerId != undefined ) clearTimeout(this.updateTimerId);
+			if( nextAutoUpdateTime < Infinity ) {
+				this.updateTimerId = setTimeout( () => {
+					this.updateDevice( (device,busMessageQueue) => device );
+				}, Math.max(0, nextAutoUpdateTime-currentTime)*1000 );
+			}
+		}
 		// Need to call update in a loop or something
 	}
 	
+	public start() {
+		this.fixUpdateTimer(Date.now()/1000);
+	}
+	
+	protected updateDevice( updater:(device:Device, busMessageQueue:EntitySystemBusMessage[])=>Device ) {
+		const currentTime = Date.now()/1000;
+		const busMessageQueue = [];
+		this.device = this.simulator.update(this.device, currentTime, this.busMessageQueue );
+		this.device = updater(this.device, this.busMessageQueue);
+		this.processQueuedMessages();
+		this.fixUpdateTimer(currentTime);
+	}
+	
 	addLink( link:MessageLink<Message>, _linkPath?:string ) {
-		const linkPath = _linkPath || "/link"+(this.nextLinkId++);
-		this.device = this.simulator.linkAdded(this.device, linkPath, this.busMessageQueue);
+		const linkPath = _linkPath || "/links/"+(this.nextLinkId++);
 		link.setUp( (message) => this.receivePacket(linkPath, message) );
 		this.links[linkPath] = link;
-		this.processQueuedMessages();
+		this.updateDevice( (device, busMessageQueue) => {
+			return this.simulator.linkAdded(device, linkPath, {}, busMessageQueue);
+		});
 		return linkPath;
 	}
 	
 	removeLink( linkPath:string ) {
 		const link = this.links[linkPath];
 		if( link == null ) return;
-		this.device = this.simulator.linkRemoved(
-			this.device, linkPath, this.busMessageQueue);
 		link.setDown();
 		delete this.links[linkPath];
-		this.processQueuedMessages();
+		this.updateDevice( (device, busMessageQueue) => {
+			return this.simulator.linkRemoved(device, linkPath, busMessageQueue);
+		});
 	}
 }
