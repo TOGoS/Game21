@@ -1,27 +1,14 @@
 import { thaw } from '../DeepFreezer';
 import EntitySystemBusMessage from '../EntitySystemBusMessage';
 import NetworkDeviceSimulator from './NetworkDeviceSimulator';
+import LinkAwareDevice, {LinkAwareDeviceSimulator} from './LinkAwareDevice';
 
-interface Repeater {
-	linkPaths: string[];
-}
-
+export type Repeater = LinkAwareDevice;
 type Device = Repeater;
 
-export class RepeaterSimulator<Packet> implements NetworkDeviceSimulator<Repeater,Packet> {
+export class RepeaterSimulator<Packet> extends LinkAwareDeviceSimulator<Device,Packet> implements NetworkDeviceSimulator<Device,Packet> {
 	createDevice():Device {
 		return { linkPaths: [] };
-	}
-	linkAdded(device:Device, linkPath:string, busMessageQueue:EntitySystemBusMessage[]):Device {
-		device = thaw(device);
-		//console.log("Repeater: new link! "+linkPath);
-		device.linkPaths = device.linkPaths.concat(linkPath);
-		return device;
-	}
-	linkRemoved(device:Device, linkPath:string, busMessageQueue:EntitySystemBusMessage[]):Device {
-		device = thaw(device);
-		device.linkPaths = device.linkPaths.filter( (v) => v != linkPath );
-		return device;
 	}
 	packetReceived(device:Device, linkPath:string, packet:Packet, busMessageQueue:EntitySystemBusMessage[]):Device {
 		//console.log("Repeater: packet from "+linkPath);

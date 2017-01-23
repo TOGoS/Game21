@@ -2,8 +2,9 @@ import { thaw } from '../DeepFreezer';
 import { utf8Encode } from 'tshash';
 import EntitySystemBusMessage from '../EntitySystemBusMessage';
 import NetworkDeviceSimulator from './NetworkDeviceSimulator';
+import LinkAwareDevice, {LinkAwareDeviceSimulator} from './LinkAwareDevice';
 
-interface JunkSpammer {
+interface JunkSpammer extends LinkAwareDevice {
 	linkPaths: string[];
 	lastSpamTime: number;
 	spamInterval: number;
@@ -16,7 +17,7 @@ interface JunkSpammer {
 type Device = JunkSpammer;
 type Packet = Uint8Array;
 
-export class JunkSpammerSimulator implements NetworkDeviceSimulator<Device,Uint8Array> {
+export class JunkSpammerSimulator extends LinkAwareDeviceSimulator<Device,Packet> implements NetworkDeviceSimulator<Device,Uint8Array> {
 	protected currentTime:number = -Infinity;
 	createDevice(options:any):Device {
 		return {
@@ -28,16 +29,6 @@ export class JunkSpammerSimulator implements NetworkDeviceSimulator<Device,Uint8
 			nextJunkNumber: 1000,
 			junkPrefix: "Junk ",
 		};
-	}
-	linkAdded(device:Device, linkPath:string, linkOptions:{[k:string]:any}, busMessageQueue:EntitySystemBusMessage[]):Device {
-		device = thaw(device);
-		device.linkPaths = device.linkPaths.concat(linkPath);
-		return device;
-	}
-	linkRemoved(device:Device, linkPath:string, busMessageQueue:EntitySystemBusMessage[]):Device {
-		device = thaw(device);
-		device.linkPaths = device.linkPaths.filter( (v) => v != linkPath );
-		return device;
 	}
 	packetReceived(device:Device, linkPath:string, packet:Packet, busMessageQueue:EntitySystemBusMessage[]):Device {
 		return device;
