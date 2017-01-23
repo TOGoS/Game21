@@ -7,11 +7,11 @@ if( packetId(packetA) == packetId(packetB) ) {
 	throw new Error("Our test case isn't too great; CRCs of packets match ;(");
 }
 
-function assertTableNotUpdated(tableB:any, tableBName:string) {
+function assertTableNotUpdated(tableB:any, tableBName:string):void {
 	if( tableB != null ) throw new Error("Expected checkPacket to return null, but something else was returned for "+tableBName);
 }
 
-function assertTableUpdated(tableA:any, tableB:any, tableBName:string) {
+function assertTableUpdated(tableA:any, tableB:any, tableBName:string):void {
 	if( tableB == null ) throw new Error("Expected checkPacket to return a new table, but null was returned for "+tableBName);
 	if( tableB === tableA ) throw new Error("Expected checkPacket to return a new table, but it returned the same old table for "+tableBName);
 }
@@ -19,7 +19,7 @@ function assertTableUpdated(tableA:any, tableB:any, tableBName:string) {
 function checkPacketExpectingNewTable(packet:Uint8Array, time:number, table:DuplicatePacketTable, newTableName:string):DuplicatePacketTable {
 	const newTab = checkPacket(packet, time, table);
 	assertTableUpdated(table, newTab, newTableName);
-	return deepFreeze(newTab);
+	return deepFreeze(newTab!);
 }
 
 function checkPacketExpectingNull(packet:Uint8Array, time:number, table:DuplicatePacketTable, newTableName:string):void {

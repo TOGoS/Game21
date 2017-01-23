@@ -4,12 +4,14 @@ import {thaw} from '../DeepFreezer';
 export type PacketID = number;
 
 declare function Symbol(name:string):symbol;
-const ID_SYMBOL = Symbol("Packet ID");
+const ID_SYMBOL:symbol = Symbol("Packet ID");
 
 export function packetId( packet:Uint8Array ):number {
-	let id = packet[ID_SYMBOL];
+	let id:number = (<any>packet)[ID_SYMBOL] as number;
 	if( id != undefined ) return id;
-	return packet[ID_SYMBOL] = crc32(packet);
+	id = crc32(packet);
+	(<any>packet)[ID_SYMBOL] = id;
+	return id;
 }
 
 interface DuplicatePacketTable {
@@ -50,7 +52,7 @@ export function addEntry( table:DuplicatePacketTable, packetId:PacketID, time:nu
  * If the packet is a duplicate, null is returned.
  * If the packet is not a duplicate, an updated version of the table is returned.
  */
-export function checkPacket( packet:Uint8Array, time:number, table:DuplicatePacketTable ):DuplicatePacketTable|undefined {
+export function checkPacket( packet:Uint8Array, time:number, table:DuplicatePacketTable ):DuplicatePacketTable|null {
 	const id = packetId(packet);
 	let previousTime = table.packetTimes[id];
 	if( previousTime == undefined ) previousTime = table.packetTimes1[id];
