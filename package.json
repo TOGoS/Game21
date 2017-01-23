@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "express": "^4.13.4",
-    "tshash": "^1.6.3",
+    "tshash": "^1.7.0",
     "ws": "^1.0.1"
   }
 }
