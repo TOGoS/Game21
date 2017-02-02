@@ -28,9 +28,6 @@
 
 ## Misc to-do items
 
-Building:
-- Automatically remove failed build targets
-
 Unify rendering (update or replace WorldCanvasView)
 - Render to canvas immediately
 - Render to canvas, waiting for images to load
@@ -245,6 +242,7 @@ Boring code stuff:
 Build system:
 * Build a single alllibs.amd.es5.js so lib.php doesn't have to know them all
 * Have .tsconfig.json files inherit from a common one
+* Automatically remove failed build targets
 Maze1:
 * Decentish quantized physics (overlaps not allowed)
 * Platform physics (good enough for now)
