@@ -70,7 +70,7 @@ builder.targets = {
 	},
 	"js-libs": {
 		isFile: false,
-		prereqs: ["target/cjs", "target/game21libs.amd.es5.js"]
+		prereqs: ["target/cjs", "target/alllibs.amd.es5.js"]
 	}
 }
 
