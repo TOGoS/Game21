@@ -28,6 +28,9 @@
 
 ## Misc to-do items
 
+Build system:
+- Remove (or fix!) source mappings when generating alllibs.amd.es5.js.
+
 Unify rendering (update or replace WorldCanvasView)
 - Render to canvas immediately
 - Render to canvas, waiting for images to load
