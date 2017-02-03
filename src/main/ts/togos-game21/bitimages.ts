@@ -74,6 +74,10 @@ function hexVal(charCode:number):number {
 	}
 }
 
+/*
+ * Decodes a hex string into an element-per-bit array, big-endianly
+ * e.g. "08F" becomes [0,0,0,0, 1,0,0,0, 1,1,1,1]
+ */
 function hexDecodeBits( enc:string ):Array<number> {
 	const arr = new Array<number>(enc.length * 4);
 	for( let i=0; i<enc.length; ++i ) {
