@@ -133,9 +133,16 @@ builder.fetchGeneratedTargets = function() {
 			if( file.substr(file.length-4) == '.php' ) {
 				generatedTargets[file.substr(0,file.length-4)+'.html'] = {
 					isFile: true,
-					prereqs: ["target/game21libs.amd.es5.js", "demos/lib.php"],
+					prereqs: [file, "target/alllibs.amd.es5.js", "demos/lib.php"],
 					invoke: (ctx) => {
-						return doCmd("php "+ctx.prereqNames[0]+" > "+ctx.targetName);
+						return ctx.builder.doCmd("php "+ctx.prereqNames[0]+" > "+ctx.targetName);
+					}
+				}
+				generatedTargets[file.substr(0,file.length-4)+'-standalone.html'] = {
+					isFile: true,
+					prereqs: [file, "target/alllibs.amd.es5.js", "demos/lib.php"],
+					invoke: (ctx) => {
+						return ctx.builder.doCmd("php "+ctx.prereqNames[0]+" --inline-resources > "+ctx.targetName);
 					}
 				}
 			}
