@@ -28,6 +28,8 @@
 
 ## Misc to-do items
 
+- Ethernet switch
+
 Build system:
 - Remove (or fix!) source mappings when generating alllibs.amd.es5.js.
 
