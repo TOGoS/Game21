@@ -291,7 +291,8 @@ Builder.prototype.processCommandLine = function(argv) {
 		} else if( arg == '-v' ) {
 			verbosity = 200;
 		} else {
-			buildList.push(arg);
+			// Make tab-completing on Windows not screw us all up!
+			buildList.push(arg.replace(/\\/,'/'));
 		}
 	}
 	
