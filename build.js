@@ -1,10 +1,61 @@
 "use strict";
 
+const fs = require('fs');
 const _builder = require('./src/build/js/Builder');
 const builder = new _builder.Builder();
 const _fsutil = require('./src/build/js/FSUtil');
 const readDir = _fsutil.readDir;
 const rmRf = _fsutil.rmRf;
+
+/**
+ * Removes '//# sourceMapping' lines
+ * and makes sure there's a trailing "\n"
+ */
+function filterJs( js ) {
+	let lines = js.split("\n");
+	let result = "";
+	for( let i=0; i<lines.length; ++i ) {
+		if( /^\s*\/\/# sourceMapping/.exec(lines[i]) ) {
+			// skip it!
+			continue;
+		}
+		result += lines[i]+"\n";
+	}
+	return result;
+}
+function _concatJsFile( file, outputStream ) {
+	return new Promise( (resolve,reject) => {
+		fs.readFile( file, {encoding:"utf-8"}, (err,data) => {
+			if( err ) { reject(err); return; }
+			
+			let fixed = filterJs(data);
+			outputStream.write(fixed);
+			resolve();
+		});
+	});
+}
+function _concatJsFiles( files, outputStream, start ) {
+	if( start >= files.length ) return Promise.resolve();
+	if( start == undefined ) start = 0;
+	
+	return _concatJsFile(files[start], outputStream).then( () => _concatJsFiles(files, outputStream, start+1))
+}
+/**
+ * Concatenate a bunch of JS files, removing //# sourceMapping lines and ensuring files are "\n"-terminated.
+ * Returns Promise that resolves to void when done.
+ */
+function concatJsFiles( files, outputFile ) {
+	return new Promise( (resolve,reject) => {
+		let stream = fs.createWriteStream(outputFile);
+		
+		stream.on('error', reject);
+		stream.on('close', () => resolve() );
+		
+		return _concatJsFiles(files, stream).then( () => {
+			stream.close();
+		});
+	});
+}
 
 const amdComponentFiles = [
 	"node_modules/tshash/target/tshash.amd.es5.js",
@@ -47,7 +98,7 @@ builder.targets = {
 		prereqs: amdComponentFiles,
 		// Stupid TypeScript emits amd files without a newline at the end,
 		// so we can't just use cat; sed -e '$s/$/\\n/' adds one.
-		invoke: (ctx) => ctx.builder.doCmd("sed -e '$s/$/\\n/' "+ctx.prereqNames.join(' ')+" > "+ctx.targetName),
+		invoke: (ctx) => concatJsFiles(ctx.prereqNames, ctx.targetName),
 	},
 	"demos/RandomMazes.html": {
 		prereqs: ["demos/Maze1.php","target/alllibs.amd.es5.js"],
