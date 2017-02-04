@@ -82,10 +82,12 @@ Builder.prototype.doCmd = function( args, opts ) {
 			if( typeof args === 'string' ) {
 				cproc = child_process.spawn( args, [], {
 					shell: true,
+					cwd: opts.cwd,
 					stdio
 				} );
 			} else {
 				cproc = child_process.spawn( args[0], args.slice(1), {
+					cwd: opts.cwd,
 					stdio
 				} );
 			}
@@ -115,8 +117,8 @@ Builder.prototype.figureShellCommand = function() {
 	if( this.shellCommandPromise ) return this.shellCommandPromise;
 	
 	let alternatives = [
+		['cmd.exe', '/c'], // Windoze!
 		['sh', '-c'], // Unix!
-		['cmd.exe', '/c'] // Windoze!
 	];
 	
 	return this.shellCommandPromise = this._findWorkingProgram(alternatives, ['exit 0']);
