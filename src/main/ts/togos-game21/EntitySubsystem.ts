@@ -134,6 +134,11 @@ export interface InterEntityBusBridge {
 	forwardEntityPath : EntityPath;
 }
 
+import _Repeater from './netdev/Repeater';
+export interface Repeater extends _Repeater {
+	classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/Repeater"
+}
+
 export type EntitySubsystem =
 	Appendage |
 	Button |

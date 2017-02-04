@@ -106,6 +106,14 @@ function checkObjectIdentifier(ident:string) {
 	}
 }
 
+import NetworkDeviceSimulator from './netdev/NetworkDeviceSimulator';
+import { RepeaterSimulator } from './netdev/Repeater';
+
+type DeviceSimulator = NetworkDeviceSimulator<any,Uint8Array>;
+const deviceSimulators : {[k:string]: DeviceSimulator} = {
+	"http://ns.nuke24.net/Game21/EntitySubsystem/Repeater": new RepeaterSimulator(),
+}
+
 /**
  * Base class for update steps
  * with a whole bunch of handy functions.
@@ -823,7 +831,22 @@ abstract class SimulationUpdate {
 			console.warn("Zero-length message passed to subsystem "+subsystemKey, message);
 			return entity;
 		}
-		switch( subsystem.classRef ) {
+		
+		let simulator = deviceSimulators[subsystem.classRef];
+		if( simulator ) {
+			let updatedDevice = subsystem;
+			if( message[0] == '/packet' ) {
+				if( simulator.packetReceived ) {
+					let data:Uint8Array = message[1];
+					let linkPath:string = message[2];
+					updatedDevice = simulator.packetReceived(subsystem, linkPath, data, messageQueue);
+				}
+			}
+			if( updatedDevice !== subsystem ) {
+				entity = setEntitySubsystem(entity, subsystemKey, subsystem, this.gameDataManager);
+			}
+		} else switch( subsystem.classRef ) {
+			// TODO: Replace those of these that don't need to be special with BusMessagableDeviceSimulators
 		case "http://ns.nuke24.net/Game21/EntitySubsystem/InterEntityBusBridge":
 			{
 				this.enqueueAction({
