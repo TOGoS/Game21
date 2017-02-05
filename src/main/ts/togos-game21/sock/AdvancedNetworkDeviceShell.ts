@@ -3,6 +3,7 @@ import KeyedList from '../KeyedList';
 import MessageLink from './MessageLink';
 import { RepeaterSimulator } from '../netdev/Repeater';
 import { JunkSpammerSimulator } from '../netdev/JunkSpammer';
+import { EthernetSwitchSimulator } from '../netdev/EthernetSwitch';
 import NetworkDeviceShell from '../netdev/NetworkDeviceShell';
 import Logger, { NULL_LOGGER } from '../Logger';
 
@@ -221,6 +222,12 @@ export default class AdvancedNetworkDeviceShell<Device,Message> {
 					udpLinkServer.logger = this.logger;
 					return udpLinkServer;
 				})()
+			};
+		} else if( devClassName == "ethernet-switch" ) {
+			terminal = {
+				className: "DeviceChainTerminal",
+				alias,
+				device: new NetworkDeviceShell(new EthernetSwitchSimulator())
 			};
 		} else if( devClassName == "repeater" ) {
 			terminal = {
