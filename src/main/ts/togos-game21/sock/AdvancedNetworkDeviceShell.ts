@@ -185,7 +185,7 @@ export default class AdvancedNetworkDeviceShell<Device,Message> {
 	public logger:Logger = NULL_LOGGER;
 	
 	public chainTerminalFromString( devStr:string ):ChainTerminal<any,Uint8Array> {
-		const params = devStr.split(":");
+		const params:string[] = devStr.split(":");
 		const ax = params[0].split('=');
 		const devClassName = ax[ax.length-1];
 		const alias:string|undefined = ax.length > 1 ? ax[0] : undefined;
@@ -229,10 +229,11 @@ export default class AdvancedNetworkDeviceShell<Device,Message> {
 				device: new NetworkDeviceShell(new RepeaterSimulator())
 			};
 		} else if( devClassName == "junk-spammer" ) {
+			const junkSpammerSimulator = new JunkSpammerSimulator();
 			terminal = {
 				className: "DeviceChainTerminal",
 				alias,
-				device: new NetworkDeviceShell(new JunkSpammerSimulator())
+				device: new NetworkDeviceShell(junkSpammerSimulator, junkSpammerSimulator.createDevice({junkPrefix: params[1]}))
 			};
 		} else {
 			throw new Error("Unrecognized device or device generator string: '"+devClassName+"'");

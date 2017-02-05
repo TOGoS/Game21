@@ -27,7 +27,7 @@ export class JunkSpammerSimulator extends LinkAwareDeviceSimulator<Device,Packet
 			nextLinkIndex: 0,
 			spamMode: options.spamMode === "rotate" ? "rotate" : "broadcast",
 			nextJunkNumber: 1000,
-			junkPrefix: "Junk ",
+			junkPrefix: options.junkPrefix || "Junk ",
 		};
 	}
 	packetReceived(device:Device, linkPath:string, packet:Packet, busMessageQueue:EntitySystemBusMessage[]):Device {
