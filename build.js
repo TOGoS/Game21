@@ -122,6 +122,20 @@ builder.targets = {
 	"js-libs": {
 		isFile: false,
 		prereqs: ["target/cjs", "target/alllibs.amd.es5.js"]
+	},
+	"run-ethernet-simulation-demo": {
+		isFile: false,
+		prereqs: ["target/cjs"],
+		invoke: (ctx) => ctx.builder.doCmd([
+			"node","target/cjs/togos-game21/sock/AdvancedNetworkDeviceShell.js",
+			"udp-server:77881|log:in:out|switch0=ethernet-switch",
+			"switch1=ethernet-switch|log:switch1>switch0:switch0>switch1|switch0",
+			"switch2=ethernet-switch|log:switch2>switch0:switch0>switch2|switch0",
+			"switch2|log:switch2>switch1:switch1>switch2|switch1",
+			"abc=junk-spammer:000def000abcyo|log:abc>switch0:switch0>abc|switch0",
+			"def=junk-spammer:000abc000defhi|log:def>switch1:switch1>def|switch1",
+			"rep=repeater|log:rep>switch2:switch2>rep|switch2"
+		]),
 	}
 }
 
