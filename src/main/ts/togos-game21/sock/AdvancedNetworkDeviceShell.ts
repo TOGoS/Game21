@@ -215,7 +215,7 @@ export default class AdvancedNetworkDeviceShell<Device,Message> {
 				linkGenerator: (() => {
 					const sock = createDgramSocket('udp4'); // TODO: Not necessarily v4
 					sock.bind(port, addr);
-					this.logger.log("Listeningfor UDP packets on "+addr+":"+port);
+					this.logger.log("Listening for UDP packets on "+addr+":"+port);
 			
 					const udpLinkServer = new UDPLinkServer(sock);
 					udpLinkServer.logger = this.logger;
