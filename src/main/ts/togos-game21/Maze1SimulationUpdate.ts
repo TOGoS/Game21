@@ -835,10 +835,11 @@ abstract class SimulationUpdate {
 		let simulator = deviceSimulators[subsystem.classRef];
 		if( simulator ) {
 			let updatedDevice = subsystem;
-			if( message[0] == '/packet' ) {
+			if( message[0] == '' || message[0] == '/packet' ) {
 				if( simulator.packetReceived ) {
 					let data:Uint8Array = message[1];
 					let linkPath:string = message[2];
+					if( typeof linkPath != 'string' ) return entity;
 					updatedDevice = simulator.packetReceived(subsystem, linkPath, data, messageQueue);
 				}
 			}
