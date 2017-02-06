@@ -4,8 +4,8 @@ import Rectangle from './Rectangle';
 import Vector3D from './Vector3D';
 import { makeVector, setVector, ZERO_VECTOR } from './vector3ds';
 import TransformationMatrix3D from './TransformationMatrix3D';
+import { AnimationCurveName } from './AnimationCurve';
 import ShapeSheetUtil from './ShapeSheetUtil';
-import { AnimationTypeID, animationTypeFromName } from './Animation';
 import ProceduralShape from './ProceduralShape';
 import Token, { TokenType } from './lang/Token';
 import { isResolved } from './promises';
@@ -261,10 +261,13 @@ const customWords : KeyedList<Word> = {
 }
 
 export interface ScriptProceduralShapeData {
-	animationTypeId : AnimationTypeID;
 	languageName : "G21-FPS-1.0";
 	maxRadius? : number;
 	programSource : string;
+	
+	animationCurveName : AnimationCurveName;
+	animationLength : number;
+	discreteAnimationStepCount : number;
 }
 
 export interface ForthProceduralShapeData extends ScriptProceduralShapeData {
@@ -291,10 +294,13 @@ export class ForthProceduralShapeCompiler {
 		return this.compileProgram(script).then( (ctx) => {
 			return new ForthProceduralShape({
 				languageName: "G21-FPS-1.0", // TODO: parse from headers
-				animationTypeId: animationTypeFromName("loop"), // TODO: parse from source headers
 				maxRadius: 8, // TODO: parse from headers
 				programSource: script,
 				program: ctx.program,
+				
+				animationCurveName: "loop", // TODO: parse from source headers
+				animationLength: 0, // TODO: parse from headers
+				discreteAnimationStepCount: Infinity, // TODO: parse from headers
 			});
 		});
 	}
@@ -362,18 +368,22 @@ export function fixScriptText(programSource:string, headerValues:KeyedList<Strin
 }
 
 export default class ForthProceduralShape implements ProceduralShape, ForthProceduralShapeData {
-	public animationTypeId : AnimationTypeID;
 	public languageName : "G21-FPS-1.0";
 	public maxRadius? : number;
 	public programSource : string;
 	public program : Program;
+	public animationCurveName : AnimationCurveName;
+	public animationLength : number;
+	public discreteAnimationStepCount : number;
 	
 	public constructor( public data:ForthProceduralShapeData ) {
-		this.animationTypeId = data.animationTypeId;
 		this.languageName = data.languageName;
 		this.maxRadius = data.maxRadius;
 		this.programSource = data.programSource;
 		this.program = data.program;
+		this.animationLength = data.animationLength;
+		this.animationCurveName = data.animationCurveName;
+		this.discreteAnimationStepCount = data.discreteAnimationStepCount;
 	}
 	
 	public estimateOuterBounds( t:number, xf:TransformationMatrix3D ):Rectangle {

@@ -369,6 +369,7 @@ export class VisualImageManager {
 					
 					const g21FpsMagic = "#G21-FPS-1.0";
 					if( asciiDecode(data.slice(0,g21FpsMagic.length)) == g21FpsMagic ) {
+						
 						return Promise.reject("Hey it's a G21FPS!");
 					}
 					return Promise.reject(

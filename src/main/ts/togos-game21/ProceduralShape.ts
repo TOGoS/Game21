@@ -1,13 +1,9 @@
 import Rectangle from './Rectangle';
-import { AnimationTypeID } from './Animation';
+import AnimationMetadata from './AnimationMetadata';
 import TransformationMatrix3D from './TransformationMatrix3D';
 import ShapeSheetUtil from './ShapeSheetUtil';
 
-interface ProceduralShape {
-	/**
-	 * Gives a hint for how this procedural shape is meant to be animated, if at all.
-	 */
-	animationTypeId : AnimationTypeID;
+interface ProceduralShape extends AnimationMetadata {
 	/**
 	 * @param {number} t a number between 0 and 1 indicating the point in the object's animation that we are drawing
 	 */
