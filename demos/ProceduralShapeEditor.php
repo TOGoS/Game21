@@ -446,7 +446,7 @@ so if you want to design a block-sized thing, keep it approximately within those
 <li>plot-sphere</code> (radius --) plot a sphere of the specified radius at the cursor position.</li>
 <li>open-polygon</code> (--) start drawing a polygon at the cursor position.</li>
 <li>polygon-point</code> (--) add an additional polygon vertex.</li>
-<li>fill-point</code> (--) add an additional point and fill the polygon.</li>
+<li>fill-polygon</code> (--) add an additional point and fill the polygon.</li>
 </ul>
 
 <p>Back sides of polygons will not be drawn.
