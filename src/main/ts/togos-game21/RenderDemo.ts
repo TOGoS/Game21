@@ -8,7 +8,7 @@ import { VisualImageManager } from './rendering';
 import { DEFAULT_LIGHTS } from './lights';
 import { DEFAULT_MATERIAL_PALETTE } from './surfacematerials';
 import * as dat from './maze1demodata'
-import { isResolved } from './promises';
+import { isResolved, isRejected, value, error } from './promises';
 
 function sleep(interval:number):Promise<void> {
 	return new Promise<void>( (resolve,reject) => {
@@ -45,6 +45,14 @@ export class RenderDemo {
 	
 	protected frameNumber:number = 0;
 	
+	protected ifResolvedThen<T,V>( prom:Thenable<T>, callback:(thing:T)=>Thenable<V>, errCallback?:(err:any)=>any ):void {
+		if( isResolved(prom) ) {
+			callback(value(prom));
+		} else if( isRejected(prom) ) {
+			if( errCallback ) errCallback(error(prom));
+		}
+	}
+	
 	protected drawFrame() {
 		const ctx = this.canvas.getContext('2d');
 		if( ctx == null ) {
@@ -74,21 +82,13 @@ export class RenderDemo {
 		for( let e in entities ) {
 			const entity = entities[e];
 			const imgSliceProm = this.imageManager.fetchVisualImageSlice(entity.visualRef, entity.state, this.frameNumber/10, Quaternion.IDENTITY, reso);
-			/* if( isResolved(imgSliceProm) ) {
-				console.log("Pre-resolved promise, woo!");
-			} else {
-				console.log("Not pre-resolved ;(");
-			} */
 			
-			imgSliceProm.then( (slice:ImageSlice<HTMLImageElement>) => {
-				if( fn != this.frameNumber ) {
-					console.log("Image got, but too late for frame "+fn);				
-				}
+			this.ifResolvedThen( imgSliceProm, (slice:ImageSlice<HTMLImageElement>) => {
 				const ctx2 = this.canvas.getContext('2d');
 				if( ctx2 == undefined ) return Promise.reject(new Error("No 2d context"));
 				ctx2.drawImage(slice.sheet, reso*entity.position.x-slice.origin.x, reso*entity.position.y-slice.origin.y);
 				return Promise.resolve();
-			}).catch( (err) => {
+			}, (err) => {
 				console.error("Failed to fetch visual image slice", err);
 			});
 		}

@@ -64,6 +64,10 @@ export function value<T>( p:Thenable<T> ):T {
     return <T>((<any>p)[VALUESYM]);
 }
 
+export function error<T>( p:Thenable<T> ):any {
+    return (<any>p)[ERRORSYM];
+}
+
 function isThenable( v:any ):boolean {
     return v != null && v.then; 
 }
