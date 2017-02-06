@@ -28,10 +28,13 @@
 
 ## Misc to-do items
 
-- Ethernet switch
-
-Build system:
-- Remove (or fix!) source mappings when generating alllibs.amd.es5.js.
+- Entity with repeating animation
+  - Maybe a fan
+- Once-through animation
+- Resettable once-thtough animation
+  (flash to indicate an event, like a repeater lighting up to indicate that it just passed a message)
+- Re-integrate 3D rendered visuals
+- 3D rendered fan
 
 Unify rendering (update or replace WorldCanvasView)
 - Render to canvas immediately
@@ -248,6 +251,7 @@ Build system:
 * Build a single alllibs.amd.es5.js so lib.php doesn't have to know them all
 * Have .tsconfig.json files inherit from a common one
 * Automatically remove failed build targets
+* Remove (or fix!) source mappings when generating alllibs.amd.es5.js.
 Maze1:
 * Decentish quantized physics (overlaps not allowed)
 * Platform physics (good enough for now)
@@ -287,6 +291,8 @@ Random maze generation:
 * more decorations
 * Fix: player can occasionally start stuck in a wall
 * cave rooms;
+Network devices:
+* Ethernet switch
 Maze1 simulation, post-random-maze-contest:
 * Move simulator + physics engine to own file
 * Vision data forwarded through player
