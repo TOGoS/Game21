@@ -3,6 +3,8 @@ import Vector3D from './Vector3D';
 import ImageSlice from './ImageSlice';
 import Datastore from './Datastore';
 import MemoryDatastore from './MemoryDatastore';
+import HTTPHashDatastore from './HTTPHashDatastore';
+import CachingDatastore from './CachingDatastore';
 import GameDataManager from './GameDataManager';
 import { VisualImageManager } from './rendering';
 import { DEFAULT_LIGHTS } from './lights';
@@ -34,7 +36,12 @@ export class RenderDemo {
 	protected imageManager:VisualImageManager;
 	
 	public constructor(protected canvas:HTMLCanvasElement) {
-		this.datastore = MemoryDatastore.createSha1Based(0);
+		const httpDs:Datastore<Uint8Array> = HTTPHashDatastore.createDefault();
+		const memds:Datastore<Uint8Array> = MemoryDatastore.createSha1Based(0);
+		this.datastore = new CachingDatastore(memds.identify,
+			memds,
+			httpDs
+		);
 		this.gameDataManager = new GameDataManager(this.datastore);
 		this.imageManager = new VisualImageManager({
 			lights: DEFAULT_LIGHTS,
@@ -65,12 +72,26 @@ export class RenderDemo {
 		let entities:LiteEntity[] = [
 			{
 				position: {x:1,y:1,z:0},
-				orientation: Quaternion.fromXYZAxisAngle( 1,1,0, leMod(fn, 16) * Math.PI*2 ),
+				orientation: Quaternion.fromXYZAxisAngle( 0,1,0, leMod(fn, 16) * Math.PI*2 ),
 				state: {
 					switchState: leMod(this.frameNumber, 14) < 7
 				},
 				animationStartTime: 0,
 				visualRef: dat.wiredToggleBoxVisualRef
+			},
+			{
+				position: {x:2,y:1,z:0},
+				orientation: Quaternion.fromXYZAxisAngle( 0,1,0, leMod(fn, 16) * Math.PI*2 ),
+				state: {},
+				animationStartTime: 0.5,
+				visualRef: 'urn:sha1:PLOIWGVPQYMLDYKBPAIV5JOQ5HT5GT4S'
+			},
+			{
+				position: {x:3,y:1,z:0},
+				orientation: Quaternion.fromXYZAxisAngle( 0,1,0, leMod(fn, 16) * Math.PI*2 ),
+				state: {},
+				animationStartTime: 0.0,
+				visualRef: 'urn:sha1:PLOIWGVPQYMLDYKBPAIV5JOQ5HT5GT4S'
 			}
 		];
 		

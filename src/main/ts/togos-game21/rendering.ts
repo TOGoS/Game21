@@ -10,7 +10,9 @@ import ImageSlice from './ImageSlice';
 import { MaterialPalette } from './surfacematerials';
 import GameDataManager from './GameDataManager';
 import { isResolved, resolvedPromise, value, resolveWrap, shortcutThen, voidify, RESOLVED_VOID_PROMISE } from './promises';
+import { asciiDecode } from 'tshash/utils';
 import { imagePromiseFromUrl, EMPTY_IMAGE_SLICE } from './images';
+import { AnimationCurveName } from './AnimationCurve';
 
 import DrawCommandBuffer from './DrawCommandBuffer';
 
@@ -34,7 +36,10 @@ import { ProgramExpression, evaluateExpression, standardFunctions } from './inte
 
 type Visual = BitImageVisual|CompoundVisual|DynamicEntityVisual;
 
+/** A hard (urn:sha1:...) or soft (urn:uuid:...) ref to a visual */
 type VisualRef = string;
+/** Reference to a visual that's already been resolved to its final form */
+type HardVisualRef = string;
 
 interface RenderingContext {
 	lights : KeyedList<DirectionalLight>;
@@ -297,13 +302,15 @@ interface VisualMetadata {
 	 * Should be zero for non-animated things.
 	 */
 	animationLength : number;
+	animationCurveName : AnimationCurveName;
 	
 	discreteAnimationStepCount : number;
 }
 
 const EMPTY_IMAGE_SLICE_PROMISE = resolvedPromise(EMPTY_IMAGE_SLICE);
 
-const objectRefRegex = /^urn:.*/;
+const objectRefRegex = /^urn:.*#$/;
+const dataRefRegex = /^urn:[^#]*$/;
 
 function canvasToRgbaSlice(canv:HTMLCanvasElement, origin:Vector3D, resolution:number ):ImageSlice<Uint8ClampedArray> {
 	const ctx = canv.getContext('2d');
@@ -342,7 +349,7 @@ export class VisualImageManager {
 	
 	protected visualCache = new Map<VisualRef, Thenable<Visual>>();
 	
-	public fetchVisual( visualRef:VisualRef ):Thenable<Visual> {
+	protected _fetchVisual( visualRef:HardVisualRef ):Thenable<Visual> {
 		let prom = this.visualCache.get(visualRef);
 		if( prom ) return prom;
 		
@@ -354,6 +361,24 @@ export class VisualImageManager {
 				return resolve(this.gameDataManager.fetchObject<Visual>(visualRef));
 			}
 			
+			if( dataRefRegex.exec(visualRef) ) {
+				return this.gameDataManager.fetchObject<Uint8Array>(visualRef).then( (data) => {
+					if( !data.slice ) {
+						return Promise.reject(visualRef+" didn't resolve to a byte array");
+					}
+					
+					const g21FpsMagic = "#G21-FPS-1.0";
+					if( asciiDecode(data.slice(0,g21FpsMagic.length)) == g21FpsMagic ) {
+						return Promise.reject("Hey it's a G21FPS!");
+					}
+					return Promise.reject(
+						"Hey I don't know how to interpret this image data ("+
+						data.length+" bytes) as a visual");
+				});
+			}
+			
+			// TODO: Fetch the data, look at magic to see if it's a #G21-FPS-1.0
+			
 			return reject(new Error("Unsupported visual ref "+visualRef));
 		}));
 		
@@ -361,31 +386,37 @@ export class VisualImageManager {
 		return prom;
 	}
 	
+	public fetchVisual( visualRef:VisualRef ):Thenable<Visual> {
+		return this.resolveToHardVisualRef(visualRef).then( (hardVisualRef) => this._fetchVisual(hardVisualRef) );
+	}
+	
 	public fetchVisualMetadata( visualRef:string ):Thenable<VisualMetadata> {
 		let md = this.visualMetadataCache.get(visualRef);
 		if( md ) return md;
 		
 		md = resolveWrap(this.resolveToHardVisualRef(visualRef).then( (hardVisualRef) => {
-			return this.fetchVisual(hardVisualRef).then( (visual:Visual):Promise<VisualMetadata>|VisualMetadata => {
+			return this.fetchVisual(hardVisualRef).then( (visual:Visual):Promise<VisualMetadata> => {
 				switch( visual.classRef ) {
 				case "http://ns.nuke24.net/Game21/BitImageVisual":
-					return {
+					return resolvedPromise({
 						hardVisualRef,
 						variesBasedOnState: false,
 						animationLength: 0,
+						animationCurveName: "none",
 						discreteAnimationStepCount: 1,
-					};
+					});
 				case "http://ns.nuke24.net/Game21/DynamicEntityVisual":
 					{
 						// TODO: analyze the expression to see if it uses state.
 						const variesBasedOnState = true;
 						
-						return {
+						return resolvedPromise({
 							hardVisualRef,
 							variesBasedOnState,
-							animationLength: visual.animationLength,
+							animationLength: visual.animationLength || 0,
+							animationCurveName: visual.animationCurveName,
 							discreteAnimationStepCount: visual.discreteAnimationStepCount,
-						};
+						});
 					}
 				default:
 					return Promise.reject("Lolz not implemented to extract metadata from a "+visual.classRef);

@@ -1,5 +1,6 @@
 import KeyedList from './KeyedList';
 import TransformationMatrix3D from './TransformationMatrix3D';
+import { AnimationCurveName } from './AnimationCurve';
 
 /** properties expression input */
 export interface EntityVisualPropertiesContext {
@@ -67,8 +68,12 @@ export function fixEntityVisualProperties(inProps:any, sourceRef:string):EntityV
  */
 interface DynamicEntityVisual {
 	classRef: "http://ns.nuke24.net/Game21/DynamicEntityVisual";
-	/** Length, in seconds; 0 for non-animated things */
-	animationLength:number;
+	/**
+	 * Length, in seconds; 0 for non-animated things
+	 * Default is zero, meaning non-animated,
+	 * and other animation properties will be ignored.
+	 */
+	animationLength?:number;
 	/**
 	 * Number of discrete animation steps; may be Infinity if continuous.
 	 * It may be assumed that within a step, all other context being the same,
@@ -78,8 +83,16 @@ interface DynamicEntityVisual {
 	 * be animated, potentially at a different rate.
 	 * 
 	 * For non-animated things, this should be 1.
+	 * 
+	 * Default is 1 for non-animated things, Infinity for animated things.
 	 */
-	discreteAnimationStepCount:number;
+	discreteAnimationStepCount?:number;
+	/**
+	 * How does animation work?
+	 * Default to "none" if animationLength = 0,
+	 * "loop" if animationLength != 0.
+	 */
+	animationCurveName?:AnimationCurveName;
 	/**
 	 * References an expression that will be evaluated
 	 * with a EntityVisualPropertiesContext as variables
