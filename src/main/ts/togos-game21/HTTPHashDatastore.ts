@@ -20,7 +20,7 @@ export default class HTTPHashDatastore implements Datastore<Uint8Array> {
 	fetch( urn:string ):Promise<Uint8Array> {
 		const url = this.n2rUrl+"?"+urn;
 		return http.request('GET', url).then( (res) => {
-			if( res.statusCode == 200 ) return res.content;
+			if( res.statusCode == 200 ) return Promise.resolve(res.content);
 			else return Promise.reject(new Error("GET "+url+" returned "+res.statusCode));
 		});
 	}
