@@ -279,6 +279,17 @@ const ANONYMOUS_SOURCELOC = {
 	filename:'anynymous source', lineNumber:1, columnNumber:1
 };
 
+function parseNumberOrFraction( text:string ) : number|undefined {
+	if( /^[+-]?\d+(\.\d+)?$/.test(text) ) {
+		return +text;
+	}
+	let m:string[]|null;
+	if( (m = /^([+-]?\d+)\/(\d+)$/.exec(text)) ) {
+		return +m[1]/+m[2];
+	}
+	return undefined;
+}
+
 export class ForthProceduralShapeCompiler {
 	public compileProgram(script:string, sourceLocation:SourceLocation=ANONYMOUS_SOURCELOC) : Thenable<CompilationContext> {
 		const ctx : CompilationContext = {
@@ -294,6 +305,35 @@ export class ForthProceduralShapeCompiler {
 	}
 	
 	public compileToShape(script:string, sourceLocation:SourceLocation=ANONYMOUS_SOURCELOC):Thenable<ForthProceduralShape> {
+		const headerValues:KeyedList<string> = {};
+		readHeaders: {
+			const lines = script.split("\n");
+			for( let l in lines ) {
+				const line = lines[l];
+				let m:RegExpExecArray|null;
+				if( (m = /^#([^\s:]+):\s+(.*)/.exec(line) ) ) {
+					headerValues[m[1]] = m[2];
+				}
+				if( line == '' || line[0] != '#' ) break readHeaders;
+			}
+		}
+		
+		let animationLength:number = parseNumberOrFraction(headerValues['animation-length']) || 0;
+		const headerAnimationCurveName:string|AnimationCurveName|undefined = headerValues['animation-curve'];
+		let animationCurveName:AnimationCurveName;
+		if( animationLength == 0 ) {
+			animationCurveName = 'none';
+		} else switch( headerAnimationCurveName ) {
+		case 'none': case 'once': case 'loop': case 'reverse':
+			animationCurveName = headerAnimationCurveName;
+			break;
+		default:
+			animationCurveName = 'loop';
+		}
+		
+		let discreteAnimationStepCount:number =
+			animationLength == 0 ? 1 : parseNumberOrFraction(headerValues['animation-step-count'])|0;
+		
 		return this.compileProgram(script, sourceLocation).then( (ctx) => {
 			return new ForthProceduralShape({
 				classRef: "http://ns.nuke24.net/Game21/ScriptProceduralShape",
@@ -302,9 +342,9 @@ export class ForthProceduralShapeCompiler {
 				programSource: script,
 				program: ctx.program,
 				
-				animationCurveName: "loop", // TODO: parse from source headers
-				animationLength: 0, // TODO: parse from headers
-				discreteAnimationStepCount: Infinity, // TODO: parse from headers
+				animationCurveName,
+				animationLength,
+				discreteAnimationStepCount,
 			});
 		});
 	}

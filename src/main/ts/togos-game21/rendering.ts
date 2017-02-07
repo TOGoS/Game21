@@ -292,10 +292,10 @@ const RESO_K_OFFSET = 32;
 
 type ImageParamsKey = string;
 
-function imageParamsKey( visualRef:VisualRef, state:KeyedList<any>|undefined, time:number, orientation:Quaternion, resolution:number ):ImageParamsKey {
+function imageParamsKey( visualRef:VisualRef, state:KeyedList<any>, intervalId:string, orientation:Quaternion, resolution:number ):ImageParamsKey {
 	if( state == null ) state = EMPTY_STATE;
 	return JSON.stringify({
-		visualRef, state, time, orientation, resolution
+		visualRef, state, intervalId, orientation, resolution
 	});
 }
 
@@ -336,13 +336,35 @@ function canvasToRgbaSlice(canv:HTMLCanvasElement, origin:Vector3D, resolution:n
 	);
 }
 
+interface TInterval {
+	t0: number;
+	t1: number;
+	intervalId: string;
+}
+
+/**
+ * Some terms:
+ * 'animation time' = world time since an animation began
+ * 'animation phase' a.k.a. 't' is a number, 0-1, indicating a point in an animation
+ * animation phase = animation time / animation length
+ */
 export class VisualImageManager {
+	/**
+	 * This should be an integer factor
+	 * Of the number of frames per second you want to draw at.
+	 */
+	protected animationResolution:number;
+
 	/**
 	 * May use RenderingContext.dictionaryRootRef
 	 * as part of a cache key,
 	 * but will rely on gameDataManager to actually do lookups
 	 */
-	public constructor( protected renderingContext:RenderingContext, protected gameDataManager:GameDataManager ) { }
+	public constructor( protected renderingContext:RenderingContext, protected gameDataManager:GameDataManager, opts:{
+		animationResolution?:number
+	}={} ) {
+		this.animationResolution = opts.animationResolution || 16;
+	}
 	
 	protected visualMetadataCache = new Map<VisualRef,Thenable<VisualMetadata>>();
 	
@@ -462,22 +484,43 @@ export class VisualImageManager {
 	 */
 	protected paramsKeyedVisualImageCache = new Map<ImageParamsKey,Thenable<ImageSlice<HTMLImageElement|undefined>>>();
 	
-	protected fetchVisualImageParamsKey( visualRef:VisualRef, state:KeyedList<any>|undefined, time:number, orientation:Quaternion, resolution:number ):Thenable<ImageParamsKey> {
-		const mdp = this.fetchVisualMetadata(visualRef);
+	/**
+	 * Given a time since animation start,
+	 * return the t interval (where ends fall on animation resolution boundaries)
+	 */
+	protected timeToAnimationInterval( animTime:number, md:VisualMetadata ):TInterval {
+		if( md.animationLength == 0 ) return {t0:0,t1:0,intervalId:'0'};
 		
-		return shortcutThen(mdp, (md) => {
-			return imageParamsKey(
-				md.hardVisualRef, (md.variesBasedOnState ? state||EMPTY_STATE : EMPTY_STATE),
-				md.animationLength == 0 ? 0 : time - time / md.animationLength,
-				orientation, resolution); 
-		});
+		switch( md.animationCurveName ) {
+		case 'once':
+			if( animTime <= 0 ) return {t0:0,t1:0,intervalId:'begin'};
+			if( animTime >= md.animationLength ) return {t0:1,t1:1,intervalId:'end'};
+			break;
+		default: // well, for loop; TODO: reverse maybe should be different
+			animTime -= md.animationLength * Math.floor(animTime / md.animationLength);
+		}
+		
+		// TODO: If animationLength/discreteAnimationStepCount > animationResolution,
+		// then use a coarser resolution
+		const effectiveResolution = this.animationResolution;
+		const stepCount = Math.floor(md.animationLength*effectiveResolution);
+		let slotId = Math.floor(animTime * effectiveResolution);
+		if( slotId >= stepCount ) slotId = 0;
+		
+		return {
+			t0: slotId     / stepCount,
+			t1: (slotId+1) / stepCount,
+			intervalId: slotId + '-' + (slotId+1) + '/' + stepCount
+		};
+
 	}
 	
 	// TODO: instead of an instant in time, take a range so we can do motion blurred animations!
 	// TODO: CROP!
 	protected generateVisualRgbaSlice(
-		visualRef:VisualRef, state:KeyedList<any>, time:number, orientation:Quaternion, preferredResolution:number
+		visualRef:VisualRef, state:KeyedList<any>, t0:number, t1:number, orientation:Quaternion, preferredResolution:number
 	):Thenable<ImageSlice<Uint8ClampedArray>> {
+		const tAvg = (t0+t1)/2;
 		return this.fetchVisual(visualRef).then( (visual:Visual):Thenable<ImageSlice<Uint8ClampedArray>> => {
 			switch( visual.classRef ) {
 			case "http://ns.nuke24.net/Game21/BitImageVisual":
@@ -502,8 +545,8 @@ export class VisualImageManager {
 			case "http://ns.nuke24.net/Game21/DynamicEntityVisual":
 				return this.gameDataManager.fetchObject<ProgramExpression>(visual.propertiesExpressionRef).then( (expr) => {
 					const animationLength = visual.animationLength == 0 ? 1 : visual.animationLength;
-					const animationTime  = animationLength == 0 ? 0 : time - animationLength * Math.floor(time / animationLength);
-					const animationPhase = animationTime / animationLength;
+					const animationTime  = tAvg * animationLength;
+					const animationPhase = tAvg;
 					return fixEntityVisualProperties(evaluateExpression(expr, {
 						functions: standardFunctions,
 						variableValues: <EntityVisualPropertiesContext>{
@@ -519,7 +562,7 @@ export class VisualImageManager {
 				}).then( (props) => {
 					// TODO: allow material overrides
 					return this.generateVisualRgbaSlice(
-						props.visualRef, {}, time, orientation, preferredResolution
+						props.visualRef, {}, t0, t1, orientation, preferredResolution
 					);
 				});
 			case "http://ns.nuke24.net/Game21/CompoundVisual":
@@ -540,7 +583,7 @@ export class VisualImageManager {
 						const comp = compz[c];
 						const xform = comp.transformation;
 						const pos = {x:xform.x1, y:xform.y1, z:xform.z1};
-						promz.push(enRen.wcdAddEntityVisualRef(pos, Quaternion.IDENTITY, comp.visualRef, state, time));
+						promz.push(enRen.wcdAddEntityVisualRef(pos, Quaternion.IDENTITY, comp.visualRef, state, tAvg));
 					}
 					return Promise.all(promz).then( () => {
 						enRen.flush();
@@ -550,7 +593,7 @@ export class VisualImageManager {
 			case "http://ns.nuke24.net/Game21/ScriptProceduralShape":
 				{
 					const superSampling = 2;
-					const psParams = { t:time, entityState:state };
+					const psParams = { t:tAvg, entityState:state };
 					const shapeSheetSlice = ShapeSheetUtil.proceduralShapeToShapeSheet(visual, psParams, orientation, preferredResolution*superSampling, superSampling);
 					const shapeSheetRenderer = new ShapeSheetRenderer(shapeSheetSlice.sheet, undefined, 2);
 					//shapeSheetRenderer.dataUpdated();
@@ -558,7 +601,6 @@ export class VisualImageManager {
 					console.group("Generating RGBA slice for ScriptProceduralShape "+visualRef+"...");
 					try {
 						const imgData = shapeSheetRenderer.toUint8Rgba();
-						console.log("Okay, generated RGBA array; making slice...")
 						const imgSlice = new ImageSlice<Uint8ClampedArray>(
 							imgData,
 							scaleVector(shapeSheetSlice.origin, 1/superSampling),
@@ -589,23 +631,27 @@ export class VisualImageManager {
 			}
 		}
 		
-		// In all other cases we gotta do it the hard way.
-		const paramsKPromise = this.fetchVisualImageParamsKey(visualRef, state, time, orientation, resolution); 
-		return shortcutThen<string, ImageSlice<HTMLImageElement|undefined>>(paramsKPromise, (k:string):Thenable<ImageSlice<HTMLImageElement|undefined>> => {
-			let sliceProm:Thenable<ImageSlice<HTMLImageElement|undefined>>|undefined = this.paramsKeyedVisualImageCache.get(k);
+		const mdp = this.fetchVisualMetadata(visualRef);
+		
+		return shortcutThen(mdp, (md) => {
+			let tInterval = this.timeToAnimationInterval( time, md );
+			const paramsKey = imageParamsKey(
+				md.hardVisualRef, (md.variesBasedOnState ? state||EMPTY_STATE : EMPTY_STATE),
+				tInterval.intervalId, orientation, resolution); 
+				
+			let sliceProm:Thenable<ImageSlice<HTMLImageElement|undefined>>|undefined = this.paramsKeyedVisualImageCache.get(paramsKey);
 			if( sliceProm ) return sliceProm;
 			
+			// console.log("Generating image for params key "+paramsKey+"; Visual metadata:", md);
+			
 			sliceProm = this.generateVisualRgbaSlice(
-				visualRef, state, time, orientation, resolution
+				visualRef, state, tInterval.t0, tInterval.t1, orientation, resolution
 			).then( (rgbaSlice):Promise<ImageSlice<HTMLImageElement|undefined>> => {
-				console.log("Hey we got an RGBA slice for "+visualRef, rgbaSlice);
 				if( rgbaSlice.bounds.minX != 0 || rgbaSlice.bounds.minY != 0 ) {
 					// We're assuming that the rgbaSlice corresponds 1-1 with its rgbaData.
 					return Promise.reject(new Error("Ack!"));
 				}
-				console.log("Generating data: URI for "+visualRef+"...");
 				const dataUri = rgbaDataToImageDataUri(rgbaSlice.sheet, rgbaSlice.bounds.maxX, rgbaSlice.bounds.maxY );
-				console.log("Generated data URI for "+visualRef+" "+dataUri);
 				return Promise.resolve(<ImageSlice<HTMLImageElement|undefined>>{
 					sheetRef: dataUri,
 					sheet: undefined,
@@ -620,7 +666,7 @@ export class VisualImageManager {
 			});
 			
 			sliceProm = resolveWrap(sliceProm);
-			this.paramsKeyedVisualImageCache.set(k, sliceProm);
+			this.paramsKeyedVisualImageCache.set(paramsKey, sliceProm);
 			return sliceProm;
 		});
 	}

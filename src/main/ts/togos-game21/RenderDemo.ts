@@ -47,10 +47,13 @@ export class RenderDemo {
 			lights: DEFAULT_LIGHTS,
 			materialRefs: DEFAULT_MATERIAL_PALETTE,
 			dictionaryRootRef: "xxx",
-		}, this.gameDataManager);
+		}, this.gameDataManager, {
+			animationResolution: this.framesPerSecond
+		});
 	}
 	
 	protected frameNumber:number = 0;
+	protected framesPerSecond:number = 30;
 	
 	protected ifResolvedThen<T,V>( prom:Thenable<T>, callback:(thing:T)=>Thenable<V>, errCallback?:(err:any)=>any ):void {
 		if( isResolved(prom) ) {
@@ -72,7 +75,7 @@ export class RenderDemo {
 		let entities:LiteEntity[] = [
 			{
 				position: {x:1,y:1,z:0},
-				orientation: Quaternion.fromXYZAxisAngle( 0,1,0, leMod(fn, 16) * Math.PI*2 ),
+				orientation: Quaternion.fromXYZAxisAngle( 0,1,0, leMod(fn, this.framesPerSecond) * Math.PI*2 ),
 				state: {
 					switchState: leMod(this.frameNumber, 14) < 7
 				},
@@ -81,18 +84,18 @@ export class RenderDemo {
 			},
 			{
 				position: {x:2,y:1,z:0},
-				orientation: Quaternion.fromXYZAxisAngle( 0,1,0, leMod(fn, 16) * Math.PI*2 ),
+				orientation: Quaternion.fromXYZAxisAngle( 0,1,0, leMod(fn, this.framesPerSecond) * Math.PI*2 ),
 				state: {},
 				animationStartTime: 0.5,
 				visualRef: 'urn:sha1:PLOIWGVPQYMLDYKBPAIV5JOQ5HT5GT4S'
 			},
 			{
 				position: {x:3,y:1,z:0},
-				orientation: Quaternion.fromXYZAxisAngle( 0,1,0, leMod(fn, 16) * Math.PI*2 ),
+				orientation: Quaternion.fromXYZAxisAngle( 0,1,0, leMod(fn, this.framesPerSecond) * Math.PI*2 ),
 				state: {},
 				animationStartTime: 0.0,
 				visualRef: 'urn:sha1:PLOIWGVPQYMLDYKBPAIV5JOQ5HT5GT4S'
-			}
+			},
 		];
 		
 		ctx.fillStyle = 'rgba(0,0,0,1)';
@@ -102,7 +105,8 @@ export class RenderDemo {
 		
 		for( let e in entities ) {
 			const entity = entities[e];
-			const imgSliceProm = this.imageManager.fetchVisualImageSlice(entity.visualRef, entity.state, this.frameNumber/10, Quaternion.IDENTITY, reso);
+			const animTime = this.frameNumber/this.framesPerSecond - entity.animationStartTime;
+			const imgSliceProm = this.imageManager.fetchVisualImageSlice(entity.visualRef, entity.state, animTime, Quaternion.IDENTITY, reso);
 			
 			this.ifResolvedThen( imgSliceProm, (slice:ImageSlice<HTMLImageElement>) => {
 				const ctx2 = this.canvas.getContext('2d');
@@ -120,7 +124,7 @@ export class RenderDemo {
 			setInterval( () => {
 				++this.frameNumber;
 				this.drawFrame();
-			}, 100 );
+			}, 1000/this.framesPerSecond );
 		});
 	}
 }
