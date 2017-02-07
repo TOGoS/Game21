@@ -368,13 +368,20 @@ export class VisualImageManager {
 	}
 	
 	protected visualMetadataCache = new Map<VisualRef,Thenable<VisualMetadata>>();
+	protected softToHardRefPromiseCache = new Map<VisualRef,Promise<HardVisualRef>>();
 	
 	protected resolveToHardVisualRef( ref:string ):Promise<string> {
+		let resolutionPromise = this.softToHardRefPromiseCache.get(ref);
+		if( resolutionPromise ) return resolutionPromise;
+		
 		if( ref.match(/^urn:uuid:/) ) {
-			return this.gameDataManager.fetchHardRef(ref);
+			resolutionPromise = resolveWrap(this.gameDataManager.fetchHardRef(ref));
 		} else {
-			return Promise.resolve(ref);
+			resolutionPromise = resolvedPromise(ref);
 		}
+		
+		this.softToHardRefPromiseCache.set(ref, resolutionPromise);
+		return resolutionPromise;
 	}
 	
 	protected visualCache = new Map<VisualRef, Thenable<Visual>>();
@@ -420,7 +427,7 @@ export class VisualImageManager {
 	}
 	
 	public fetchVisual( visualRef:VisualRef ):Thenable<Visual> {
-		return this.resolveToHardVisualRef(visualRef).then( (hardVisualRef) => this._fetchVisual(hardVisualRef) );
+		return shortcutThen(this.resolveToHardVisualRef(visualRef), (hardVisualRef) => this._fetchVisual(hardVisualRef) );
 	}
 	
 	public fetchVisualMetadata( visualRef:string ):Thenable<VisualMetadata> {
