@@ -14,7 +14,7 @@ import DensityFunction3D from './DensityFunction3D';
 import PlotMode from './PlotMode';
 
 // For slicing stuff, which maybe doesn't really belong here
-import ProceduralShape from './ProceduralShape';
+import ProceduralShape, { ProceduralShapeParameters } from './ProceduralShape';
 import TransformationMatrix3D from './TransformationMatrix3D';
 import Quaternion from './Quaternion';
 import ImageSlice from './ImageSlice';
@@ -603,16 +603,16 @@ class ShapeSheetUtil {
 		return this.crop(sss, cropRect, newSheet);
 	}
 	
-	public static proceduralShapeToShapeSheet( ps:ProceduralShape, orientation:Quaternion, resolution:number, autoCropGridSize:number=1 ):ImageSlice<ShapeSheet> {
+	public static proceduralShapeToShapeSheet( ps:ProceduralShape, params:ProceduralShapeParameters, orientation:Quaternion, resolution:number, autoCropGridSize:number=1 ):ImageSlice<ShapeSheet> {
 		const xf = TransformationMatrix3D.fromQuaternion(orientation).multiply(TransformationMatrix3D.scale(resolution));
-		const bounds = ps.estimateOuterBounds(0.5, xf).growToIntegerBoundaries();
+		const bounds = ps.estimateOuterBounds(params, xf).growToIntegerBoundaries();
 		const origin:Vector3D = makeVector(
 			-bounds.minX,
 			-bounds.minY,
 			0);
 		const ss = new ShapeSheet(bounds.width, bounds.height);
 		const ssu = new ShapeSheetUtil(ss);
-		ps.draw( ssu, 0.5, TransformationMatrix3D.translation(origin).multiply(xf) );
+		ps.draw( ssu, params, TransformationMatrix3D.translation(origin).multiply(xf) );
 		return this.autocrop(new ImageSlice<ShapeSheet>(ss, origin, resolution, makeAabb(
 			ss.bounds.minX, ss.bounds.minY, 0, ss.bounds.maxX, ss.bounds.maxY, 0,
 		)), true, autoCropGridSize);

@@ -6,7 +6,7 @@ import { makeVector, setVector, ZERO_VECTOR } from './vector3ds';
 import TransformationMatrix3D from './TransformationMatrix3D';
 import { AnimationCurveName } from './AnimationCurve';
 import ShapeSheetUtil from './ShapeSheetUtil';
-import ProceduralShape from './ProceduralShape';
+import ProceduralShape, { ProceduralShapeParameters } from './ProceduralShape';
 import Token, { TokenType } from './lang/Token';
 import { isResolved } from './promises';
 import {
@@ -392,13 +392,13 @@ export default class ForthProceduralShape implements ProceduralShape, ForthProce
 		this.discreteAnimationStepCount = data.discreteAnimationStepCount;
 	}
 	
-	public estimateOuterBounds( t:number, xf:TransformationMatrix3D ):Rectangle {
+	public estimateOuterBounds( params:ProceduralShapeParameters, xf:TransformationMatrix3D ):Rectangle {
 		const s = xf.scale;
 		const xfRad = s*(this.maxRadius == null ? 16 : 16);
 		return new Rectangle( -xfRad, -xfRad, +xfRad, +xfRad );
 	}
 
-	public draw( ssu:ShapeSheetUtil, t:number, xf:TransformationMatrix3D ):void {
+	public draw( ssu:ShapeSheetUtil, params:ProceduralShapeParameters, xf:TransformationMatrix3D ):void {
 		const ctx : ShapeGeneratorContext = {
 			program: this.program,
 			dataStack: [],
@@ -407,7 +407,8 @@ export default class ForthProceduralShape implements ProceduralShape, ForthProce
 			fuel: 100000,
 			shapeSheetUtil: ssu,
 			contextValues: deepFreeze({
-				't': t,
+				't': params.t,
+				'entity-state': params.entityState,
 				'material-index': 4,
 			}),
 			transform: xf,

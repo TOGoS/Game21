@@ -234,7 +234,7 @@ export class EntityRenderer {
 					this.imageCache.fetchVisualMetadata(visualRef).then( (visualMetadata) => {
 						if( !visualMetadata.variesBasedOnState && visualMetadata.animationLength == 0 ) {
 							// Goes in the simple cache!
-							this.imageCache.fetchVisualImageSlice(visualRef, {}, 0, Quaternion.IDENTITY, this.unitPpm).then( (imageSlice) => {
+							this.imageCache.fetchVisualImageSlice(visualRef, EMPTY_STATE, 0, Quaternion.IDENTITY, this.unitPpm).then( (imageSlice) => {
 								this.simpleEntityClassRefImageSliceCache.set(entity.classRef, imageSlice);
 							});
 						}
@@ -293,7 +293,7 @@ const RESO_K_OFFSET = 32;
 type ImageParamsKey = string;
 
 function imageParamsKey( visualRef:VisualRef, state:KeyedList<any>|undefined, time:number, orientation:Quaternion, resolution:number ):ImageParamsKey {
-	if( state == null ) state = {};
+	if( state == null ) state = EMPTY_STATE;
 	return JSON.stringify({
 		visualRef, state, time, orientation, resolution
 	});
@@ -467,7 +467,7 @@ export class VisualImageManager {
 		
 		return shortcutThen(mdp, (md) => {
 			return imageParamsKey(
-				md.hardVisualRef, (md.variesBasedOnState ? state||{} : {}),
+				md.hardVisualRef, (md.variesBasedOnState ? state||EMPTY_STATE : EMPTY_STATE),
 				md.animationLength == 0 ? 0 : time - time / md.animationLength,
 				orientation, resolution); 
 		});
@@ -476,7 +476,7 @@ export class VisualImageManager {
 	// TODO: instead of an instant in time, take a range so we can do motion blurred animations!
 	// TODO: CROP!
 	protected generateVisualRgbaSlice(
-		visualRef:VisualRef, state:KeyedList<any>|undefined, time:number, orientation:Quaternion, preferredResolution:number
+		visualRef:VisualRef, state:KeyedList<any>, time:number, orientation:Quaternion, preferredResolution:number
 	):Thenable<ImageSlice<Uint8ClampedArray>> {
 		return this.fetchVisual(visualRef).then( (visual:Visual):Thenable<ImageSlice<Uint8ClampedArray>> => {
 			switch( visual.classRef ) {
@@ -540,7 +540,7 @@ export class VisualImageManager {
 						const comp = compz[c];
 						const xform = comp.transformation;
 						const pos = {x:xform.x1, y:xform.y1, z:xform.z1};
-						promz.push(enRen.wcdAddEntityVisualRef(pos, Quaternion.IDENTITY, comp.visualRef, state||{}, time));
+						promz.push(enRen.wcdAddEntityVisualRef(pos, Quaternion.IDENTITY, comp.visualRef, state, time));
 					}
 					return Promise.all(promz).then( () => {
 						enRen.flush();
@@ -550,7 +550,8 @@ export class VisualImageManager {
 			case "http://ns.nuke24.net/Game21/ScriptProceduralShape":
 				{
 					const superSampling = 2;
-					const shapeSheetSlice = ShapeSheetUtil.proceduralShapeToShapeSheet(visual, orientation, preferredResolution*superSampling, superSampling);
+					const psParams = { t:time, entityState:state };
+					const shapeSheetSlice = ShapeSheetUtil.proceduralShapeToShapeSheet(visual, psParams, orientation, preferredResolution*superSampling, superSampling);
 					const shapeSheetRenderer = new ShapeSheetRenderer(shapeSheetSlice.sheet, undefined, 2);
 					//shapeSheetRenderer.dataUpdated();
 					shapeSheetRenderer.updateCellColors();
@@ -575,7 +576,7 @@ export class VisualImageManager {
 		});
 	}
 	
-	public fetchRefOnlyVisualImageSlice( visualRef:VisualRef, state:KeyedList<any>|undefined, time:number, orientation:Quaternion, preferredPpm:number ):Thenable<ImageSlice<HTMLImageElement|undefined>> {
+	public fetchRefOnlyVisualImageSlice( visualRef:VisualRef, state:KeyedList<any>, time:number, orientation:Quaternion, preferredPpm:number ):Thenable<ImageSlice<HTMLImageElement|undefined>> {
 		const resoLog = Math.round(Math.log(preferredPpm)/Math.log(2));
 		const resolution = 1 << resoLog;
 		const resoKey = RESO_K_OFFSET + resoLog;
@@ -624,7 +625,7 @@ export class VisualImageManager {
 		});
 	}
 	
-	public fetchVisualImageSlice( visualRef:VisualRef, state:KeyedList<any>|undefined, time:number, orientation:Quaternion, preferredPpm:number ):Thenable<ImageSlice<HTMLImageElement>> {
+	public fetchVisualImageSlice( visualRef:VisualRef, state:KeyedList<any>, time:number, orientation:Quaternion, preferredPpm:number ):Thenable<ImageSlice<HTMLImageElement>> {
 		const st = this.fetchRefOnlyVisualImageSlice( visualRef, state, time, orientation, preferredPpm );
 		if( isResolved(st) ) {
 			const s = value(st);
@@ -637,7 +638,7 @@ export class VisualImageManager {
 	/**
 	 * qet means 'Get or enQueue for getting'
 	 */
-	public qetVisualImageSlice( visualRef:VisualRef, state:KeyedList<any>|undefined, time:number, orientation:Quaternion, preferredPpm:number ):ImageSlice<HTMLImageElement>|undefined {
+	public qetVisualImageSlice( visualRef:VisualRef, state:KeyedList<any>, time:number, orientation:Quaternion, preferredPpm:number ):ImageSlice<HTMLImageElement>|undefined {
 		const prom = this.fetchVisualImageSlice(visualRef, state, time, orientation, preferredPpm );
 		return isResolved(prom) ? value(prom) : undefined;
 	}
@@ -650,7 +651,7 @@ export class VisualImageManager {
 			switch( entityClass.structureType ) {
 			case StructureType.INDIVIDUAL:
 				if( entityClass.visualRef ) {
-					return this.fetchVisualImageSlice(entityClass.visualRef, entity.state, time, orientation, preferredPpm);
+					return this.fetchVisualImageSlice(entityClass.visualRef, entity.state||EMPTY_STATE, time, orientation, preferredPpm);
 				} else {
 					return EMPTY_IMAGE_SLICE_PROMISE;
 				}

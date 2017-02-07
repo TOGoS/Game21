@@ -209,7 +209,10 @@ class ShapeView {
 	public render():void {
 		this._ss.initBuffer();
 		if( this._shape ) {
-			this._shape.draw( this._ssu, this._t, this._xf );
+			this._shape.draw( this._ssu, {
+				t: this._t,
+				entityState: {},
+			}, this._xf );
 		}
 		this._ssr.dataUpdated();
 		this._ssr.updateCanvas();
