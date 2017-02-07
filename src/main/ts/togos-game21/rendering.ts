@@ -218,9 +218,6 @@ export class EntityRenderer {
 			) return RESOLVED_VOID_PROMISE;
 			
 			const animationTime = time - (entity.animationStartTime||0);
-			if( animationTime == null || isNaN(animationTime) ) {
-				console.error("animationTime is bad!", time, "Entity animationStartTime:", entity.animationStartTime);
-			}
 			
 			const drawPromises:Thenable<void>[] = [];
 			if( entityClass.visualRef ) {
@@ -600,21 +597,15 @@ export class VisualImageManager {
 					const psParams = { t:tAvg, entityState:state };
 					const shapeSheetSlice = ShapeSheetUtil.proceduralShapeToShapeSheet(visual, psParams, orientation, preferredResolution*superSampling, superSampling);
 					const shapeSheetRenderer = new ShapeSheetRenderer(shapeSheetSlice.sheet, undefined, 2);
-					//shapeSheetRenderer.dataUpdated();
 					shapeSheetRenderer.updateCellColors();
-					console.group("Generating RGBA slice for ScriptProceduralShape "+visualRef+"...");
-					try {
-						const imgData = shapeSheetRenderer.toUint8Rgba();
-						const imgSlice = new ImageSlice<Uint8ClampedArray>(
-							imgData,
-							scaleVector(shapeSheetSlice.origin, 1/superSampling),
-							preferredResolution, 
-							scaleAabb(shapeSheetSlice.bounds, 1/superSampling)
-						);
-						return resolvedPromise(imgSlice);
-					} finally {
-						console.groupEnd();
-					}
+					const imgData = shapeSheetRenderer.toUint8Rgba();
+					const imgSlice = new ImageSlice<Uint8ClampedArray>(
+						imgData,
+						scaleVector(shapeSheetSlice.origin, 1/superSampling),
+						preferredResolution, 
+						scaleAabb(shapeSheetSlice.bounds, 1/superSampling)
+					);
+					return resolvedPromise(imgSlice);
 				}
 			default:
 				return Promise.reject(new Error("Don't yet know how to generateVisualRgbaSlice "+visual!.classRef));
@@ -646,8 +637,6 @@ export class VisualImageManager {
 			let sliceProm:Thenable<ImageSlice<HTMLImageElement|undefined>>|undefined = this.paramsKeyedVisualImageCache.get(paramsKey);
 			if( sliceProm ) return sliceProm;
 			
-			// console.log("Generating image for params key "+paramsKey+"; Visual metadata:", md);
-			
 			sliceProm = this.generateVisualRgbaSlice(
 				visualRef, state, tInterval.t0, tInterval.t1, orientation, resolution
 			).then( (rgbaSlice):Promise<ImageSlice<HTMLImageElement|undefined>> => {
@@ -656,6 +645,7 @@ export class VisualImageManager {
 					return Promise.reject(new Error("Ack!"));
 				}
 				const dataUri = rgbaDataToImageDataUri(rgbaSlice.sheet, rgbaSlice.bounds.maxX, rgbaSlice.bounds.maxY );
+				//console.log("Completed imaging "+paramsKey+": "+dataUri);
 				return Promise.resolve(<ImageSlice<HTMLImageElement|undefined>>{
 					sheetRef: dataUri,
 					sheet: undefined,
