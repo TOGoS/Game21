@@ -586,6 +586,16 @@ class ShapeSheetUtil {
 		return new ImageSlice<ShapeSheet>( sss.sheet, sss.origin, sss.resolution, makeAabb(cropRect.minX, cropRect.minY, sss.bounds.minZ, cropRect.maxX, cropRect.maxY, sss.bounds.maxZ) );
 	}
 	
+	/**
+	 * Create a potentially smaller shape sheet that is cropped to the
+	 * smallest non-transparent rectangle of the source shape sheet.
+	 * @param {ImageSlice<ShapeSheet>} sss the source shapeSheet
+	 * @param {boolean} newSheet whether to clone backing data (true)
+	 *   or just return a new imageslice referencing the same old sheet (false)
+	 * @param {number} gridSize the cropped area will be snapped outward to this grid size
+	 *   (specified in pixels); this is important if you want to do supersampling on
+	 *   the resulting image!
+	 */
 	public static autocrop( sss:ImageSlice<ShapeSheet>, newSheet:boolean=false, gridSize:number=1 ):ImageSlice<ShapeSheet> {
 		const cropRect:Rectangle = this.findAutocrop(sss.sheet, sss.bounds).scale(1/gridSize).growToIntegerBoundaries().scale(gridSize).toNonNegativeRectangle();
 		if( Rectangle.areEqual(sss.bounds, cropRect) ) return sss;
@@ -593,7 +603,7 @@ class ShapeSheetUtil {
 		return this.crop(sss, cropRect, newSheet);
 	}
 	
-	public static proceduralShapeToShapeSheet( ps:ProceduralShape, orientation:Quaternion, resolution:number ):ImageSlice<ShapeSheet> {
+	public static proceduralShapeToShapeSheet( ps:ProceduralShape, orientation:Quaternion, resolution:number, autoCropGridSize:number=1 ):ImageSlice<ShapeSheet> {
 		const xf = TransformationMatrix3D.fromQuaternion(orientation).multiply(TransformationMatrix3D.scale(resolution));
 		const bounds = ps.estimateOuterBounds(0.5, xf).growToIntegerBoundaries();
 		const origin:Vector3D = makeVector(
@@ -605,7 +615,7 @@ class ShapeSheetUtil {
 		ps.draw( ssu, 0.5, TransformationMatrix3D.translation(origin).multiply(xf) );
 		return this.autocrop(new ImageSlice<ShapeSheet>(ss, origin, resolution, makeAabb(
 			ss.bounds.minX, ss.bounds.minY, 0, ss.bounds.maxX, ss.bounds.maxY, 0,
-		)), true);
+		)), true, autoCropGridSize);
 	}
 };
 

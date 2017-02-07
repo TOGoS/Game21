@@ -73,7 +73,7 @@ export default class ShapeSheetRenderer {
 	/** Don't change!  Create a new renderer instead!
 	 * I mean maybe you could if dimensions match, but why. */
 	protected _shapeSheet:ShapeSheet;
-	public canvas:HTMLCanvasElement;
+	public canvas?:HTMLCanvasElement;
 	protected _superSampling:number;
 	
 	// Configuration
@@ -100,7 +100,7 @@ export default class ShapeSheetRenderer {
 	// Debugging info
 	public canvasUpdateCount:number = 0;
 	
-	constructor(shapeSheet:ShapeSheet, canvas:HTMLCanvasElement, superSampling:number=1) {
+	constructor(shapeSheet:ShapeSheet, canvas:HTMLCanvasElement|undefined, superSampling:number=1) {
 		this._shapeSheet = shapeSheet;
 		this._superSampling = Math.round(superSampling);
 		if( this._superSampling <= 0 ) {
@@ -492,6 +492,20 @@ export default class ShapeSheetRenderer {
 		}
 	}
 	
+	public toUint8Rgba():Uint8ClampedArray {
+		const ss = this._superSampling;
+		const ssArea = ss*ss;
+		const sheetWidth = this._shapeSheet.width;
+		const sheetHeight = this._shapeSheet.height;
+		const imgWidth = sheetWidth/ss, imgHeight=sheetHeight/ss;
+		const arr = new Uint8ClampedArray(4*sheetWidth*sheetHeight/ssArea);
+		ShapeSheetRenderer.toUint8Rgba(
+			this.cellColors, 0, 4*sheetWidth,
+			arr, 0, 4*imgWidth, imgWidth, imgHeight, ss
+		);
+		return arr;
+	}
+	
 	copyToCanvas(region:Rectangle):void {
 		const ss = this.shapeSheet;
 		const width = ss.width, height = ss.height;
@@ -513,7 +527,7 @@ export default class ShapeSheetRenderer {
 		
 		const w = maxX-minX, h = maxY-minY;
 		
-		if( this.canvas === null ) return;
+		if( this.canvas == undefined ) return;
 		
 		var ctx = this.canvas.getContext('2d');
 		if( !ctx ) throw new Error("No '2d' context from my canvas!");

@@ -261,6 +261,7 @@ const customWords : KeyedList<Word> = {
 }
 
 export interface ScriptProceduralShapeData {
+	classRef : "http://ns.nuke24.net/Game21/ScriptProceduralShape";
 	languageName : "G21-FPS-1.0";
 	maxRadius? : number;
 	programSource : string;
@@ -274,10 +275,12 @@ export interface ForthProceduralShapeData extends ScriptProceduralShapeData {
 	program : Program;
 }
 
+const ANONYMOUS_SOURCELOC = {
+	filename:'anynymous source', lineNumber:1, columnNumber:1
+};
+
 export class ForthProceduralShapeCompiler {
-	public compileProgram(script:string, sourceLocation:SourceLocation = {
-		filename:'anynymous source', lineNumber:1, columnNumber:1
-	}) : Thenable<CompilationContext> {
+	public compileProgram(script:string, sourceLocation:SourceLocation=ANONYMOUS_SOURCELOC) : Thenable<CompilationContext> {
 		const ctx : CompilationContext = {
 			sourceLocation: sourceLocation,
 			dictionary: mergeDicts(standardWords, customWords),
@@ -290,9 +293,10 @@ export class ForthProceduralShapeCompiler {
 		return compileSource( script, ctx, sourceLocation );
 	}
 	
-	public compileToShape(script:string):Thenable<ForthProceduralShape> {
-		return this.compileProgram(script).then( (ctx) => {
+	public compileToShape(script:string, sourceLocation:SourceLocation=ANONYMOUS_SOURCELOC):Thenable<ForthProceduralShape> {
+		return this.compileProgram(script, sourceLocation).then( (ctx) => {
 			return new ForthProceduralShape({
+				classRef: "http://ns.nuke24.net/Game21/ScriptProceduralShape",
 				languageName: "G21-FPS-1.0", // TODO: parse from headers
 				maxRadius: 8, // TODO: parse from headers
 				programSource: script,
@@ -368,6 +372,7 @@ export function fixScriptText(programSource:string, headerValues:KeyedList<Strin
 }
 
 export default class ForthProceduralShape implements ProceduralShape, ForthProceduralShapeData {
+	public classRef : "http://ns.nuke24.net/Game21/ScriptProceduralShape";
 	public languageName : "G21-FPS-1.0";
 	public maxRadius? : number;
 	public programSource : string;
@@ -377,6 +382,7 @@ export default class ForthProceduralShape implements ProceduralShape, ForthProce
 	public discreteAnimationStepCount : number;
 	
 	public constructor( public data:ForthProceduralShapeData ) {
+		this.classRef = "http://ns.nuke24.net/Game21/ScriptProceduralShape";
 		this.languageName = data.languageName;
 		this.maxRadius = data.maxRadius;
 		this.programSource = data.programSource;

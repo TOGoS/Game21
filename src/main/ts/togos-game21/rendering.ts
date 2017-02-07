@@ -3,14 +3,17 @@
 import KeyedList from './KeyedList';
 import Rectangle from './Rectangle';
 import DirectionalLight from './DirectionalLight';
+import { scaleAabb } from './aabbs';
 import Vector3D from './Vector3D';
 import { ZERO_VECTOR } from './vector3ds';
+import { scaleVector } from './vector3dmath';
 import Quaternion from './Quaternion';
+import TransformationMatrix3D from './TransformationMatrix3D';
 import ImageSlice from './ImageSlice';
 import { MaterialPalette } from './surfacematerials';
 import GameDataManager from './GameDataManager';
 import { isResolved, resolvedPromise, value, resolveWrap, shortcutThen, voidify, RESOLVED_VOID_PROMISE } from './promises';
-import { asciiDecode } from 'tshash/utils';
+import { asciiDecode, utf8Decode } from 'tshash/utils';
 import { imagePromiseFromUrl, EMPTY_IMAGE_SLICE } from './images';
 import { AnimationCurveName } from './AnimationCurve';
 
@@ -29,12 +32,15 @@ import DynamicEntityVisual, {
 } from './DynamicEntityVisual';
 import CompoundVisual from './CompoundVisual';
 import BitImageVisual from './BitImageVisual';
-
 import { isBitImageVisualRef, parseBitImageVisualRefRegexResult, bitImageVisualToRgbaData } from './bitimages';
+import ForthProceduralShape, { ForthProceduralShapeCompiler } from './ForthProceduralShape';
+
+import ShapeSheetUtil from './ShapeSheetUtil';
+import ShapeSheetRenderer from './ShapeSheetRenderer';
 
 import { ProgramExpression, evaluateExpression, standardFunctions } from './internalsystemprogram';
 
-type Visual = BitImageVisual|CompoundVisual|DynamicEntityVisual;
+type Visual = BitImageVisual|CompoundVisual|DynamicEntityVisual|ForthProceduralShape;
 
 /** A hard (urn:sha1:...) or soft (urn:uuid:...) ref to a visual */
 type VisualRef = string;
@@ -265,6 +271,7 @@ export class EntityRenderer {
 		ctx.webkitImageSmoothingEnabled = false;
 		ctx.msImageSmoothingEnabled = false;
 		ctx.oImageSmoothingEnabled = false;
+		(<any>ctx).imageSmoothingEnabled = false;
 		this.drawCommandBuffer.flushDrawCommands(ctx);
 	}
 }
@@ -362,20 +369,22 @@ export class VisualImageManager {
 			}
 			
 			if( dataRefRegex.exec(visualRef) ) {
-				return this.gameDataManager.fetchObject<Uint8Array>(visualRef).then( (data) => {
+				return resolve(this.gameDataManager.fetchObject<Uint8Array>(visualRef).then( (data) => {
 					if( !data.slice ) {
 						return Promise.reject(visualRef+" didn't resolve to a byte array");
 					}
 					
 					const g21FpsMagic = "#G21-FPS-1.0";
 					if( asciiDecode(data.slice(0,g21FpsMagic.length)) == g21FpsMagic ) {
-						
-						return Promise.reject("Hey it's a G21FPS!");
+						// TODO: should probably do all this rendering
+						// in like a webworker or something
+						const fpsc = new ForthProceduralShapeCompiler();
+						return fpsc.compileToShape(utf8Decode(data), {filename: visualRef, lineNumber:1, columnNumber:1});
 					}
 					return Promise.reject(
 						"Hey I don't know how to interpret this image data ("+
 						data.length+" bytes) as a visual");
-				});
+				}));
 			}
 			
 			// TODO: Fetch the data, look at magic to see if it's a #G21-FPS-1.0
@@ -419,6 +428,19 @@ export class VisualImageManager {
 							discreteAnimationStepCount: visual.discreteAnimationStepCount,
 						});
 					}
+				case "http://ns.nuke24.net/Game21/ScriptProceduralShape":
+					{
+						// TODO: analyze program or look at headers
+						const variesBasedOnState = true;
+						
+						return resolvedPromise({
+							hardVisualRef,
+							variesBasedOnState,
+							animationLength: visual.animationLength,
+							animationCurveName: visual.animationCurveName,
+							discreteAnimationStepCount: visual.discreteAnimationStepCount,
+						});
+					}
 				default:
 					return Promise.reject("Lolz not implemented to extract metadata from a "+visual.classRef);
 				}
@@ -451,6 +473,8 @@ export class VisualImageManager {
 		});
 	}
 	
+	// TODO: instead of an instant in time, take a range so we can do motion blurred animations!
+	// TODO: CROP!
 	protected generateVisualRgbaSlice(
 		visualRef:VisualRef, state:KeyedList<any>|undefined, time:number, orientation:Quaternion, preferredResolution:number
 	):Thenable<ImageSlice<Uint8ClampedArray>> {
@@ -523,6 +547,28 @@ export class VisualImageManager {
 						return canvasToRgbaSlice(canv, {x:originX, y:originY, z:0}, preferredResolution)
 					});
 				}
+			case "http://ns.nuke24.net/Game21/ScriptProceduralShape":
+				{
+					const superSampling = 2;
+					const shapeSheetSlice = ShapeSheetUtil.proceduralShapeToShapeSheet(visual, orientation, preferredResolution*superSampling, superSampling);
+					const shapeSheetRenderer = new ShapeSheetRenderer(shapeSheetSlice.sheet, undefined, 2);
+					//shapeSheetRenderer.dataUpdated();
+					shapeSheetRenderer.updateCellColors();
+					console.group("Generating RGBA slice for ScriptProceduralShape "+visualRef+"...");
+					try {
+						const imgData = shapeSheetRenderer.toUint8Rgba();
+						console.log("Okay, generated RGBA array; making slice...")
+						const imgSlice = new ImageSlice<Uint8ClampedArray>(
+							imgData,
+							scaleVector(shapeSheetSlice.origin, 1/superSampling),
+							preferredResolution, 
+							scaleAabb(shapeSheetSlice.bounds, 1/superSampling)
+						);
+						return resolvedPromise(imgSlice);
+					} finally {
+						console.groupEnd();
+					}
+				}
 			default:
 				return Promise.reject(new Error("Don't yet know how to generateVisualRgbaSlice "+visual!.classRef));
 			}
@@ -551,11 +597,14 @@ export class VisualImageManager {
 			sliceProm = this.generateVisualRgbaSlice(
 				visualRef, state, time, orientation, resolution
 			).then( (rgbaSlice):Promise<ImageSlice<HTMLImageElement|undefined>> => {
+				console.log("Hey we got an RGBA slice for "+visualRef, rgbaSlice);
 				if( rgbaSlice.bounds.minX != 0 || rgbaSlice.bounds.minY != 0 ) {
 					// We're assuming that the rgbaSlice corresponds 1-1 with its rgbaData.
 					return Promise.reject(new Error("Ack!"));
 				}
+				console.log("Generating data: URI for "+visualRef+"...");
 				const dataUri = rgbaDataToImageDataUri(rgbaSlice.sheet, rgbaSlice.bounds.maxX, rgbaSlice.bounds.maxY );
+				console.log("Generated data URI for "+visualRef+" "+dataUri);
 				return Promise.resolve(<ImageSlice<HTMLImageElement|undefined>>{
 					sheetRef: dataUri,
 					sheet: undefined,
@@ -563,6 +612,10 @@ export class VisualImageManager {
 					bounds: rgbaSlice.bounds,
 					resolution: rgbaSlice.resolution,
 				});
+			});
+			
+			sliceProm.catch( (err) => {
+				console.error("Error generating image for "+visualRef+":", err);
 			});
 			
 			sliceProm = resolveWrap(sliceProm);
