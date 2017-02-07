@@ -515,6 +515,8 @@ const bottomToLeftEthernetSlabImgRef = bitImgRef(0,ethCol,eighthMeterWire2Bottom
 const topToRightEthernetSlabImgRef = bitImgRef(0,ethCol,eighthMeterWire2TopToRightPix);
 const topToLeftEthernetSlabImgRef = bitImgRef(0,ethCol,eighthMeterWire2TopToLeftPix);
 
+const spinningFanVisualRef = 'urn:sha1:PLOIWGVPQYMLDYKBPAIV5JOQ5HT5GT4S';
+
 const playerImgRef        = bitImgRef(0,[224,224,96],playerPix);
 const deadPlayerImgRef    = bitImgRef(0,[112,96,48],deadPlayerPix,16,8,8,6);
 
@@ -540,7 +542,7 @@ export const room2Id = 'urn:uuid:9d424151-1abf-45c1-b581-170c6eec5942';
 export const room3Id = 'urn:uuid:9d424151-1abf-45c1-b581-170c6eec5943';
 
 const room1Data = [
-	1, 1, 1, 1, 5,33, 1, 1, 1, 1, 1, 1,11, 0, 0,10,
+	1, 1,40,40, 5,33, 1, 1, 1, 1, 1, 1,11, 0, 0,10,
 	0, 0, 0, 0, 5,32, 1, 1, 1, 0, 0, 0,13, 0, 0,12,
 	1, 1, 0, 0, 5,33, 1, 0, 0, 0, 0, 0,13, 0, 0,10,
 	1, 1, 1, 0, 5,33, 1, 1, 1, 1, 2, 0,13, 0, 0,10,
@@ -706,6 +708,7 @@ export const bottomToLeftEthernetSlabClassRef = 'urn:uuid:33419dc3-f0e2-451c-8c0
 export const bottomToRightEthernetSlabClassRef= 'urn:uuid:33419dc3-f0e2-451c-8c07-50d010ac8ea5';
 export const verticalEthernetSlabClassRef     = 'urn:uuid:33419dc3-f0e2-451c-8c07-50d010ac8ea6';
 export const horizontalEthernetSlabClassRef   = 'urn:uuid:33419dc3-f0e2-451c-8c07-50d010ac8ea7';
+export const spinningFanClassRef = 'urn:uuid:89b8764b-25ef-4885-8d42-7801e1c27144';
 
 export const primarySpawnPointEntityId = 'urn:uuid:d42a8340-ec03-482b-ae4c-a1bfdec4ba3a'; 
 export const playerEntityId            = 'urn:uuid:d42a8340-ec03-482b-ae4c-a1bfdec4ba32';
@@ -1482,6 +1485,16 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 		[0,0,0,0, 0,0,0,0, 0,0,0,0, 5,4,3,6],
 		gdm);
 	
+	gdm.tempStoreObject<EntityClass>( {
+		tilingBoundingBox: UNIT_CUBE,
+		visualBoundingBox: UNIT_CUBE,
+		physicalBoundingBox: UNIT_CUBE,
+		structureType: StructureType.INDIVIDUAL,
+		opacity: 0.5,
+		isSolid: true,
+		visualRef: spinningFanVisualRef
+	}, spinningFanClassRef );
+	
 	//// Wired switch blocks
 	
 	// TODO: Do onon/onoff action when 1/0 message received from netdown
@@ -1772,6 +1785,7 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 		/* 37 */ topToRightEthernetBlockRef,
 		/* 38 */ topToLeftEthernetBlockRef,
 		/* 39 */ twistyVerticalEthernetBlockRef,
+		/* 40 */ spinningFanClassRef,
 	], gdm, tileEntityPaletteId);
 	
 	// do this as second step because we need to reference that tile tree palette by ID
