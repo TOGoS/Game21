@@ -28,9 +28,8 @@
 
 ## Misc to-do items
 
-- Entity with repeating animation
-  - Maybe a fan - urn:sha1:PLOIWGVPQYMLDYKBPAIV5JOQ5HT5GT4S
-- Once-through animation
+* Entity with repeating animation
+  * Maybe a fan - urn:sha1:DND2P2W2AVQR3YFIXGA4MLQIZTFEPTC3
 - Resettable once-thtough animation
   (flash to indicate an event, like a repeater lighting up to indicate that it just passed a message)
 - Re-integrate 3D rendered visuals

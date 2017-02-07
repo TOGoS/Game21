@@ -640,7 +640,7 @@ export class VisualImageManager {
 			const paramsKey = imageParamsKey(
 				md.hardVisualRef, (md.variesBasedOnState ? state||EMPTY_STATE : EMPTY_STATE),
 				tInterval.intervalId, orientation, resolution); 
-				
+			
 			let sliceProm:Thenable<ImageSlice<HTMLImageElement|undefined>>|undefined = this.paramsKeyedVisualImageCache.get(paramsKey);
 			if( sliceProm ) return sliceProm;
 			

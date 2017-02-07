@@ -515,7 +515,7 @@ const bottomToLeftEthernetSlabImgRef = bitImgRef(0,ethCol,eighthMeterWire2Bottom
 const topToRightEthernetSlabImgRef = bitImgRef(0,ethCol,eighthMeterWire2TopToRightPix);
 const topToLeftEthernetSlabImgRef = bitImgRef(0,ethCol,eighthMeterWire2TopToLeftPix);
 
-const spinningFanVisualRef = 'urn:sha1:PLOIWGVPQYMLDYKBPAIV5JOQ5HT5GT4S';
+const spinningFanVisualRef = 'urn:sha1:DND2P2W2AVQR3YFIXGA4MLQIZTFEPTC3';
 
 const playerImgRef        = bitImgRef(0,[224,224,96],playerPix);
 const deadPlayerImgRef    = bitImgRef(0,[112,96,48],deadPlayerPix,16,8,8,6);
@@ -1485,10 +1485,12 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 		[0,0,0,0, 0,0,0,0, 0,0,0,0, 5,4,3,6],
 		gdm);
 	
+	const fanBoxBb = makeAabb(-1/2, -1/2, -1/4, +1/2, +1/2, +1/4);
+	
 	gdm.tempStoreObject<EntityClass>( {
-		tilingBoundingBox: UNIT_CUBE,
-		visualBoundingBox: UNIT_CUBE,
-		physicalBoundingBox: UNIT_CUBE,
+		tilingBoundingBox: fanBoxBb,
+		visualBoundingBox: fanBoxBb,
+		physicalBoundingBox: fanBoxBb,
 		structureType: StructureType.INDIVIDUAL,
 		opacity: 0.5,
 		isSolid: true,

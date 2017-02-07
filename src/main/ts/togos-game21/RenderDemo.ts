@@ -94,7 +94,7 @@ export class RenderDemo {
 				orientation: Quaternion.fromXYZAxisAngle( 0,1,0, leMod(fn, this.framesPerSecond) * Math.PI*2 ),
 				state: {},
 				animationStartTime: 0.0,
-				visualRef: 'urn:sha1:PLOIWGVPQYMLDYKBPAIV5JOQ5HT5GT4S'
+				visualRef: 'urn:sha1:DND2P2W2AVQR3YFIXGA4MLQIZTFEPTC3'
 			},
 		];
 		
