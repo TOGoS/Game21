@@ -95,7 +95,6 @@ function quankize<T,R>( promise:Thenable<T>, quank:Quank, callback:(v:T, quank:Q
 export class EntityRenderer {
 	protected drawCommandBuffer:DrawCommandBuffer = new DrawCommandBuffer();
 	public clip:Rectangle;
-	public time:number;
 	
 	public constructor(
 		public canvas:HTMLCanvasElement,
@@ -200,7 +199,7 @@ export class EntityRenderer {
 		return this.wcdAddEntityVisualRef(pos, orientation, visualRef, entityState, animationTime, Quank.UNLESS_DEFERRED);
 	}
 	
-	public wcdAddEntity( pos:Vector3D, orientation:Quaternion, entity:Entity, quank:Quank=Quank.ALWAYS ):Thenable<void> {
+	public wcdAddEntity( pos:Vector3D, orientation:Quaternion, entity:Entity, time:number, quank:Quank=Quank.ALWAYS ):Thenable<void> {
 		return quankize(this.gameDataManager.fetchObject<EntityClass>( entity.classRef ), quank, (entityClass, quank):Thenable<void> => {
 			const vbb = entityClass.visualBoundingBox;
 			
@@ -218,11 +217,16 @@ export class EntityRenderer {
 				scy + backScale * (vbb.minY + pos.y) >= this.clip.maxY
 			) return RESOLVED_VOID_PROMISE;
 			
+			const animationTime = time - (entity.animationStartTime||0);
+			if( animationTime == null || isNaN(animationTime) ) {
+				console.error("animationTime is bad!", time, "Entity animationStartTime:", entity.animationStartTime);
+			}
+			
 			const drawPromises:Thenable<void>[] = [];
 			if( entityClass.visualRef ) {
 				drawPromises.push(this.wcdAddEntityVisualRef(
 					pos, orientation, entityClass.visualRef, entity.state||EMPTY_STATE,
-					this.time - (entity.animationStartTime||0),
+					animationTime,
 					quank
 				));
 			}
@@ -242,14 +246,14 @@ export class EntityRenderer {
 				}
 			}
 			eachSubEntity( pos, orientation, entity, this.gameDataManager, (subPos, subOri, subEnt) => {
-				drawPromises.push(this.wcdAddEntity(subPos, subOri, subEnt));
+				drawPromises.push(this.wcdAddEntity(subPos, subOri, subEnt, time));
 			}, this );
 			
 			return voidify(Promise.all(drawPromises));
 		});
 	}
 	
-	public wciAddEntity( pos:Vector3D, orientation:Quaternion, entity:Entity ):Thenable<void> {
+	public wciAddEntity( pos:Vector3D, orientation:Quaternion, entity:Entity, time:number ):Thenable<void> {
 		const imgSlice = this.simpleEntityClassRefImageSliceCache.get(entity.classRef);
 		if( imgSlice ) {
 			this.wciAddImageSlice(pos, orientation, imgSlice);
@@ -257,7 +261,7 @@ export class EntityRenderer {
 		}
 		
 		// May need to replace with a more specialized implement
-		return this.wcdAddEntity(pos, orientation, entity, Quank.UNLESS_DEFERRED);
+		return this.wcdAddEntity(pos, orientation, entity, time, Quank.UNLESS_DEFERRED);
 	}
 	
 	protected get renderingContext2d():CanvasRenderingContext2D|null {
@@ -720,8 +724,7 @@ export class VisualImageManager {
 					originX, originY, preferredPpm,
 					Infinity
 				);
-				enRen.time = time;
-				return enRen.wcdAddEntity( ZERO_VECTOR, orientation, entity ).then( () => {
+				return enRen.wcdAddEntity( ZERO_VECTOR, orientation, entity, time ).then( () => {
 					enRen.flush();
 					const sheetRef = canv.toDataURL();
 					// MAYBEDO: Could crop it, I guess!

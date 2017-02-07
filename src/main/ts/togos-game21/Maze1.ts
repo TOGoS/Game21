@@ -273,6 +273,7 @@ export class MazeView {
 		const veList = this.viewScene.visualEntities;
 		const wrend = this._worldRenderer;
 		if( wrend ) {
+			const worldTime = this.viewScene.worldTime || 0;
 			if( veList ) for( let ve in veList ) {
 				const visualEntity = veList[ve];
 				let addPromise:Thenable<void>;
@@ -280,11 +281,11 @@ export class MazeView {
 				// - Needs to draw /immediately/ or not at all
 				// - If some images not available, schedule redraw after they become available
 				if( visualEntity.entity ) {
-					addPromise = wrend.wciAddEntity(visualEntity.position, visualEntity.orientation||Quaternion.IDENTITY, visualEntity.entity);
+					addPromise = wrend.wciAddEntity(visualEntity.position, visualEntity.orientation||Quaternion.IDENTITY, visualEntity.entity, worldTime);
 				} else if( visualEntity.visualRef ) {
 					addPromise = wrend.wciAddEntityVisualRef(
 						visualEntity.position, visualEntity.orientation||Quaternion.IDENTITY,
-						visualEntity.visualRef, visualEntity.state||EMPTY_STATE, this.viewScene.worldTime - visualEntity.animationStartTime
+						visualEntity.visualRef, visualEntity.state||EMPTY_STATE, worldTime - (visualEntity.animationStartTime||0)
 					);
 				} else {
 					addPromise = RESOLVED_VOID_PROMISE;
