@@ -63,6 +63,8 @@ class TileEntityPaletteManager {
 				if( palE.entity === te.entity ) return i; // Easy case!
 				if( palE.entity.classRef != te.entity.classRef ) continue;
 				if( JSON.stringify(palE.entity.state) != JSON.stringify(te.entity.state) ) continue;
+				const st0 = palE.entity.animationStartTime||0, st1 = te.entity.animationStartTime||0;
+				if( st0 != st1 ) continue;
 				
 				// Good enough for now; we'll ignore other properties
 				return i;

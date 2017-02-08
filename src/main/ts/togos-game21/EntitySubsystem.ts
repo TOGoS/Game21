@@ -99,6 +99,9 @@ export interface Button {
 
 export interface EntityMorpher {
 	classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/EntityMorpher";
+	allowsClassChange?: boolean;
+	allowsAnimationReset?: boolean;
+	allowsStateChange?: boolean;
 }
 
 /**

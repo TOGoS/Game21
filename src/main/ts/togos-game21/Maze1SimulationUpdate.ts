@@ -876,24 +876,41 @@ abstract class SimulationUpdate {
 			break;
 		case "http://ns.nuke24.net/Game21/EntitySubsystem/EntityMorpher":
 			{
-				if( message.length < 2 ) {
-					console.warn("EntityMorpher recieved command that's too short.", message);
-				}
-				// Oh hey, we can do that right here!
-				const resetEntityClassRef = ""+message[1];
-				const resetToClassDefaults = !!message[2];
-				const actuallyNeedsAnyModifications =
-					(resetEntityClassRef != entity.classRef) ||
-					(resetToClassDefaults && (
-						entity.subsystems != undefined ||
-						entity.maze1Inventory != undefined
-					));
-				if( !actuallyNeedsAnyModifications ) return entity;
-				if( Object.isFrozen(entity) ) entity = thaw(entity);
-				entity.classRef = resetEntityClassRef;
-				if( resetToClassDefaults ) {
-					delete entity.subsystems;
-					delete entity.maze1Inventory;
+				switch( message[0] ) {
+				case '': case '/class':
+					if( message.length < 2 ) {
+						console.warn("EntityMorpher recieved class-change command that's too short.", message);
+						break;
+					}
+					if( !subsystem.allowsClassChange ) {
+						console.warn("EntityMorpher received class-change commant but doesn't allow class changes", message);
+						break;
+					}
+					// Oh hey, we can do that right here!
+					const resetEntityClassRef = ""+message[1];
+					const resetToClassDefaults = !!message[2];
+					const actuallyNeedsAnyModifications =
+						(resetEntityClassRef != entity.classRef) ||
+						(resetToClassDefaults && (
+							entity.subsystems != undefined ||
+							entity.maze1Inventory != undefined
+						));
+					if( !actuallyNeedsAnyModifications ) return entity;
+					if( Object.isFrozen(entity) ) entity = thaw(entity);
+					entity.classRef = resetEntityClassRef;
+					if( resetToClassDefaults ) {
+						delete entity.subsystems;
+						delete entity.maze1Inventory;
+					}
+					break;
+				case '/resetanimation':
+					if( !subsystem.allowsAnimationReset ) {
+						console.warn("EntityMorpher received animation-reset commant but doesn't allow animation resets", message);
+						break;
+					}
+					entity = thaw(entity);
+					entity.animationStartTime = this.newTime;
+					break;
 				}
 			}
 			break;

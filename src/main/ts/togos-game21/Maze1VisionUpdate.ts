@@ -52,6 +52,7 @@ function roomToMazeViewage( roomRef:string, roomPosition:Vector3D, gdm:GameDataM
 				orientation: orientation,
 				visualRef: entityClass.visualRef,
 				state: entity.state,
+				animationStartTime: entity.animationStartTime,
 				entity: includeGreatInfo ? entity : undefined,
 			})
 		}

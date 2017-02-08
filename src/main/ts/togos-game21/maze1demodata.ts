@@ -507,6 +507,7 @@ const toggleBoxOffImgRef = bitImgRef(0,[96,96,96],toggleBoxOffPix);
 const toggleBoxOnImgRef  = bitImgRef(0,[96,96,96],toggleBoxOnPix );
 const toggleBoxWhiteLightImgRef = bitImgRef([128,128,128],[255,255,255],toggleBoxLightPix); 
 export const greenToggleBoxOffImgRef = bitImgRef(0,[64,128,64],toggleBoxOffPix);
+export const redToggleBoxOffImgRef   = bitImgRef(0,[128,64,64],toggleBoxOffPix);
 export const greenToggleBoxOnImgRef  = bitImgRef(0,[64,128,64],toggleBoxOnPix );
 const ethCol = [64,80,96];
 const eighthMeterEthernetImgRef   = bitImgRef(0,ethCol,eighthMeterWirePix);
@@ -548,7 +549,7 @@ const room1Data = [
 	1, 1, 1, 0, 5,33, 1, 1, 1, 1, 2, 0,13, 0, 0,10,
 	1, 0,16, 0, 5,39, 1, 8, 8, 8, 0, 0,13, 0, 0,10,
 	1, 0,16, 0, 5,32, 1, 2, 2, 2, 2, 2,11, 0, 0,10,
-	1, 0,16, 0, 5,31,30, 0, 5, 0, 0, 0,13, 0, 0,10,
+	1, 0,16,41, 5,31,30, 0, 5, 0, 0, 0,13, 0, 0,10,
 	1, 0, 2, 2, 5, 1, 1, 2, 5, 1, 1, 1,11, 0, 0,12,
 	1, 0, 2, 1, 5, 0, 1, 2, 5, 1, 0, 2,11, 0, 0,12,
 	1, 0, 0, 0, 2, 2, 2, 2, 5, 1, 0, 2,11, 0, 0,10,
@@ -699,6 +700,8 @@ export const toggleBoxOffEntityClassRef      = 'urn:uuid:5f51520a-09c9-4aaa-b0e8
 export const toggleBoxOnEntityClassRef       = 'urn:uuid:5f51520a-09c9-4aaa-b0e8-68a03617eaf1';
 export const wiredToggleBoxEntityClassRef    = 'urn:uuid:5f51520a-09c9-4aaa-b0e8-68a03617eaf2';
 export const wiredToggleBoxVisualRef         = 'urn:uuid:5f51520a-09c9-4aaa-b0e8-68a03617eaf3';
+export const clickBoxVisualRef               = 'urn:uuid:5f51520a-09c9-4aaa-b0e8-68a03617eaf5';
+export const clickBoxEntityClassRef          = 'urn:uuid:5f51520a-09c9-4aaa-b0e8-68a03617eaf6';
 //export const wiredToggleBoxBlockEntityClassRef = 'urn:uuid:5f51520a-09c9-4aaa-b0e8-68a03617eaf4';
 export const verticalEthernetCableEigthClassRef    = 'urn:uuid:33419dc3-f0e2-451c-8c07-50d010ac8ea0';
 export const horizontalEthernetCableEigthClassRef  = 'urn:uuid:33419dc3-f0e2-451c-8c07-50d010ac8ea1';
@@ -802,6 +805,20 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 		]
 	});
 	
+	const redToggleBoxOnWhiteImgRef = gdm.tempStoreObject<CompoundVisual>({
+		classRef: "http://ns.nuke24.net/Game21/CompoundVisual",
+		components: [
+			{
+				transformation: TransformationMatrix3D.IDENTITY,
+				visualRef: redToggleBoxOffImgRef,
+			},
+			{
+				transformation: TransformationMatrix3D.IDENTITY,
+				visualRef: toggleBoxWhiteLightImgRef,
+			},
+		]
+	});
+	
 	gdm.tempStoreObject<DynamicEntityVisual>( {
 		classRef: "http://ns.nuke24.net/Game21/DynamicEntityVisual",
 		animationLength: 0,
@@ -813,6 +830,20 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 				['makeAssociativeArray', 'visualRef', greenToggleBoxOffImgRef]]
 		))
 	}, wiredToggleBoxVisualRef);
+	
+	gdm.tempStoreObject<DynamicEntityVisual>( {
+		classRef: "http://ns.nuke24.net/Game21/DynamicEntityVisual",
+		animationLength: 0.25,
+		animationCurveName: "once",
+		discreteAnimationStepCount: 1,
+		propertiesExpressionRef: gdm.tempStoreObject(esp.sExpressionToProgramExpression(
+			['if',
+				['!=', ['var','animationPhase'], 1],
+				['makeAssociativeArray', 'visualRef', redToggleBoxOnWhiteImgRef],
+				['makeAssociativeArray', 'visualRef', redToggleBoxOffImgRef]]
+		))
+	}, clickBoxVisualRef);
+	
 	
 	gdm.tempStoreObject<EntityClass>( {
 		structureType: StructureType.INDIVIDUAL,
@@ -1267,6 +1298,7 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 			},
 			"morph": {
 				classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/EntityMorpher",
+				allowsClassChange: true,
 			}
 		}
 	}, toggleBoxOffEntityClassRef);
@@ -1309,7 +1341,41 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 		zDivisions: 4,
 		childEntityPaletteRef: makeTileEntityPaletteRef([null, toggleBoxOffEntityClassRef, toggleBoxOnEntityClassRef], gdm),
 		childEntityIndexes: [0,0,0,0, 0,0,0,0, 0,0,0,0, 1,1,1,1],
-	});	
+	});
+	
+	gdm.tempStoreObject<EntityClass>( {
+		debugLabel: "click box",
+		structureType: StructureType.INDIVIDUAL,
+		tilingBoundingBox: slabBb,
+		physicalBoundingBox: slabBb,
+		visualBoundingBox: slabBb,
+		visualRef: clickBoxVisualRef,
+		defaultSubsystems: {
+			"button": {
+				classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/Button",
+				pokedExpressionRef: sExpressionToProgramExpressionRef(
+					['sendBusMessage', ['makeArray', '/morph/resetanimation']],
+					gdm
+				)
+			},
+			"morph": {
+				classRef: "http://ns.nuke24.net/Game21/EntitySubsystem/EntityMorpher",
+				allowsAnimationReset: true,
+			}
+		}
+	}, clickBoxEntityClassRef);
+	const clickBoxBlockEntityClassRef = gdm.tempStoreObject<TileTree>( {
+		debugLabel: "click box block",
+		structureType: StructureType.TILE_TREE,
+		tilingBoundingBox: UNIT_CUBE,
+		physicalBoundingBox: UNIT_CUBE,
+		visualBoundingBox: UNIT_CUBE,
+		xDivisions: 2,
+		yDivisions: 2,
+		zDivisions: 4,
+		childEntityPaletteRef: makeTileEntityPaletteRef([null, clickBoxEntityClassRef], gdm),
+		childEntityIndexes: [0,0,0,0, 0,0,0,0, 0,0,0,0, 1,1,1,1],
+	});
 	
 	//// Wire blocks
 	
@@ -1788,6 +1854,7 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 		/* 38 */ topToLeftEthernetBlockRef,
 		/* 39 */ twistyVerticalEthernetBlockRef,
 		/* 40 */ spinningFanClassRef,
+		/* 41 */ clickBoxBlockEntityClassRef,
 	], gdm, tileEntityPaletteId);
 	
 	// do this as second step because we need to reference that tile tree palette by ID
