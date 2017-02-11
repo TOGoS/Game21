@@ -155,6 +155,12 @@ export interface AttachmentZone {
  * Another object (a RoomEntity, a TileEntity) links an Entity to somewhere.
  */
 export interface Entity {
+	/**
+	 * Some entities may need a global ID.
+	 * e.g. a player's avatar, so that the player has a way to communicate with it!
+	 * (even if communication is simulated, the uplink needs to have an ID or a known location)
+	 * The simulator should probably keep track of where all entities with IDs are.
+	 */
 	id?: string;
 	classRef : EntityClassRef;
 	debugLabel? : string;
