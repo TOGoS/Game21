@@ -1,3 +1,49 @@
+Simulated subsystems;
+a.k.a. (old name) 'entity internal systems'
+a.k.a. 'entity subsystems'.
+
+Originally for defining behavior of entities, but may be more generally useful, too.
+'simulated' is to differentiate from e.g. subsystems of the simulator itself.
+But 'simulated subsystems' aren't /defined/ by the fact that they are simulated.
+But they will need to follow a standard model.
+
+Most subsystem classes will have IDs like: "http://ns.nuke24.net/Game21/[Entity]Subsystem/<whatever>".
+It's fine if some aren't named following that pattern, so long as instance objects have
+some classRef so we know what their data represents.
+
+Generally, subsystems can:
+- receive message bus messages addressed to them
+- receive notifications of other events (e.g. a button system can be poked)
+- do some limited internal computation and state changes
+- enqueue OSC-like messages on the inter-subsystem message bus
+- potentially have other effects on the world;
+  this is limited by the simulator to specific effects by specific subsystem classes 
+
+In the future I'll want to allow:
+- asynchronous events from subsystems
+  - when inside a simulator, this implies a somewhat magical link between the system
+    and something outside the simulator, which makes things tricky.
+    How do you tell the simulator that some object deep down inside the simulation
+    needs to be updated?  I guess it needs an identifier.
+    Or, if these things are rare enough, use a bitaddress flag to indicate 'responds to external events'
+- Electical power usage:
+  - Steady-state usage "this entity is attempting to draw up to 12 watts"
+  - Instantaneous usage "this entity is attempting to draw an additional 2 J for the next tick"
+  - Batteries can provide reserve energy that is used when draw > generation
+    - battery behavior should be designed so that banks of identical batteries can be simulated O(1)
+      - draw from highest, charge lowest, so that they can be merged ASAP?
+  - Different behavior depending on how much power was actually available
+  - How to simulate this?  I'm thinking 2-step process:
+    - sum all energy generation/usage for the network
+      (including battery contbutions).
+      Record generation/drain ratio - every drawing device will get no more than that much of however much power it asked for
+      so that the total amount drawn is no more than the amount generated 
+    - Simulate devices
+      - Draining devices should work more slowly or stop under some threshold when power is too low
+      - Generation devices can do some behavior when ratio is too high, too, like slow themselves down or blow up.
+    Only need to update network when a device is attached/detached or changes its contribution/drain,
+    and that is an O(1) operation!
+
 Entity internal systems
 - Can handle events by evaluating programs
 - Programs can return a value whose meaning depends on the callback
