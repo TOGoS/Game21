@@ -28,6 +28,15 @@
 
 ## Misc to-do items
 
+Path to logistic trains
+- Allow tiletree entities to move within others by having a 'approximate physical shape';
+  'physical shape' would also have a 'size' which is used to determine which tiletree (the larger one)
+  should be treated as a simple one when colliding with another tiletree.
+- Trains can be made of tiletrees; objects inside bounce around all nice
+- Or objects can go into seats/chests and be held in place
+- Add inserters (and chests, and items, and everything else to make trains)
+  and you have logistic trains with whatever compartments you want.
+
 * Entity with repeating animation
   * Maybe a fan - urn:sha1:DND2P2W2AVQR3YFIXGA4MLQIZTFEPTC3
 - Resettable once-thtough animation
