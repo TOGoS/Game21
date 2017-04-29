@@ -133,6 +133,8 @@ interface Icon {
 	scaleY : number;
 }
 
+let nextCallbackKey = 1;
+
 export class MazeView {
 	protected _gameDataManager:GameDataManager|undefined;
 	protected _visualImageManager:VisualImageManager|undefined;
@@ -148,6 +150,24 @@ export class MazeView {
 
 	protected get screenCenterX() { return this.canvas.width/2; }
 	protected get screenCenterY() { return this.canvas.height/2; }
+	
+	// This is here so I have a crappy way to generate frames for animated GIFs
+	protected _postDrawHooks:{[k:string]: (v:MazeView)=>void} = {};
+	public addPostDrawHook( callback:(self:MazeView)=>void, key:string=""+(nextCallbackKey++) ):string {
+		this._postDrawHooks[key] = callback;
+		return key;
+	}
+	public removePostDrawHook(key:string) {
+		delete this._postDrawHooks[key];
+	}
+	public startLoggingOutput():void {
+		this.addPostDrawHook( (self:MazeView) => {
+			console.log(self.canvas.toDataURL());
+		}, 'log');
+	}
+	public stopLoggingOutput():void {
+		this.removePostDrawHook('log');
+	}
 	
 	public set gameDataManager(gdm:GameDataManager) {
 		this._gameDataManager = gdm;
@@ -309,6 +329,9 @@ export class MazeView {
 			this.redrawRequested = false;
 			this.clear();
 			this.draw();
+			for( let k in this._postDrawHooks ) {
+				this._postDrawHooks[k](this);
+			}
 		});
 	}
 	
