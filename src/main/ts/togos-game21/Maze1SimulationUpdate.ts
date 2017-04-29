@@ -108,10 +108,12 @@ function checkObjectIdentifier(ident:string) {
 
 import NetworkDeviceSimulator from './netdev/NetworkDeviceSimulator';
 import { RepeaterSimulator } from './netdev/Repeater';
+import { EthernetSwitchSimulator } from './netdev/EthernetSwitch';
 
 type DeviceSimulator = NetworkDeviceSimulator<any,Uint8Array>;
 const deviceSimulators : {[k:string]: DeviceSimulator} = {
 	"http://ns.nuke24.net/Game21/EntitySubsystem/Repeater": new RepeaterSimulator(),
+	"http://ns.nuke24.net/Game21/EntitySubsystem/EthernetSwitch": new EthernetSwitchSimulator(),
 }
 
 /**

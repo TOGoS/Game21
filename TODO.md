@@ -37,11 +37,11 @@ Path to logistic trains
 - Add inserters (and chests, and items, and everything else to make trains)
   and you have logistic trains with whatever compartments you want.
 
-* Entity with repeating animation
-  * Maybe a fan - urn:sha1:DND2P2W2AVQR3YFIXGA4MLQIZTFEPTC3
+- Repeater that flashes when it forwards a packet
+
+Graphics:
 - Resettable once-thtough animation
   (flash to indicate an event, like a repeater lighting up to indicate that it just passed a message)
-- Re-integrate 3D rendered visuals
 - 3D rendered fan
 
 Unify rendering (update or replace WorldCanvasView)
@@ -286,6 +286,10 @@ Maze1:
 * Control+click is broken!!  plz fix.  maybe on master branch
 * Dead player should drop any maze1 items
 * Cheaty sound effects (physics directly messages UI)
+Maze1 Graphics:
+* Entity with repeating animation
+  * Maybe a fan - urn:sha1:DND2P2W2AVQR3YFIXGA4MLQIZTFEPTC3
+* Re-integrate 3D rendered visuals
 Random maze generation:
 * 8x8 rooms
 * generate maze graph
