@@ -80,13 +80,13 @@ function arrayEq<T>( a:ArrayLike<T>, b:ArrayLike<T> ):boolean {
 }
 
 let updatedArpTable:ARPTable;
-let foundRecord:ARPRecord;
+let foundRecord:ARPRecord|undefined;
 function readArpTable( arpTable:ARPTable, ipAddress:Uint8Array ):void {
 	updatedArpTable = arpTable;
 	foundRecord = undefined;
 
 	const index = crc32(ipAddress) & arpTable.hashMask;
-	let record = arpTable.table0[index];
+	let record:ARPRecord|undefined = arpTable.table0[index];
 	while( record ) {
 		if( arrayEq(ipAddress, record.ipAddress) ) {
 			foundRecord = record;
