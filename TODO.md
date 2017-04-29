@@ -39,11 +39,6 @@ Path to logistic trains
 
 - Repeater that flashes when it forwards a packet
 
-Graphics:
-- Resettable once-thtough animation
-  (flash to indicate an event, like a repeater lighting up to indicate that it just passed a message)
-- 3D rendered fan
-
 Unify rendering (update or replace WorldCanvasView)
 - Render to canvas immediately
 - Render to canvas, waiting for images to load
@@ -286,10 +281,6 @@ Maze1:
 * Control+click is broken!!  plz fix.  maybe on master branch
 * Dead player should drop any maze1 items
 * Cheaty sound effects (physics directly messages UI)
-Maze1 Graphics:
-* Entity with repeating animation
-  * Maybe a fan - urn:sha1:DND2P2W2AVQR3YFIXGA4MLQIZTFEPTC3
-* Re-integrate 3D rendered visuals
 Random maze generation:
 * 8x8 rooms
 * generate maze graph
@@ -318,3 +309,10 @@ Maze1 simulation, post-random-maze-contest:
   - This could be further optimized, but that made a huge difference.
   Lesson: Use the profiler.
 * Button send a 1-bit message through a wire
+Maze1 Graphics overhaul:
+* Entity with repeating animation
+  * Maybe a fan - urn:sha1:DND2P2W2AVQR3YFIXGA4MLQIZTFEPTC3
+* Re-integrate 3D rendered visuals
+* Resettable once-thtough animation
+  (flash to indicate an event, like a repeater lighting up to indicate that it just passed a message)
+* 3D rendered fan
