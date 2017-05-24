@@ -132,7 +132,7 @@ interface EntitySimulator<Entity> {
 
 interface Thing {
 	draw(c2d:CanvasRenderingContext2D, x:number, y:number, scale:number):void;
-	tick(sim:SGWorldSimulator):void;
+	onWirelessPacket?(packet:WirelessPacket, sim:SGWorldSimulator, x:number, y:number):void;
 }
 
 class Entity implements Thing {
@@ -142,6 +142,7 @@ class Entity implements Thing {
 	x : number;
 	y : number;
 	active : boolean;
+	destoyed : boolean;
 	
 	constructor(props:{id?:string}={}) {
 		this.id = props.id || newUuidRef();
@@ -168,7 +169,14 @@ class WirelessPacket extends Entity {
 	}
 	tick(sim:SGWorldSimulator):void {
 		sim.moveEntity(this, this.x+this.velocity.x, this.y+this.velocity.y);
-		// TODO: Check if absorbed by something or something
+		const stackThere = sim.getThingsAt(this.x, this.y);
+		for( let t in stackThere ) {
+			let thing = stackThere[t];
+			if( thing.onWirelessPacket ) {
+				thing.onWirelessPacket(this, sim, this.x, this.y);
+				if( this.destoyed ) return;
+			}
+		}
 		sim.markEntityActive(this);
 	}
 }
@@ -181,6 +189,51 @@ interface TreeEntity {
 
 const EMPTY_STACK:Thing[] = [];
 
+enum MirrorOrientation {
+	TLBR, // \
+	TRBL  // /
+}
+
+class Mirror implements Thing {
+	protected orientation : MirrorOrientation;
+	
+	constructor(props:{orientation?:MirrorOrientation}={}) {
+		this.orientation = props.orientation || MirrorOrientation.TLBR;
+	}
+	
+	draw(c2d:CanvasRenderingContext2D, x:number, y:number, scale:number):void {
+		c2d.strokeStyle = 'rgba(255,255,192,0.75)';
+		c2d.beginPath();
+		switch( this.orientation ) {
+		case MirrorOrientation.TLBR:
+			c2d.moveTo(x-scale/2, y-scale/2);
+			c2d.lineTo(x+scale/2, y+scale/2);
+			break;
+		default:
+			c2d.moveTo(x+scale/2, y-scale/2);
+			c2d.lineTo(x-scale/2, y+scale/2);
+			break;
+		}
+		c2d.stroke();
+	}
+	
+	onWirelessPacket(packet:WirelessPacket, sim:SGWorldSimulator, x:number, y:number):void {
+		switch( this.orientation ) {
+		case MirrorOrientation.TLBR:
+			packet.velocity = {
+				x: packet.velocity.y,
+				y: packet.velocity.x
+			}
+			break;
+		default:
+			packet.velocity = {
+				x: -packet.velocity.y,
+				y: -packet.velocity.x
+			}
+		}
+	}
+}
+
 class Block implements Thing {
 	classRef = "http://ns.nuke24.net/Game21/SGWS/Block";
 	public draw(c2d:CanvasRenderingContext2D, x:number, y:number, scale:number):void {
@@ -190,6 +243,9 @@ class Block implements Thing {
 		c2d.fillRect(x-scale/2+1, y-scale/2+1, scale-2, scale-2);
 	}
 	tick(sim:SGWorldSimulator):void { }
+	onWirelessPacket(packet:WirelessPacket, sim:SGWorldSimulator, x:number, y:number):void {
+		sim.destroyEntity(packet);
+	}
 }
 
 class SGWorldSimulator {
@@ -233,10 +289,20 @@ class SGWorldSimulator {
 					this.thingStacks[index] = EMPTY_STACK;
 				} else {
 					stack.splice(i,1);
-					return;
 				}
+				return;
 			}
 		}
+	}
+	
+	public destroyEntity( entity:Entity ):void {
+		this.removeThing(entity, entity.x, entity.y);
+		entity.destoyed = true;
+	}
+	
+	public getThingsAt( x:number, y:number ):Thing[] {
+		let index = (x&this.xMask)+this.width*(y&this.yMask);
+		return this.thingStacks[index];
 	}
 	
 	public canvas : HTMLCanvasElement;
@@ -310,7 +376,7 @@ class SGWorldSimulator {
 
 class SGWSDemo {
 	public canvas : HTMLCanvasElement;
-	public sim : SGWorldSimulator = new SGWorldSimulator(8,8);
+	public sim : SGWorldSimulator = new SGWorldSimulator(6,6);
 	public start() {
 		this.sim.canvas = this.canvas;
 		setInterval(this.sim.tick.bind(this.sim), 100);
@@ -324,6 +390,11 @@ export function createDemo(canvas:HTMLCanvasElement) {
 	demo.sim.addThing(block, 0, 2);
 	demo.sim.addThing(block, 1, 2);
 	demo.sim.addThing(block, 1, 3);
-	demo.sim.addThing(new WirelessPacket({velocity:{x:0,y:1}}), 2, 2);
+	for( let i=0; i<6; ++i ) {
+		demo.sim.addThing(new WirelessPacket({velocity:{x:0,y:1}}), 2, 2-i*4);
+	}
+	demo.sim.addThing(new Mirror(), 2, 4);
+	demo.sim.addThing(block, 1, 6);
+	demo.sim.addThing(block, 3, 6);
 	return demo;
 }
