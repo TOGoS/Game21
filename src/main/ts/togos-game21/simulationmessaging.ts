@@ -13,6 +13,9 @@ import EntitySystemBusMessage from './EntitySystemBusMessage';
  *   '@structureoffset' means - thing at the following position (encoded as "x,y,z")
  *   one level within the entity's structure.
  *   Multiple '@structureoffset' 'x,y,z's may be needed for things deeply nested in a complex structure.
+ * 
+ * TODO: May want to always @whatever between components.
+ * @room fooRoom @structureOffset 5.5,6.125 @subsystem chunkySubsystem
  */
 export type EntityPath = string[];
 

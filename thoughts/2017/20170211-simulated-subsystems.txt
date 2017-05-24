@@ -1,3 +1,5 @@
+See also: SIMJECTS
+
 Simulated subsystems;
 a.k.a. (old name) 'entity internal systems'
 a.k.a. 'entity subsystems'.
