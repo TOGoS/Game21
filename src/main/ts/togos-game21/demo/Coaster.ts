@@ -131,7 +131,7 @@ function moveTrain( train:Train, interval:number, world:World ):Train {
 	let s0 = train.speed;
 	let s1 = s0 + accelleration * interval;
 	let sAve = (s1+s0)/2;
-	let newPosition = addTrackPosition(train.car0TrackPosition, sAve, world);
+	let newPosition = addTrackPosition(train.car0TrackPosition, sAve*interval, world);
 	let newPE = figureTrainPotentialEnergy(train, newPosition, world);
 	let newKE = train.totalEnergy - newPE;
 	if( newKE < 0 ) {
