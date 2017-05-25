@@ -63,7 +63,7 @@ list($shapeViewWidth, $shapeViewHeight) = fitpar($shapeViewMaxWidth, $shapeViewM
 <meta charset="utf-8"/>
 <style>
 html, body {
-	background: black;
+	background: darkred;
 	color: silver;
 	width: 100%;
 	height: 100%;
@@ -71,8 +71,11 @@ html, body {
 	box-sizing: border-box;
 }
 .canvas-region {
-	background-color: darkred;
 	margin: auto;
+}
+.coaster-canvas {
+	background-color: black;
+	image-rendering: pixelated;
 }
 </style>
 <title><?php eht($title); ?></title>
@@ -82,19 +85,30 @@ html, body {
 <!-- Config: <?php echo json_encode($config, JSON_PRETTY_PRINT); ?> -->
 
 <div class="canvas-region">
-<canvas id="coaster-canvas" class="shape-view"
-  width="<?php eht($width); ?>" height="<?php eht($height); ?>"
-  style="width: <?php eht($shapeViewWidth); ?>px; height: <?php eht($shapeViewHeight); ?>px"
+<canvas id="coaster-canvas" class="coaster-canvas"
+  width="100%" height="100%"
+  style="width: 100%; height: 100%;"
 ></canvas>
 </div>
 
 <?php require_game21_js_libs($inlineResources);; ?>
 <script type="text/javascript">
 	require(['togos-game21/demo/Coaster'], function(_Coaster) {
+		var coasterCanvas = document.getElementById('coaster-canvas');
+		
+		function fixCanvasSize() {
+			coasterCanvas.width = window.innerWidth / 2;
+			coasterCanvas.height = window.innerHeight / 2;
+		}
+		
+		
 		var sim = new _Coaster.CoasterSimulator();
 		sim.setUpWorld();
-		sim.canvas = document.getElementById('coaster-canvas');
+		sim.canvas = coasterCanvas;
 		sim.start();
+		
+		window.addEventListener('resize', fixCanvasSize);
+		fixCanvasSize();
 	});
 </script>
 

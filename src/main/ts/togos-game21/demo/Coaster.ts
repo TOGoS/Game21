@@ -184,12 +184,13 @@ export class CoasterSimulator {
 	public setUpWorld() {
 		// For now just make a circuilar track
 		const noise = new SimplexNoise();
-		const rad = 32;
-		const noiseInputScale = 2;
+		const rad = 16+Math.random()*16;
+		const noiseInputScale = Math.random()*3;
 		const noiseOutputScale = 32;
-		for( let i=0; i<1024; ++i ) {
-			const cp0 = { x: Math.cos((i+0)*Math.PI*2/1024), y: Math.sin((i+0)*Math.PI*2/1024) };
-			const cp1 = { x: Math.cos((i+1)*Math.PI*2/1024), y: Math.sin((i+1)*Math.PI*2/1024) };
+		const segCount = 1024;
+		for( let i=0; i<segCount; ++i ) {
+			const cp0 = { x: Math.cos((i+0)*Math.PI*2/segCount), y: Math.sin((i+0)*Math.PI*2/segCount) };
+			const cp1 = { x: Math.cos((i+1)*Math.PI*2/segCount), y: Math.sin((i+1)*Math.PI*2/segCount) };
 			this.world.trackSegments.push(makeTrackSegment(
 				i == 0 ? 1023 : i-1,
 				{
@@ -208,11 +209,12 @@ export class CoasterSimulator {
 			totalEnergy: 0, // Will fix later
 			speed: 0,
 			car0TrackPosition: {
-				trackSegmentId: 0,
+				trackSegmentId: segCount * 3 / 4,
 				distanceAlongSement: 0
 			}
 		}
-		for( let i=0; i<30; ++i ) {
+		const carCount = 1+Math.random()*32;
+		for( let i=0; i<carCount; ++i ) {
 			train.cars.push({
 				mass: 100,
 				distanceToNextCar: 1,
@@ -233,9 +235,16 @@ export class CoasterSimulator {
 		const c2d = this.canvas.getContext('2d');
 		if( !c2d ) return;
 		
-		const scale = 2;
-		let cx = 0;
-		let cy = 0;
+		const scale = 16;
+		let focusTrain = this.world.trains[0];
+		let cx:number, cy:number;
+		if( focusTrain ) {
+			let carTrackPosition = focusTrain.car0TrackPosition;
+			let carWorldPos = trackPositionToWorldPosition(carTrackPosition, this.world);
+			cx = carWorldPos.x, cy = carWorldPos.y;
+		} else {
+			cx = cy = 0;
+		}
 		c2d.clearRect(0, 0, canvWidth, canvHeight);
 		c2d.strokeStyle = 'rgb(128,192,64)';
 		for( let s in this.world.trackSegments ) {
