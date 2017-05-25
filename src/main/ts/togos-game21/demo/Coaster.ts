@@ -263,12 +263,12 @@ export class CoasterSimulator {
 			let train = this.world.trains[t];
 			let carTrackPosition = train.car0TrackPosition;
 			let prevCarWorldPosition:Vector2D|undefined = undefined;
-			for( let c in train.cars ) {
+			for( let c=0; c<train.cars.length; ++c ) {
 				let car = train.cars[c];
 				let carWorldPos = trackPositionToWorldPosition(carTrackPosition, this.world);
 				let px0 = (carWorldPos.x - cx)*scale + canvCenterX;
 				let py0 = (carWorldPos.y - cy)*scale + canvCenterY;
-				c2d.fillStyle = 'rgb(192,255,0)';
+				c2d.fillStyle = c == 0 ? 'rgb(204,255,128)' : 'rgb(192,255,0)';
 				c2d.fillRect(px0-scale/2, py0-scale/2, scale, scale);
 				carTrackPosition = addTrackPosition(carTrackPosition, car.distanceToNextCar, this.world);
 				prevCarWorldPosition = carWorldPos;
