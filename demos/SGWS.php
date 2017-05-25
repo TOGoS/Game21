@@ -21,7 +21,7 @@ require_once 'lib.php';
 $configProperties = [
 	'title' => [
 		'valueType' => 'string',
-		'defaultValue' => 'Belts!',
+		'defaultValue' => 'Gimple Grid World Simulator',
 		'affects' => 'pageGeneration',
 	],
 	'shapeViewMaxWidth' => [
