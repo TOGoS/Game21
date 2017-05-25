@@ -1,3 +1,5 @@
+import SimplexNoise from '../../SimplexNoise';
+
 interface Vector2D { x : number; y : number; }
 
 type TrackSegmentID = number;
@@ -181,12 +183,23 @@ export class CoasterSimulator {
 	
 	public setUpWorld() {
 		// For now just make a circuilar track
-		const rad = 64;
+		const noise = new SimplexNoise();
+		const rad = 32;
+		const noiseInputScale = 2;
+		const noiseOutputScale = 32;
 		for( let i=0; i<1024; ++i ) {
+			const cp0 = { x: Math.cos((i+0)*Math.PI*2/1024), y: Math.sin((i+0)*Math.PI*2/1024) };
+			const cp1 = { x: Math.cos((i+1)*Math.PI*2/1024), y: Math.sin((i+1)*Math.PI*2/1024) };
 			this.world.trackSegments.push(makeTrackSegment(
 				i == 0 ? 1023 : i-1,
-				{ x: rad*Math.cos((i+0)*Math.PI*2/1024), y: rad*Math.sin((i+0)*Math.PI*2/1024) },
-				{ x: rad*Math.cos((i+1)*Math.PI*2/1024), y: rad*Math.sin((i+1)*Math.PI*2/1024) },
+				{
+					x:rad*cp0.x + noiseOutputScale*noise.noise2d(noiseInputScale*cp0.x, noiseInputScale*cp0.y),
+					y:rad*cp0.y + noiseOutputScale*noise.noise2d(noiseInputScale*cp0.y, noiseInputScale*cp0.x)
+				},
+				{
+					x:rad*cp1.x + noiseOutputScale*noise.noise2d(noiseInputScale*cp1.x, noiseInputScale*cp1.y),
+					y:rad*cp1.y + noiseOutputScale*noise.noise2d(noiseInputScale*cp1.y, noiseInputScale*cp1.x)
+				},
 				i == 1023 ? 0 : i+1
 			))
 		}
