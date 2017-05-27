@@ -240,14 +240,14 @@ enum MirrorOrientation {
 }
 
 interface Mirror extends Simject {
-	classRef : "http://ns.nuke24.net/Game21/Simject/Mirror";
+	classRef : "http://ns.nuke24.net/Game21/SGWS/Simject/Mirror";
 	orientation : MirrorOrientation;
 }
 
 class MirrorBehavior extends SimjectBehavior<Mirror> {
-	createMirror(props:{orientation?:MirrorOrientation}={}):Mirror {
+	public static createMirror(props:{orientation?:MirrorOrientation}={}):Mirror {
 		return {
-			classRef: "http://ns.nuke24.net/Game21/Simject/Mirror",
+			classRef: "http://ns.nuke24.net/Game21/SGWS/Simject/Mirror",
 			orientation: props.orientation || MirrorOrientation.TLBR,
 		};
 	}
@@ -480,16 +480,23 @@ export function createDemo(canvas:HTMLCanvasElement) {
 	const block:Block = {
 		classRef: "http://ns.nuke24.net/Game21/SGWS/Simject/Block",
 	};
+	const mirror:Mirror = MirrorBehavior.createMirror({
+		orientation: MirrorOrientation.TRBL
+	});
 	demo.sim.addThing(block, {x:0, y:2});
 	demo.sim.addThing(block, {x:1, y:2});
 	demo.sim.addThing(block, {x:1, y:3});
-	for( let i=0; i<6; ++i ) {
-		demo.sim.addEntity(WirelessPacketBehavior.createWirelessPacket({position:{x:2, y:2-i*4}, velocity:{x:0,y:1}}));
+	for( let x=2; x<=3; ++x ) {
+		for( let i=0; i<6; ++i ) {
+			demo.sim.addEntity(WirelessPacketBehavior.createWirelessPacket({position:{x, y:2-i*4}, velocity:{x:0,y:1}}));
+		}
 	}
-	demo.sim.addThing({
-		classRef: "http://ns.nuke24.net/Game21/SGWS/Simject/Mirror"
-	}, {x:2, y:4});
+	demo.sim.addThing(mirror, {x:2, y:4});
+	demo.sim.addThing(mirror, {x:3, y:5});
 	demo.sim.addThing(block, {x:1, y:6});
-	demo.sim.addThing(block, {x:3, y:6});
+	demo.sim.addThing(block, {x:3, y:8});
+	demo.sim.addThing(block, {x:4, y:6});
+	demo.sim.addThing(block, {x:4, y:7});
+	demo.sim.addThing(block, {x:4, y:8});
 	return demo;
 }

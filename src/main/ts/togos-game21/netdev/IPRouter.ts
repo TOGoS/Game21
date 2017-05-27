@@ -141,6 +141,7 @@ export class EthernetSwitchSimulator extends LinkAwareDeviceSimulator<Device,Uin
 			forwardedPacket[14+7] -= 1;
 			// TODO: Look up MAC address in ARP table
 			// or take from gateway if defined
+			// Also decrement ttl/hopCount.
 			busMessageQueue.push([destRoute.destinationLinkPath, forwardedPacket]);
 		}
 		
