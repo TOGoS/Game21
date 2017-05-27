@@ -130,54 +130,99 @@ interface EntitySimulator<Entity> {
 	packetReceived( entity:Entity, originDirection:Direction, packet:Packet, ws:SGWorldSimulator ):void;
 }
 
-interface Thing {
-	draw(c2d:CanvasRenderingContext2D, x:number, y:number, scale:number):void;
-	onWirelessPacket?(packet:WirelessPacket, sim:SGWorldSimulator, x:number, y:number):void;
+interface Simject {
+	classRef : string;
+	/** If not defined, -Infinity assumed */
+	lastUpdated? : number;
+	
+	// These used to be defined but shouldn't be any more.
+	draw? : null;
+	onWirelessPacket? : null;
 }
 
-class Entity implements Thing {
+interface TimePassed {
+	classRef : "http://ns.nuke24.net/Game21/SGWS/Event/TimePassed",
+	targetTime : number;
+}
+interface WirelessPacketCollided {
+	classRef : "http://ns.nuke24.net/Game21/SGWS/Event/WirelessPacketCollided",
+	packet : WirelessPacket,
+}
+type Event = TimePassed|WirelessPacketCollided; // |OtherStuff|Etc
+
+class SimjectBehavior<S> {
+	draw(simject:S, c2d:CanvasRenderingContext2D, x:number, y:number, scale:number):void { }
+	onEvent(simject:S, simjectPosition:Vector2D, event:Event, sim:SGWorldSimulator ):S|null {
+		switch( event.classRef ) {
+		case "http://ns.nuke24.net/Game21/SGWS/Event/TimePassed":
+			return this.onTimePassed(simject, simjectPosition, event.targetTime, sim);
+		case "http://ns.nuke24.net/Game21/SGWS/Event/WirelessPacketCollided":
+			return this.onWirelessPacket(simject, simjectPosition, event.packet, sim);
+		}
+		return simject;
+	}
+	onTimePassed(simject:S, simjectPosition:Vector2D, targetTime:number, sim:SGWorldSimulator):S|null {
+		return simject;
+	}
+	onWirelessPacket(simject:S, simjectPosition:Vector2D, packet:WirelessPacket, sim:SGWorldSimulator):S|null {
+		return simject;
+	}
+}
+
+interface Entity extends Simject {
 	// These properties managed by the simulator; don't change unless you are the simulator!
 	// Use methods on simulator instead.
 	id : string;
-	x : number;
-	y : number;
+	position : Vector2D;
 	active : boolean;
-	destoyed : boolean;
-	
-	constructor(props:{id?:string}={}) {
-		this.id = props.id || newUuidRef();
-	}
-	
-	draw(c2d:CanvasRenderingContext2D, x:number, y:number, scale:number):void { }
-	tick(sim:SGWorldSimulator):void { }
+	destroyed? : boolean;
 }
 
-class WirelessPacket extends Entity {
+interface WirelessPacket extends Entity {
+	classRef : "http://ns.nuke24.net/Game21/SGWS/Simject/WirelessPacket";
 	velocity : Vector2D;
 	data : Packet;
-	
-	constructor(props:{id?:string, velocity:Vector2D, data?:Packet}) {
-		super(props);
-		this.active = true;
-		this.velocity = props.velocity;
-		this.data = props.data || new Uint8Array(0);
+}
+
+class WirelessPacketBehavior extends SimjectBehavior<WirelessPacket> {
+	static createWirelessPacket(props:{id?:string, position:Vector2D, velocity:Vector2D, data?:Packet}):WirelessPacket {
+		return {
+			classRef: "http://ns.nuke24.net/Game21/SGWS/Simject/WirelessPacket",
+			id: newUuidRef(),
+			active: true,
+			position: props.position,
+			velocity: props.velocity,
+			data: props.data || new Uint8Array(0)
+		};
 	}
 	
-	draw(c2d:CanvasRenderingContext2D, x:number, y:number, scale:number):void {
+	draw(p:WirelessPacket, c2d:CanvasRenderingContext2D, x:number, y:number, scale:number):void {
 		c2d.fillStyle = 'rgba(255,255,192,0.75)';
 		c2d.fillRect(x-scale/4, y-scale/4, scale/2, scale/2);
 	}
-	tick(sim:SGWorldSimulator):void {
-		sim.moveEntity(this, this.x+this.velocity.x, this.y+this.velocity.y);
-		const stackThere = sim.getThingsAt(this.x, this.y);
+	
+	onTimePassed(simject:WirelessPacket, simjectPosition:Vector2D, targetTime:number, sim:SGWorldSimulator):WirelessPacket|null {
+		simject = sim.moveEntity(simject, simject.position.x+simject.velocity.x, simject.position.y+simject.velocity.y);
+		const stackThere = sim.getThingsAt(simject.position.x, simject.position.y);
+		const event:WirelessPacketCollided = {
+			classRef: "http://ns.nuke24.net/Game21/SGWS/Event/WirelessPacketCollided",
+			packet: simject
+		};
 		for( let t in stackThere ) {
 			let thing = stackThere[t];
-			if( thing.onWirelessPacket ) {
-				thing.onWirelessPacket(this, sim, this.x, this.y);
-				if( this.destoyed ) return;
+			if( thing == undefined ) continue;
+			const replacement = sim.simjectHandleEvent(thing, simject.position, event);
+			if( replacement !== thing ) {
+				if( replacement == null ) {
+					delete stackThere[t];
+				} else {
+					stackThere[t] = replacement;
+				}
 			}
+			if( simject.destroyed ) return null;
 		}
-		sim.markEntityActive(this);
+		sim.markEntityActive(simject);
+		return simject;
 	}
 }
 
@@ -187,24 +232,30 @@ interface TreeEntity {
 	// trees should grow larger with age and suck nutrients from the ground
 }
 
-const EMPTY_STACK:Thing[] = [];
+const EMPTY_STACK:Simject[] = [];
 
 enum MirrorOrientation {
 	TLBR, // \
 	TRBL  // /
 }
 
-class Mirror implements Thing {
-	protected orientation : MirrorOrientation;
-	
-	constructor(props:{orientation?:MirrorOrientation}={}) {
-		this.orientation = props.orientation || MirrorOrientation.TLBR;
+interface Mirror extends Simject {
+	classRef : "http://ns.nuke24.net/Game21/Simject/Mirror";
+	orientation : MirrorOrientation;
+}
+
+class MirrorBehavior extends SimjectBehavior<Mirror> {
+	createMirror(props:{orientation?:MirrorOrientation}={}):Mirror {
+		return {
+			classRef: "http://ns.nuke24.net/Game21/Simject/Mirror",
+			orientation: props.orientation || MirrorOrientation.TLBR,
+		};
 	}
 	
-	draw(c2d:CanvasRenderingContext2D, x:number, y:number, scale:number):void {
+	draw(mirror:Mirror, c2d:CanvasRenderingContext2D, x:number, y:number, scale:number):void {
 		c2d.strokeStyle = 'rgba(255,255,192,0.75)';
 		c2d.beginPath();
-		switch( this.orientation ) {
+		switch( mirror.orientation ) {
 		case MirrorOrientation.TLBR:
 			c2d.moveTo(x-scale/2, y-scale/2);
 			c2d.lineTo(x+scale/2, y+scale/2);
@@ -217,34 +268,40 @@ class Mirror implements Thing {
 		c2d.stroke();
 	}
 	
-	onWirelessPacket(packet:WirelessPacket, sim:SGWorldSimulator, x:number, y:number):void {
-		switch( this.orientation ) {
-		case MirrorOrientation.TLBR:
-			packet.velocity = {
-				x: packet.velocity.y,
-				y: packet.velocity.x
+	onWirelessPacket(mirror:Mirror, position:Vector2D, packet:WirelessPacket, sim:SGWorldSimulator):Mirror {
+		sim.alterEntity( packet, (packet:WirelessPacket) => {
+			switch( mirror.orientation ) {
+			case MirrorOrientation.TLBR:
+				packet.velocity = {
+					x: packet.velocity.y,
+					y: packet.velocity.x
+				}
+				break;
+			default:
+				packet.velocity = {
+					x: -packet.velocity.y,
+					y: -packet.velocity.x
+				}
 			}
-			break;
-		default:
-			packet.velocity = {
-				x: -packet.velocity.y,
-				y: -packet.velocity.x
-			}
-		}
+			return packet;
+		});
+		return mirror;
 	}
 }
 
-class Block implements Thing {
-	classRef = "http://ns.nuke24.net/Game21/SGWS/Block";
-	public draw(c2d:CanvasRenderingContext2D, x:number, y:number, scale:number):void {
+interface Block extends Simject {
+	classRef: "http://ns.nuke24.net/Game21/SGWS/Simject/Block";
+}
+class BlockBehavior extends SimjectBehavior<Block> {
+	public draw(block:Block, c2d:CanvasRenderingContext2D, x:number, y:number, scale:number):void {
 		c2d.fillStyle = 'rgb(0,0,0)';
 		c2d.rect(x-scale/2, y-scale/2, scale, scale);
 		c2d.fillStyle = 'rgb(255,255,255)';
 		c2d.fillRect(x-scale/2+1, y-scale/2+1, scale-2, scale-2);
 	}
-	tick(sim:SGWorldSimulator):void { }
-	onWirelessPacket(packet:WirelessPacket, sim:SGWorldSimulator, x:number, y:number):void {
+	onWirelessPacket(block:Block, position:Vector2D, packet:WirelessPacket, sim:SGWorldSimulator):Block {
 		sim.destroyEntity(packet);
+		return block;
 	}
 }
 
@@ -253,8 +310,14 @@ class SGWorldSimulator {
 	protected height:number;
 	protected xMask:number;
 	protected yMask:number;
-	protected thingStacks:Thing[][];
+	protected thingStacks:Simject[][];
 	protected activeEntities:{[k:string]: Entity} = {};
+	
+	protected simjectBehaviors:{[k:string]: SimjectBehavior<any>} = {
+		"http://ns.nuke24.net/Game21/SGWS/Simject/Mirror": new MirrorBehavior,
+		"http://ns.nuke24.net/Game21/SGWS/Simject/Block": new BlockBehavior,
+		"http://ns.nuke24.net/Game21/SGWS/Simject/WirelessPacket": new WirelessPacketBehavior,
+	};
 	
 	constructor( public widthBits:number, public heightBits:number ) {
 		this.width = 1 << widthBits;
@@ -266,22 +329,32 @@ class SGWorldSimulator {
 		for( let i=this.width*this.height-1; i>=0; --i ) this.thingStacks[i] = EMPTY_STACK;
 	}
 	
-	public addThing( thing:Thing, x:number, y:number ):void {
-		let index = (x&this.xMask)+this.width*(y&this.yMask);
+	public simjectHandleEvent( simject:Simject, position:Vector2D, event:Event ):Simject|null {
+		const behavior = this.simjectBehaviors[simject.classRef];
+		if( !behavior ) throw new Error("No behavior for entity class '"+simject.classRef+"'");
+		return behavior.onEvent(simject, position, event, this);
+	}
+	
+	public addEntity(entity:Entity) {
+		this.addThing(entity, entity.position);
+	}
+	
+	public addThing( thing:Simject|Entity, position:Vector2D ):void {
+		let index = (position.x&this.xMask)+this.width*(position.y&this.yMask);
 		if( this.thingStacks[index] === EMPTY_STACK ) {
 			this.thingStacks[index] = [thing];
 		} else {
 			this.thingStacks[index].push(thing);
 		}
-		if( thing instanceof Entity ) {
-			thing.x = x;
-			thing.y = y;
-			if( thing.active ) this.markEntityActive(thing);
+		let eThing = thing as any as Entity;
+		if( eThing.id ) {
+			eThing.position = position;
+			if( eThing.active ) this.markEntityActive(eThing);
 		}
 	}
 	
-	public removeThing( entity:Thing, x:number, y:number ):void {
-		let index = (x&this.xMask)+this.width*(y&this.yMask);
+	public removeThing( entity:Simject, position:Vector2D ):void {
+		let index = (position.x&this.xMask)+this.width*(position.y&this.yMask);
 		let stack = this.thingStacks[index];
 		for( let i=0; i<stack.length; ++i ) {
 			if( stack[i] === entity ) {
@@ -295,25 +368,38 @@ class SGWorldSimulator {
 		}
 	}
 	
-	public destroyEntity( entity:Entity ):void {
-		this.removeThing(entity, entity.x, entity.y);
-		entity.destoyed = true;
+	public alterEntity( entity:Entity, alterer:(e:Entity)=>Entity ):Entity {
+		// A ha ha for now assume
+		const replacement = alterer(entity);
+		if( replacement !== entity ) throw new Error("hahaha alterEntity doesn't support replacing yet");
+		return replacement;
 	}
 	
-	public getThingsAt( x:number, y:number ):Thing[] {
+	public destroyEntity( entity:Entity ):void {
+		this.removeThing(entity, entity.position);
+		entity.destroyed = true;
+	}
+	
+	public getThingsAt( x:number, y:number ):Simject[] {
 		let index = (x&this.xMask)+this.width*(y&this.yMask);
 		return this.thingStacks[index];
 	}
 	
 	public canvas : HTMLCanvasElement;
+	protected currentTick = 0;
 	public tick():void {
 		this.drawScene();
 		let activeEntities = this.activeEntities;
 		this.activeEntities = {};
+		const event:Event = {
+			classRef : "http://ns.nuke24.net/Game21/SGWS/Event/TimePassed",
+			targetTime : this.currentTick+1
+		}
 		for( let i in activeEntities ) {
 			activeEntities[i].active = false;
-			activeEntities[i].tick(this);
+			this.simjectHandleEvent( activeEntities[i], activeEntities[i].position, event );
 		}
+		++this.currentTick;
 	}
 	
 	public markEntityActive(entity:Entity) {
@@ -321,20 +407,20 @@ class SGWorldSimulator {
 		this.activeEntities[entity.id] = entity;
 	}
 	
-	public moveEntity(entity:Entity, x:number, y:number) {
-		const oldX = Math.floor(entity.x), oldY = Math.floor(entity.y);
+	public moveEntity<E extends Entity>(entity:E, x:number, y:number):E {
+		const oldX = Math.floor(entity.position.x), oldY = Math.floor(entity.position.y);
 		const newX = x&this.xMask, newY = y&this.yMask;
 		if( oldX == newX && oldY == newY ) {
 			// TODO: Mod between 0..width/height
-			entity.x = x;
-			entity.y = y;
-			return;
+			entity.position = {x,y};
+			return entity;
 		}
 		
-		this.removeThing(entity, oldX, oldY);
-		this.addThing(entity, newX, newY);
-		entity.x = x;
-		entity.y = y;
+		this.removeThing(entity, {x:oldX, y:oldY});
+		this.addThing(entity, {x:newX, y:newY});
+		// TODO: Mod between 0..width/height
+		entity.position = {x,y};
+		return entity;
 	}
 	
 	public drawScene():void {
@@ -363,7 +449,12 @@ class SGWorldSimulator {
 				let index = (x&xMask)+(y&yMask)*this.width;
 				let stack = this.thingStacks[index];
 				for( let i=0; i<stack.length; ++i ) {
-					stack[i].draw(c2d,
+					const beh = this.simjectBehaviors[stack[i].classRef];
+					if( beh == undefined ) {
+						console.error("No behavior defined for "+stack[i].classRef+"; can't draw");
+						continue;
+					}
+					beh.draw(stack[i], c2d,
 						canvWidth /2 + drawScale * (x-drawCenterX),
 						canvHeight/2 + drawScale * (y-drawCenterY),
 						drawScale
@@ -386,15 +477,19 @@ class SGWSDemo {
 export function createDemo(canvas:HTMLCanvasElement) {
 	const demo:SGWSDemo = new SGWSDemo();
 	demo.canvas = canvas;
-	const block = new Block();
-	demo.sim.addThing(block, 0, 2);
-	demo.sim.addThing(block, 1, 2);
-	demo.sim.addThing(block, 1, 3);
+	const block:Block = {
+		classRef: "http://ns.nuke24.net/Game21/SGWS/Simject/Block",
+	};
+	demo.sim.addThing(block, {x:0, y:2});
+	demo.sim.addThing(block, {x:1, y:2});
+	demo.sim.addThing(block, {x:1, y:3});
 	for( let i=0; i<6; ++i ) {
-		demo.sim.addThing(new WirelessPacket({velocity:{x:0,y:1}}), 2, 2-i*4);
+		demo.sim.addEntity(WirelessPacketBehavior.createWirelessPacket({position:{x:2, y:2-i*4}, velocity:{x:0,y:1}}));
 	}
-	demo.sim.addThing(new Mirror(), 2, 4);
-	demo.sim.addThing(block, 1, 6);
-	demo.sim.addThing(block, 3, 6);
+	demo.sim.addThing({
+		classRef: "http://ns.nuke24.net/Game21/SGWS/Simject/Mirror"
+	}, {x:2, y:4});
+	demo.sim.addThing(block, {x:1, y:6});
+	demo.sim.addThing(block, {x:3, y:6});
 	return demo;
 }
