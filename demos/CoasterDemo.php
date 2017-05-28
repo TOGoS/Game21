@@ -99,12 +99,13 @@ html, body {
 		function fixCanvasSize() {
 			coasterCanvas.width = window.innerWidth / 2;
 			coasterCanvas.height = window.innerHeight / 2;
+			console.log("Fixing size to "+coasterCanvas.width+" x "+coasterCanvas.height);
 		}
 		
 		
 		var sim = new _Coaster.CoasterSimulator();
 		sim.setUpWorld();
-		sim.canvas = coasterCanvas;
+		sim.setUpUi(coasterCanvas);
 		sim.start();
 		
 		window.addEventListener('resize', fixCanvasSize);

@@ -19,9 +19,19 @@ interface TrackPosition {
 
 interface TrainCar {
 	mass : number;
-	divingForce : number; // They can self-propel, I guess!
+	drivingPower : number; // They can self-propel, I guess!
+	maxDrivingPower : number;
 	brakingForce : number; // Force that is only applied to stop motion along the track
 	distanceToNextCar : number;
+}
+
+interface TrainStats {
+	speed : number;
+	drivePower : number;
+	driveForce : number;
+	totalEnergy : number;
+	potentialEnergy : number;
+	kineticEnergy : number;
 }
 
 interface Train {
@@ -31,6 +41,8 @@ interface Train {
 	car0TrackPosition : TrackPosition;
 	/** Speed forward along track */
 	speed : number;
+	
+	stats? : TrainStats;
 }
 
 interface World {
@@ -80,22 +92,23 @@ function addTrackPosition( tp:TrackPosition, dist:number, world:World ):FixedTra
 	}, world);
 }
 
+const G = 9.8;
+
 /** Return the amount of forward force on the train */
-function figureTrainForce( train:Train, world:World ):number {
+function figureTrainForceG( train:Train, world:World ):number {
 	let forwardForce = 0;
 	let carTrackPosition:TrackPosition = train.car0TrackPosition;
 	for( let c in train.cars ) {
 		const car = train.cars[c];
 		
-		forwardForce += car.divingForce;
 		let segment = world.trackSegments[carTrackPosition.trackSegmentId];
 		// fAlong/fG = distY/distAlong
 		// fAlong = fG * distY / distAlong
 		// Remember that +Y is down!
-		const fG = 9.8 * car.mass;
+		const fG = G * car.mass;
 		forwardForce += fG * (segment.endpoint1.y - segment.endpoint0.y) / segment.length;  
 		
-		carTrackPosition = addTrackPosition(carTrackPosition, car.distanceToNextCar, world);
+		carTrackPosition = addTrackPosition(carTrackPosition, -car.distanceToNextCar, world);
 	}
 	return forwardForce;
 }
@@ -114,47 +127,96 @@ function figureTrainPotentialEnergy( train:Train, carTrackPosition:TrackPosition
 	for( let c in train.cars ) {
 		let car = train.cars[c];
 		let carPos = trackPositionToWorldPosition(carTrackPosition, world);
-		pe -= car.mass * carPos.y; // Minus because -y is higher PE
-		carTrackPosition = addTrackPosition(carTrackPosition, car.distanceToNextCar, world); 
+		pe -= G * car.mass * carPos.y; // Minus because -y is higher PE
+		carTrackPosition = addTrackPosition(carTrackPosition, -car.distanceToNextCar, world); 
 	}
 	return pe;
+}
+
+function figureTrainDrivePower( train:Train, world:World ):number {
+	let p = 0;
+	for( let c in train.cars ) {
+		let car = train.cars[c];
+		p += car.drivingPower;
+	}
+	return p;
 }
 
 function figureTrainTotalEnergy( train:Train, world:World ):number {
 	let mass = figureTrainMass(train);
 	let ke = mass * train.speed*train.speed / 2;
 	return ke + figureTrainPotentialEnergy(train, train.car0TrackPosition, world);
-}	
+}
+
+function signOf(n:number):number {
+	return n < 0 ? -1 : n > 0 ? 1 : 0;
+}
+function clamp(min:number, v:number, max:number):number {
+	return v < min ? min : v > max ? max : v;
+}
 
 function moveTrain( train:Train, interval:number, world:World ):Train {
-	let forwardForce = figureTrainForce(train, world);
+	let forwardForceG = figureTrainForceG(train, world);
+	let drivePower = figureTrainDrivePower(train, world);
+	// p = F * d / time
+	// d / time = speed
+	// p = F * speed
+	// F = p / speed
+	const maxDriveForce = 10000;
+	let driveForce:number;
+	if( train.speed == 0 ) {
+		driveForce = maxDriveForce * signOf(drivePower)
+	} else {
+		driveForce = clamp(-maxDriveForce, drivePower / Math.abs(train.speed), +maxDriveForce);
+	}
+	
+	let totalForwardForce = forwardForceG + driveForce;
 	let trainMass = figureTrainMass(train);
-	let accelleration = forwardForce / trainMass;
+	let accelleration = totalForwardForce / trainMass;
 	let s0 = train.speed;
 	let s1 = s0 + accelleration * interval;
-	let sAve = (s1+s0)/2;
-	let newPosition = addTrackPosition(train.car0TrackPosition, sAve*interval, world);
+	let averageSpeedDuringTick = (s1+s0)/2;
+	let newPosition = addTrackPosition(train.car0TrackPosition, averageSpeedDuringTick*interval, world);
 	let newPE = figureTrainPotentialEnergy(train, newPosition, world);
-	let newKE = train.totalEnergy - newPE;
-	if( newKE < 0 ) {
-		// Well, if we added energy by engines we'd need to add it to totalEnergy! 
-		newKE = 0;
-		// debugger;
+	let newTE:number, newKE:number, newSpeed:number;
+	
+	let conserveEnergy = false; //drivePower == 0;
+	if( conserveEnergy ) {
+		// As long as no external forces apply, explicitly conserve energy
+		// so that rounding errors don't destabilize the system
+		newTE = train.totalEnergy;
+		newKE = newTE - newPE;
+		
+		newSpeed = Math.sqrt(2 * newKE / trainMass);
+		// Make it the same sign as s1
+		if( newSpeed * s1 < 0 ) newSpeed = -newSpeed;  
+	} else {
+		newSpeed = s1;
+		newKE = trainMass * newSpeed*newSpeed / 2;
+		newTE = newPE + newKE;
 	}
+	//if( newKE < 0 ) {
+	//	newKE = 0;
+	//}
 	
 	// KE = 1/2 * m * v**2
 	// 2 * KE / m = v**2
 	// v = sqrt(2 * KE / m) 
-	
-	let adjustedSpeed = Math.sqrt(2 * newKE / trainMass);
-	// Make it the same sign as s1
-	if( adjustedSpeed * s1 < 0 ) adjustedSpeed = -adjustedSpeed;  
-	
+		
 	return {
 		cars: train.cars,
-		totalEnergy: train.totalEnergy,
+		totalEnergy: newTE,
 		car0TrackPosition: newPosition,
-		speed: adjustedSpeed,
+		speed: newSpeed,
+		
+		stats: {
+			driveForce,
+			drivePower,
+			speed: newSpeed,
+			totalEnergy: newTE,
+			kineticEnergy: newKE,
+			potentialEnergy: newPE
+		}
 	}
 }
 
@@ -181,6 +243,39 @@ export class CoasterSimulator {
 	
 	public canvas : HTMLCanvasElement|undefined;
 	
+	public setUpUi(canvas:HTMLCanvasElement) {
+		this.canvas = canvas;
+		
+		let keysDown:{[k:number]: boolean} = {};
+		let eatKeys:{[k:number]: boolean} = {
+			37:true, 39:true // Left and right keys
+		};
+		const keysUpdated = () => {
+			let driveDirection =
+				(keysDown[39] && !keysDown[37]) ? +1 :
+				(keysDown[37] && !keysDown[39]) ? -1 : 0;
+			if( this.world.trains[0] && this.world.trains[0].cars[0] ) {
+				let car = this.world.trains[0].cars[0];
+				this.world.trains[0].cars[0].drivingPower = driveDirection * car.maxDrivingPower;
+			}
+		};
+		window.addEventListener('keydown', (keyEvent:KeyboardEvent) => {
+			//console.log("Key down: "+keyEvent.keyCode);
+			if( eatKeys[keyEvent.keyCode] ) {
+				keysDown[keyEvent.keyCode] = true;
+				keyEvent.preventDefault();
+				keysUpdated();
+			}
+		});
+		window.addEventListener('keyup', (keyEvent:KeyboardEvent) => {
+			if( eatKeys[keyEvent.keyCode] ) {
+				keysDown[keyEvent.keyCode] = false;
+				keyEvent.preventDefault();
+				keysUpdated();
+			}
+		});
+	}
+	
 	public setUpWorld() {
 		// For now just make a circuilar track
 		const noise = new SimplexNoise();
@@ -188,21 +283,26 @@ export class CoasterSimulator {
 		const noiseInputScale = Math.random()*3;
 		const noiseOutputScale = 32;
 		const segCount = 1024;
+		let dir = 0;
+		let position = {x:0, y:0};
 		for( let i=0; i<segCount; ++i ) {
-			const cp0 = { x: Math.cos((i+0)*Math.PI*2/segCount), y: Math.sin((i+0)*Math.PI*2/segCount) };
-			const cp1 = { x: Math.cos((i+1)*Math.PI*2/segCount), y: Math.sin((i+1)*Math.PI*2/segCount) };
+			let dirDelta = (
+				noise.noise2d(i, 0) +
+				2 * noise.noise2d(i/2, 0) +
+				4 * noise.noise2d(i/4, 0) +
+				8 * noise.noise2d(i/8, 0)
+			)*1/16;
+			let endPosition = {
+				x: position.x + Math.cos(dir),
+				y: position.y + Math.sin(dir),
+			}
 			this.world.trackSegments.push(makeTrackSegment(
 				i == 0 ? 1023 : i-1,
-				{
-					x:rad*cp0.x + noiseOutputScale*noise.noise2d(noiseInputScale*cp0.x, noiseInputScale*cp0.y),
-					y:rad*cp0.y + noiseOutputScale*noise.noise2d(noiseInputScale*cp0.y, noiseInputScale*cp0.x)
-				},
-				{
-					x:rad*cp1.x + noiseOutputScale*noise.noise2d(noiseInputScale*cp1.x, noiseInputScale*cp1.y),
-					y:rad*cp1.y + noiseOutputScale*noise.noise2d(noiseInputScale*cp1.y, noiseInputScale*cp1.x)
-				},
+				position, endPosition,
 				i == 1023 ? 0 : i+1
-			))
+			));
+			dir = dir+dirDelta;
+			position = endPosition;
 		}
 		let train:Train = {
 			cars: [],
@@ -219,7 +319,8 @@ export class CoasterSimulator {
 				mass: 100,
 				distanceToNextCar: 1,
 				brakingForce: 0,
-				divingForce: 0,
+				drivingPower: 0,
+				maxDrivingPower: 10000
 			})
 		}
 		train.totalEnergy = figureTrainTotalEnergy(train, this.world);
@@ -268,11 +369,40 @@ export class CoasterSimulator {
 				let carWorldPos = trackPositionToWorldPosition(carTrackPosition, this.world);
 				let px0 = (carWorldPos.x - cx)*scale + canvCenterX;
 				let py0 = (carWorldPos.y - cy)*scale + canvCenterY;
-				c2d.fillStyle = c == 0 ? 'rgb(204,255,128)' : 'rgb(192,255,0)';
+				c2d.fillStyle = c == 0 ? (
+					car.drivingPower == 0 ? 'rgb(204,255,128)' : 'rgb(240,255,192)'
+				) : 'rgb(192,255,0)';
 				c2d.fillRect(px0-scale/2, py0-scale/2, scale, scale);
-				carTrackPosition = addTrackPosition(carTrackPosition, car.distanceToNextCar, this.world);
+				carTrackPosition = addTrackPosition(carTrackPosition, -car.distanceToNextCar, this.world);
 				prevCarWorldPosition = carWorldPos;
 			} 
+		}
+		
+		const leftPad = function(v:any, width:number) {
+			let s = ""+v;
+			while(s.length < width) s = " "+s;
+			return s;
+		}
+		
+		let barY = 0;
+		const drawBar = (title:string, value:number, maxValue:number) => {
+			let barFullness = Math.abs(value) / maxValue;
+			let barWidth = barFullness * canvWidth;
+			c2d.fillStyle = value > 0 ? 'rgba(0,255,0,0.5)' : 'rgba(255,0,0,0.5)';
+			c2d.fillRect(0, barY, barWidth, 12);
+			c2d.fillStyle = 'rgba(255,255,255,0.75)';
+			c2d.fillText(title+": "+leftPad(value.toFixed(2),20 - title.length), 4, barY+12);
+			barY += 12;
+		}
+		
+		let stats : TrainStats|undefined;
+		if( this.world.trains[0] && (stats = this.world.trains[0].stats) ) {
+			drawBar("Drive power", stats.drivePower,            100000);
+			drawBar("Drive force", stats.driveForce,            100000);
+			drawBar("Speed"           , stats.speed,              1000);
+			drawBar("Kinetic energy", stats.kineticEnergy,     1000000);
+			drawBar("Potential energy", stats.potentialEnergy, 1000000);
+			drawBar("Total energy", stats.totalEnergy,         1000000);
 		}
 	}
 	
