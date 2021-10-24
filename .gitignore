@@ -2,6 +2,7 @@
 /.vscode
 /build.log
 /JSTestRunner.html
+/demos/RandomMazes-libs-only.js
 /demos/*.html
 /demos/*.html.urn
 /demos/*.html.url
