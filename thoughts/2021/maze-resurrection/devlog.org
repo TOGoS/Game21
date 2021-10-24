@@ -50,3 +50,7 @@ that's been sitting on nuke24.net for 5 years.  W00t.
 
 So now that I've successfully built the thing and determined
 the commit to use, I guess I can tag it (~random-mazes-2016.10~?) and move on.
+
+*** Moving on
+
+I think ~src/main/ts/togos-game21/graphmaze/GraphWorldifier.ts~ is what I'm interested in.
