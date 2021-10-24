@@ -1,0 +1,52 @@
+#+TITLE: Random Mazes Resurrection
+
+Goal:
+- Minimal changes to 'fix' Random Mazes.
+Secondary goals:
+- Maybe make some improvements (bigger cave rooms, more block types?)
+- Pull in good refactorings from master, but keepping RandomMazes working,
+  since it is the most important product of this project!
+
+Non-goals:
+- Update to use new TypeScript, since that's been tried before,
+  and everything just breaks for reasons I don't fully comprehend.
+
+*** DONE From what commit to branch?
+
+So I'm trying to find the commit from which the current version (as of
+[2021-10-23]) of http://www.nuke24.net/plog/21.html was made.
+
+I think it might be a87c852a19a4e446cc8bce3c6d1a5292dea4c54b.
+
+The entry for the current version is x-git-object:ddfcb6588da63519cd8c5a3b286737e45efd7bc3 (nuke24 repo).
+
+This line from lib.php would seem to indicate that
+the name of the temporary file that libs are put into
+is based on the mtime of the compiled library file:
+
+#+BEGIN_SRC php
+	$squishFile = $tempDir.'/'.hash('sha1', implode(',', $requireModuleNames).'-'.filemtime($libsFile));
+#+END_SRC
+
+So at least that temp/whatever is going to differ.
+Unless I just say that's out of scope of what I'm looking at.
+
+Changes:
+- Require exactly ~"typescript": "2.0.3"~, not "^2.0.3".
+  Newer supposedly compatible versions will complain about things
+  that 2.0.3 does not.  It might be nice to fix those, but not a goal right now!
+- Require exactly tshash 1.5.4
+- Add ~demos/RandomMazes-libs-only.js~ rule to Makefile
+  so I can easily regenerate it to compare with the plog 21 version.
+- Move the Makefile line to touch the tshash directory,
+  in case that was causing Make some confusion that was leading to
+  me having to make twice to get the indicated version (1.5.4 seems right)
+
+Yep, these match exactly, woohoo!
+Which means that if you check out
+x-git-commit:68768488118fd90073c806bd767d720d8432d83e (Game21 repo)
+and ~make demos/RandomMazes.html~, you should get the same version
+that's been sitting on nuke24.net for 5 years.  W00t.
+
+So now that I've successfully built the thing and determined
+the commit to use, I guess I can tag it (~random-mazes-2016.10~?) and move on.
