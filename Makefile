@@ -35,6 +35,8 @@ demos/RandomMazes.html: demos/Maze1.php $(shell find . -name '*.php') target/gam
 	php demos/Maze1.php tabSwitchesMode=false --inline-resources > "$@"
 demos/RandomMazesDoc.html: demos/Maze1.php $(shell find . -name '*.php') target/game21libs.amd.es5.js
 	php demos/Maze1.php tabSwitchesMode=false includeFakeContent=true --inline-resources > "$@"
+demos/RandomMazes-libs-only.js: target/game21libs.amd.es5.js
+	bin/pruneamd -m togos-game21/Maze1 < target/game21libs.amd.es5.js > "$@"
 plog/entries/21: demos/Maze1.php $(shell find . -name '*.php') target/game21libs.amd.es5.js
 	mkdir -p plog/entries/
 	php demos/Maze1.php asPlogEntry=21 > "$@"
