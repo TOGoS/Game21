@@ -29,15 +29,15 @@ import { WebSocket, Server as WebSocketServer } from 'ws';
 import { parse as parseUrl } from 'url';
 import { ReadLine } from 'readline';
 
-import { utf8Encode } from '../../tshash/utils';
-import Router, { LinkID, Link, PacketHandler } from '../inet/Router';
+import { utf8Encode } from '../../tshash/utils.ts';
+import Router, { LinkID, Link, PacketHandler } from '../inet/Router.ts';
 import {
 	parseIp6Address,
 	stringifyIp6Address
-} from '../inet/IP6Address';
+} from '../inet/IP6Address.ts';
 import {
 	resolvedPromise
-} from '../promises';
+} from '../promises.ts';
 import Logger, {
 	VERBOSITY_SILENT,
 	VERBOSITY_ERRORS,
@@ -45,7 +45,7 @@ import Logger, {
 	VERBOSITY_INFO,
 	VERBOSITY_DEBUG,
 	LevelFilteringLogger
-} from '../Logger';
+} from '../Logger.ts';
 
 function setExitCode( c:number ):void {
 	if( typeof(process) == 'object' ) process.exitCode = c;

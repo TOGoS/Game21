@@ -1,5 +1,5 @@
-import { utf8Encode, sha1Urn } from '../tshash/index';
-import { assertEquals } from './testing';
+import { utf8Encode, sha1Urn } from '../tshash/index.ts';
+import { assertEquals } from './testing.ts';
 
 const data = '{\n'+
 	'	"bounds": {\n'+

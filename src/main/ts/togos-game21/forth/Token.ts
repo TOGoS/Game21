@@ -1,4 +1,4 @@
-import SourceSpan from './SourceSpan';
+import SourceSpan from './SourceSpan.ts';
 
 export enum TokenType {
 	BAREWORD,

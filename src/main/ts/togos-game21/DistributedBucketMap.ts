@@ -1,8 +1,8 @@
-import KeyedList from './KeyedList';
-import Datastore from './Datastore';
-import ErrorInfo from './ErrorInfo';
-import { storeObject, fastStoreObject, fetchObject } from './JSONObjectDatastore';
-import { deepFreeze } from './DeepFreezer';
+import KeyedList from './KeyedList.ts';
+import Datastore from './Datastore.ts';
+import ErrorInfo from './ErrorInfo.ts';
+import { storeObject, fastStoreObject, fetchObject } from './JSONObjectDatastore.ts';
+import { deepFreeze } from './DeepFreezer.ts';
 
 export const EMPTY_NODE:DistributedBucketMap<any> = deepFreeze(leafNode( {} ));
 export const EMPTY_NODE_URI = "urn:sha1:GVEKPNGUKNG4NEVXMJBIPURTQHDBZ3ST";

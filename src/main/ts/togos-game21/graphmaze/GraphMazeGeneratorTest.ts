@@ -1,8 +1,8 @@
 import {
 	ITEMCLASS_BLUEKEY
-} from '../graphmaze';
-import MazeGenerator from './GraphMazeGenerator2';
-import MazeSolver from './GraphMazeSolver';
+} from '../graphmaze.ts';
+import MazeGenerator from './GraphMazeGenerator2.ts';
+import MazeSolver from './GraphMazeSolver.ts';
 
 for( let i=0; i<100; ++i ) {
 	const generator = new MazeGenerator();

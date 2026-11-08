@@ -1,17 +1,17 @@
-import Rectangle from './Rectangle';
-import Vector3D from './Vector3D';
-import { makeVector } from './vector3ds';
-import TransformationMatrix3D from './TransformationMatrix3D';
-import Quaternion from './Quaternion';
-import ShapeSheet from './ShapeSheet';
-import ShapeSheetRenderer from './ShapeSheetRenderer';
-import ShapeSheetUtil, {constantMaterialIndexFunction, NOOP_PLOTTED_DEPTH_FUNCTION} from './ShapeSheetUtil';
-import ImageSlice from './ImageSlice';
-import ProceduralShape from './ProceduralShape';
-import Animation, { AnimationType } from './Animation';
-import ObjectVisual, {ObjectVisualState, ObjectVisualFrame, VisualBasisType} from './ObjectVisual';
-import {DEFAULT_MATERIAL_MAP, IDENTITY_MATERIAL_REMAP} from './surfacematerials';
-import ObjectImageManager, {compressQuaternion, decompressQuaternion} from './ObjectImageManager';
+import Rectangle from './Rectangle.ts';
+import Vector3D from './Vector3D.ts';
+import { makeVector } from './vector3ds.ts';
+import TransformationMatrix3D from './TransformationMatrix3D.ts';
+import Quaternion from './Quaternion.ts';
+import ShapeSheet from './ShapeSheet.ts';
+import ShapeSheetRenderer from './ShapeSheetRenderer.ts';
+import ShapeSheetUtil, {constantMaterialIndexFunction, NOOP_PLOTTED_DEPTH_FUNCTION} from './ShapeSheetUtil.ts';
+import ImageSlice from './ImageSlice.ts';
+import ProceduralShape from './ProceduralShape.ts';
+import Animation, { AnimationType } from './Animation.ts';
+import ObjectVisual, {ObjectVisualState, ObjectVisualFrame, VisualBasisType} from './ObjectVisual.ts';
+import {DEFAULT_MATERIAL_MAP, IDENTITY_MATERIAL_REMAP} from './surfacematerials.ts';
+import ObjectImageManager, {compressQuaternion, decompressQuaternion} from './ObjectImageManager.ts';
 
 class ArrowShape implements ProceduralShape {
 	animationType = AnimationType.NONE;

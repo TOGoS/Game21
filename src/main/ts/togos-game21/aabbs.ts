@@ -1,6 +1,6 @@
-import AABB from './AABB';
-import { deepFreeze } from './DeepFreezer';
-import Vector3D from './Vector3D';
+import AABB from './AABB.ts';
+import { deepFreeze } from './DeepFreezer.ts';
+import Vector3D from './Vector3D.ts';
 
 export function makeAabb( minX:number, minY:number, minZ:number, maxX:number, maxY:number, maxZ:number ):AABB {
 	return {minX,minY,minZ,maxX,maxY,maxZ};

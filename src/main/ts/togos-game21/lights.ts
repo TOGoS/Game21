@@ -1,9 +1,9 @@
-import KeyedList from './KeyedList';
-import Vector3D from './Vector3D';
-import { makeVector } from './vector3ds';
-import LightColor from './LightColor';
-import DirectionalLight from './DirectionalLight';
-import { deepFreeze } from './DeepFreezer';
+import KeyedList from './KeyedList.ts';
+import Vector3D from './Vector3D.ts';
+import { makeVector } from './vector3ds.ts';
+import LightColor from './LightColor.ts';
+import DirectionalLight from './DirectionalLight.ts';
+import { deepFreeze } from './DeepFreezer.ts';
 
 export const DEFAULT_LIGHTS:KeyedList<DirectionalLight> = {
 	"primary": new DirectionalLight(

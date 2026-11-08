@@ -1,5 +1,5 @@
-import { assertEqualsPromise, registerTestResult } from './testing';
-import { fixScriptText } from './ForthProceduralShape';
+import { assertEqualsPromise, registerTestResult } from './testing.ts';
+import { fixScriptText } from './ForthProceduralShape.ts';
 
 function lake( name:string, expectedFixed:string, input:string ):void {
 	registerTestResult( "fixScriptText("+name+")", assertEqualsPromise(expectedFixed, fixScriptText(input)) );

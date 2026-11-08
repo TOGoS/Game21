@@ -1,4 +1,4 @@
-import { deepFreeze } from './DeepFreezer';
+import { deepFreeze } from './DeepFreezer.ts';
 
 class SurfaceColor {
 	constructor(public r:number, public g:number, public b:number, public a:number=1) { }

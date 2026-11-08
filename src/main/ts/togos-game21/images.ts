@@ -1,4 +1,4 @@
-import ImageSlice from './ImageSlice';
+import ImageSlice from './ImageSlice.ts';
 
 export const EMPTY_IMAGE_URL = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
 

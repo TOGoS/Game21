@@ -1,7 +1,7 @@
-import BrowserStorageDatastore from './BrowserStorageDatastore';
-import { testDatastore } from './DatastoreTest';
-import { sha1Urn, hexDecode, hexEncode } from '../tshash/index';
-import { registerTestResult, assertEqualsPromise, TestResult } from './testing';
+import BrowserStorageDatastore from './BrowserStorageDatastore.ts';
+import { testDatastore } from './DatastoreTest.ts';
+import { sha1Urn, hexDecode, hexEncode } from '../tshash/index.ts';
+import { registerTestResult, assertEqualsPromise, TestResult } from './testing.ts';
 
 const ctx = typeof window != 'undefined' ? window : null;
 

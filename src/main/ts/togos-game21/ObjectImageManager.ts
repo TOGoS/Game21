@@ -1,20 +1,20 @@
-import KeyedList from './KeyedList';
-import ImageSlice from './ImageSlice';
-import ShapeSheet from './ShapeSheet';
-import ProceduralShape from './ProceduralShape';
-import Animation from './Animation';
-import { ObjectVisual, MAObjectVisual, ObjectVisualState, ObjectVisualFrame, VisualBasisType } from './ObjectVisual';
-import TransformationMatrix3D from './TransformationMatrix3D';
-import Vector3D from './Vector3D';
-import { scaleVector } from './vector3dmath';
-import Quaternion from './Quaternion';
-import { scaleAabb } from './aabbs';
-import ShapeSheetRenderer from './ShapeSheetRenderer';
-import ShapeSheetUtil from './ShapeSheetUtil';
-import SurfaceMaterial from './SurfaceMaterial';
-import { Game } from './world';
-import { remap, IDENTITY_MATERIAL_REMAP, paletteToMap as materialPaletteToMap } from './surfacematerials';
-import {DEFAULT_LIGHTS} from './lights';
+import KeyedList from './KeyedList.ts';
+import ImageSlice from './ImageSlice.ts';
+import ShapeSheet from './ShapeSheet.ts';
+import ProceduralShape from './ProceduralShape.ts';
+import Animation from './Animation.ts';
+import { ObjectVisual, MAObjectVisual, ObjectVisualState, ObjectVisualFrame, VisualBasisType } from './ObjectVisual.ts';
+import TransformationMatrix3D from './TransformationMatrix3D.ts';
+import Vector3D from './Vector3D.ts';
+import { scaleVector } from './vector3dmath.ts';
+import Quaternion from './Quaternion.ts';
+import { scaleAabb } from './aabbs.ts';
+import ShapeSheetRenderer from './ShapeSheetRenderer.ts';
+import ShapeSheetUtil from './ShapeSheetUtil.ts';
+import SurfaceMaterial from './SurfaceMaterial.ts';
+import { Game } from './world.ts';
+import { remap, IDENTITY_MATERIAL_REMAP, paletteToMap as materialPaletteToMap } from './surfacematerials.ts';
+import {DEFAULT_LIGHTS} from './lights.ts';
 
 function compressQuaternionComponent( c:number ):number {
 	const a = c;

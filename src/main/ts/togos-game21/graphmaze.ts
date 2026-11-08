@@ -1,4 +1,4 @@
-import KeyedList from './KeyedList';
+import KeyedList from './KeyedList.ts';
 
 export type KeySet = KeyedList<boolean>;
 

@@ -1,5 +1,5 @@
-import Vector3D from './Vector3D';
-import AABB from './AABB';
+import Vector3D from './Vector3D.ts';
+import AABB from './AABB.ts';
 
 export default class ImageSlice<ImageType> {
 	// When serialized, sheet will be replaced with a hash-based sheetRef

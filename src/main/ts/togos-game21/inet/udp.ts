@@ -1,4 +1,4 @@
-import { verifyIp6PacketChecksum } from './checksumming';
+import { verifyIp6PacketChecksum } from './checksumming.ts';
 
 export const UDP_PROTOCOL_NUMBER = 17;
 

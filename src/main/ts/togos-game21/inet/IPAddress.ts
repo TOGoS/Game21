@@ -2,7 +2,7 @@
  * Functions common to IP4 and IP6 addresses.
  */
 
-import { stringifyIp6Address } from './IP6Address';
+import { stringifyIp6Address } from './IP6Address.ts';
 
 type IPAddress = Uint8Array;
 

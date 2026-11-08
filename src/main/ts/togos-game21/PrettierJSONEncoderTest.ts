@@ -1,5 +1,5 @@
-import PrettierJSONEncoder from './PrettierJSONEncoder';
-import { registerTestResult, assertEqualsPromise } from './testing';
+import PrettierJSONEncoder from './PrettierJSONEncoder.ts';
+import { registerTestResult, assertEqualsPromise } from './testing.ts';
 
 registerTestResult("PrettierJSONEncoder - encode simple array", assertEqualsPromise(
 	"[1,2,3]\n", PrettierJSONEncoder.stringify([1,2,3])

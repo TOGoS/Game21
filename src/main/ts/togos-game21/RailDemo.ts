@@ -1,14 +1,14 @@
-import Vector3D from './Vector3D';
-import { makeVector, setVector, I_VECTOR } from './vector3ds';
-import { addVector, normalizeVector } from './vector3dmath'; 
-import Curve, {estimateCurveLength, estimateCurveTangent} from './Curve';
-import {makeCubicBezierCurve} from './Bezier';
-import ShapeSheet from './ShapeSheet';
-import ShapeSheetRenderer from './ShapeSheetRenderer';
-import ShapeSheetUtil, {PlottedMaterialIndexFunction, PlottedDepthFunction, NOOP_PLOTTED_DEPTH_FUNCTION, constantMaterialIndexFunction} from './ShapeSheetUtil';
-import SurfaceColor from './SurfaceColor';
-import TransformationMatrix3D from './TransformationMatrix3D';
-import Quaternion from './Quaternion';
+import Vector3D from './Vector3D.ts';
+import { makeVector, setVector, I_VECTOR } from './vector3ds.ts';
+import { addVector, normalizeVector } from './vector3dmath.ts'; 
+import Curve, {estimateCurveLength, estimateCurveTangent} from './Curve.ts';
+import {makeCubicBezierCurve} from './Bezier.ts';
+import ShapeSheet from './ShapeSheet.ts';
+import ShapeSheetRenderer from './ShapeSheetRenderer.ts';
+import ShapeSheetUtil, {PlottedMaterialIndexFunction, PlottedDepthFunction, NOOP_PLOTTED_DEPTH_FUNCTION, constantMaterialIndexFunction} from './ShapeSheetUtil.ts';
+import SurfaceColor from './SurfaceColor.ts';
+import TransformationMatrix3D from './TransformationMatrix3D.ts';
+import Quaternion from './Quaternion.ts';
 
 class TrackEndpoint {
 	public position:Vector3D;

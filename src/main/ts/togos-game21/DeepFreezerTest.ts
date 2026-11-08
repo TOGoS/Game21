@@ -1,4 +1,4 @@
-import * as freezer from './DeepFreezer';
+import * as freezer from './DeepFreezer.ts';
 
 function assert(value:any, message?:string) {
 	if( !value ) {

@@ -1,4 +1,4 @@
-import { deepFreeze } from './DeepFreezer';
+import { deepFreeze } from './DeepFreezer.ts';
 
 var obj = {hello: true};
 deepFreeze(obj, true);

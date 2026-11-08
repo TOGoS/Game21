@@ -1,4 +1,4 @@
-import ShapeSheet from './ShapeSheet';
+import ShapeSheet from './ShapeSheet.ts';
 
 export default class ShapeSheetTransforms {
 	public static clone(source:ShapeSheet, x:number, y:number, w:number, h:number, flipX:boolean, rot:number) {

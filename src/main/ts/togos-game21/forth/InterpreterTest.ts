@@ -1,5 +1,5 @@
-import Interpreter, {ProgramBuilder, INTRABANK_BITS, Word, numberDynamicWord, bytecodeWords, standardCompileWords} from './Interpreter';
-import Tokenizer from './Tokenizer';
+import Interpreter, {ProgramBuilder, INTRABANK_BITS, Word, numberDynamicWord, bytecodeWords, standardCompileWords} from './Interpreter.ts';
+import Tokenizer from './Tokenizer.ts';
 
 function assertEquals( expected:any, actual:any, message:string ):void {
 	if( expected !== actual ) throw new Error("Assertion failed; "+expected+" != "+actual+(message ? "; "+message : ''));

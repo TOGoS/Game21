@@ -1,8 +1,8 @@
-import KeyedList from './KeyedList';
-import ErrorInfo from './ErrorInfo';
-import Datastore from './Datastore';
+import KeyedList from './KeyedList.ts';
+import ErrorInfo from './ErrorInfo.ts';
+import Datastore from './Datastore.ts';
 
-import { utf8Encode, utf8Decode, hexEncode, hexDecode } from '../tshash/utils';
+import { utf8Encode, utf8Decode, hexEncode, hexDecode } from '../tshash/utils.ts';
 
 export default class BrowserStorageDatastore implements Datastore<Uint8Array> {
 	public constructor(protected _identify:(v:Uint8Array)=>string, protected browserStorage:Storage) { }

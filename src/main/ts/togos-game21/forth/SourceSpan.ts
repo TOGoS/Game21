@@ -1,4 +1,4 @@
-import SourceLocation from './SourceLocation';
+import SourceLocation from './SourceLocation.ts';
 
 interface SourceSpan extends SourceLocation {
 	fileUri : string;

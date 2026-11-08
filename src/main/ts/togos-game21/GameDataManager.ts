@@ -1,14 +1,14 @@
 ///<reference path="../Promise.d.ts"/>
 
-import { deepFreeze, thaw } from './DeepFreezer';
-import Datastore from './Datastore';
-import MemoryDatastore from './MemoryDatastore';
-import KeyedList from './KeyedList';
-import { DistributedBucketMapManager } from './DistributedBucketMap';
-import { utf8Encode } from '../tshash/utils';
-import { identifyObject, fetchObject, storeObject, fastStoreObject } from './JSONObjectDatastore';
-import { shortcutThen, value as promiseValue } from './promises';
-import { Room, RoomEntity, Entity, EntityClass, StructureType, TileTree, TileEntityPalette, TileEntity } from './world';
+import { deepFreeze, thaw } from './DeepFreezer.ts';
+import Datastore from './Datastore.ts';
+import MemoryDatastore from './MemoryDatastore.ts';
+import KeyedList from './KeyedList.ts';
+import { DistributedBucketMapManager } from './DistributedBucketMap.ts';
+import { utf8Encode } from '../tshash/utils.ts';
+import { identifyObject, fetchObject, storeObject, fastStoreObject } from './JSONObjectDatastore.ts';
+import { shortcutThen, value as promiseValue } from './promises.ts';
+import { Room, RoomEntity, Entity, EntityClass, StructureType, TileTree, TileEntityPalette, TileEntity } from './world.ts';
 
 const refKeyRegex = /.*Ref$/;
 const hashUrnRegex = /^urn:(sha1|bitprint):.*/;

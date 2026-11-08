@@ -1,7 +1,7 @@
-import Vector3D from './Vector3D';
-import { makeVector, setVector, vectorToArray, K_VECTOR } from './vector3ds';
-import { roundVectorToGrid } from './vector3dmath';
-import DensityFunction3D, {makeDensityFunction} from './DensityFunction3D';
+import Vector3D from './Vector3D.ts';
+import { makeVector, setVector, vectorToArray, K_VECTOR } from './vector3ds.ts';
+import { roundVectorToGrid } from './vector3dmath.ts';
+import DensityFunction3D, {makeDensityFunction} from './DensityFunction3D.ts';
 
 const dfDestVectorBuffer = makeVector();
 const dfStartVectorBuffer = makeVector();

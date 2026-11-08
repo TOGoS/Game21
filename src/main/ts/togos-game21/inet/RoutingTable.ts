@@ -1,6 +1,6 @@
-import KeyedList from '../KeyedList';
-import { hexEncode } from '../../tshash/utils';
-import IPAddress, { clearNonPrefixBits } from './IPAddress';
+import KeyedList from '../KeyedList.ts';
+import { hexEncode } from '../../tshash/utils.ts';
+import IPAddress, { clearNonPrefixBits } from './IPAddress.ts';
 
 interface Route<Iface> {
 	address:IPAddress;

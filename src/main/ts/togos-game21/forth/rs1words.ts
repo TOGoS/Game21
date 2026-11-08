@@ -1,15 +1,15 @@
 /// <reference path="../../Promise.d.ts" />
 
-import { resolvedPromise, rejectedPromise } from '../promises';
-import Token, { TokenType } from './Token';
-import KeyedList from '../KeyedList';
+import { resolvedPromise, rejectedPromise } from '../promises.ts';
+import Token, { TokenType } from './Token.ts';
+import KeyedList from '../KeyedList.ts';
 import {
 	Word, WordType, RuntimeWord, CompilationWord, RuntimeContext, CompilationContext, Program, WordGetter,
 	TokenHandler,
 	getWord, atText, defineWordAndResolveFixup, pushFixupPlaceholder, fixupPlaceholderWord
-} from './rs1';
+} from './rs1.ts';
 
-export { fixupPlaceholderWord } from './rs1';
+export { fixupPlaceholderWord } from './rs1.ts';
 
 export const arithmeticWords : KeyedList<Word> = {
 	"+": <RuntimeWord>{

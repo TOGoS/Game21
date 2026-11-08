@@ -1,7 +1,7 @@
-import ErrorInfo from './ErrorInfo';
-import Datastore from './Datastore';
-import { sha1Urn } from '../tshash/index';
-import http from './http';
+import ErrorInfo from './ErrorInfo.ts';
+import Datastore from './Datastore.ts';
+import { sha1Urn } from '../tshash/index.ts';
+import http from './http.ts';
 
 export default class HTTPHashDatastore implements Datastore<Uint8Array> {
 	public static createDefault() {

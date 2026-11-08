@@ -1,8 +1,8 @@
 /// <reference path="../Promise.d.ts" />
 
-import KeyedList from './KeyedList';
-import ErrorInfo from './ErrorInfo';
-import Datastore from './Datastore';
+import KeyedList from './KeyedList.ts';
+import ErrorInfo from './ErrorInfo.ts';
+import Datastore from './Datastore.ts';
 
 export default class CachingDatastore<T> implements Datastore<T> {
 	constructor( protected _identify:(v:T)=>string, protected cacheDs:Datastore<T>, protected fallbackDs:Datastore<T> ) { }

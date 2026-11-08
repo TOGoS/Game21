@@ -1,6 +1,6 @@
-import Vector3D from './Vector3D';
-import { makeVector, setVector } from './vector3ds';
-import { vectorDifferenceMagnitude, normalizeVector } from './vector3dmath';
+import Vector3D from './Vector3D.ts';
+import { makeVector, setVector } from './vector3ds.ts';
+import { vectorDifferenceMagnitude, normalizeVector } from './vector3dmath.ts';
 
 /**
  * @param {number} t a number between 0 and 1 (inclusive, I guess?) indicating the point on the curve to calculate.

@@ -1,17 +1,17 @@
 /// <reference path="../../Promise.d.ts" />
 
-import SourceLocation from './SourceLocation';
-import Token, {TokenType} from './Token';
-import Tokenizer from './Tokenizer';
+import SourceLocation from './SourceLocation.ts';
+import Token, {TokenType} from './Token.ts';
+import Tokenizer from './Tokenizer.ts';
 import {
 	WordType, Word, RuntimeWord, CompilationWord, RuntimeContext, CompilationContext, Program,
 	compileSource, compileTokens, runContext
-} from './rs1';
-import { standardWords, mergeDicts, makeWordGetter, parseNumberWord } from './rs1words';
-import KeyedList from '../KeyedList';
-import URIRef from '../URIRef';
-import { TestResult, registerTestResult, assertEqualsPromise } from '../testing';
-import { vopToPromise } from '../promises';
+} from './rs1.ts';
+import { standardWords, mergeDicts, makeWordGetter, parseNumberWord } from './rs1words.ts';
+import KeyedList from '../KeyedList.ts';
+import URIRef from '../URIRef.ts';
+import { TestResult, registerTestResult, assertEqualsPromise } from '../testing.ts';
+import { vopToPromise } from '../promises.ts';
 
 function runProgram( program:Program ) : Promise<RuntimeContext> {
 	const ctx : RuntimeContext = {

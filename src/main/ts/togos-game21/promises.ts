@@ -6,7 +6,7 @@ enum State {
     NORMAL,
     RESOLVED,
     REJECTED
-} 
+}
 
 const STATESYM = Symbol("resolved");
 const VALUESYM = Symbol("value");

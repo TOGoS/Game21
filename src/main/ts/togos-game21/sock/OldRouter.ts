@@ -3,8 +3,8 @@
 /// <reference path="../../express.d.ts"/>
 /// <reference path="../../ws.d.ts"/>
 
-import KeyedList from '../KeyedList';
-import IP6Address, {parseIp6Address, stringifyIp6Address} from '../inet/IP6Address';
+import KeyedList from '../KeyedList.ts';
+import IP6Address, {parseIp6Address, stringifyIp6Address} from '../inet/IP6Address.ts';
 
 import {
 	AppCreationFunction as ExpressAppCreationFunction,

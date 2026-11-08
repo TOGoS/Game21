@@ -1,7 +1,7 @@
-import LightColor from './LightColor';
-import Vector3D from './Vector3D';
-import { parseVector } from './vector3ds';
-import { normalizeVector, scaleVector, vectorLength } from './vector3dmath';
+import LightColor from './LightColor.ts';
+import Vector3D from './Vector3D.ts';
+import { parseVector } from './vector3ds.ts';
+import { normalizeVector, scaleVector, vectorLength } from './vector3dmath.ts';
 
 export default class DirectionalLight {
 	public shadowFuzz:number = 0;

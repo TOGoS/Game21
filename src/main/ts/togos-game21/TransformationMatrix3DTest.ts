@@ -1,8 +1,8 @@
-import Vector3D from './Vector3D';
-import { makeVector, vectorToArray, ZERO_VECTOR, I_VECTOR, J_VECTOR, K_VECTOR } from './vector3ds';
-import { roundVectorToGrid } from './vector3dmath';
-import Quaternion from './Quaternion';
-import TransformationMatrix3D from './TransformationMatrix3D';
+import Vector3D from './Vector3D.ts';
+import { makeVector, vectorToArray, ZERO_VECTOR, I_VECTOR, J_VECTOR, K_VECTOR } from './vector3ds.ts';
+import { roundVectorToGrid } from './vector3dmath.ts';
+import Quaternion from './Quaternion.ts';
+import TransformationMatrix3D from './TransformationMatrix3D.ts';
 
 function vectorToString( v:Vector3D, precision:number=4 ) {
 	v = roundVectorToGrid(v, 1/64);

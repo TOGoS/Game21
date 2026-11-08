@@ -1,4 +1,4 @@
-import KeyedList from '../KeyedList';
+import KeyedList from '../KeyedList.ts';
 
 export function union<T>( a:KeyedList<T>, b:KeyedList<T> ):KeyedList<T> {
 	let aIsComplete:boolean = true;

@@ -1,6 +1,6 @@
-import Vector3D from './Vector3D';
-import { setVector } from './vector3ds';
-import Curve from './Curve';
+import Vector3D from './Vector3D.ts';
+import { setVector } from './vector3ds.ts';
+import Curve from './Curve.ts';
 
 type Vector3DBuffer = Vector3D;
 

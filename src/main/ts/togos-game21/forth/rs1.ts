@@ -1,13 +1,13 @@
 /// <reference path="../../Promise.d.ts"/>
 
-import { resolvedPromise, rejectedPromise } from '../promises';
+import { resolvedPromise, rejectedPromise } from '../promises.ts';
 
 // Runtime System 1
 
-import Token, { TokenType } from './Token';
-import Tokenizer from './Tokenizer';
-import SourceLocation from './SourceLocation';
-import KeyedList from '../KeyedList';
+import Token, { TokenType } from './Token.ts';
+import Tokenizer from './Tokenizer.ts';
+import SourceLocation from './SourceLocation.ts';
+import KeyedList from '../KeyedList.ts';
 
 export enum WordType {
 	PUSH_VALUE,

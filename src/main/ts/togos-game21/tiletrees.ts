@@ -1,15 +1,15 @@
-import { clone } from './DeepFreezer';
-import Vector3D from './Vector3D';
-import Quaternion from './Quaternion';
-import { makeVector, setVector, vectorToString, ZERO_VECTOR } from './vector3ds';
-import { addVector, subtractVector, vectorLength, vectorIsZero, scaleVector, normalizeVector, roundVectorToGrid } from './vector3dmath';
-import AABB from './AABB';
+import { clone } from './DeepFreezer.ts';
+import Vector3D from './Vector3D.ts';
+import Quaternion from './Quaternion.ts';
+import { makeVector, setVector, vectorToString, ZERO_VECTOR } from './vector3ds.ts';
+import { addVector, subtractVector, vectorLength, vectorIsZero, scaleVector, normalizeVector, roundVectorToGrid } from './vector3dmath.ts';
+import AABB from './AABB.ts';
 import {
 	makeAabb, setAabb, aabbWidth, aabbHeight, aabbDepth,
 	aabbAverageX, aabbAverageY, aabbContainsVector, aabbIntersectsWithOffset
-} from './aabbs';
-import GameDataManager from './GameDataManager';
-import { StructureType, Entity, EntityClass, TileTree, TileEntity, TileEntityPalette } from './world';
+} from './aabbs.ts';
+import GameDataManager from './GameDataManager.ts';
+import { StructureType, Entity, EntityClass, TileTree, TileEntity, TileEntityPalette } from './world.ts';
 
 export type TileTreeRewriteFunction = (
 	pos:Vector3D, aabb:AABB, index:number, e:TileEntity|null|undefined

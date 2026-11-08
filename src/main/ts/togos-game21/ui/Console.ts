@@ -1,6 +1,6 @@
-import Logger from '../Logger';
-import KeyedList from '../KeyedList';
-import DOMLogger from './DOMLogger';
+import Logger from '../Logger.ts';
+import KeyedList from '../KeyedList.ts';
+import DOMLogger from './DOMLogger.ts';
 
 // TODO: should have a logger, not be one.
 class ConsoleProcess extends DOMLogger {

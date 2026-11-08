@@ -1,7 +1,7 @@
-import { deepFreeze } from './DeepFreezer';
-import Vector3D from './Vector3D';
-import { setVector } from './vector3ds';
-import Quaternion from './Quaternion';
+import { deepFreeze } from './DeepFreezer.ts';
+import Vector3D from './Vector3D.ts';
+import { setVector } from './vector3ds.ts';
+import Quaternion from './Quaternion.ts';
 
 const fmtNum = function(num:number, size:number, digits=2) {
 	var s = num.toPrecision(digits);

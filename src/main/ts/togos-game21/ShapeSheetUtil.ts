@@ -1,23 +1,23 @@
 const LARGE_NUMBER = 1000;
 
-import Vector3D from './Vector3D';
-import { makeVector, setVector, K_VECTOR } from './vector3ds';
-import { scaleVector, vectorLength } from './vector3dmath';
-import Curve from './Curve';
-import Rectangle, { RectangularBounds } from './Rectangle';
-import { rectangleWidth, rectangleHeight } from './rectangles';
-import { makeAabb } from './aabbs';
-import Cuboid from './Cuboid';
-import ShapeSheet from './ShapeSheet';
-import ShapeSheetRenderer from './ShapeSheetRenderer';
-import DensityFunction3D from './DensityFunction3D';
-import PlotMode from './PlotMode';
+import Vector3D from './Vector3D.ts';
+import { makeVector, setVector, K_VECTOR } from './vector3ds.ts';
+import { scaleVector, vectorLength } from './vector3dmath.ts';
+import Curve from './Curve.ts';
+import Rectangle, { RectangularBounds } from './Rectangle.ts';
+import { rectangleWidth, rectangleHeight } from './rectangles.ts';
+import { makeAabb } from './aabbs.ts';
+import Cuboid from './Cuboid.ts';
+import ShapeSheet from './ShapeSheet.ts';
+import ShapeSheetRenderer from './ShapeSheetRenderer.ts';
+import DensityFunction3D from './DensityFunction3D.ts';
+import PlotMode from './PlotMode.ts';
 
 // For slicing stuff, which maybe doesn't really belong here
-import ProceduralShape from './ProceduralShape';
-import TransformationMatrix3D from './TransformationMatrix3D';
-import Quaternion from './Quaternion';
-import ImageSlice from './ImageSlice';
+import ProceduralShape from './ProceduralShape.ts';
+import TransformationMatrix3D from './TransformationMatrix3D.ts';
+import Quaternion from './Quaternion.ts';
+import ImageSlice from './ImageSlice.ts';
 
 export type PlottedMaterialIndexFunction = (x:number, y:number, z:number, z0:number, z1:number, z2:number, z3:number)=>number;
 export type PlottedDepthFunction = (x:number, y:number, z:number)=>number;

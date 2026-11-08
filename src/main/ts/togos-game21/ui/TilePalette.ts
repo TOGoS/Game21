@@ -1,5 +1,5 @@
-import { TileEntity, Entity } from '../world';
-import Quaternion from '../Quaternion';
+import { TileEntity, Entity } from '../world.ts';
+import Quaternion from '../Quaternion.ts';
 
 export interface PaletteItem {
 	key?: string; // To map to world inventory, which is different

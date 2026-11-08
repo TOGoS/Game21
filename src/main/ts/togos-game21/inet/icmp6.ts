@@ -1,9 +1,9 @@
-import IP6Address from './IP6Address';
-import PacketDecodeError from './PacketDecodeError';
+import IP6Address from './IP6Address.ts';
+import PacketDecodeError from './PacketDecodeError.ts';
 import {
 	calculateIp6PacketChecksum,
 	verifyIp6PacketChecksum
-} from './checksumming';
+} from './checksumming.ts';
 
 export const ICMP_PROTOCOL_NUMBER = 58;
 export const ICMP_TYPE_PING = 128;

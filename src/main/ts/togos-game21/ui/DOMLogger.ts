@@ -1,4 +1,4 @@
-import Logger from '../Logger';
+import Logger from '../Logger.ts';
 
 function logStringify(thing:any):string {
 	if( typeof(thing) == 'string' ) return thing;

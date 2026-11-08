@@ -2,10 +2,10 @@
 
 /// <reference path="../../node.d.ts"/>
 
-import { hexEncode } from '../../tshash/utils';
+import { hexEncode } from '../../tshash/utils.ts';
 import {
 	IPMessage, IP6Message, disassembleIpPacket, assembleIpPacket
-} from './ip';
+} from './ip.ts';
 import {
 	ICMPMessage,
 	assembleIcmp6Packet,
@@ -14,15 +14,15 @@ import {
 	ICMP_PROTOCOL_NUMBER,
 	ICMP_TYPE_PING,
 	ICMP_TYPE_PONG
-} from './icmp6';
+} from './icmp6.ts';
 import {
 	UDPMessage,
 	disassembleUdpPacket,
 	verifyUdp6PacketChecksum
-} from './udp';
+} from './udp.ts';
 import {
 	stringifyIp6Address
-} from './IP6Address';
+} from './IP6Address.ts';
 import { Socket as DgramSocket } from 'dgram';
 
 class UDPTunnel {

@@ -1,7 +1,7 @@
 // applicable-environments: node
 /// <reference path="../../node.d.ts"/>
 
-import RouterCLI from './RouterCLI';
+import RouterCLI from './RouterCLI.ts';
 import {
 	createSocket as createDgramSocket,
 	Socket as DgramSocket,
@@ -10,11 +10,11 @@ import {
 import {
 	parseIp6Address,
 	stringifyIp6Address,
-} from '../inet/IP6Address';
+} from '../inet/IP6Address.ts';
 import {
 	assembleIpPacket,
 	disassembleIpPacket
-} from '../inet/ip';
+} from '../inet/ip.ts';
 import {
 	ICMP_PROTOCOL_NUMBER,
 	ICMP_TYPE_PING,
@@ -22,10 +22,10 @@ import {
 	verifyIcmp6PacketChecksum,
 	assembleIcmp6Packet,
 	disassembleIcmp6Packet
-} from '../inet/icmp6';
-import { hexEncode, hexDecode } from '../../tshash/utils';
-import { registerTestResult } from '../testing';
-import { compareByteArrays } from '../util';
+} from '../inet/icmp6.ts';
+import { hexEncode, hexDecode } from '../../tshash/utils.ts';
+import { registerTestResult } from '../testing.ts';
+import { compareByteArrays } from '../util.ts';
 
 const clientAddress = parseIp6Address('fded:006a:a932:8f41::1');
 const routerAddress = parseIp6Address('fded:006a:a932:8f41::2');

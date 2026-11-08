@@ -1,8 +1,8 @@
 /// <reference path="../Promise.d.ts" />
 
-import KeyedList from './KeyedList';
-import ErrorInfo from './ErrorInfo';
-import Datastore from './Datastore';
+import KeyedList from './KeyedList.ts';
+import ErrorInfo from './ErrorInfo.ts';
+import Datastore from './Datastore.ts';
 
 function fetchFrom<T>( uri:string, stores:Datastore<T>[], skip:number=0 ):Promise<T> {
 	if( skip >= stores.length ) return Promise.reject(uri+" not found in any datastore.");

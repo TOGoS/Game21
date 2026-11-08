@@ -1,15 +1,15 @@
-import KeyedList from './KeyedList';
-import { thaw } from './DeepFreezer';
-import Vector3D from './Vector3D';
-import { makeVector } from './vector3ds';
-import Cuboid from './Cuboid';
-import LightColor from './LightColor';
-import ShapeSheet from './ShapeSheet';
-import DirectionalLight from './DirectionalLight';
-import ShapeSheetRenderer from './ShapeSheetRenderer';
-import ShapeSheetUtil, {NOOP_PLOTTED_DEPTH_FUNCTION} from './ShapeSheetUtil';
-import SimplexNoise from '../SimplexNoise';
-import DensityFunction3D, {makeDensityFunction} from './DensityFunction3D';
+import KeyedList from './KeyedList.ts';
+import { thaw } from './DeepFreezer.ts';
+import Vector3D from './Vector3D.ts';
+import { makeVector } from './vector3ds.ts';
+import Cuboid from './Cuboid.ts';
+import LightColor from './LightColor.ts';
+import ShapeSheet from './ShapeSheet.ts';
+import DirectionalLight from './DirectionalLight.ts';
+import ShapeSheetRenderer from './ShapeSheetRenderer.ts';
+import ShapeSheetUtil, {NOOP_PLOTTED_DEPTH_FUNCTION} from './ShapeSheetUtil.ts';
+import SimplexNoise from '../SimplexNoise.ts';
+import DensityFunction3D, {makeDensityFunction} from './DensityFunction3D.ts';
 
 export function betterParseNumber<T>(n:any, emptyValue:number|T=0):number|T {
 	if( n == null ) return emptyValue;
@@ -382,8 +382,8 @@ class ShapeSheetDemo {
 	};
 }
 
-import SurfaceColor from './SurfaceColor';
-import FPSUpdater from './FPSUpdater';
+import SurfaceColor from './SurfaceColor.ts';
+import FPSUpdater from './FPSUpdater.ts';
 
 export function buildShapeDemo(canv:HTMLCanvasElement) {
 	const shapeSheet = new ShapeSheet(canv.width, canv.height);

@@ -1,4 +1,4 @@
-import PacketDecodeError from './PacketDecodeError';
+import PacketDecodeError from './PacketDecodeError.ts';
 
 type IPPayload = Uint8Array;
 

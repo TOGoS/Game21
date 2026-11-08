@@ -1,10 +1,10 @@
-import { sha1Urn } from '../tshash/index';
-import Datastore from './Datastore';
-import MemoryDatastore from './MemoryDatastore';
-import HTTPHashDatastore from './HTTPHashDatastore';
-import { DistributedBucketMapManager } from './DistributedBucketMap';
-import GameDataManager from './GameDataManager';
-import { registerTestResult, assertEqualsPromise } from './testing';
+import { sha1Urn } from '../tshash/index.ts';
+import Datastore from './Datastore.ts';
+import MemoryDatastore from './MemoryDatastore.ts';
+import HTTPHashDatastore from './HTTPHashDatastore.ts';
+import { DistributedBucketMapManager } from './DistributedBucketMap.ts';
+import GameDataManager from './GameDataManager.ts';
+import { registerTestResult, assertEqualsPromise } from './testing.ts';
 
 interface Thingy {
 	name: string

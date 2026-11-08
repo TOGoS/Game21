@@ -1,10 +1,10 @@
 /// <reference path="../Promise.d.ts" />
 
-import KeyedList from './KeyedList';
-import ErrorInfo from './ErrorInfo';
-import Datastore from './Datastore';
+import KeyedList from './KeyedList.ts';
+import ErrorInfo from './ErrorInfo.ts';
+import Datastore from './Datastore.ts';
 
-import { sha1Urn } from '../tshash/index';
+import { sha1Urn } from '../tshash/index.ts';
 
 export default class MemoryDatastore<T> implements Datastore<T> {
 	protected _values:KeyedList<T> = {};

@@ -24,9 +24,9 @@
  * comes out somewhere 'before' the one-way link (requiring no more keys)
  */
 
-import KeyedList from '../KeyedList';
-import { union, isSubset, difference, symmetricDifference, isEmpty } from './setutil';
-import { FitnessFunction, EVERYTHING_FITS, nMostFit, randInt, bestFit } from './picking';
+import KeyedList from '../KeyedList.ts';
+import { union, isSubset, difference, symmetricDifference, isEmpty } from './setutil.ts';
+import { FitnessFunction, EVERYTHING_FITS, nMostFit, randInt, bestFit } from './picking.ts';
 import {
 	MazeNode,
 	MazeLink,
@@ -39,7 +39,7 @@ import {
 	ITEMCLASS_BLUEKEY,
 	ITEMCLASS_YELLOWKEY,
 	ITEMCLASS_REDKEY,
-} from '../graphmaze';
+} from '../graphmaze.ts';
 
 type MazeNodeCollection = Node[];
 

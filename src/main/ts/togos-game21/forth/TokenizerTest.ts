@@ -1,5 +1,5 @@
-import Token, { TokenType } from './Token';
-import Tokenizer, { TokenListener } from './Tokenizer';
+import Token, { TokenType } from './Token.ts';
+import Tokenizer, { TokenListener } from './Tokenizer.ts';
 
 function assertEquals( expected:any, actual:any, message?:string ) {
 	const expectedJson = JSON.stringify(expected, null, "   ");

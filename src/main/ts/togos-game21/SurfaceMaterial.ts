@@ -1,5 +1,5 @@
-import LightColor from './LightColor';
-import SurfaceColor from './SurfaceColor';
+import LightColor from './LightColor.ts';
+import SurfaceColor from './SurfaceColor.ts';
 
 export interface SurfaceMaterialLayer {
 	glow:LightColor;

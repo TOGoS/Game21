@@ -1,30 +1,30 @@
-import ShapeSheet from './ShapeSheet';
-import ShapeSheetTransforms from './ShapeSheetTransforms';
-import ShapeSheetRenderer from './ShapeSheetRenderer';
-import ShapeSheetUtil from './ShapeSheetUtil';
-import DirectionalLight from './DirectionalLight';
-import KeyedList from './KeyedList';
-import SurfaceMaterial from './SurfaceMaterial';
-import SurfaceColor from './SurfaceColor';
-import Vector3D from './Vector3D';
-import { makeVector, setVector, ZERO_VECTOR } from './vector3ds'
-import { addVector, roundVectorToGrid } from './vector3dmath';
-import { aabbWidth, aabbHeight } from './aabbs';
-import Quaternion from './Quaternion';
-import TransformationMatrix3D from './TransformationMatrix3D';
-import Cuboid from './Cuboid';
-import { ObjectVisual, MAObjectVisual, VisualBasisType} from './ObjectVisual';
-import ProceduralShape from './ProceduralShape';
-import ImageSlice from './ImageSlice';
-import ObjectImageManager from './ObjectImageManager';
-import {DEFAULT_LIGHTS} from './lights';
-import {DEFAULT_MATERIAL_MAP, IDENTITY_MATERIAL_REMAP, makeRemap, remap} from './surfacematerials';
-import Rectangle from './Rectangle';
-import { newType4Uuid, uuidUrn } from '../tshash/uuids';
-import { Room, Entity, EntityState, EntityClass, EMPTY_STATE } from './world';
-import GameDataManager from './GameDataManager';
-import { eachSubEntity } from './worldutil';
-import SceneShader, { ShadeRaster } from './SceneShader';
+import ShapeSheet from './ShapeSheet.ts';
+import ShapeSheetTransforms from './ShapeSheetTransforms.ts';
+import ShapeSheetRenderer from './ShapeSheetRenderer.ts';
+import ShapeSheetUtil from './ShapeSheetUtil.ts';
+import DirectionalLight from './DirectionalLight.ts';
+import KeyedList from './KeyedList.ts';
+import SurfaceMaterial from './SurfaceMaterial.ts';
+import SurfaceColor from './SurfaceColor.ts';
+import Vector3D from './Vector3D.ts';
+import { makeVector, setVector, ZERO_VECTOR } from './vector3ds.ts'
+import { addVector, roundVectorToGrid } from './vector3dmath.ts';
+import { aabbWidth, aabbHeight } from './aabbs.ts';
+import Quaternion from './Quaternion.ts';
+import TransformationMatrix3D from './TransformationMatrix3D.ts';
+import Cuboid from './Cuboid.ts';
+import { ObjectVisual, MAObjectVisual, VisualBasisType} from './ObjectVisual.ts';
+import ProceduralShape from './ProceduralShape.ts';
+import ImageSlice from './ImageSlice.ts';
+import ObjectImageManager from './ObjectImageManager.ts';
+import {DEFAULT_LIGHTS} from './lights.ts';
+import {DEFAULT_MATERIAL_MAP, IDENTITY_MATERIAL_REMAP, makeRemap, remap} from './surfacematerials.ts';
+import Rectangle from './Rectangle.ts';
+import { newType4Uuid, uuidUrn } from '../tshash/uuids.ts';
+import { Room, Entity, EntityState, EntityClass, EMPTY_STATE } from './world.ts';
+import GameDataManager from './GameDataManager.ts';
+import { eachSubEntity } from './worldutil.ts';
+import SceneShader, { ShadeRaster } from './SceneShader.ts';
 
 // Buffer used for room object positions
 const posBuffer0 = makeVector();

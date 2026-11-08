@@ -1,15 +1,15 @@
-import Vector3D from './Vector3D';
-import { makeVector, setVector, vectorToArray, ZERO_VECTOR } from './vector3ds';
-import { scaleVector } from './vector3dmath';
-import Quaternion from './Quaternion';
-import AABB from './AABB';
-import { makeAabb, aabbWidth, aabbHeight, aabbDepth, UNBOUNDED_AABB } from './aabbs';
-import { Room, RoomEntity, Entity, EntityClass, StructureType, TileTree, TileEntityPalette } from './world';
-import GameDataManager from './GameDataManager';
-import { deepFreeze } from './DeepFreezer';
-import { hash, sha1Urn, base32Encode } from '../tshash/index';
-import SHA1 from '../tshash/SHA1';
-import { coalesce2 } from './util';
+import Vector3D from './Vector3D.ts';
+import { makeVector, setVector, vectorToArray, ZERO_VECTOR } from './vector3ds.ts';
+import { scaleVector } from './vector3dmath.ts';
+import Quaternion from './Quaternion.ts';
+import AABB from './AABB.ts';
+import { makeAabb, aabbWidth, aabbHeight, aabbDepth, UNBOUNDED_AABB } from './aabbs.ts';
+import { Room, RoomEntity, Entity, EntityClass, StructureType, TileTree, TileEntityPalette } from './world.ts';
+import GameDataManager from './GameDataManager.ts';
+import { deepFreeze } from './DeepFreezer.ts';
+import { hash, sha1Urn, base32Encode } from '../tshash/index.ts';
+import SHA1 from '../tshash/SHA1.ts';
+import { coalesce2 } from './util.ts';
 
 const posBuffer0:Vector3D = makeVector();
 

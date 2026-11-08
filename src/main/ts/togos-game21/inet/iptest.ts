@@ -1,10 +1,10 @@
-import { hexEncode } from '../../tshash/utils';
-import { assertEqualsPromise, registerTestResult } from '../testing';
-import { parseIp6Address } from './IP6Address'
+import { hexEncode } from '../../tshash/utils.ts';
+import { assertEqualsPromise, registerTestResult } from '../testing.ts';
+import { parseIp6Address } from './IP6Address.ts'
 import {
 	IP6Message, IPMessage, assembleIpPacket, disassembleIpPacket
-} from './ip';
-import { utf8Encode } from '../../tshash/utils';
+} from './ip.ts';
+import { utf8Encode } from '../../tshash/utils.ts';
 
 function debug( obj:any ):any {
 	if( typeof(obj) === 'object' ) {

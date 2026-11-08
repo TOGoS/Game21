@@ -1,8 +1,8 @@
 import {
 	Entity
-} from '../world';
-import GameDataManager from '../GameDataManager';
-import ImageSlice from '../ImageSlice';
+} from '../world.ts';
+import GameDataManager from '../GameDataManager.ts';
+import ImageSlice from '../ImageSlice.ts';
 
 function emptyElement(e:HTMLElement) {
 	while( e.firstChild ) e.removeChild(e.firstChild);

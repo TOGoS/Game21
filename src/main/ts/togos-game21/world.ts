@@ -1,11 +1,11 @@
-import ObjectVisual, {MAObjectVisual} from './ObjectVisual';
-import Quaternion from './Quaternion';
-import KeyedList from './KeyedList';
-import Vector3D from './Vector3D';
-import AABB from './AABB';
-import SurfaceMaterial from './SurfaceMaterial';
+import ObjectVisual, {MAObjectVisual} from './ObjectVisual.ts';
+import Quaternion from './Quaternion.ts';
+import KeyedList from './KeyedList.ts';
+import Vector3D from './Vector3D.ts';
+import AABB from './AABB.ts';
+import SurfaceMaterial from './SurfaceMaterial.ts';
 
-import { deepFreeze } from './DeepFreezer';
+import { deepFreeze } from './DeepFreezer.ts';
 
 export type ProtoObjectRef = string;
 export type RoomRef = string;

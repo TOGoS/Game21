@@ -1,6 +1,6 @@
-import { makeVector } from './vector3ds';
-import AABB from './AABB';
-import { makeAabb } from './aabbs';
+import { makeVector } from './vector3ds.ts';
+import AABB from './AABB.ts';
+import { makeAabb } from './aabbs.ts';
 import {
 	Room,
 	EntityClass,
@@ -8,12 +8,12 @@ import {
 	AZTYPE_HAND,
 	StructureType,
 	TileTree,
-} from './world';
+} from './world.ts';
 import {
 	makeTileEntityPaletteRef,
 	makeTileTreeRef
-} from './worldutil';
-import GameDataManager from './GameDataManager';
+} from './worldutil.ts';
+import GameDataManager from './GameDataManager.ts';
 /// <reference path="../Promise.d.ts"/>
 
 function hexDig(i:number):string {
@@ -1390,9 +1390,9 @@ export function initData( gdm:GameDataManager ):Promise<void> {
 	return Promise.resolve();
 }
 
-import { sha1Urn } from '../tshash/index';
-import Datastore from './Datastore';
-import HTTPHashDatastore from './HTTPHashDatastore';
+import { sha1Urn } from '../tshash/index.ts';
+import Datastore from './Datastore.ts';
+import HTTPHashDatastore from './HTTPHashDatastore.ts';
 
 if( typeof require != 'undefined' && typeof module != 'undefined' && require.main === module ) {
 	const dataIdent = sha1Urn;

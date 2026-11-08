@@ -1,29 +1,29 @@
-import { freeze, deepFreeze, thaw } from '../DeepFreezer';
-import KeyedList from '../KeyedList';
-import ClientRegistry from '../ClientRegistry';
-import LightColor from '../LightColor';
-import DirectionalLight from '../DirectionalLight';
-import SurfaceMaterial from '../SurfaceMaterial';
-import ProceduralShape from '../ProceduralShape';
-import Rectangle from '../Rectangle';
-import Vector3D from '../Vector3D';
-import { makeVector, setVector } from '../vector3ds';
-import { normalizeVector } from '../vector3dmath';
-import Quaternion from '../Quaternion';
-import TransformationMatrix3D from '../TransformationMatrix3D';
-import ShapeSheet from '../ShapeSheet';
-import ShapeSheetRenderer from '../ShapeSheetRenderer';
-import ShapeSheetUtil from '../ShapeSheetUtil';
-import { AnimationType, animationTypeFromName } from '../Animation';
-import { DEFAULT_MATERIAL_MAP } from '../surfacematerials';
-import { DEFAULT_LIGHTS } from '../lights';
-import { Program } from '../forth/rs1'
-import { fixScriptText, ForthProceduralShapeCompiler } from '../ForthProceduralShape';
-import { utf8Encode, utf8Decode } from '../../tshash/index';
-import { getQueryStringValues } from './windowutils';
-import Logger from '../Logger';
-import MultiLogger from '../MultiLogger';
-import DOMLogger from './DOMLogger';
+import { freeze, deepFreeze, thaw } from '../DeepFreezer.ts';
+import KeyedList from '../KeyedList.ts';
+import ClientRegistry from '../ClientRegistry.ts';
+import LightColor from '../LightColor.ts';
+import DirectionalLight from '../DirectionalLight.ts';
+import SurfaceMaterial from '../SurfaceMaterial.ts';
+import ProceduralShape from '../ProceduralShape.ts';
+import Rectangle from '../Rectangle.ts';
+import Vector3D from '../Vector3D.ts';
+import { makeVector, setVector } from '../vector3ds.ts';
+import { normalizeVector } from '../vector3dmath.ts';
+import Quaternion from '../Quaternion.ts';
+import TransformationMatrix3D from '../TransformationMatrix3D.ts';
+import ShapeSheet from '../ShapeSheet.ts';
+import ShapeSheetRenderer from '../ShapeSheetRenderer.ts';
+import ShapeSheetUtil from '../ShapeSheetUtil.ts';
+import { AnimationType, animationTypeFromName } from '../Animation.ts';
+import { DEFAULT_MATERIAL_MAP } from '../surfacematerials.ts';
+import { DEFAULT_LIGHTS } from '../lights.ts';
+import { Program } from '../forth/rs1.ts'
+import { fixScriptText, ForthProceduralShapeCompiler } from '../ForthProceduralShape.ts';
+import { utf8Encode, utf8Decode } from '../../tshash/index.ts';
+import { getQueryStringValues } from './windowutils.ts';
+import Logger from '../Logger.ts';
+import MultiLogger from '../MultiLogger.ts';
+import DOMLogger from './DOMLogger.ts';
 
 function ensureNotNull<T>( name:string, val:T|null|undefined ):T {
 	if( val == null ) throw new Error(name+" is null!");

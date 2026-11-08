@@ -7,8 +7,8 @@ import IP6Address, {
 	ALL_NODES_ADDRESS,
 	LINK_LOCAL_PREFIX,
 	LINK_LOCAL_PREFIX_LENGTH
-} from '../inet/IP6Address';
-import { IPMessage, assembleIpPacket, disassembleIpPacket } from '../inet/ip';
+} from '../inet/IP6Address.ts';
+import { IPMessage, assembleIpPacket, disassembleIpPacket } from '../inet/ip.ts';
 import {
 	ICMP_PROTOCOL_NUMBER,
 	ICMP_TYPE_PING,
@@ -19,13 +19,13 @@ import {
 	assembleIcmp6Packet,
 	disassembleIcmp6Packet,
 	disassembleRouterAdvertisementIcmp6Packet
-} from '../inet/icmp6';
+} from '../inet/icmp6.ts';
 import {
 	LinkID
-} from '../inet/Router';
-import { compareByteArrays } from '../util';
-import { hexDecode } from '../../tshash/utils';
-import Logger from '../Logger';
+} from '../inet/Router.ts';
+import { compareByteArrays } from '../util.ts';
+import { hexDecode } from '../../tshash/utils.ts';
+import Logger from '../Logger.ts';
 
 declare class WebSocket implements WebSocketLike {
 	constructor(wsUrl:string);

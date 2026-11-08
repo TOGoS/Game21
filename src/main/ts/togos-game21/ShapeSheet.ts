@@ -1,4 +1,4 @@
-import Rectangle from './Rectangle';
+import Rectangle from './Rectangle.ts';
 
 export default class ShapeSheet {
 	// Treat these all as read-only

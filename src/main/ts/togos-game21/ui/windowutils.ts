@@ -1,4 +1,4 @@
-import KeyedList from '../KeyedList';
+import KeyedList from '../KeyedList.ts';
 
 export function getQueryStringValues(qs:string = window.location.search.substr(1)):KeyedList<string> {
 	const qsParts = qs.split('&');

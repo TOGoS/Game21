@@ -1,5 +1,5 @@
-import Vector3D from './Vector3D';
-import { deepFreeze } from './DeepFreezer'; 
+import Vector3D from './Vector3D.ts';
+import { deepFreeze } from './DeepFreezer.ts';
 
 export function makeVector(x:number=0, y:number=0, z:number=0):Vector3D {
 	return {x, y, z};

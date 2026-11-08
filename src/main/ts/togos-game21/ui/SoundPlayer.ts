@@ -1,5 +1,5 @@
-import KeyedList from '../KeyedList';
-import Datastore from '../Datastore';
+import KeyedList from '../KeyedList.ts';
+import Datastore from '../Datastore.ts';
 
 export default class SoundPlayer {
 	protected auctx?:AudioContext;

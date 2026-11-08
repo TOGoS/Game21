@@ -1,22 +1,22 @@
-import { thaw, deepFreeze } from './DeepFreezer';
-import KeyedList from './KeyedList';
-import Rectangle from './Rectangle';
-import Vector3D from './Vector3D';
-import { makeVector, setVector, ZERO_VECTOR } from './vector3ds';
-import TransformationMatrix3D from './TransformationMatrix3D';
-import ShapeSheetUtil from './ShapeSheetUtil';
-import { AnimationType, animationTypeFromName } from './Animation';
-import ProceduralShape from './ProceduralShape';
-import Token, { TokenType } from './forth/Token';
-import { isResolved } from './promises';
+import { thaw, deepFreeze } from './DeepFreezer.ts';
+import KeyedList from './KeyedList.ts';
+import Rectangle from './Rectangle.ts';
+import Vector3D from './Vector3D.ts';
+import { makeVector, setVector, ZERO_VECTOR } from './vector3ds.ts';
+import TransformationMatrix3D from './TransformationMatrix3D.ts';
+import ShapeSheetUtil from './ShapeSheetUtil.ts';
+import { AnimationType, animationTypeFromName } from './Animation.ts';
+import ProceduralShape from './ProceduralShape.ts';
+import Token, { TokenType } from './forth/Token.ts';
+import { isResolved } from './promises.ts';
 import {
 	Program, RuntimeContext, CompilationContext, Word, RuntimeWord, CompilationWord, WordType,
 	atText, compileSource, runContext
-} from './forth/rs1';
-import SourceLocation from './forth/SourceLocation';
+} from './forth/rs1.ts';
+import SourceLocation from './forth/SourceLocation.ts';
 import {
 	standardWords, makeWordGetter, mergeDicts, parseNumberWord
-} from './forth/rs1words';
+} from './forth/rs1words.ts';
 
 export const FORTH_PROCEDURAL_SCRIPT_MAGIC_LINE = '#G21-FPS-1.0';
 

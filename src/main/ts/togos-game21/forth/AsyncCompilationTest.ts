@@ -1,15 +1,15 @@
 /// <reference path="../../Promise.d.ts" />
 
-import SourceLocation from './SourceLocation';
-import Token, {TokenType} from './Token';
-import Tokenizer from './Tokenizer';
+import SourceLocation from './SourceLocation.ts';
+import Token, {TokenType} from './Token.ts';
+import Tokenizer from './Tokenizer.ts';
 import {
 	WordType, Word, RuntimeWord, CompilationWord, RuntimeContext, CompilationContext, Program,
 	compileSource, compileTokens, makeWordGetter, runContext
-} from './rs1';
-import KeyedList from '../KeyedList';
-import URIRef from '../URIRef';
-import { registerTestResult, assertEquals } from '../testing';
+} from './rs1.ts';
+import KeyedList from '../KeyedList.ts';
+import URIRef from '../URIRef.ts';
+import { registerTestResult, assertEquals } from '../testing.ts';
 
 /*
  * Oh jeez why is this so hard.

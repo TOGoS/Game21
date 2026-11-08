@@ -1,12 +1,12 @@
-import ProceduralShape from './ProceduralShape';
-import ShapeSheet from './ShapeSheet';
-import ImageSlice from './ImageSlice';
-import Animation from './Animation';
-import SurfaceMaterial from './SurfaceMaterial';
-import {IDENTITY_MATERIAL_REMAP} from './surfacematerials';
-import Rectangle from './Rectangle';
-import Quaternion from './Quaternion';
-import Vector3D from './Vector3D';
+import ProceduralShape from './ProceduralShape.ts';
+import ShapeSheet from './ShapeSheet.ts';
+import ImageSlice from './ImageSlice.ts';
+import Animation from './Animation.ts';
+import SurfaceMaterial from './SurfaceMaterial.ts';
+import {IDENTITY_MATERIAL_REMAP} from './surfacematerials.ts';
+import Rectangle from './Rectangle.ts';
+import Quaternion from './Quaternion.ts';
+import Vector3D from './Vector3D.ts';
 
 export enum VisualBasisType {
 	PROCEDURAL,

@@ -1,8 +1,8 @@
 /// <reference path="../../node.d.ts"/>
 /// <reference path="../../Promise.d.ts"/>
 
-import KeyedList from '../KeyedList';
-import { union } from './setutil';
+import KeyedList from '../KeyedList.ts';
+import { union } from './setutil.ts';
 import {
 	MazeNode,
 	MazeLink,
@@ -12,7 +12,7 @@ import {
 	Maze,
 	ITEMCLASS_START,
 	ITEMCLASS_END,
-} from '../graphmaze';
+} from '../graphmaze.ts';
 
 export interface MazePlayerState {
 	items : KeyedList<string>;

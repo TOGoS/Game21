@@ -1,5 +1,5 @@
-import Vector3D from './Vector3D';
-import { makeVector, setVector } from './vector3ds';
+import Vector3D from './Vector3D.ts';
+import { makeVector, setVector } from './vector3ds.ts';
 
 function roundToNearestMultiple(n:number, gridSize:number):number {
 	return Math.round(n/gridSize) * gridSize;

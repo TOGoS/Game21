@@ -1,8 +1,8 @@
-import KeyedList from './KeyedList';
-import { deepFreeze } from './DeepFreezer';
-import SurfaceColor from './SurfaceColor';
-import LightColor from './LightColor';
-import SurfaceMaterial, { SurfaceMaterialLayer } from './SurfaceMaterial';
+import KeyedList from './KeyedList.ts';
+import { deepFreeze } from './DeepFreezer.ts';
+import SurfaceColor from './SurfaceColor.ts';
+import LightColor from './LightColor.ts';
+import SurfaceMaterial, { SurfaceMaterialLayer } from './SurfaceMaterial.ts';
 
 export const MATERIAL_MAP_SIZE = 256;
 

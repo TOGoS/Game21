@@ -1,7 +1,7 @@
-import Rectangle from './Rectangle';
-import { AnimationType } from './Animation';
-import TransformationMatrix3D from './TransformationMatrix3D';
-import ShapeSheetUtil from './ShapeSheetUtil';
+import Rectangle from './Rectangle.ts';
+import { AnimationType } from './Animation.ts';
+import TransformationMatrix3D from './TransformationMatrix3D.ts';
+import ShapeSheetUtil from './ShapeSheetUtil.ts';
 
 interface ProceduralShape {
 	/**

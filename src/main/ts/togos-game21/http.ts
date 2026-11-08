@@ -1,10 +1,10 @@
 /// <reference path="../Promise.d.ts" />
 /// <reference path="../node.d.ts" />
 
-import ErrorInfo from './ErrorInfo';
-import KeyedList from './KeyedList';
+import ErrorInfo from './ErrorInfo.ts';
+import KeyedList from './KeyedList.ts';
 import { IncomingMessage } from 'http';
-import { utf8Encode } from '../tshash/utils';
+import { utf8Encode } from '../tshash/utils.ts';
 
 /**
  * HTTP abstraction layer.

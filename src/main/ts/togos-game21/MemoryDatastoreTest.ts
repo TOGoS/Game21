@@ -1,6 +1,6 @@
 /// <reference path="../Promise.d.ts" />
 
-import MemoryDatastore from './MemoryDatastore';
-import {testDatastore} from './DatastoreTest';
+import MemoryDatastore from './MemoryDatastore.ts';
+import {testDatastore} from './DatastoreTest.ts';
 
 testDatastore( 'MemoryDatastore', MemoryDatastore.createSha1Based(1) );

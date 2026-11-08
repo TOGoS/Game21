@@ -1,4 +1,4 @@
-import { deepFreeze } from './DeepFreezer';
+import { deepFreeze } from './DeepFreezer.ts';
 
 class LightColor {
 	constructor(public r:number, public g:number, public b:number) { }

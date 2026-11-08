@@ -1,7 +1,7 @@
-import KeyedList from '../KeyedList';
-import SourceLocation from './SourceLocation';
-import Token, {TokenType} from './Token';
-import { resolvedPromise, RESOLVED_VOID_PROMISE, vopToPromise, shortcutThen } from '../promises';
+import KeyedList from '../KeyedList.ts';
+import SourceLocation from './SourceLocation.ts';
+import Token, {TokenType} from './Token.ts';
+import { resolvedPromise, RESOLVED_VOID_PROMISE, vopToPromise, shortcutThen } from '../promises.ts';
 
 export type TokenListener = (t:Token) => Promise<void>|void;
 

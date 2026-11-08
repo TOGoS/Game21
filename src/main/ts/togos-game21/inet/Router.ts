@@ -1,9 +1,9 @@
-import RoutingTable from './RoutingTable';
+import RoutingTable from './RoutingTable.ts';
 import {
 	IPMessage,
 	assembleIpPacket,
 	disassembleIpPacket
-} from './ip';
+} from './ip.ts';
 import {
 	ICMP_PROTOCOL_NUMBER,
 	ICMP_TYPE_PING,
@@ -15,12 +15,12 @@ import {
 	RouterAdvertisement,
 	PrefixInformation,
 	assembleRouterAdvertisementIcmp6Packet
-} from './icmp6';
-import PacketDecodeError from './PacketDecodeError';
-import KeyedList from '../KeyedList';
-import { compareByteArrays } from '../util';
-import IPAddress, { prefixMatches, clearNonPrefixBits, stringifyIpAddress } from './IPAddress';
-import { ALL_NODES_ADDRESS, UNSPECIFIED_ADDRESS } from './IP6Address';
+} from './icmp6.ts';
+import PacketDecodeError from './PacketDecodeError.ts';
+import KeyedList from '../KeyedList.ts';
+import { compareByteArrays } from '../util.ts';
+import IPAddress, { prefixMatches, clearNonPrefixBits, stringifyIpAddress } from './IPAddress.ts';
+import { ALL_NODES_ADDRESS, UNSPECIFIED_ADDRESS } from './IP6Address.ts';
 
 export type PacketHandler = (packet:Uint8Array)=>void;
 
@@ -51,7 +51,7 @@ import Logger, {
 	VERBOSITY_WARNINGS,
 	VERBOSITY_INFO,
 	VERBOSITY_DEBUG,
-} from '../Logger';
+} from '../Logger.ts';
 
 interface SubnetPool {
 	prefix : Uint8Array;

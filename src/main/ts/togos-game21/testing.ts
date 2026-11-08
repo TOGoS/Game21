@@ -1,13 +1,13 @@
 /// <reference path="../Promise.d.ts" />
 /// <reference path="../node.d.ts" />
 
-import ErrorInfo from './ErrorInfo';
+import ErrorInfo from './ErrorInfo.ts';
 
 function setExitCode( c:number ):void {
 	if( typeof(process) == 'object' ) process.exitCode = c;
 }
 
-import KeyedList from './KeyedList';
+import KeyedList from './KeyedList.ts';
 
 // More structured method...
 

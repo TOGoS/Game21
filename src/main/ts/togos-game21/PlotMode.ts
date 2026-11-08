@@ -11,7 +11,7 @@ enum MaterialOp {
 }
 
 class PlotMode {
-	constructor(public depthOp:DepthOp, public materialOp:MaterialOp) { } 
+	constructor(public depthOp:DepthOp, public materialOp:MaterialOp) { }
 	
 	public static DEFAULT = new PlotMode(DepthOp.BUILD, MaterialOp.REPLACE);
 };

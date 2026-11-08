@@ -1,4 +1,4 @@
-import Logger from './Logger';
+import Logger from './Logger.ts';
 
 export default class MultiConsole implements Logger {
 	public constructor( protected backends:Logger[] ) {

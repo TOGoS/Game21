@@ -1,5 +1,5 @@
-import Datastore from './Datastore';
-import HTTPHashDatastore from './HTTPHashDatastore';
+import Datastore from './Datastore.ts';
+import HTTPHashDatastore from './HTTPHashDatastore.ts';
 
 export default class ClientRegistry {
 	public datastore : Datastore<Uint8Array>;

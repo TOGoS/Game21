@@ -1,12 +1,12 @@
-import Vector3D from './Vector3D';
-import { makeVector } from './vector3ds';
-import { addVector } from './vector3dmath';
-import Quaternion from './Quaternion';
-import Rectangle, {RectangularBounds} from './Rectangle';
-import Cuboid from './Cuboid';
-import { eachSubEntity, roomEntityOrientation } from './worldutil';
-import { Room, RoomEntity, Entity, EntityClass, StructureType, TileTree } from './world';
-import GameDataManager from './GameDataManager';
+import Vector3D from './Vector3D.ts';
+import { makeVector } from './vector3ds.ts';
+import { addVector } from './vector3dmath.ts';
+import Quaternion from './Quaternion.ts';
+import Rectangle, {RectangularBounds} from './Rectangle.ts';
+import Cuboid from './Cuboid.ts';
+import { eachSubEntity, roomEntityOrientation } from './worldutil.ts';
+import { Room, RoomEntity, Entity, EntityClass, StructureType, TileTree } from './world.ts';
+import GameDataManager from './GameDataManager.ts';
 
 export const OPACITY_TRANSPARENT =   0;
 export const OPACITY_OPAQUE      = 254;

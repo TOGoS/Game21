@@ -1,6 +1,6 @@
-import { hexEncode } from '../../tshash/utils';
-import { assertEqualsPromise, registerTestResult, assertEquals } from '../testing';
-import { parseIp6Address } from './IP6Address'
+import { hexEncode } from '../../tshash/utils.ts';
+import { assertEqualsPromise, registerTestResult, assertEquals } from '../testing.ts';
+import { parseIp6Address } from './IP6Address.ts'
 import {
 	assembleRouterAdvertisementIcmp6Packet,
 	disassembleIcmp6Packet,
@@ -9,7 +9,7 @@ import {
 	verifyIcmp6PacketChecksum,
 	PrefixInformation,
 	RouterAdvertisement
-} from './icmp6';
+} from './icmp6.ts';
 
 // Uhm, let's try making a router advertisement packet.
 registerTestResult("icmp6test: simple router advertisement", new Promise( (resolve,reject) => {

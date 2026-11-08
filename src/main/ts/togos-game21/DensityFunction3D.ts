@@ -1,6 +1,6 @@
-import Vector3D from './Vector3D';
-import { makeVector, setVector, TEMP_VECTOR } from './vector3ds'
-import { normalizeVector } from './vector3dmath';
+import Vector3D from './Vector3D.ts';
+import { makeVector, setVector, TEMP_VECTOR } from './vector3ds.ts'
+import { normalizeVector } from './vector3dmath.ts';
 
 interface DensityFunction3D
 {

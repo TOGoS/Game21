@@ -1,37 +1,37 @@
-import { sha1Urn, utf8Encode, utf8Decode } from '../tshash/index';
-import Datastore from './Datastore';
-import HTTPHashDatastore from './HTTPHashDatastore';
-import MemoryDatastore from './MemoryDatastore';
-import CachingDatastore from './CachingDatastore';
-import BrowserStorageDatastore from './BrowserStorageDatastore';
-import MultiDatastore from './MultiDatastore';
-import { finalmente } from './promises';
+import { sha1Urn, utf8Encode, utf8Decode } from '../tshash/index.ts';
+import Datastore from './Datastore.ts';
+import HTTPHashDatastore from './HTTPHashDatastore.ts';
+import MemoryDatastore from './MemoryDatastore.ts';
+import CachingDatastore from './CachingDatastore.ts';
+import BrowserStorageDatastore from './BrowserStorageDatastore.ts';
+import MultiDatastore from './MultiDatastore.ts';
+import { finalmente } from './promises.ts';
 
-import { deepFreeze, thaw, deepThaw, isDeepFrozen } from './DeepFreezer';
-import GameDataManager from './GameDataManager';
-import { fetchObject, storeObject, fastStoreObject, encodeObject } from './JSONObjectDatastore';
-import { DistributedBucketMapManager } from './DistributedBucketMap';
-import KeyedList from './KeyedList';
-import Vector3D from './Vector3D';
-import { makeVector, setVector, vectorToString, ZERO_VECTOR } from './vector3ds';
-import { pickOne } from './graphmaze/picking';
+import { deepFreeze, thaw, deepThaw, isDeepFrozen } from './DeepFreezer.ts';
+import GameDataManager from './GameDataManager.ts';
+import { fetchObject, storeObject, fastStoreObject, encodeObject } from './JSONObjectDatastore.ts';
+import { DistributedBucketMapManager } from './DistributedBucketMap.ts';
+import KeyedList from './KeyedList.ts';
+import Vector3D from './Vector3D.ts';
+import { makeVector, setVector, vectorToString, ZERO_VECTOR } from './vector3ds.ts';
+import { pickOne } from './graphmaze/picking.ts';
 import {
 	accumulateVector, addVector, subtractVector, scaleVector, normalizeVector,
 	vectorLength, vectorIsZero, dotProduct, roundVectorToGrid
-} from './vector3dmath';
-import AABB from './AABB';
+} from './vector3dmath.ts';
+import AABB from './AABB.ts';
 import {
 	makeAabb, aabbWidth, aabbHeight, aabbDepth,
 	aabbAverageX, aabbAverageY, aabbAverageZ,
 	aabbContainsVector, aabbIntersectsWithOffset, offsetAabbContainsVector
-} from './aabbs';
-import Quaternion from './Quaternion';
-import TransformationMatrix3D from './TransformationMatrix3D';
-import SceneShader, { ShadeRaster, VISIBILITY_VOID, VISIBILITY_NONE, VISIBILITY_MIN } from './SceneShader';
-import { uuidUrn, newType4Uuid } from '../tshash/uuids';
-import { makeTileTreeRef, makeTileEntityPaletteRef, eachSubEntity, eachSubEntityIntersectingBb, connectRooms } from './worldutil';
-import * as dat from './maze1demodata';
-import * as http from './http';
+} from './aabbs.ts';
+import Quaternion from './Quaternion.ts';
+import TransformationMatrix3D from './TransformationMatrix3D.ts';
+import SceneShader, { ShadeRaster, VISIBILITY_VOID, VISIBILITY_NONE, VISIBILITY_MIN } from './SceneShader.ts';
+import { uuidUrn, newType4Uuid } from '../tshash/uuids.ts';
+import { makeTileTreeRef, makeTileEntityPaletteRef, eachSubEntity, eachSubEntityIntersectingBb, connectRooms } from './worldutil.ts';
+import * as dat from './maze1demodata.ts';
+import * as http from './http.ts';
 import {
 	Room,
 	RoomEntity,
@@ -43,30 +43,30 @@ import {
 	TileEntity,
 	StructureType,
 	TileEntityPalette
-} from './world';
-import ImageSlice from './ImageSlice';
-import { EMPTY_IMAGE_SLICE, imageFromUrl } from './images';
-import { rewriteTileTree } from './tiletrees';
+} from './world.ts';
+import ImageSlice from './ImageSlice.ts';
+import { EMPTY_IMAGE_SLICE, imageFromUrl } from './images.ts';
+import { rewriteTileTree } from './tiletrees.ts';
 
-import Tokenizer from './forth/Tokenizer';
-import Token, { TokenType } from './forth/Token';
+import Tokenizer from './forth/Tokenizer.ts';
+import Token, { TokenType } from './forth/Token.ts';
 
-import Logger from './Logger';
-import MultiLogger from './MultiLogger';
-import DOMLogger from './ui/DOMLogger';
-import TilePaletteUI, { PaletteItem } from './ui/TilePalette';
+import Logger from './Logger.ts';
+import MultiLogger from './MultiLogger.ts';
+import DOMLogger from './ui/DOMLogger.ts';
+import TilePaletteUI, { PaletteItem } from './ui/TilePalette.ts';
 import {
 	StorageCompartmentContentUI
-} from './ui/inventory';
-import SoundPlayer from './ui/SoundPlayer';
+} from './ui/inventory.ts';
+import SoundPlayer from './ui/SoundPlayer.ts';
 
 import {
 	ITEMCLASS_BLUEKEY,
 	ITEMCLASS_YELLOWKEY,
 	ITEMCLASS_REDKEY,
-} from './graphmaze';
-import GraphMazeGenerator from './graphmaze/GraphMazeGenerator2';
-import GraphWorldifier, { mazeToWorld } from './graphmaze/GraphWorldifier';
+} from './graphmaze.ts';
+import GraphMazeGenerator from './graphmaze/GraphMazeGenerator2.ts';
+import GraphWorldifier, { mazeToWorld } from './graphmaze/GraphWorldifier.ts';
 
 import {
 	EntityPath,
@@ -81,7 +81,7 @@ import {
 	ROOMID_SIMULATOR,
 	ROOMID_FINDENTITY,
 	ROOMID_EXTERNAL,
-} from './simulationmessaging';
+} from './simulationmessaging.ts';
 
 const UI_ENTIY_PATH = [ROOMID_EXTERNAL, "demo UI"];
 

@@ -1,7 +1,7 @@
 /// <reference path="../../node.d.ts"/>
 /// <reference path="../../Promise.d.ts"/>
 
-import KeyedList from '../KeyedList';
+import KeyedList from '../KeyedList.ts';
 import {
 	Maze,
 	MazeNode,
@@ -13,30 +13,30 @@ import {
 	ITEMCLASS_REDKEY,
 	ITEMCLASS_END,
 	ITEMCLASS_START,
-} from '../graphmaze';
-import { pickOne, nMostFit } from './picking';
-import { isEmpty } from './setutil';
-import GameDataManager from '../GameDataManager';
+} from '../graphmaze.ts';
+import { pickOne, nMostFit } from './picking.ts';
+import { isEmpty } from './setutil.ts';
+import GameDataManager from '../GameDataManager.ts';
 import {
 	newType4Uuid,
 	uuidUrn,
-} from '../../tshash/uuids';
+} from '../../tshash/uuids.ts';
 
-import AABB from '../AABB';
-import { makeAabb } from '../aabbs';
-import Vector3D from '../Vector3D';
-import { subtractVector } from '../vector3dmath'
-import { ZERO_VECTOR } from '../vector3ds';
-import SimplexNoise from '../../SimplexNoise';
+import AABB from '../AABB.ts';
+import { makeAabb } from '../aabbs.ts';
+import Vector3D from '../Vector3D.ts';
+import { subtractVector } from '../vector3dmath.ts'
+import { ZERO_VECTOR } from '../vector3ds.ts';
+import SimplexNoise from '../../SimplexNoise.ts';
 import {
 	Room,
 	RoomEntity,
 	RoomNeighbor,
-} from '../world';
+} from '../world.ts';
 import {
 	makeTileTreeRef,
-} from '../worldutil';
-import * as dat from '../maze1demodata';
+} from '../worldutil.ts';
+import * as dat from '../maze1demodata.ts';
 
 function newUuidRef():string { return uuidUrn(newType4Uuid()); }
 
@@ -865,10 +865,10 @@ export default class GraphWorldifier {
 	}
 }
 
-import { sha1Urn } from '../../tshash/index';
-import Datastore from '../Datastore';
-import HTTPHashDatastore from '../HTTPHashDatastore';
-import { SaveGame } from '../Maze1';
+import { sha1Urn } from '../../tshash/index.ts';
+import Datastore from '../Datastore.ts';
+import HTTPHashDatastore from '../HTTPHashDatastore.ts';
+import { SaveGame } from '../Maze1.ts';
 
 export function mazeToWorld(worldifier:GraphWorldifier):Promise<{ gdm:GameDataManager, playerId:string, startRoomRef:string }> {
 	const gdm = worldifier.gameDataManager;

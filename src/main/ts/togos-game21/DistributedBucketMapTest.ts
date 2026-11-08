@@ -1,8 +1,8 @@
-import Datastore from './Datastore';
-import KeyedList from './KeyedList';
-import MemoryDatastore from './MemoryDatastore';
-import { storeValues, fetchValue, emptyNodeUri, DistributedBucketMapManager } from './DistributedBucketMap';
-import { TestResult, registerTestResult, failPromise, assertEqualsPromise } from './testing';
+import Datastore from './Datastore.ts';
+import KeyedList from './KeyedList.ts';
+import MemoryDatastore from './MemoryDatastore.ts';
+import { storeValues, fetchValue, emptyNodeUri, DistributedBucketMapManager } from './DistributedBucketMap.ts';
+import { TestResult, registerTestResult, failPromise, assertEqualsPromise } from './testing.ts';
 
 const testDs:Datastore<Uint8Array> = MemoryDatastore.createSha1Based(1);
 

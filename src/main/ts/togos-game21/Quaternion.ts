@@ -1,5 +1,5 @@
-import Vector3D from './Vector3D'
-import { deepFreeze } from './DeepFreezer';
+import Vector3D from './Vector3D.ts'
+import { deepFreeze } from './DeepFreezer.ts';
 
 export default class Quaternion {
 	/*

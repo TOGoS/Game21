@@ -1,8 +1,8 @@
-import { deepFreeze } from './DeepFreezer';
-import Datastore from './Datastore';
-import ErrorInfo from './ErrorInfo';
-import { utf8Encode, utf8Decode } from '../tshash/utils';
-import PrettierJSONEncoder from './PrettierJSONEncoder';
+import { deepFreeze } from './DeepFreezer.ts';
+import Datastore from './Datastore.ts';
+import ErrorInfo from './ErrorInfo.ts';
+import { utf8Encode, utf8Decode } from '../tshash/utils.ts';
+import PrettierJSONEncoder from './PrettierJSONEncoder.ts';
 
 function stringify(v:any):string {
 	//return JSON.stringify(v);
