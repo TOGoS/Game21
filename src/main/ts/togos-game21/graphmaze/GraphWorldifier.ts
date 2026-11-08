@@ -550,12 +550,26 @@ export default class GraphWorldifier {
 			let fancyLadders = true;
 			
 			if( rightProtoLink ) {
-				const hallWidth = rightProtoLink.attributes.interSpan ? 2 : 4;
-				tileBmp.fill(rightWallX, Math.max(roomBounds.minY+1,rightFloorHeight-hallWidth),z0, roomBounds.maxX,Math.min(roomBounds.maxY-1,rightFloorHeight),z1, 0);
+				const hallWidth = rightProtoLink.attributes.interSpan ? 3 : 4;
+				const rightLinkY = Math.round(rightProtoLink.position.y);
+				tileBmp.fill(
+					rightWallX,
+					Math.max(roomBounds.minY+1, rightLinkY-hallWidth), z0,
+					roomBounds.maxX,
+					Math.min(roomBounds.maxY-1, rightLinkY), z1,
+					0
+				);
 			}
 			if( leftProtoLink ) {
-				const hallWidth = leftProtoLink.attributes.interSpan ? 2 : 4;
-				tileBmp.fill(roomBounds.minX, Math.max(roomBounds.minY+1,leftFloorHeight-hallWidth),z0, leftWallX,Math.min(roomBounds.maxY-1,leftFloorHeight),z1, 0);
+				const hallWidth = leftProtoLink.attributes.interSpan ? 3 : 4;
+				const leftLinkY = Math.round(leftProtoLink.position.y);
+				tileBmp.fill(
+					roomBounds.minX,
+					Math.max(roomBounds.minY+1, leftLinkY-hallWidth), z0,
+					leftWallX,
+					Math.min(roomBounds.maxY-1, leftLinkY), z1,
+					0
+				);
 			}
 			
 			const itemX = !protoRoom.protoLinks[DIR_DOWN] ? 0.5 :
