@@ -1995,7 +1995,7 @@ export class MazeDemo {
 	public playerId : string;
 	public tabSwitchesMode : boolean = true;
 	public soundEffectsEnabled : boolean = true;
-	protected tickTimerId? : number;
+	protected tickTimerId? : ReturnType<typeof setInterval>;
 	protected tickRate = 1/32;
 	protected _demoMode:DemoMode = DemoMode.PLAY;
 	

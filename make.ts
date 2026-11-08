@@ -4,8 +4,6 @@ import Builder, { BuildContext, BuildRule } from 'https://deno.land/x/tdbuilder@
 
 type FilePath = string;
 
-const node = "node";
-
 const RESOLVED_PROMISE = Promise.resolve();
 
 type Command = {
@@ -55,30 +53,6 @@ async function run(cmd: Command): Promise<void> {
 	if (!status.success) {
 		throw new Error(`${cmd.argv[0]} failed with code ${status.code}`);
 	}
-}
-
-async function runCapture(cmd: Command): Promise<string> {
-	if (cmd.argv.length === 0) {
-		throw new Error("Empty command");
-	}
-
-	console.log(`Spawning: ${quotedArgv(cmd.argv)}`);
-
-	const dcmd = new Deno.Command(cmd.argv[0], { args: cmd.argv.slice(1) });
-	const proc = dcmd.spawn();
-	const textDecoder = new TextDecoder();
-	let output = "";
-	
-	for await (const chunk of proc.stdout) {
-		output += textDecoder.decode(chunk);
-	}
-	
-	const status = await proc.status;
-	if (!status.success) {
-		throw new Error(`${cmd.argv[0]} failed with code ${status.code}`);
-	}
-	
-	return output;
 }
 
 const dirsMade = new Map<FilePath, Promise<void>>();
@@ -193,11 +167,11 @@ async function findTsFiles(baseDir: string): Promise<string[]> {
 // Build the builder configuration
 const builder = new Builder({
 	rules: {
-		// Install npm dependencies
+		// Install dependencies via Deno
 		"node_modules": {
 			prereqs: ["package.json"],
 			invoke: async (ctx: BuildContext) => {
-				await run({ argv: ["npm", "install"] });
+				await run({ argv: ["deno", "install"] });
 				// Touch to mark completion
 				await Deno.stat(ctx.targetName).catch(() => {
 					return Deno.mkdir(ctx.targetName);
@@ -239,13 +213,18 @@ const builder = new Builder({
 		"target/game21libs.amd.es5.js": {
 			prereqs: [
 				"src/main/ts/game21libs.amd.es5.tsconfig.json",
-				"node_modules",
 				"src/main/ts/tshash"
 			],
 			invoke: async (ctx: BuildContext) => {
 				await mkRoom(ctx.targetName);
 				await run({
-					argv: [node, "node_modules/typescript/bin/tsc", "-p", ctx.prereqNames[0], "--outFile", ctx.targetName]
+					argv: [
+						"deno", "run",
+						"--allow-read", "--allow-write", "--allow-env", "--allow-net",
+						"npm:typescript@5.7.3/bin/tsc",
+						"-p", ctx.prereqNames[0],
+						"--outFile", ctx.targetName
+					]
 				});
 			}
 		},
@@ -254,13 +233,18 @@ const builder = new Builder({
 		"target/cjs": {
 			prereqs: [
 				"src/main/ts/game21libs.cjs.es5.tsconfig.json",
-				"node_modules",
 				"src/main/ts/tshash"
 			],
 			invoke: async (ctx: BuildContext) => {
 				await mkdir(ctx.targetName);
 				await run({
-					argv: [node, "node_modules/typescript/bin/tsc", "-p", ctx.prereqNames[0], "--outDir", ctx.targetName]
+					argv: [
+						"deno", "run",
+						"--allow-read", "--allow-write", "--allow-env", "--allow-net",
+						"npm:typescript@5.7.3/bin/tsc",
+						"-p", ctx.prereqNames[0],
+						"--outDir", ctx.targetName
+					]
 				});
 			}
 		},
@@ -396,34 +380,32 @@ const builder = new Builder({
 		"test": brAlias(["run-unit-tests"]),
 		"run-unit-tests": {
 			targetType: "phony",
-			prereqs: ["target/cjs"],
-			invoke: async (ctx: BuildContext) => {
-				// Find all Test.js files and run them
-				const testFiles = await findFiles("target/cjs", /Test\.js$/);
+			invoke: async () => {
+				// Find all source Test.ts files and run them with Deno
+				const testFiles = await findFiles("src/main/ts", /Test\.ts$/);
 				if (testFiles.length === 0) {
 					console.log("No test files found");
 					return;
 				}
 				for (const testFile of testFiles) {
 					console.log(`Running test: ${testFile}`);
-					await run({ argv: [node, testFile] });
+					await run({ argv: ["deno", "run", "-A", testFile] });
 				}
 			}
 		},
 
 		"run-unit-tests-verbosely": {
 			targetType: "phony",
-			prereqs: ["target/cjs"],
-			invoke: async (ctx: BuildContext) => {
-				// Find all Test.js files and run them with verbose flag
-				const testFiles = await findFiles("target/cjs", /Test\.js$/);
+			invoke: async () => {
+				// Find all source Test.ts files and run them with verbose flag
+				const testFiles = await findFiles("src/main/ts", /Test\.ts$/);
 				if (testFiles.length === 0) {
 					console.log("No test files found");
 					return;
 				}
 				for (const testFile of testFiles) {
 					console.log(`Running test (verbose): ${testFile}`);
-					await run({ argv: [node, testFile, "-v"] });
+					await run({ argv: ["deno", "run", "-A", testFile, "-v"] });
 				}
 			}
 		},
@@ -432,7 +414,7 @@ const builder = new Builder({
 			targetType: "phony",
 			prereqs: ["target/cjs"],
 			invoke: async () => {
-				await run({ argv: [node, "target/cjs/togos-game21/Router.js"] });
+				await run({ argv: ["deno", "run", "-A", "--unstable-detect-cjs", "target/cjs/togos-game21/Router.js"] });
 			}
 		},
 

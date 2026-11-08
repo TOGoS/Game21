@@ -4,15 +4,16 @@
 		"module": "amd",
 		"lib": ["es5", "dom", "es2015.promise"],
 		"sourceMap": true,
+		"skipLibCheck": true,
 		"noFallthroughCasesInSwitch": true,
-		"noImplicitAny": true,
-		"noImplicitReturns": true,
-		"noImplicitThis": true,
-		"strictNullChecks": true,
+		"strict": false,
+		"allowImportingTsExtensions": true,
+		"rewriteRelativeImportExtensions": true,
 		"rootDir": ".",
 		"outFile": "../../../target/game21libs.amd.es5.js"
 	},
 	"exclude": [
-		"node_modules"
+		"node_modules",
+		"node.d.ts"
 	]
 }
