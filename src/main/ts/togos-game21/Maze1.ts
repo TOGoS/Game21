@@ -2195,6 +2195,7 @@ export class MazeDemo {
 		83: ['down'],
 		68: ['right'],
 		
+		// 79: ['dismiss-dialog'], // 'o' key to dismiss, for debugging
 		[KEY_CTRL]: ['pick'],
 	};
 	protected gamepadButtonActions:KeyedList<string[]> = {
@@ -2203,6 +2204,8 @@ export class MazeDemo {
 		13: ['down'],
 		14: ['left'],
 		15: ['right'],
+		// Start:
+		9: ['dismiss-dialog'],
 		// TODO: CoPilot generated the 'pick' binding, which is for editor mode.
 		// Make sure it's actually useful, or remove it (I didn't intend for gamepad to be used in editor mode!)
 		// Face buttons:
@@ -2220,6 +2223,20 @@ export class MazeDemo {
 	protected lastMovementX:number = 0;
 	protected lastMovementY:number = 0;
 	protected lastPicking:boolean = false;
+	protected lastDismissDialog:boolean = false;
+	protected dismissActiveDialog():void {
+		if( dialogBoxIsVisible(this.winDialog) ) {
+			if( this.winDialog && this.winDialog.dismissButton && !this.winDialog.dismissButton.disabled ) {
+				this.winDialog.dismissButton.click();
+			}
+			return;
+		}
+		if( dialogBoxIsVisible(this.restartDialog) ) {
+			if( this.restartDialog && this.restartDialog.dismissButton && !this.restartDialog.dismissButton.disabled ) {
+				this.restartDialog.dismissButton.click();
+			}
+		}
+	}
 	protected collectKeyboardActions():KeyedList<boolean> {
 		const actions:KeyedList<boolean> = {};
 		for( const k in this.keysDown ) {
@@ -2273,6 +2290,10 @@ export class MazeDemo {
 		const moveY = down  ? +1 : up   ? -1 : 0;
 		
 		const picking = actions['pick'] == true;
+		const dismissDialog = actions['dismiss-dialog'] == true;
+		if( dismissDialog && !this.lastDismissDialog ) {
+			this.dismissActiveDialog();
+		}
 		if(
 			this.simulator && this.playerId &&
 			(moveX != this.lastMovementX || moveY != this.lastMovementY || picking != this.lastPicking)
@@ -2283,6 +2304,7 @@ export class MazeDemo {
 		this.lastMovementX = moveX;
 		this.lastMovementY = moveY;
 		this.lastPicking = picking;
+		this.lastDismissDialog = dismissDialog;
 		this.picking = picking;
 	}
 	
@@ -3009,7 +3031,8 @@ class DialogBox {
 	public constructor( public element:HTMLElement ) { }
 	
 	public get isVisible() {
-		return this.element.style.display != 'none';
+		const style = window.getComputedStyle(this.element);
+		return style.display != 'none' && style.visibility != 'hidden';
 	}
 	public set isVisible(v:boolean) {
 		this.setVisible(v);
