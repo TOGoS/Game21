@@ -2069,6 +2069,7 @@ export class MazeDemo {
 	}
 	
 	protected tick() {
+		this.keysUpdated();
 		this.simulator.update(this.tickRate);
 		this.updateView();
 	}
@@ -2188,16 +2189,62 @@ export class MazeDemo {
 	};
 	
 	protected keysDown:KeyedList<boolean> = {};
-	protected keysUpdated() {
-		let up=false,down=false,left=false,right=false;
-		
+	protected gamepadAxisDeadzone:number = 0.35;
+	protected lastMovementX:number = 0;
+	protected lastMovementY:number = 0;
+	protected lastPicking:boolean = false;
+	protected collectKeyboardActions():KeyedList<boolean> {
 		const actions:KeyedList<boolean> = {};
 		for( let k in this.keysDown ) {
 			const acts = this.keyActions[k];
-			if( acts ) for( let a in acts ) {
+			if( acts ) for( const a in acts ) {
 				actions[acts[a]] = true;
 			}
 		}
+		return actions;
+	}
+	protected isGamepadButtonPressed(buttons:readonly GamepadButton[], idx:number):boolean {
+		const b = buttons[idx];
+		return !!b && (b.pressed || b.value >= 0.5);
+	}
+	protected collectGamepadActions():KeyedList<boolean> {
+		const actions:KeyedList<boolean> = {};
+		const nav = navigator as Navigator & { getGamepads?:() => (Gamepad|null)[] };
+		if( nav == null || nav.getGamepads == undefined ) return actions;
+		const gamepads = nav.getGamepads();
+		for( let i=0; i<gamepads.length; ++i ) {
+			const gp = gamepads[i];
+			if( gp == null || !gp.connected ) continue;
+			const ax = gp.axes[0] || 0;
+			const ay = gp.axes[1] || 0;
+			if( ax <= -this.gamepadAxisDeadzone ) actions['left'] = true;
+			if( ax >= +this.gamepadAxisDeadzone ) actions['right'] = true;
+			if( ay <= -this.gamepadAxisDeadzone ) actions['up'] = true;
+			if( ay >= +this.gamepadAxisDeadzone ) actions['down'] = true;
+			if( this.isGamepadButtonPressed(gp.buttons, 12) ) actions['up'] = true; // D-pad up
+			if( this.isGamepadButtonPressed(gp.buttons, 13) ) actions['down'] = true; // D-pad down
+			if( this.isGamepadButtonPressed(gp.buttons, 14) ) actions['left'] = true; // D-pad left
+			if( this.isGamepadButtonPressed(gp.buttons, 15) ) actions['right'] = true; // D-pad right
+			if(
+				this.isGamepadButtonPressed(gp.buttons, 0) ||
+				this.isGamepadButtonPressed(gp.buttons, 1) ||
+				this.isGamepadButtonPressed(gp.buttons, 2) ||
+				this.isGamepadButtonPressed(gp.buttons, 3) ||
+				this.isGamepadButtonPressed(gp.buttons, 4) ||
+				this.isGamepadButtonPressed(gp.buttons, 5)
+			) actions['up'] = true; // Face buttons (A/B/X/Y on many controllers)
+			if( this.isGamepadButtonPressed(gp.buttons, 2) || this.isGamepadButtonPressed(gp.buttons, 4) || this.isGamepadButtonPressed(gp.buttons, 5) ) {
+				actions['pick'] = true;
+			}
+		}
+		return actions;
+	}
+	protected keysUpdated() {
+		let up=false,down=false,left=false,right=false;
+		const actions = {
+			...this.collectKeyboardActions(),
+			...this.collectGamepadActions()
+		};
 		
 		if( actions['right'] ) right = true;
 		if( actions['left']  ) left  = true;
@@ -2207,14 +2254,21 @@ export class MazeDemo {
 		if( left && right ) left = right = false;
 		if( up && down ) up = down = false;
 		
-		let moveX = right ? +1 : left ? -1 : 0;
-		let moveY = down  ? +1 : up   ? -1 : 0;
+		const moveX = right ? +1 : left ? -1 : 0;
+		const moveY = down  ? +1 : up   ? -1 : 0;
 		
-		if( this.simulator && this.playerId ) {
+		const picking = actions['pick'] == true;
+		if(
+			this.simulator && this.playerId &&
+			(moveX != this.lastMovementX || moveY != this.lastMovementY || picking != this.lastPicking)
+		) {
 			this.enqueueMessage([ROOMID_FINDENTITY, this.playerId], ["/desiredmovementdirection", moveX, moveY, 0]);
 		}
 		
-		this.picking = actions['pick'];
+		this.lastMovementX = moveX;
+		this.lastMovementY = moveY;
+		this.lastPicking = picking;
+		this.picking = picking;
 	}
 	
 	// When keys are pressed in the main game interface
