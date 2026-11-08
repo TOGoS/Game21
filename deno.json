@@ -1,0 +1,19 @@
+{
+  "nodeModulesDir": "auto",
+  "exclude": [
+    "src/main/ts/node.d.ts"
+  ],
+  "compilerOptions": {
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
+    "strict": false,
+    "noImplicitOverride": false,
+    "strictPropertyInitialization": false,
+    "types": [
+      "./src/main/ts/types.d.ts"
+    ]
+  }
+}

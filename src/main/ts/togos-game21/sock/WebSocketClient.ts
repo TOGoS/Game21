@@ -1,5 +1,3 @@
-/// <reference path="../../ws.d.ts"/>
-
 import IP6Address, {
 	parseIp6Address,
 	stringifyIp6Address,
@@ -32,7 +30,7 @@ declare class WebSocket implements WebSocketLike {
 	readyState : number;
 	binaryType : string;
 	close():void;
-	send(data:string|ArrayBuffer):void;
+	send(data:string|ArrayBuffer|ArrayBufferView):void;
 	onopen : (event:any)=>void;
 	onerror : (event:any)=>void;
 	onclose : (event:any)=>void;

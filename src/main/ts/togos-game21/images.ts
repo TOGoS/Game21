@@ -16,6 +16,7 @@ export const EMPTY_IMAGE_SLICE = {
         maxX: 1, maxY: 1, maxZ: 0,
     },
     origin: {x:0, y:0, z:0},
+    resolution: 1,
     sheetRef: EMPTY_IMAGE_URL,
     sheet: EMPTY_IMAGE
 };

@@ -4,11 +4,6 @@
  */
 
 // Node stuff
-/// <reference path="../../node.d.ts"/>
-/// <reference path="../../express.d.ts"/>
-/// <reference path="../../ws.d.ts"/>
-
-
 import {
 	Server as HTTPServer,
 	createServer as createHttpServer
@@ -18,6 +13,7 @@ import {
 	Socket as DgramSocket,
 	RemoteInfo
 } from 'dgram';
+// @deno-types="../../express.d.ts"
 import {
 	Request as ExpressRequest,
 	Response as ExpressResponse,
@@ -25,6 +21,7 @@ import {
 	AppCreationFunction as ExpressAppCreationFunction
 } from 'express';
 const createExpressApp = <ExpressAppCreationFunction>require('express');
+// @deno-types="../../ws.d.ts"
 import { WebSocket, Server as WebSocketServer } from 'ws';
 import { parse as parseUrl } from 'url';
 import { ReadLine } from 'readline';
@@ -46,6 +43,7 @@ import Logger, {
 	VERBOSITY_DEBUG,
 	LevelFilteringLogger
 } from '../Logger.ts';
+import { Buffer } from "node:buffer";
 
 function setExitCode( c:number ):void {
 	if( typeof(process) == 'object' ) process.exitCode = c;

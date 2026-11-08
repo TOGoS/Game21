@@ -1,7 +1,4 @@
 // Make sure we can do IP6 packets and ICMP responses
-
-/// <reference path="../../node.d.ts"/>
-
 import { hexEncode } from '../../tshash/utils.ts';
 import {
 	IPMessage, IP6Message, disassembleIpPacket, assembleIpPacket
@@ -33,9 +30,8 @@ class UDPTunnel {
 	protected peerPort:number;
 	
 	public send( packet:Uint8Array ) {
-		const buf = new Buffer(packet);
-		console.log("Sending buffer ("+buf.length+" bytes) to "+this.peerAddress+":"+this.peerPort);
-		this.socket.send( buf, 0, packet.length, this.peerPort, this.peerAddress );
+		console.log("Sending buffer ("+packet.length+" bytes) to "+this.peerAddress+":"+this.peerPort);
+		this.socket.send( packet, 0, packet.length, this.peerPort, this.peerAddress );
 	}
 	
 	public listen(port:number):void {

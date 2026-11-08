@@ -6,7 +6,7 @@ declare module 'express' {
 	}
 	
 	export interface Response {
-		send(data:string|Buffer|Array<string|Buffer>):void;
+		send(data:string|Uint8Array|Array<string|Uint8Array>):void;
 	}
 	
 	export interface App {

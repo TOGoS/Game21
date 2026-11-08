@@ -1,5 +1,3 @@
-/// <reference path="../node.d.ts" />
-
 import ErrorInfo from './ErrorInfo.ts';
 
 function setExitCode( c:number ):void {

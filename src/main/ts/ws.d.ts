@@ -1,10 +1,7 @@
-/// <reference path="./node.d.ts"/>
-/// <reference path="./express.d.ts"/>
-
 interface WebSocketLike {
 	binaryType : string;
 	close():void;
-	send(data:string|ArrayBuffer):void;
+	send(data:string|ArrayBuffer|ArrayBufferView):void;
 	onopen : (event:any)=>void;
 	onerror : (event:any)=>void;
 	onclose : (event:any)=>void;
@@ -35,7 +32,7 @@ declare module 'ws' {
 		public onmessage : (event:any)=>void;
 		
 		public on(eventName:'message', listener:(data:any)=>void ):void;
-		public send(data:string|NodeBuffer|ArrayBuffer|ArrayBufferView, options?:SendOptions, callback?:(error?:any)=>void):void;
+		public send(data:string|ArrayBuffer|ArrayBufferView, options?:SendOptions, callback?:(error?:any)=>void):void;
 	}
 	
 	class Server {

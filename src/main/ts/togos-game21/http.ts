@@ -1,5 +1,3 @@
-/// <reference path="../node.d.ts" />
-
 import ErrorInfo from './ErrorInfo.ts';
 import KeyedList from './KeyedList.ts';
 import { IncomingMessage } from 'http';
@@ -52,16 +50,14 @@ class XHRClient implements Client {
 			for( let k in request.headers ) {
 				xhr.setRequestHeader(k, request.headers[k]);
 			}
-			if( request.content ) xhr.send(request.content);
+			if( request.content ) xhr.send(<XMLHttpRequestBodyInit><unknown>request.content);
 			else xhr.send();
 		} );
 	}
 }
 
-function arrayToBuffer( arr:Uint8Array ):Buffer {
-	const buf = new Buffer(arr.length);
-	for( let i=arr.length-1; i>=0; --i ) buf[i] = arr[i];
-	return buf;
+function arrayToBuffer( arr:Uint8Array ):Uint8Array {
+	return arr;
 }
 
 class NodeClient implements Client {
@@ -77,9 +73,9 @@ class NodeClient implements Client {
 				method: request.method,
 				headers: request.headers,
 			}, (res : IncomingMessage) => {
-				const buffers:(Buffer|Uint8Array)[] = [];
+				const buffers:Uint8Array[] = [];
 				res.setEncoding(null);
-				res.on('data', (d : Buffer|Uint8Array) => {
+				res.on('data', (d : string|Uint8Array) => {
 					if( typeof(d) == 'string' ) {
 						// ugh y this happen 2 me
 						// hacky worxakround ;;((
@@ -88,7 +84,7 @@ class NodeClient implements Client {
 					buffers.push(d)
 				});
 				res.on('end', () => {
-					const data:Uint8Array = new Uint8Array( buffers.reduce( (len:number,buf:Buffer) => len + buf.length, 0 ) );
+					const data:Uint8Array = new Uint8Array( buffers.reduce( (len:number,buf:Uint8Array) => len + buf.length, 0 ) );
 					for( let i=0, b=0; b<buffers.length; ++b ) {
 						const buf = buffers[b];
 						for( let j=0; j<buf.length; ++j, ++i ) {
@@ -96,9 +92,9 @@ class NodeClient implements Client {
 						}
 					}
 					resolve( {
-						statusCode: res.statusCode,
-						statusText: res.statusMessage,
-						headers: res.headers,
+						statusCode: res.statusCode ?? 0,
+						statusText: res.statusMessage ?? '',
+						headers: <KeyedList<string>><unknown>res.headers,
 						content: data
 					} );
 				} );

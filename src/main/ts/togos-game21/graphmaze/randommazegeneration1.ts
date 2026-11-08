@@ -1,5 +1,3 @@
-/// <reference path="../../node.d.ts"/>
-
 import {
 	blueKeyEntityClassId,
 	yellowKeyEntityClassId,

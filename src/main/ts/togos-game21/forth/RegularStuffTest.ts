@@ -19,7 +19,7 @@ function runProgram( program:Program ) : Promise<RuntimeContext> {
 		ip: 0,
 		fuel: 100,
 	};
-	return vopToPromise( runContext( ctx ), ctx );
+	return Promise.resolve(vopToPromise( runContext( ctx ), ctx ));
 }
 
 const wordGetter = makeWordGetter( parseNumberWord );

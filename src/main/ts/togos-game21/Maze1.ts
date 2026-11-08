@@ -2399,6 +2399,7 @@ export class MazeDemo {
 			return this.loadGame2(gdm, save.playerId, save.rootRoomId, saveRef );
 		}, (err) => {
 			this.logLoadingStatus("Error loading save "+saveRef+"!", true, err);
+			return Promise.reject(err);
 		});
 	}
 	
@@ -3005,7 +3006,7 @@ class TileEntityRenderer {
 				});
 			}
 			
-			const renderPromises:Promise<undefined>[] = [];
+			const renderPromises:Promise<void>[] = [];
 			eachSubEntity(entity, position, this.gameDataManager, (subEnt, subPos, subOri) => {
 				renderPromises.push(this.renderEntity(subPos, subOri, ppm, subEnt, ctx));
 			});

@@ -1,6 +1,4 @@
 // applicable-environments: node
-/// <reference path="../../node.d.ts"/>
-
 import RouterCLI from './RouterCLI.ts';
 import {
 	createSocket as createDgramSocket,
@@ -92,8 +90,8 @@ registerTestResult("ping", new Promise( (resolve,reject) => {
 		payload: pingPacket
 	} );
 	
-	clientSock.send( new Buffer(pingIpPacket), 0, pingIpPacket.length, routerPort, '127.0.0.1' );
-	clientSock.on('message', (packet:Buffer, rinfo:RemoteInfo) => {
+	clientSock.send( pingIpPacket, 0, pingIpPacket.length, routerPort, '127.0.0.1' );
+	clientSock.on('message', (packet:Uint8Array, rinfo:RemoteInfo) => {
 		const ipMessage = disassembleIpPacket(packet);
 		receivedIpPackets = true;
 		if( ipMessage.protocolNumber == ICMP_PROTOCOL_NUMBER ) {

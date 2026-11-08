@@ -1,16 +1,14 @@
 // Deprecated; use RouterCLI instead
-/// <reference path="../../node.d.ts"/>
-/// <reference path="../../express.d.ts"/>
-/// <reference path="../../ws.d.ts"/>
-
 import KeyedList from '../KeyedList.ts';
 import IP6Address, {parseIp6Address, stringifyIp6Address} from '../inet/IP6Address.ts';
 
+// @deno-types="../../express.d.ts"
 import {
 	AppCreationFunction as ExpressAppCreationFunction,
 	Request as ExpressRequest,
 	Response as ExpressResponse
 } from 'express';
+// @deno-types="../../ws.d.ts"
 import { WebSocket, Server as WebSocketServer } from 'ws';
 
 type LinkID = string;
@@ -36,7 +34,7 @@ class IP6Prefix {
 	}
 	
 	public toString():string {
-		return stringifyIp6Address(this.address)+"/"+length;
+		return stringifyIp6Address(this.address)+"/"+this.length;
 	}
 	
 	public matches(addr:IP6Address):boolean {

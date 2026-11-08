@@ -1,5 +1,5 @@
 export default class PacketDecodeError extends Error {
-	constructor(public message:string) {
+	constructor(public override message:string) {
 		super(message);
 	}
 }

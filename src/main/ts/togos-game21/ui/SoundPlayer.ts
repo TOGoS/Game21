@@ -34,7 +34,7 @@ export default class SoundPlayer {
 		if( this.loadingSounds[soundRef] ) return;
 		this.loadingSounds[soundRef] = true;
 		this.datastore.fetch( soundRef ).then( (buffer:Uint8Array) => {
-			auctx.decodeAudioData(buffer.buffer).then( (aubuf:AudioBuffer) => {
+			auctx.decodeAudioData(<ArrayBuffer><unknown>buffer.buffer).then( (aubuf:AudioBuffer) => {
 				this.loadedSounds[soundRef] = aubuf;
 				delete this.loadingSounds[soundRef];
 			}, (err) => {

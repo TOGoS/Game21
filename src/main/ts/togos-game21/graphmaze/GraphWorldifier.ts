@@ -1,4 +1,3 @@
-/// <reference path="../../node.d.ts"/>
 import KeyedList from '../KeyedList.ts';
 import {
 	Maze,

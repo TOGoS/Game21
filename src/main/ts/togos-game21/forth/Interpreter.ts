@@ -264,8 +264,8 @@ export function bytecodeCallWord(target:number):Word {
 	};
 }
 
-function singleInstructionBytecode(instr:number):Int8Array {
-	const bytecode = new Int8Array(1);
+function singleInstructionBytecode(instr:number):Uint8Array {
+	const bytecode = new Uint8Array(1);
 	bytecode[0] = instr;
 	return bytecode;
 }
@@ -306,7 +306,7 @@ for( let n in bytecodeInstructions ) {
  * Encodes a number into buf at offset and returns the number of bytes written.
  * If buf is not specified, the number of bytes that would be written is returned.
  */
-function _encodeNumber(n:number, buf?:Int8Array, offset:number=0):number {
+function _encodeNumber(n:number, buf?:Uint8Array, offset:number=0):number {
 	let septets = 1;
 	for( let m=n; m >= 0x40 || m < -0x40; m >>= 7, ++septets );
 	if( septets == 1 ) {
@@ -339,17 +339,17 @@ function encodedNumberSize(n:number):number {
 	return _encodeNumber(n);
 }
 
-function encodeNumber(n:number):Int8Array {
+function encodeNumber(n:number):Uint8Array {
 	const size  = encodedNumberSize(n);
-	const codes = new Int8Array(size);
+	const codes = new Uint8Array(size);
 	_encodeNumber(n, codes, 0);
 	return codes;
 }
 
-function encodeAbsCall(n:number, buf?:Int8Array, offset:number=0):Int8Array {
+function encodeAbsCall(n:number, buf?:Uint8Array, offset:number=0):Uint8Array {
 	if( buf == null ) {
 		const size = encodedNumberSize(n) + 1;
-		buf = new Int8Array(size);
+		buf = new Uint8Array(size);
 	}
 	offset += _encodeNumber(n, buf, offset);
 	buf[offset] = 0x47;

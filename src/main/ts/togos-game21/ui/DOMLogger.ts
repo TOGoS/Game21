@@ -5,7 +5,7 @@ function logStringify(thing:any):string {
 	if( typeof(thing) == 'number' ) return ""+thing;
 	if( typeof(thing) == 'boolean' ) return thing ? 'true' : 'false';
 	if( typeof(thing) == 'undefined' ) return 'undefined';
-	if( typeof(thing) == 'null' ) return 'null';
+	if( thing === null ) return 'null';
 	return JSON.stringify(thing, null, "\t");
 }
 
