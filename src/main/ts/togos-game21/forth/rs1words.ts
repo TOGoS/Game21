@@ -1,5 +1,3 @@
-/// <reference path="../../Promise.d.ts" />
-
 import { resolvedPromise, rejectedPromise } from '../promises.ts';
 import Token, { TokenType } from './Token.ts';
 import KeyedList from '../KeyedList.ts';
@@ -329,7 +327,7 @@ export const wordDefinitionWords:KeyedList<Word> = {
 	";": <CompilationWord>{
 		name: ";",
 		wordType: WordType.OTHER_COMPILETIME,
-		forthCompile: (ctx:CompilationContext) : void|Thenable<CompilationContext> => {
+		forthCompile: (ctx:CompilationContext) : void|PromiseLike<CompilationContext> => {
 			if( ctx.compilingMain ) return rejectedPromise(new Error("Weird ';' "+atText(ctx.sourceLocation)));
 			
 			ctx.program.push(exitWord);

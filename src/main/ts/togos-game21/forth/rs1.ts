@@ -1,5 +1,3 @@
-/// <reference path="../../Promise.d.ts"/>
-
 import { resolvedPromise, rejectedPromise } from '../promises.ts';
 
 // Runtime System 1
@@ -30,7 +28,7 @@ export interface RuntimeWord extends Word {
 	value? : any;
 	valueUri? : string;
 	/** If there's any asynchronousness that needs to be done, a promise is returned.  Otherwise null. */
-	forthRun( ctx:RuntimeContext ) : Thenable<RuntimeContext>|void;
+	forthRun( ctx:RuntimeContext ) : PromiseLike<RuntimeContext>|void;
 }
 
 type FixupCallback<T> = (value:T, error?:Error|null)=>void;
@@ -128,13 +126,15 @@ export function compileTokens( tokens:Token[], compilation:CompilationContext, s
 }
 
 export function compileSource( source:string, compilation:CompilationContext, sLoc:SourceLocation ) : Promise<CompilationContext> {
-	const tokenizer = new Tokenizer( (token:Token):void|Thenable<void> => {
+	const tokenizer = new Tokenizer( (token:Token):void|Promise<void> => {
 		const p = compileToken( token, compilation );
 		if( p ) return (<Promise<CompilationContext>>p).then( () => undefined );
 		return undefined;
 	} );
 	tokenizer.sourceLocation = sLoc;
-	return tokenizer.text( <string>source ).then( () => tokenizer.end() ).then( () => compilation );
+	return Promise.resolve(tokenizer.text( <string>source ))
+		.then( () => tokenizer.end() )
+		.then( () => compilation );
 }
 
 export function makeWordGetter( words:KeyedList<Word>, ...backups : WordGetter[] ) : WordGetter {

@@ -1,5 +1,3 @@
-/// <reference path="../Promise.d.ts" />
-
 import ErrorInfo from './ErrorInfo.ts';
 
 interface Datastore<T> {

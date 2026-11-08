@@ -3,7 +3,7 @@ import SourceLocation from './SourceLocation.ts';
 import Token, {TokenType} from './Token.ts';
 import { resolvedPromise, RESOLVED_VOID_PROMISE, vopToPromise, shortcutThen } from '../promises.ts';
 
-export type TokenListener = (t:Token) => Promise<void>|void;
+export type TokenListener = (t:Token) => PromiseLike<void>|void;
 
 const C_BEL   = 0x07;
 const C_TAB   = 0x09;
@@ -95,7 +95,7 @@ export default class Tokenizer {
 		}
 	}
 	
-	protected flushToken() : Promise<void>|void {
+	protected flushToken() : PromiseLike<void>|void {
 		if( this.tokenBuffer.length == 0 && this.tokenType == TokenType.BAREWORD ) {
 			// Nothing to flush! Ahahahah1!!
 			return;
@@ -118,7 +118,7 @@ export default class Tokenizer {
 		return "at "+this.sourceFileUri+":"+this.sourceLineNumber+","+this.sourceColumnNumber;
 	}
 	
-	protected _char(c:number) : Promise<void>|void {
+	protected _char(c:number) : PromiseLike<void>|void {
 		if( this.ended ) throw new Error("Already ended");
 		
 		if( this.handlingLineComment ) {
@@ -157,13 +157,13 @@ export default class Tokenizer {
 			switch( c ) {
 			case C_TAB: case C_VT: case C_NL: case C_FF: case C_CR: case C_SPACE:
 				{
-					const p:Promise<void>|void = this.flushToken();
+					const p:PromiseLike<void>|void = this.flushToken();
 					this.postChar(c);
 					return p;
 				}
 			case C_SHARP:
 				{
-					const p:Promise<void>|void = this.flushToken();
+					const p:PromiseLike<void>|void = this.flushToken();
 					this.tokenStartLineNumber = this.sourceLineNumber;
 					this.tokenStartColumnNumber = this.sourceColumnNumber;
 					this.tokenType = TokenType.COMMENT;
@@ -222,16 +222,16 @@ export default class Tokenizer {
 		this.sourceColumnNumber = sl.columnNumber;
 		this.sourceFileUri = sl.fileUri;
 	}
-	public text(text:string, skip:number=0) : Thenable<void> {
+	public text(text:string, skip:number=0) : Promise<void> {
 		for( let i=skip; i<text.length; ++i ) {
-			let p : Promise<void>|void;
+			let p : PromiseLike<void>|void;
 			if( (p = this._char(text.charCodeAt(i))) != null ) {
-				return (<Promise<void>>p).then( () => this.text(text, i+1) );
+				return Promise.resolve(p).then( () => this.text(text, i+1) );
 			}
 		}
-		return RESOLVED_VOID_PROMISE;
+		return Promise.resolve(RESOLVED_VOID_PROMISE);
 	}
-	public end() : Thenable<void> {
+	public end() : Promise<void> {
 		if( this.handlingBackslashEscape ) {
 			throw new Error("Expected rest of backslash escape sequence but encountered end of stream "+this.atstr);
 		}
@@ -240,7 +240,7 @@ export default class Tokenizer {
 			throw new Error("Expected "+String.fromCharCode(this.awaitingCloseQuoteChars[0])+" but encountered end of stream "+this.atstr);
 		}
 		this.ended = true;
-		return shortcutThen(
+		return Promise.resolve(shortcutThen(
 			vopToPromise( this.flushToken(), null ),
 			() => this.tokenListener({
 				type: TokenType.END_OF_FILE,
@@ -253,6 +253,6 @@ export default class Tokenizer {
 					endColumnNumber: this.sourceColumnNumber,
 				}
 			})
-		);
+		));
 	}
 }

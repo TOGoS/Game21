@@ -1,6 +1,4 @@
 /// <reference path="../../node.d.ts"/>
-/// <reference path="../../Promise.d.ts"/>
-
 import KeyedList from '../KeyedList.ts';
 import { union } from './setutil.ts';
 import {

@@ -1,4 +1,3 @@
-/// <reference path="../Promise.d.ts" />
 /// <reference path="../node.d.ts" />
 
 import ErrorInfo from './ErrorInfo.ts';

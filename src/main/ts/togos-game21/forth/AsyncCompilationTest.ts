@@ -1,5 +1,3 @@
-/// <reference path="../../Promise.d.ts" />
-
 import SourceLocation from './SourceLocation.ts';
 import Token, {TokenType} from './Token.ts';
 import Tokenizer from './Tokenizer.ts';

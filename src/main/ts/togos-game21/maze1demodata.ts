@@ -14,8 +14,6 @@ import {
 	makeTileTreeRef
 } from './worldutil.ts';
 import GameDataManager from './GameDataManager.ts';
-/// <reference path="../Promise.d.ts"/>
-
 function hexDig(i:number):string {
 	return String.fromCharCode( i < 10 ? 48 + i : 87 + i );
 }

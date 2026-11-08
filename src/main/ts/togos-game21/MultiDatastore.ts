@@ -1,5 +1,3 @@
-/// <reference path="../Promise.d.ts" />
-
 import KeyedList from './KeyedList.ts';
 import ErrorInfo from './ErrorInfo.ts';
 import Datastore from './Datastore.ts';

@@ -1,5 +1,3 @@
-///<reference path="../Promise.d.ts"/>
-
 import { deepFreeze, thaw } from './DeepFreezer.ts';
 import Datastore from './Datastore.ts';
 import MemoryDatastore from './MemoryDatastore.ts';

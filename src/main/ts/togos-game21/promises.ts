@@ -1,5 +1,3 @@
-/// <reference path="../Promise.d.ts"/>
-
 declare function Symbol(x:string):symbol;
 
 enum State {
@@ -14,54 +12,50 @@ const ERRORSYM = Symbol("value");
 
 export const RESOLVED_VOID_PROMISE:Promise<void> = resolvedPromise(undefined);
 
-export function resolvedPromise<T>( value:T ) : Thenable<T> {
+export function resolvedPromise<T>( value:T ) : Promise<T> {
     const p = Promise.resolve(value);
     (<any>p)[VALUESYM] = value;
     (<any>p)[STATESYM] = State.RESOLVED;
     return p;
 }
 
-export function rejectedPromise<T>( error:Error ) : Thenable<T> {
-    const p = Promise.reject(value);
+export function rejectedPromise<T>( error:Error ) : Promise<T> {
+    const p = Promise.reject(error);
     (<any>p)[ERRORSYM] = error;
     (<any>p)[STATESYM] = State.REJECTED;
     return p;
 }
 
-export function isResolved<T>( p:Thenable<T> ):boolean {
+export function isResolved<T>( p:PromiseLike<T> ):boolean {
     return (<any>p)[STATESYM] === State.RESOLVED;
 }
 
-export function isRejected<T>( p:Thenable<T> ):boolean {
+export function isRejected<T>( p:PromiseLike<T> ):boolean {
     return (<any>p)[STATESYM] === State.REJECTED;
 }
 
-export function value<T>( p:Thenable<T> ):T {
+export function value<T>( p:PromiseLike<T> ):T {
     return <T>((<any>p)[VALUESYM]);
 }
 
-function isThenable( v:any ):boolean {
-    return v != null && v.then; 
+function isPromiseLike<T>( v : T | PromiseLike<T> ):v is PromiseLike<T> {
+    return v != null && typeof (v as any).then == "function";
 }
 
-function thenable<T>( v:T|Thenable<T> ):Thenable<T> {
-    return isThenable(v) ? <Thenable<T>>v : resolvedPromise(v);
-}
-
-export function shortcutThen<T,U>( p:Thenable<T>, onResolve: (v:T)=>U|Thenable<U> ) : Thenable<U> {
+export function shortcutThen<T,U>( p:PromiseLike<T>, onResolve: (v:T)=>U|PromiseLike<U> ) : PromiseLike<U> {
     if( isResolved(p) ) {
         const u = onResolve(value(p));
-        return isThenable(u) ? <Thenable<U>>u : resolvedPromise(u);
+        return isPromiseLike(u) ? u : resolvedPromise(u);
     }
-    return p.then(onResolve);
+    return p.then(onResolve as (value:T)=>U|PromiseLike<U>);
 }
 
 /**
  * If p is null, return an immediately resolved promise.
  * Otherwise return p.
  */
-export function vopToPromise<T>( p:Thenable<T>|void, v:T ):Thenable<T> {
-    return p != null ? <Thenable<T>>p : resolvedPromise(v);
+export function vopToPromise<T>( p:PromiseLike<T>|void, v:T ):PromiseLike<T> {
+    return p != null ? <PromiseLike<T>>p : resolvedPromise(v);
 }
 
 export function finalmente<T>( p:Promise<T>, finalStuff:()=>void ):Promise<T> {
