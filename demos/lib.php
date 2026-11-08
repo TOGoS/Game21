@@ -122,7 +122,12 @@ function require_game21_js_libs( $inline=false, $requireModuleNames=null ) {
 			throw new Exception("Failed to mkdir('$tempDir')");
 		}
 		$squishFile = $tempDir.'/'.hash('sha1', implode(',', $requireModuleNames).'-'.filemtime($libsFile));
-		$squishCmd = "$rp/bin/pruneamd -m ".escapeshellarg(implode(',', $requireModuleNames))." < $libsFile > $squishFile";
+		$pruneScript = $rp.'/bin/pruneamd';
+		$prunerCmd = 'node '.escapeshellarg($pruneScript);
+		$squishCmd = $prunerCmd
+			." -m ".escapeshellarg(implode(',', $requireModuleNames))
+			." < ".escapeshellarg($libsFile)
+			." > ".escapeshellarg($squishFile);
 		//fwrite(STDERR, "$ $squishCmd\n");
 		system($squishCmd, $pruneStatus);
 		if( $pruneStatus !== 0 ) {
