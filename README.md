@@ -2,6 +2,32 @@
 
 Simulation experiments and suchlike.
 
+## Building
+
+The build system has been converted from GNU Make to **TDBuilder** (Deno-based).
+
+### Building with Deno
+
+```bash
+# Install dependencies and build all libraries
+deno run -A make.ts
+
+# Run unit tests
+deno run -A make.ts test
+
+# Build specific target
+deno run -A make.ts target/cjs
+
+# List all available targets
+deno run -A make.ts --list-targets
+
+# Clean build artifacts
+deno run -A make.ts sortaclean
+```
+
+### Legacy Make Commands (still available)
+
+If you prefer the old Makefile:
 ```make run-unit-tests``` to build and run the unit tests.
 
 ```make js-libs``` to build both client (AMD) and server (CJS)-side libraries.

@@ -1,5 +1,6 @@
 /.env
 /.vscode
+/deno.lock
 /build.log
 /JSTestRunner.html
 /demos/RandomMazes-libs-only.js
