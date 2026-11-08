@@ -140,20 +140,31 @@ function brAlias(targetNames: Iterable<string> | AsyncIterable<string>): BuildRu
 }
 
 // Helper to find files matching patterns
-async function findFiles(baseDir: string, pattern: RegExp): Promise<string[]> {
-	if (!await fileExists(baseDir)) {
-		return [];
-	}
-	const files: string[] = [];
+async function findFiles(basePath: string, pattern: RegExp): Promise<string[]> {
+	let stat: Deno.FileInfo;
 	try {
-		for await (const entry of Deno.readDir(baseDir)) {
-			if (entry.isFile && pattern.test(entry.name)) {
-				files.push(`${baseDir}/${entry.name}`);
-			}
-		}
-	} catch (_e) {
-		// Directory might not exist yet
+		stat = await Deno.stat(basePath);
+	} catch (e) {
+		if (e instanceof Deno.errors.NotFound) return [];
+		throw e;
 	}
+
+	if (stat.isFile) {
+		return pattern.test(basePath) ? [basePath] : [];
+	}
+	if (!stat.isDirectory) return [];
+
+	let files: string[] = [];
+	const dirsToScan: string[] = [basePath];
+
+	while (dirsToScan.length > 0) {
+		const dir = dirsToScan.pop() as string;
+		for await (const entry of Deno.readDir(dir)) {
+			const fullPath = `${dir}/${entry.name}`;
+			files = files.concat(await findFiles(fullPath, pattern));
+		}
+	}
+
 	return files;
 }
 
