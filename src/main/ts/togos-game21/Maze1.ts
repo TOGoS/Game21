@@ -1983,6 +1983,13 @@ interface SoundEffect {
 
 type GameContextListener = (ctx:GameContext)=>void;
 
+function intoKeyedList(keys:string[]|undefined, into:KeyedList<boolean>){
+	if( keys == undefined ) return;
+	if( keys ) for( const i in keys ) {
+		into[keys[i]] = true;
+	}
+}
+
 export class MazeDemo {
 	public datastore : Datastore<Uint8Array>;
 	public memoryDatastore : MemoryDatastore<Uint8Array>;
@@ -2187,6 +2194,23 @@ export class MazeDemo {
 		
 		[KEY_CTRL]: ['pick'],
 	};
+	protected gamepadButtonActions:KeyedList<string[]> = {
+		// D-pad buttons:
+		12: ['up'],
+		13: ['down'],
+		14: ['left'],
+		15: ['right'],
+		// TODO: CoPilot generated the 'pick' binding, which is for editor mode.
+		// Make sure it's actually useful, or remove it (I didn't intend for gamepad to be used in editor mode!)
+		// Face buttons:
+		0: ['up'],
+		1: ['up'],
+		2: ['up', 'pick'],
+		3: ['up'],
+		// Shoulders:
+		4: ['up', 'pick'],
+		5: ['up', 'pick'],
+	};
 	
 	protected keysDown:KeyedList<boolean> = {};
 	protected gamepadAxisDeadzone:number = 0.35;
@@ -2195,11 +2219,8 @@ export class MazeDemo {
 	protected lastPicking:boolean = false;
 	protected collectKeyboardActions():KeyedList<boolean> {
 		const actions:KeyedList<boolean> = {};
-		for( let k in this.keysDown ) {
-			const acts = this.keyActions[k];
-			if( acts ) for( const a in acts ) {
-				actions[acts[a]] = true;
-			}
+		for( const k in this.keysDown ) {
+			intoKeyedList(this.keyActions[k], actions);
 		}
 		return actions;
 	}
@@ -2208,7 +2229,7 @@ export class MazeDemo {
 		return !!b && (b.pressed || b.value >= 0.5);
 	}
 	protected collectGamepadActions():KeyedList<boolean> {
-		const actions:KeyedList<boolean> = {};
+		let actions:KeyedList<boolean> = {};
 		const nav = navigator as Navigator & { getGamepads?:() => (Gamepad|null)[] };
 		if( nav == null || nav.getGamepads == undefined ) return actions;
 		const gamepads = nav.getGamepads();
@@ -2217,24 +2238,15 @@ export class MazeDemo {
 			if( gp == null || !gp.connected ) continue;
 			const ax = gp.axes[0] || 0;
 			const ay = gp.axes[1] || 0;
-			if( ax <= -this.gamepadAxisDeadzone ) actions['left'] = true;
+			if( ax <= -this.gamepadAxisDeadzone ) actions['left']  = true;
 			if( ax >= +this.gamepadAxisDeadzone ) actions['right'] = true;
-			if( ay <= -this.gamepadAxisDeadzone ) actions['up'] = true;
-			if( ay >= +this.gamepadAxisDeadzone ) actions['down'] = true;
-			if( this.isGamepadButtonPressed(gp.buttons, 12) ) actions['up'] = true; // D-pad up
-			if( this.isGamepadButtonPressed(gp.buttons, 13) ) actions['down'] = true; // D-pad down
-			if( this.isGamepadButtonPressed(gp.buttons, 14) ) actions['left'] = true; // D-pad left
-			if( this.isGamepadButtonPressed(gp.buttons, 15) ) actions['right'] = true; // D-pad right
-			if(
-				this.isGamepadButtonPressed(gp.buttons, 0) ||
-				this.isGamepadButtonPressed(gp.buttons, 1) ||
-				this.isGamepadButtonPressed(gp.buttons, 2) ||
-				this.isGamepadButtonPressed(gp.buttons, 3) ||
-				this.isGamepadButtonPressed(gp.buttons, 4) ||
-				this.isGamepadButtonPressed(gp.buttons, 5)
-			) actions['up'] = true; // Face buttons (A/B/X/Y on many controllers)
-			if( this.isGamepadButtonPressed(gp.buttons, 2) || this.isGamepadButtonPressed(gp.buttons, 4) || this.isGamepadButtonPressed(gp.buttons, 5) ) {
-				actions['pick'] = true;
+			if( ay <= -this.gamepadAxisDeadzone ) actions['up']    = true;
+			if( ay >= +this.gamepadAxisDeadzone ) actions['down']  = true;
+			for( const bi in this.gamepadButtonActions ) {
+				const buttonIndex = +bi;
+				if( this.isGamepadButtonPressed(gp.buttons, buttonIndex) ) {
+					intoKeyedList(this.gamepadButtonActions[bi], actions);
+				}
 			}
 		}
 		return actions;
