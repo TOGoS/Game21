@@ -2076,6 +2076,9 @@ export class MazeDemo {
 	}
 	
 	protected tick() {
+		// TODO: Only call when keys and/or gamepad buttons actually pressed;
+		// doing every tick...probably doesn't hurt, but makes the
+		// internal keysdown cache pointless.
 		this.keysUpdated();
 		this.simulator.update(this.tickRate);
 		this.updateView();
